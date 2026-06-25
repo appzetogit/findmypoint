@@ -67,7 +67,7 @@ export default function PlaceDetailPage({ placeName, onBack, onBusinessSelect, o
     activities: { left: false, right: true }
   });
 
-  const checkSectionScroll = (ref: React.RefObject<HTMLDivElement>, section: keyof typeof scrollStates) => {
+  const checkSectionScroll = (ref: React.RefObject<HTMLDivElement | null>, section: keyof typeof scrollStates) => {
     if (ref.current) {
       const { scrollLeft, scrollWidth, clientWidth } = ref.current;
       setScrollStates(prev => ({
@@ -97,7 +97,7 @@ export default function PlaceDetailPage({ placeName, onBack, onBusinessSelect, o
     return () => timers.forEach(clearTimeout);
   }, [placeName]);
 
-  const handleCarouselScroll = (ref: React.RefObject<HTMLDivElement>, direction: "left" | "right", section: keyof typeof scrollStates) => {
+  const handleCarouselScroll = (ref: React.RefObject<HTMLDivElement | null>, direction: "left" | "right", section: keyof typeof scrollStates) => {
     if (ref.current) {
       const container = ref.current;
       const cardWidth = container.firstElementChild

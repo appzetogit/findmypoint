@@ -276,7 +276,7 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
                   type="text"
                   maxLength={1}
                   value={val}
-                  ref={(el) => (otpInputsRef.current[idx] = el)}
+                  ref={(el) => { otpInputsRef.current[idx] = el; }}
                   onChange={(e) => handleOtpChange(idx, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                   className="w-12 h-14 border border-slate-200 rounded-2xl text-center text-xl font-extrabold text-slate-900 bg-slate-50/50 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all duration-300 shadow-sm"

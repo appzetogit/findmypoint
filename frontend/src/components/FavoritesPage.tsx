@@ -10,7 +10,7 @@ export default function FavoritesPage({ onNavigateToBusiness }: FavoritesPagePro
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("fmp_profile_favorites");
+      const saved = localStorage.getItem("fmp_profile_favorites:v1");
       if (saved) {
         setFavorites(JSON.parse(saved));
       } else {

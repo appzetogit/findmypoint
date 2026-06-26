@@ -10,7 +10,7 @@ export default function SavedPage({ onNavigateToBusiness }: SavedPageProps) {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("fmp_saved_listings");
+      const saved = localStorage.getItem("fmp_saved_listings:v1");
       if (saved) {
         setSavedListings(JSON.parse(saved));
       } else {
@@ -18,7 +18,7 @@ export default function SavedPage({ onNavigateToBusiness }: SavedPageProps) {
           { id: "REST002213", name: "Shree shyam restaurant", category: "Food Point", sub: "Restaurants", rating: 4.8, address: "Jaipur Highway, Mansarovar", image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500&auto=format&fit=crop&q=60" },
           { id: "HOTEL001", name: "The Royal Palace Hotel", category: "Hotel Point", sub: "Hotels", rating: 4.9, address: "Subhash Marg, C-Scheme", image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&auto=format&fit=crop&q=60" }
         ];
-        localStorage.setItem("fmp_saved_listings", JSON.stringify(defaultSaved));
+        localStorage.setItem("fmp_saved_listings:v1", JSON.stringify(defaultSaved));
         setSavedListings(defaultSaved);
       }
     } catch (e) {
@@ -29,7 +29,7 @@ export default function SavedPage({ onNavigateToBusiness }: SavedPageProps) {
   const handleRemoveSaved = (id: string) => {
     const updated = savedListings.filter(item => item.id !== id);
     setSavedListings(updated);
-    localStorage.setItem("fmp_saved_listings", JSON.stringify(updated));
+    localStorage.setItem("fmp_saved_listings:v1", JSON.stringify(updated));
   };
 
   return (

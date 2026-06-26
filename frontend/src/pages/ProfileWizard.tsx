@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useReducer } from "react";
 import { 
   User, MapPin, Heart, Check, X, Upload, Plus, Trash2, 
   ShieldCheck, Mail, Phone, Briefcase, Calendar, CheckCircle2, ChevronRight, ArrowLeft 
@@ -22,6 +22,120 @@ interface AddressItem {
   tag: string;
 }
 
+// Types and Reducers for Profile Wizard Flow
+interface ProfileWizardState {
+  step: number;
+  personal: {
+    title: string;
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    dobDD: string;
+    dobMM: string;
+    dobYYYY: string;
+    maritalStatus: string;
+    occupation: string;
+    mobile1: string;
+    mobile2: string;
+    avatar: string;
+  };
+  mobile2Verified: boolean;
+  verifyingMobile: boolean;
+  addresses: AddressItem[];
+  newAddr: {
+    name: string;
+    phone: string;
+    email: string;
+    address: string;
+    pincode: string;
+    city: string;
+    landlineStd: string;
+    landlineNum: string;
+    tag: string;
+  };
+  selectedFavorites: string[];
+}
+
+type ProfileWizardAction =
+  | { type: "SET_STEP"; step: number }
+  | { type: "UPDATE_PERSONAL"; fields: Partial<ProfileWizardState["personal"]> }
+  | { type: "SET_PERSONAL"; value: ProfileWizardState["personal"] }
+  | { type: "SET_MOBILE2_VERIFIED"; value: boolean }
+  | { type: "SET_VERIFYING_MOBILE"; value: boolean }
+  | { type: "SET_ADDRESSES"; value: AddressItem[] }
+  | { type: "UPDATE_NEW_ADDR"; fields: Partial<ProfileWizardState["newAddr"]> }
+  | { type: "RESET_NEW_ADDR"; username: string }
+  | { type: "SET_FAVORITES"; value: string[] };
+
+const initialProfileWizardState = (username: string): ProfileWizardState => ({
+  step: 1,
+  personal: {
+    title: "Mr",
+    firstName: username || "",
+    middleName: "",
+    lastName: "",
+    dobDD: "",
+    dobMM: "",
+    dobYYYY: "",
+    maritalStatus: "Single",
+    occupation: "Employed",
+    mobile1: "7223077890",
+    mobile2: "",
+    avatar: ""
+  },
+  mobile2Verified: false,
+  verifyingMobile: false,
+  addresses: [],
+  newAddr: {
+    name: username || "",
+    phone: "7223077890",
+    email: "",
+    address: "",
+    pincode: "",
+    city: "",
+    landlineStd: "",
+    landlineNum: "",
+    tag: "Home"
+  },
+  selectedFavorites: []
+});
+
+function profileWizardReducer(state: ProfileWizardState, action: ProfileWizardAction): ProfileWizardState {
+  switch (action.type) {
+    case "SET_STEP":
+      return { ...state, step: action.step };
+    case "UPDATE_PERSONAL":
+      return { ...state, personal: { ...state.personal, ...action.fields } };
+    case "SET_PERSONAL":
+      return { ...state, personal: action.value };
+    case "SET_MOBILE2_VERIFIED":
+      return { ...state, mobile2Verified: action.value };
+    case "SET_VERIFYING_MOBILE":
+      return { ...state, verifyingMobile: action.value };
+    case "SET_ADDRESSES":
+      return { ...state, addresses: action.value };
+    case "UPDATE_NEW_ADDR":
+      return { ...state, newAddr: { ...state.newAddr, ...action.fields } };
+    case "RESET_NEW_ADDR":
+      return {
+        ...state,
+        newAddr: {
+          ...state.newAddr,
+          address: "",
+          pincode: "",
+          city: "",
+          landlineStd: "",
+          landlineNum: "",
+          tag: "Home"
+        }
+      };
+    case "SET_FAVORITES":
+      return { ...state, selectedFavorites: action.value };
+    default:
+      return state;
+  }
+}
+
 const FAVORITE_CATEGORIES = [
   { id: "doctor", label: "Doctor", icon: "🩺" },
   { id: "hospital", label: "Hospital", icon: "➕" },
@@ -39,62 +153,35 @@ const FAVORITE_CATEGORIES = [
 ];
 
 export default function ProfileWizard({ onClose, username }: ProfileWizardProps) {
-  const [step, setStep] = useState<number>(1);
-  
-  // Step 1: Personal Details State
-  const [personal, setPersonal] = useState({
-    title: "Mr",
-    firstName: username || "",
-    middleName: "",
-    lastName: "",
-    dobDD: "",
-    dobMM: "",
-    dobYYYY: "",
-    maritalStatus: "Single",
-    occupation: "Employed",
-    mobile1: "7223077890",
-    mobile2: "",
-    avatar: "" // base64 string
-  });
-  
-  const [mobile2Verified, setMobile2Verified] = useState(false);
-  const [verifyingMobile, setVerifyingMobile] = useState(false);
-
-  // Step 2: Address List State
-  const [addresses, setAddresses] = useState<AddressItem[]>([]);
-  const [newAddr, setNewAddr] = useState({
-    name: username || "",
-    phone: "7223077890",
-    email: "",
-    address: "",
-    pincode: "",
-    city: "",
-    landlineStd: "",
-    landlineNum: "",
-    tag: "Home"
-  });
-
-  // Step 3: Favorites state
-  const [selectedFavorites, setSelectedFavorites] = useState<string[]>([]);
+  const [state, dispatch] = useReducer(profileWizardReducer, initialProfileWizardState(username || ""));
+  const {
+    step,
+    personal,
+    mobile2Verified,
+    verifyingMobile,
+    addresses,
+    newAddr,
+    selectedFavorites
+  } = state;
 
   // Load existing profile from localStorage
   useEffect(() => {
     try {
-      const savedPersonal = localStorage.getItem("fmp_profile_personal");
+      const savedPersonal = localStorage.getItem("fmp_profile_personal:v1");
       if (savedPersonal) {
-        setPersonal(JSON.parse(savedPersonal));
+        dispatch({ type: "SET_PERSONAL", value: JSON.parse(savedPersonal) });
       } else if (username) {
-        setPersonal(prev => ({ ...prev, firstName: username }));
+        dispatch({ type: "UPDATE_PERSONAL", fields: { firstName: username } });
       }
       
-      const savedAddresses = localStorage.getItem("fmp_profile_addresses");
+      const savedAddresses = localStorage.getItem("fmp_profile_addresses:v1");
       if (savedAddresses) {
-        setAddresses(JSON.parse(savedAddresses));
+        dispatch({ type: "SET_ADDRESSES", value: JSON.parse(savedAddresses) });
       }
       
-      const savedFavorites = localStorage.getItem("fmp_profile_favorites");
+      const savedFavorites = localStorage.getItem("fmp_profile_favorites:v1");
       if (savedFavorites) {
-        setSelectedFavorites(JSON.parse(savedFavorites));
+        dispatch({ type: "SET_FAVORITES", value: JSON.parse(savedFavorites) });
       }
     } catch (e) {
       console.error("Failed to load profile data from local storage", e);
@@ -107,7 +194,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPersonal(prev => ({ ...prev, avatar: reader.result as string }));
+        dispatch({ type: "UPDATE_PERSONAL", fields: { avatar: reader.result as string } });
       };
       reader.readAsDataURL(file);
     }
@@ -116,8 +203,8 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
   // Step 1 Save
   const handleSavePersonal = (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem("fmp_profile_personal", JSON.stringify(personal));
-    setStep(2);
+    localStorage.setItem("fmp_profile_personal:v1", JSON.stringify(personal));
+    dispatch({ type: "SET_STEP", step: 2 });
   };
 
   // Step 2 Save new address
@@ -127,47 +214,37 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
       id: Math.random().toString(36).substring(2, 9)
     };
     const updated = [...addresses, item];
-    setAddresses(updated);
-    localStorage.setItem("fmp_profile_addresses", JSON.stringify(updated));
+    dispatch({ type: "SET_ADDRESSES", value: updated });
+    localStorage.setItem("fmp_profile_addresses:v1", JSON.stringify(updated));
     // Reset form fields
-    setNewAddr(prev => ({
-      ...prev,
-      address: "",
-      pincode: "",
-      city: "",
-      landlineStd: "",
-      landlineNum: "",
-      tag: "Home"
-    }));
+    dispatch({ type: "RESET_NEW_ADDR", username: username || "" });
   };
 
   const handleDeleteAddress = (id: string) => {
     const updated = addresses.filter(a => a.id !== id);
-    setAddresses(updated);
-    localStorage.setItem("fmp_profile_addresses", JSON.stringify(updated));
+    dispatch({ type: "SET_ADDRESSES", value: updated });
+    localStorage.setItem("fmp_profile_addresses:v1", JSON.stringify(updated));
   };
 
   const handleSaveAddresses = () => {
     if (addresses.length === 0 && newAddr.address) {
       handleAddAddress();
     }
-    setStep(3);
+    dispatch({ type: "SET_STEP", step: 3 });
   };
 
   // Toggle favorite category selection
   const toggleFavorite = (id: string) => {
-    setSelectedFavorites(prev => {
-      const updated = prev.includes(id) 
-        ? prev.filter(f => f !== id) 
-        : [...prev, id];
-      localStorage.setItem("fmp_profile_favorites", JSON.stringify(updated));
-      return updated;
-    });
+    const updated = selectedFavorites.includes(id) 
+      ? selectedFavorites.filter(f => f !== id) 
+      : [...selectedFavorites, id];
+    dispatch({ type: "SET_FAVORITES", value: updated });
+    localStorage.setItem("fmp_profile_favorites:v1", JSON.stringify(updated));
   };
 
   // Complete profile wizard
   const handleCompleteWizard = () => {
-    setStep(4);
+    dispatch({ type: "SET_STEP", step: 4 });
   };
 
   // Generate mock DOB days & years
@@ -188,10 +265,10 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
       alert("Please enter Mobile Number 2 to verify.");
       return;
     }
-    setVerifyingMobile(true);
+    dispatch({ type: "SET_VERIFYING_MOBILE", value: true });
     setTimeout(() => {
-      setVerifyingMobile(false);
-      setMobile2Verified(true);
+      dispatch({ type: "SET_VERIFYING_MOBILE", value: false });
+      dispatch({ type: "SET_MOBILE2_VERIFIED", value: true });
       alert("OTP Verified Successfully!");
     }, 1500);
   };
@@ -249,7 +326,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                     {/* Step circle indicator */}
                     <button
                       disabled={step < item.s}
-                      onClick={() => setStep(item.s)}
+                      onClick={() => dispatch({ type: "SET_STEP", step: item.s })}
                       className={`flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-300 ${
                         isCompleted
                           ? "bg-accent border-accent text-accent-foreground"
@@ -326,10 +403,11 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                     {/* Name fields */}
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
                       <div className="sm:col-span-3">
-                        <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Title</label>
+                        <label htmlFor="profileTitle" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Title</label>
                         <select 
+                          id="profileTitle"
                           value={personal.title}
-                          onChange={(e) => setPersonal(prev => ({ ...prev, title: e.target.value }))}
+                          onChange={(e) => dispatch({ type: "UPDATE_PERSONAL", fields: { title: e.target.value } })}
                           className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                         >
                           <option value="Mr">Mr.</option>
@@ -338,11 +416,12 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                         </select>
                       </div>
                       <div className="sm:col-span-9">
-                        <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">First Name</label>
+                        <label htmlFor="profileFirstName" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">First Name</label>
                         <input 
+                          id="profileFirstName"
                           type="text" 
                           value={personal.firstName}
-                          onChange={(e) => setPersonal(prev => ({ ...prev, firstName: e.target.value }))}
+                          onChange={(e) => dispatch({ type: "UPDATE_PERSONAL", fields: { firstName: e.target.value } })}
                           placeholder="First Name"
                           className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                         />
@@ -351,21 +430,23 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Middle Name</label>
+                        <label htmlFor="profileMiddleName" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Middle Name</label>
                         <input 
+                          id="profileMiddleName"
                           type="text" 
                           value={personal.middleName}
-                          onChange={(e) => setPersonal(prev => ({ ...prev, middleName: e.target.value }))}
+                          onChange={(e) => dispatch({ type: "UPDATE_PERSONAL", fields: { middleName: e.target.value } })}
                           placeholder="Middle Name"
                           className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Last Name</label>
+                        <label htmlFor="profileLastName" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Last Name</label>
                         <input 
+                          id="profileLastName"
                           type="text" 
                           value={personal.lastName}
-                          onChange={(e) => setPersonal(prev => ({ ...prev, lastName: e.target.value }))}
+                          onChange={(e) => dispatch({ type: "UPDATE_PERSONAL", fields: { lastName: e.target.value } })}
                           placeholder="Last Name"
                           className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                         />
@@ -374,11 +455,11 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
 
                     {/* Date of Birth Selectors */}
                     <div>
-                      <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Date of Birth (DOB)</label>
+                      <span className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Date of Birth (DOB)</span>
                       <div className="grid grid-cols-3 gap-3.5">
                         <select 
                           value={personal.dobDD}
-                          onChange={(e) => setPersonal(prev => ({ ...prev, dobDD: e.target.value }))}
+                          onChange={(e) => dispatch({ type: "UPDATE_PERSONAL", fields: { dobDD: e.target.value } })}
                           className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                         >
                           <option value="">DD</option>
@@ -387,7 +468,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
 
                         <select 
                           value={personal.dobMM}
-                          onChange={(e) => setPersonal(prev => ({ ...prev, dobMM: e.target.value }))}
+                          onChange={(e) => dispatch({ type: "UPDATE_PERSONAL", fields: { dobMM: e.target.value } })}
                           className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                         >
                           <option value="">Month</option>
@@ -396,7 +477,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
 
                         <select 
                           value={personal.dobYYYY}
-                          onChange={(e) => setPersonal(prev => ({ ...prev, dobYYYY: e.target.value }))}
+                          onChange={(e) => dispatch({ type: "UPDATE_PERSONAL", fields: { dobYYYY: e.target.value } })}
                           className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                         >
                           <option value="">YYYY</option>
@@ -407,10 +488,11 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Marital Status</label>
+                        <label htmlFor="profileMaritalStatus" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Marital Status</label>
                         <select 
+                          id="profileMaritalStatus"
                           value={personal.maritalStatus}
-                          onChange={(e) => setPersonal(prev => ({ ...prev, maritalStatus: e.target.value }))}
+                          onChange={(e) => dispatch({ type: "UPDATE_PERSONAL", fields: { maritalStatus: e.target.value } })}
                           className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                         >
                           <option value="Single">Single</option>
@@ -420,10 +502,11 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                         </select>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Occupation</label>
+                        <label htmlFor="profileOccupation" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Occupation</label>
                         <select 
+                          id="profileOccupation"
                           value={personal.occupation}
-                          onChange={(e) => setPersonal(prev => ({ ...prev, occupation: e.target.value }))}
+                          onChange={(e) => dispatch({ type: "UPDATE_PERSONAL", fields: { occupation: e.target.value } })}
                           className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                         >
                           <option value="Employed">Employed</option>
@@ -457,6 +540,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                           type="file" 
                           accept="image/*"
                           onChange={handleImageChange}
+                          aria-label="Upload Avatar"
                           className="hidden"
                         />
                       </label>
@@ -466,16 +550,17 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                     {/* Mobiles */}
                     <div className="w-full text-left space-y-3 pt-2">
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1">Mobile Number 1</label>
+                        <label htmlFor="profileMobile1" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1">Mobile Number 1</label>
                         <div className="relative flex">
                           <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-border bg-secondary text-xs font-bold text-muted-foreground">
                             +91
                           </span>
                           <input 
+                            id="profileMobile1"
                             type="tel" 
                             maxLength={10}
                             value={personal.mobile1}
-                            onChange={(e) => setPersonal(prev => ({ ...prev, mobile1: e.target.value.replace(/[^0-9]/g, "") }))}
+                            onChange={(e) => dispatch({ type: "UPDATE_PERSONAL", fields: { mobile1: e.target.value.replace(/[^0-9]/g, "") } })}
                             placeholder="Primary Mobile"
                             className="flex-1 rounded-r-xl border border-border bg-background px-3.5 py-2.5 text-xs font-bold outline-none focus:border-accent"
                           />
@@ -483,17 +568,18 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1">Mobile Number 2</label>
+                        <label htmlFor="profileMobile2" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1">Mobile Number 2</label>
                         <div className="flex gap-2">
                           <div className="relative flex flex-1">
                             <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-border bg-secondary text-xs font-bold text-muted-foreground">
                               +91
                             </span>
                             <input 
+                              id="profileMobile2"
                               type="tel" 
                               maxLength={10}
                               value={personal.mobile2}
-                              onChange={(e) => setPersonal(prev => ({ ...prev, mobile2: e.target.value.replace(/[^0-9]/g, "") }))}
+                              onChange={(e) => dispatch({ type: "UPDATE_PERSONAL", fields: { mobile2: e.target.value.replace(/[^0-9]/g, "") } })}
                               placeholder="Secondary Mobile"
                               className="flex-1 rounded-r-xl border border-border bg-background px-3.5 py-2.5 text-xs font-bold outline-none focus:border-accent"
                             />
@@ -544,25 +630,27 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Recipient Name</label>
+                        <label htmlFor="addrName" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Recipient Name</label>
                         <input 
+                          id="addrName"
                           type="text" 
                           value={newAddr.name}
-                          onChange={(e) => setNewAddr(prev => ({ ...prev, name: e.target.value }))}
+                          onChange={(e) => dispatch({ type: "UPDATE_NEW_ADDR", fields: { name: e.target.value } })}
                           placeholder="Recipient Name"
                           className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Contact Number</label>
+                        <label htmlFor="addrPhone" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Contact Number</label>
                         <div className="relative flex">
                           <span className="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 border-border bg-secondary text-[11px] font-bold text-muted-foreground">
                             +91
                           </span>
                           <input 
+                            id="addrPhone"
                             type="tel" 
                             value={newAddr.phone}
-                            onChange={(e) => setNewAddr(prev => ({ ...prev, phone: e.target.value.replace(/[^0-9]/g, "") }))}
+                            onChange={(e) => dispatch({ type: "UPDATE_NEW_ADDR", fields: { phone: e.target.value.replace(/[^0-9]/g, "") } })}
                             placeholder="Mobile"
                             className="flex-1 rounded-r-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                           />
@@ -571,11 +659,12 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Email Address</label>
+                      <label htmlFor="addrEmail" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Email Address</label>
                       <input 
+                        id="addrEmail"
                         type="email" 
                         value={newAddr.email}
-                        onChange={(e) => setNewAddr(prev => ({ ...prev, email: e.target.value }))}
+                        onChange={(e) => dispatch({ type: "UPDATE_NEW_ADDR", fields: { email: e.target.value } })}
                         placeholder="recipient@example.com"
                         className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                       />
@@ -583,21 +672,23 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
 
                     <div className="grid grid-cols-3 gap-3">
                       <div className="col-span-2">
-                        <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">City</label>
+                        <label htmlFor="addrCity" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">City</label>
                         <input 
+                          id="addrCity"
                           type="text" 
                           value={newAddr.city}
-                          onChange={(e) => setNewAddr(prev => ({ ...prev, city: e.target.value }))}
+                          onChange={(e) => dispatch({ type: "UPDATE_NEW_ADDR", fields: { city: e.target.value } })}
                           placeholder="City"
                           className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Pincode</label>
+                        <label htmlFor="addrPincode" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Pincode</label>
                         <input 
+                          id="addrPincode"
                           type="text" 
                           value={newAddr.pincode}
-                          onChange={(e) => setNewAddr(prev => ({ ...prev, pincode: e.target.value }))}
+                          onChange={(e) => dispatch({ type: "UPDATE_NEW_ADDR", fields: { pincode: e.target.value } })}
                           placeholder="Pincode"
                           className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                         />
@@ -605,11 +696,12 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Address Details</label>
+                      <label htmlFor="addrDetails" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Address Details</label>
                       <textarea 
+                        id="addrDetails"
                         rows={2}
                         value={newAddr.address}
-                        onChange={(e) => setNewAddr(prev => ({ ...prev, address: e.target.value }))}
+                        onChange={(e) => dispatch({ type: "UPDATE_NEW_ADDR", fields: { address: e.target.value } })}
                         placeholder="House No, Floor, Street, Landmark details..."
                         className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent resize-none"
                       />
@@ -617,29 +709,32 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
 
                     <div className="grid grid-cols-12 gap-3 items-end">
                       <div className="col-span-8">
-                        <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Landline (Optional)</label>
+                        <span className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Landline (Optional)</span>
                         <div className="flex gap-1.5">
                           <input 
                             type="text" 
                             placeholder="STD"
+                            aria-label="STD Code"
                             value={newAddr.landlineStd}
-                            onChange={(e) => setNewAddr(prev => ({ ...prev, landlineStd: e.target.value.replace(/[^0-9]/g, "") }))}
+                            onChange={(e) => dispatch({ type: "UPDATE_NEW_ADDR", fields: { landlineStd: e.target.value.replace(/[^0-9]/g, "") } })}
                             className="w-16 rounded-xl border border-border bg-background px-2.5 py-2.5 text-xs font-semibold text-center outline-none focus:border-accent"
                           />
                           <input 
                             type="text" 
                             placeholder="Landline Number"
+                            aria-label="Landline Number"
                             value={newAddr.landlineNum}
-                            onChange={(e) => setNewAddr(prev => ({ ...prev, landlineNum: e.target.value.replace(/[^0-9]/g, "") }))}
+                            onChange={(e) => dispatch({ type: "UPDATE_NEW_ADDR", fields: { landlineNum: e.target.value.replace(/[^0-9]/g, "") } })}
                             className="flex-1 rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                           />
                         </div>
                       </div>
                       <div className="col-span-4">
-                        <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Tag</label>
+                        <label htmlFor="addrTag" className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">Tag</label>
                         <select 
+                          id="addrTag"
                           value={newAddr.tag}
-                          onChange={(e) => setNewAddr(prev => ({ ...prev, tag: e.target.value }))}
+                          onChange={(e) => dispatch({ type: "UPDATE_NEW_ADDR", fields: { tag: e.target.value } })}
                           className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                         >
                           <option value="Home">Home</option>
@@ -696,7 +791,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                 <div className="flex justify-between pt-4 border-t border-border/40">
                   <button
                     type="button"
-                    onClick={() => setStep(1)}
+                    onClick={() => dispatch({ type: "SET_STEP", step: 1 })}
                     className="border border-border bg-background hover:bg-secondary text-foreground text-xs font-black px-5 py-3 rounded-xl transition cursor-pointer"
                   >
                     Back
@@ -744,7 +839,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                 <div className="flex justify-between pt-4 border-t border-border/40">
                   <button
                     type="button"
-                    onClick={() => setStep(2)}
+                    onClick={() => dispatch({ type: "SET_STEP", step: 2 })}
                     className="border border-border bg-background hover:bg-secondary text-foreground text-xs font-black px-5 py-3 rounded-xl transition cursor-pointer"
                   >
                     Back

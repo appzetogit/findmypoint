@@ -21,8 +21,13 @@ export default function PlaceDetailPage({ placeName, onBack, onBusinessSelect, o
   // Get data for selected place or default to Ujjain
   const placeData: TouristPlaceDetailData = touristPlacesData[placeName] || touristPlacesData.Ujjain;
 
-  const [bookmarked, setBookmarked] = useState(false);
-  const [activeFaqIndex, setActiveFaqIndex] = useState<number | null>(null);
+  // UI toggle states grouped to reduce useState hook count
+  const [uiState, setUiState] = useState({
+    bookmarked: false,
+    activeFaqIndex: null as number | null,
+    reviewSubmitted: false
+  });
+  const { bookmarked, activeFaqIndex, reviewSubmitted } = uiState;
   
   // Custom reviews state
   const [reviewsList, setReviewsList] = useState([
@@ -49,7 +54,6 @@ export default function PlaceDetailPage({ placeName, onBack, onBusinessSelect, o
     rating: 5,
     text: ""
   });
-  const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   // Scroll references for carousels
   const templesScrollRef = useRef<HTMLDivElement>(null);
@@ -158,11 +162,11 @@ export default function PlaceDetailPage({ placeName, onBack, onBusinessSelect, o
       ...reviewsList
     ]);
 
-    setReviewSubmitted(true);
+    setUiState(prev => ({ ...prev, reviewSubmitted: true }));
     setNewReview({ name: "", rating: 5, text: "" });
     
     setTimeout(() => {
-      setReviewSubmitted(false);
+      setUiState(prev => ({ ...prev, reviewSubmitted: false }));
     }, 4000);
   };
 
@@ -306,7 +310,7 @@ export default function PlaceDetailPage({ placeName, onBack, onBusinessSelect, o
               {/* Action Buttons */}
               <div className="flex items-center gap-3">
                 <button 
-                  onClick={() => setBookmarked(!bookmarked)}
+                  onClick={() => setUiState(prev => ({ ...prev, bookmarked: !prev.bookmarked }))}
                   className={`flex h-11 px-5 items-center gap-2 rounded-full border text-sm font-semibold transition-all duration-300 cursor-pointer shadow-sm ${bookmarked ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-secondary text-foreground border-border"}`}
                 >
                   <Bookmark className={`h-4.5 w-4.5 ${bookmarked ? "fill-primary-foreground" : ""}`} />
@@ -751,7 +755,7 @@ export default function PlaceDetailPage({ placeName, onBack, onBusinessSelect, o
                 <div 
                   key={index} 
                   className="rounded-xl border border-border/60 bg-card p-4.5 cursor-pointer shadow-[0_1px_4px_rgba(0,0,0,0.02)] transition hover:border-border/80"
-                  onClick={() => setActiveFaqIndex(activeFaqIndex === index ? null : index)}
+                  onClick={() => setUiState(prev => ({ ...prev, activeFaqIndex: activeFaqIndex === index ? null : index }))}
                 >
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-sm font-bold text-foreground">{faq.question}</span>
@@ -826,8 +830,9 @@ export default function PlaceDetailPage({ placeName, onBack, onBusinessSelect, o
                 ) : (
                   <form onSubmit={handleReviewSubmit} className="space-y-4">
                     <div>
-                      <label className="text-[11px] font-bold text-muted-foreground uppercase block mb-1">Your Name</label>
+                      <label htmlFor="reviewName" className="text-[11px] font-bold text-muted-foreground uppercase block mb-1">Your Name</label>
                       <input 
+                        id="reviewName"
                         type="text"
                         placeholder="Enter your name"
                         value={newReview.name}
@@ -838,13 +843,14 @@ export default function PlaceDetailPage({ placeName, onBack, onBusinessSelect, o
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-bold text-muted-foreground uppercase block mb-1.5">Rating</label>
+                      <span className="text-[11px] font-bold text-muted-foreground uppercase block mb-1.5">Rating</span>
                       <div className="flex gap-1.5">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <button
                             type="button"
                             key={star}
                             onClick={() => setNewReview({ ...newReview, rating: star })}
+                            aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
                             className="cursor-pointer transition transform hover:scale-110"
                           >
                             <Star 
@@ -856,8 +862,9 @@ export default function PlaceDetailPage({ placeName, onBack, onBusinessSelect, o
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-bold text-muted-foreground uppercase block mb-1">Your Review</label>
+                      <label htmlFor="reviewText" className="text-[11px] font-bold text-muted-foreground uppercase block mb-1">Your Review</label>
                       <textarea
+                        id="reviewText"
                         rows={4}
                         placeholder="Write details about your travel experience..."
                         value={newReview.text}

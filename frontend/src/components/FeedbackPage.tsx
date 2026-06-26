@@ -11,14 +11,14 @@ export default function FeedbackPage() {
     e.preventDefault();
     setFeedbackSubmitted(true);
     try {
-      const savedFeedbacks = JSON.parse(localStorage.getItem("fmp_feedbacks") || "[]");
+      const savedFeedbacks = JSON.parse(localStorage.getItem("fmp_feedbacks:v1") || "[]");
       savedFeedbacks.push({ 
         rating: feedbackRating, 
         category: feedbackCategory, 
         comments: feedbackComments, 
         date: new Date().toLocaleDateString() 
       });
-      localStorage.setItem("fmp_feedbacks", JSON.stringify(savedFeedbacks));
+      localStorage.setItem("fmp_feedbacks:v1", JSON.stringify(savedFeedbacks));
     } catch (e) {
       console.error("Failed to save feedback", e);
     }
@@ -55,13 +55,14 @@ export default function FeedbackPage() {
           
           {/* Rating */}
           <div className="space-y-2">
-            <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider text-left">Overall Rating</label>
+            <span className="block text-[10px] font-black uppercase text-slate-400 tracking-wider text-left">Overall Rating</span>
             <div className="flex gap-2 justify-center py-2 bg-secondary/5 border border-border/40 rounded-xl">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   type="button"
                   key={star}
                   onClick={() => setFeedbackRating(star)}
+                  aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
                   className="text-slate-300 hover:text-amber-400 transition cursor-pointer transform hover:scale-110"
                 >
                   <Star className={`h-8 w-8 ${star <= feedbackRating ? "text-amber-500 fill-amber-500" : "text-slate-200"}`} />
@@ -73,8 +74,9 @@ export default function FeedbackPage() {
           {/* Category */}
           <div className="grid grid-cols-2 gap-4">
             <div className="text-left">
-              <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Category Concern</label>
+              <label htmlFor="feedbackCategory" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Category Concern</label>
               <select 
+                id="feedbackCategory"
                 value={feedbackCategory}
                 onChange={(e) => setFeedbackCategory(e.target.value)}
                 className="w-full border border-border bg-background rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:border-primary cursor-pointer"
@@ -86,8 +88,9 @@ export default function FeedbackPage() {
               </select>
             </div>
             <div className="text-left">
-              <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Date Submitted</label>
+              <label htmlFor="dateSubmitted" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Date Submitted</label>
               <input 
+                id="dateSubmitted"
                 type="text" 
                 readOnly 
                 value={new Date().toLocaleDateString()}
@@ -98,8 +101,9 @@ export default function FeedbackPage() {
 
           {/* Comments */}
           <div className="text-left">
-            <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Feedback Details</label>
+            <label htmlFor="feedbackComments" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Feedback Details</label>
             <textarea 
+              id="feedbackComments"
               rows={3}
               required
               value={feedbackComments}

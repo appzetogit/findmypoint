@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useReducer, useMemo } from "react";
 import {
   ArrowLeft, Search, MapPin, Star, Phone, MessageSquare,
   BadgeCheck, ChevronRight, Clock, User, X, Check, ShieldCheck
@@ -9,7 +9,7 @@ import Footer from "./Footer";
 
 // Master list of subcategories provided by the client + standard fallbacks
 export const subcategoriesData: Record<string, string[]> = {
-  "Spa Point": ["Ayurvedic Spa", "Massage Center", "Beauty Spa", "Thai Massage", "Luxury Spa", "Unisex Salon"],
+  "Spa Point": ["Ayurvedic Spa", "Massage Center", "Beauty Spa", "Thai Massage", "Luxury Spa", "Unisex Salon", "Beauty Parlours", "Spa & Massages", "Salons"],
   "Tour Point": [
     "India", "Nepal", "Sri Lanka", "Bangladesh", "Indonesia", "Dubai", "UK", "USA", "Australia", 
     "Japan", "China", "Russia", "Maldives", "Bhutan", "Myanmar", "Thailand", "France", "Germany", 
@@ -25,7 +25,7 @@ export const subcategoriesData: Record<string, string[]> = {
     "Cook", "Driver", "Dry Cleaners", "Electrical & Electronic", "Home Teacher", "House Cleaner", 
     "Home interior & Decoration", "Labour", "Maid", "Marble & Tiles Repair", "Microwave Oven Repair", 
     "Mobile & Computer Repair", "Paint Man & Repair", "Plaster & Ceiling Repair", "Plumber Repair", 
-    "Refrigerator Repair", "TV Repair", "Washing Machine Repair", "Water tank Repair"
+    "Refrigerator Repair", "TV Repair", "Washing Machine Repair", "Water tank Repair", "AC Service", "Car Service", "Bike Service", "Electricians"
   ],
   "Education Point": [
     "Coaching Center", "College", "Computer Center", "Diploma College", "Engineering College", 
@@ -36,18 +36,19 @@ export const subcategoriesData: Record<string, string[]> = {
     "Animal Care", "CHC & PHC", "Clinic", "Doctors", "Hospital", "Medicine Store", "Nursing Home", 
     "Pathology", "Pharmacy"
   ],
-  "Hotel Point": ["5 Star Hotels", "Budget Hotels", "Resorts", "Guest House", "Lodging", "Homestays"],
+  "Hotel Point": ["5 Star Hotels", "Budget Hotels", "Resorts", "Guest House", "Lodging", "Homestays", "Banquet Halls"],
   "Doctor Point": ["Cardiologist", "Dentist", "Dermatologist", "Gynecologist", "Pediatrician", "General Physician", "Orthopedic"],
-  "Garments Point": ["Men's Wear", "Women's Wear", "Kids Wear", "Boutique", "Ethnic Wear", "Bridal Wear"],
+  "Garments Point": ["Men's Wear", "Women's Wear", "Kids Wear", "Boutique", "Ethnic Wear", "Bridal Wear", "Bridal Requisite"],
   "Astrologer Point": ["Vedic Astrologer", "Palm Reader", "Numerologist", "Tarot Card Reader", "Vastu Consultant", "Horoscope Expert"],
-  "Product Point": ["Electronics", "Mobile Phones", "Furniture", "Home Appliances", "Computers & Laptops", "Clothing & Apparel"],
-  "Food Point": ["Restaurants", "Cafes", "Sweet Shops", "Fast Food", "Bakeries", "Cloud Kitchens"],
+  "Product Point": ["Electronics", "Mobile Phones", "Furniture", "Home Appliances", "Computers & Laptops", "Clothing & Apparel", "Movies", "Grocery"],
+  "Food Point": ["Restaurants", "Cafes", "Sweet Shops", "Fast Food", "Bakeries", "Cloud Kitchens", "Caterers"],
   "Courier Point": ["Domestic Courier", "International Courier", "Cargo Services", "Express Delivery", "Local Parcel Service"],
   "Car Rental Point": ["Self-Drive Cars", "Chauffeur-Driven Cars", "Luxury Car Rental", "Airport Cab Service", "SUV Rental", "Wedding Car Rental"],
 };
 
 interface CategoryDetailPageProps {
   categoryName: string;
+  initialSubcategory?: string | null;
   onBack: () => void;
   onBusinessSelect: (id: string) => void;
   onSignInClick?: () => void;
@@ -55,8 +56,139 @@ interface CategoryDetailPageProps {
   username?: string | null;
 }
 
+// Types and Reducers for Booking Flow
+interface BookingState {
+  modalOpen: boolean;
+  selectedBiz: BusinessListingData | null;
+  submitted: boolean;
+  step: "form" | "payment" | "success";
+  form: Record<string, string>;
+  paymentMethod: "upi" | "card" | "netbanking";
+  upiId: string;
+  cardNumber: string;
+  cardExpiry: string;
+  cardCvv: string;
+  processing: boolean;
+}
+
+type BookingAction =
+  | { type: "OPEN_MODAL"; biz: BusinessListingData; form: Record<string, string> }
+  | { type: "CLOSE_MODAL" }
+  | { type: "SET_SUBMITTED"; value: boolean }
+  | { type: "SET_STEP"; step: "form" | "payment" | "success" }
+  | { type: "UPDATE_FORM"; fields: Record<string, string> }
+  | { type: "SET_PAYMENT_METHOD"; method: "upi" | "card" | "netbanking" }
+  | { type: "SET_PAYMENT_FIELD"; field: "upiId" | "cardNumber" | "cardExpiry" | "cardCvv"; value: string }
+  | { type: "SET_PROCESSING"; value: boolean }
+  | { type: "RESET" };
+
+const initialBookingState: BookingState = {
+  modalOpen: false,
+  selectedBiz: null,
+  submitted: false,
+  step: "form",
+  form: {},
+  paymentMethod: "upi",
+  upiId: "",
+  cardNumber: "",
+  cardExpiry: "",
+  cardCvv: "",
+  processing: false,
+};
+
+function bookingReducer(state: BookingState, action: BookingAction): BookingState {
+  switch (action.type) {
+    case "OPEN_MODAL":
+      return {
+        ...initialBookingState,
+        modalOpen: true,
+        selectedBiz: action.biz,
+        form: action.form,
+      };
+    case "CLOSE_MODAL":
+      return { ...state, modalOpen: false };
+    case "SET_SUBMITTED":
+      return { ...state, submitted: action.value };
+    case "SET_STEP":
+      return { ...state, step: action.step };
+    case "UPDATE_FORM":
+      return { ...state, form: { ...state.form, ...action.fields } };
+    case "SET_PAYMENT_METHOD":
+      return { ...state, paymentMethod: action.method };
+    case "SET_PAYMENT_FIELD":
+      return { ...state, [action.field]: action.value };
+    case "SET_PROCESSING":
+      return { ...state, processing: action.value };
+    case "RESET":
+      return initialBookingState;
+    default:
+      return state;
+  }
+}
+
+// Types and Reducers for Enquiry Flow
+interface EnquiryState {
+  modalOpen: boolean;
+  selectedBiz: BusinessListingData | null;
+  submitted: boolean;
+  form: {
+    name: string;
+    phone: string;
+    email: string;
+    message: string;
+  };
+}
+
+type EnquiryAction =
+  | { type: "OPEN_MODAL"; biz: BusinessListingData; message: string }
+  | { type: "CLOSE_MODAL" }
+  | { type: "SET_SUBMITTED"; value: boolean }
+  | { type: "UPDATE_FORM"; fields: Partial<EnquiryState["form"]> }
+  | { type: "RESET"; username: string };
+
+const initialEnquiryState = (username: string): EnquiryState => ({
+  modalOpen: false,
+  selectedBiz: null,
+  submitted: false,
+  form: {
+    name: username || "",
+    phone: "",
+    email: "",
+    message: "",
+  },
+});
+
+function enquiryReducer(state: EnquiryState, action: EnquiryAction): EnquiryState {
+  switch (action.type) {
+    case "OPEN_MODAL":
+      return {
+        ...state,
+        modalOpen: true,
+        selectedBiz: action.biz,
+        submitted: false,
+        form: {
+          name: state.form.name,
+          phone: "",
+          email: "",
+          message: action.message,
+        },
+      };
+    case "CLOSE_MODAL":
+      return { ...state, modalOpen: false };
+    case "SET_SUBMITTED":
+      return { ...state, submitted: action.value };
+    case "UPDATE_FORM":
+      return { ...state, form: { ...state.form, ...action.fields } };
+    case "RESET":
+      return initialEnquiryState(action.username);
+    default:
+      return state;
+  }
+}
+
 export default function CategoryDetailPage({
   categoryName,
+  initialSubcategory,
   onBack,
   onBusinessSelect,
   onSignInClick,
@@ -66,39 +198,54 @@ export default function CategoryDetailPage({
   // Get all subcategories for this category, fallback to empty array
   const subcategories = subcategoriesData[categoryName] || ["General Services"];
   
+  const [prevCategory, setPrevCategory] = useState(categoryName);
+  const [prevInitialSubcat, setPrevInitialSubcat] = useState(initialSubcategory);
   // Set the first subcategory as active initially
-  const [activeSubcategory, setActiveSubcategory] = useState<string>(subcategories[0]);
-  const [listings, setListings] = useState<BusinessListingData[]>([]);
+  const [activeSubcategory, setActiveSubcategory] = useState<string>(
+    initialSubcategory && subcategories.includes(initialSubcategory) ? initialSubcategory : subcategories[0]
+  );
+
+  if (categoryName !== prevCategory || initialSubcategory !== prevInitialSubcat) {
+    setPrevCategory(categoryName);
+    setPrevInitialSubcat(initialSubcategory);
+    setActiveSubcategory(
+      initialSubcategory && subcategories.includes(initialSubcategory) ? initialSubcategory : subcategories[0]
+    );
+  }
+
+  const listings = useMemo(() => {
+    return getBusinessesForSubcategory(categoryName, activeSubcategory);
+  }, [categoryName, activeSubcategory]);
   
-  // Search states
-  const [searchQuery, setSearchQuery] = useState("");
-  const [subcatSearch, setSubcatSearch] = useState("");
-
-  // Enquiry modal state
-  const [enquiryModalOpen, setEnquiryModalOpen] = useState(false);
-  const [selectedBizForEnquiry, setSelectedBizForEnquiry] = useState<BusinessListingData | null>(null);
-  const [enquirySubmitted, setEnquirySubmitted] = useState(false);
-  const [enquiryForm, setEnquiryForm] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    message: ""
+  // Search states grouped to reduce useState count
+  const [searchFilters, setSearchFilters] = useState({
+    query: "",
+    subcatQuery: ""
   });
+  const { query: searchQuery, subcatQuery: subcatSearch } = searchFilters;
 
-  // Booking modal states
-  const [bookingModalOpen, setBookingModalOpen] = useState(false);
-  const [selectedBizForBooking, setSelectedBizForBooking] = useState<BusinessListingData | null>(null);
-  const [bookingSubmitted, setBookingSubmitted] = useState(false);
-  const [bookingForm, setBookingForm] = useState<Record<string, string>>({});
+  const [bookingState, dispatchBooking] = useReducer(bookingReducer, initialBookingState);
+  const {
+    modalOpen: bookingModalOpen,
+    selectedBiz: selectedBizForBooking,
+    submitted: bookingSubmitted,
+    step: bookingStep,
+    form: bookingForm,
+    paymentMethod,
+    upiId,
+    cardNumber,
+    cardExpiry,
+    cardCvv,
+    processing: paymentProcessing,
+  } = bookingState;
 
-  // Payment states
-  const [bookingStep, setBookingStep] = useState<"form" | "payment" | "success">("form");
-  const [paymentMethod, setPaymentMethod] = useState<"upi" | "card" | "netbanking">("upi");
-  const [upiId, setUpiId] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
-  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [enquiryState, dispatchEnquiry] = useReducer(enquiryReducer, initialEnquiryState(username || ""));
+  const {
+    modalOpen: enquiryModalOpen,
+    selectedBiz: selectedBizForEnquiry,
+    submitted: enquirySubmitted,
+    form: enquiryForm,
+  } = enquiryState;
 
   const getBookingPrice = () => {
     if (!selectedBizForBooking) return 0;
@@ -125,14 +272,18 @@ export default function CategoryDetailPage({
   };
 
   // Phone reveal states
+  const [prevSubcatKey, setPrevSubcatKey] = useState(`${categoryName}-${activeSubcategory}`);
   const [revealedPhoneIds, setRevealedPhoneIds] = useState<Record<string, boolean>>({});
+
+  const currentSubcatKey = `${categoryName}-${activeSubcategory}`;
+  if (currentSubcatKey !== prevSubcatKey) {
+    setPrevSubcatKey(currentSubcatKey);
+    setRevealedPhoneIds({});
+  }
 
   // Generate or load listings whenever active subcategory changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
-    const data = getBusinessesForSubcategory(categoryName, activeSubcategory);
-    setListings(data);
-    setRevealedPhoneIds({});
   }, [categoryName, activeSubcategory]);
 
   // Handle changing subcategory
@@ -161,15 +312,11 @@ export default function CategoryDetailPage({
 
   // Handle opening enquiry modal
   const openEnquiryModal = (biz: BusinessListingData) => {
-    setSelectedBizForEnquiry(biz);
-    setEnquiryForm({
-      name: username || "",
-      phone: "",
-      email: "",
+    dispatchEnquiry({
+      type: "OPEN_MODAL",
+      biz,
       message: `Hi, I want to enquire about ${activeSubcategory} services from ${biz.name}.`
     });
-    setEnquiryModalOpen(true);
-    setEnquirySubmitted(false);
   };
 
   // Handle submitting enquiry
@@ -179,35 +326,29 @@ export default function CategoryDetailPage({
       alert("Please fill in your Name and Phone Number.");
       return;
     }
-    setEnquirySubmitted(true);
+    dispatchEnquiry({ type: "SET_SUBMITTED", value: true });
     setTimeout(() => {
-      setEnquiryModalOpen(false);
+      dispatchEnquiry({ type: "CLOSE_MODAL" });
     }, 2500);
   };
 
   // Handle opening booking modal
   const openBookingModal = (biz: BusinessListingData) => {
-    setSelectedBizForBooking(biz);
-    setBookingForm({
-      name: username || "",
-      phone: "",
-      email: "",
-      date: new Date().toISOString().split("T")[0],
-      persons: "1",
-      travelers: "1",
-      guests: "1",
-      roomType: categoryName === "Hotel Point" ? "Deluxe AC Room (₹1,999/night)" : "",
-      timeslot: (categoryName === "Health Care Point" || categoryName === "Doctor Point") ? "Morning Slot Consultation (09:00 AM - 01:00 PM) (Fee: ₹300)" : ""
+    dispatchBooking({
+      type: "OPEN_MODAL",
+      biz,
+      form: {
+        name: username || "",
+        phone: "",
+        email: "",
+        date: new Date().toISOString().split("T")[0],
+        persons: "1",
+        travelers: "1",
+        guests: "1",
+        roomType: categoryName === "Hotel Point" ? "Deluxe AC Room (₹1,999/night)" : "",
+        timeslot: (categoryName === "Health Care Point" || categoryName === "Doctor Point") ? "Morning Slot Consultation (09:00 AM - 01:00 PM) (Fee: ₹300)" : ""
+      }
     });
-    setBookingStep("form");
-    setPaymentMethod("upi");
-    setUpiId("");
-    setCardNumber("");
-    setCardExpiry("");
-    setCardCvv("");
-    setPaymentProcessing(false);
-    setBookingModalOpen(true);
-    setBookingSubmitted(false);
   };
 
   // Handle submitting booking
@@ -217,13 +358,13 @@ export default function CategoryDetailPage({
       alert("Please fill in your Name and Phone Number.");
       return;
     }
-    setBookingStep("payment");
+    dispatchBooking({ type: "SET_STEP", step: "payment" });
   };
 
   // Custom fields renderer for booking based on category
   const renderBookingFields = () => {
     const handleFieldChange = (field: string, value: string) => {
-      setBookingForm(prev => ({ ...prev, [field]: value }));
+      dispatchBooking({ type: "UPDATE_FORM", fields: { [field]: value } });
     };
 
     switch (categoryName) {
@@ -232,8 +373,9 @@ export default function CategoryDetailPage({
           <>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Booking Date*</label>
+                <label htmlFor="bookingSpaDate" className="block text-xs font-bold text-foreground/80 mb-1.5">Booking Date*</label>
                 <input
+                  id="bookingSpaDate"
                   type="date"
                   required
                   value={bookingForm.date || ""}
@@ -242,8 +384,9 @@ export default function CategoryDetailPage({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">No. of Persons*</label>
+                <label htmlFor="bookingSpaPersons" className="block text-xs font-bold text-foreground/80 mb-1.5">No. of Persons*</label>
                 <input
+                  id="bookingSpaPersons"
                   type="number"
                   min="1"
                   required
@@ -254,8 +397,9 @@ export default function CategoryDetailPage({
               </div>
             </div>
             <div>
-              <label className="block text-xs font-bold text-foreground/80 mb-1.5">Spa Treatment Preferred*</label>
+              <label htmlFor="bookingSpaPackage" className="block text-xs font-bold text-foreground/80 mb-1.5">Spa Treatment Preferred*</label>
               <select
+                id="bookingSpaPackage"
                 required
                 value={bookingForm.package || ""}
                 onChange={(e) => handleFieldChange("package", e.target.value)}
@@ -269,8 +413,9 @@ export default function CategoryDetailPage({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-foreground/80 mb-1.5">Preferred Time Slot*</label>
+              <label htmlFor="bookingSpaTimeslot" className="block text-xs font-bold text-foreground/80 mb-1.5">Preferred Time Slot*</label>
               <select
+                id="bookingSpaTimeslot"
                 required
                 value={bookingForm.timeslot || ""}
                 onChange={(e) => handleFieldChange("timeslot", e.target.value)}
@@ -292,8 +437,9 @@ export default function CategoryDetailPage({
           <>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Travel Date*</label>
+                <label htmlFor="bookingTourDate" className="block text-xs font-bold text-foreground/80 mb-1.5">Travel Date*</label>
                 <input
+                  id="bookingTourDate"
                   type="date"
                   required
                   value={bookingForm.date || ""}
@@ -302,8 +448,9 @@ export default function CategoryDetailPage({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">No. of Travelers*</label>
+                <label htmlFor="bookingTourTravelers" className="block text-xs font-bold text-foreground/80 mb-1.5">No. of Travelers*</label>
                 <input
+                  id="bookingTourTravelers"
                   type="number"
                   min="1"
                   required
@@ -315,8 +462,9 @@ export default function CategoryDetailPage({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Package Duration*</label>
+                <label htmlFor="bookingTourDuration" className="block text-xs font-bold text-foreground/80 mb-1.5">Package Duration*</label>
                 <select
+                  id="bookingTourDuration"
                   required
                   value={bookingForm.duration || ""}
                   onChange={(e) => handleFieldChange("duration", e.target.value)}
@@ -330,8 +478,9 @@ export default function CategoryDetailPage({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Accommodation Class*</label>
+                <label htmlFor="bookingTourHotelClass" className="block text-xs font-bold text-foreground/80 mb-1.5">Accommodation Class*</label>
                 <select
+                  id="bookingTourHotelClass"
                   required
                   value={bookingForm.hotelClass || ""}
                   onChange={(e) => handleFieldChange("hotelClass", e.target.value)}
@@ -352,8 +501,9 @@ export default function CategoryDetailPage({
           <>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Experience Level*</label>
+                <label htmlFor="bookingJobExperience" className="block text-xs font-bold text-foreground/80 mb-1.5">Experience Level*</label>
                 <select
+                  id="bookingJobExperience"
                   required
                   value={bookingForm.experience || ""}
                   onChange={(e) => handleFieldChange("experience", e.target.value)}
@@ -367,8 +517,9 @@ export default function CategoryDetailPage({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Notice Period*</label>
+                <label htmlFor="bookingJobNoticePeriod" className="block text-xs font-bold text-foreground/80 mb-1.5">Notice Period*</label>
                 <select
+                  id="bookingJobNoticePeriod"
                   required
                   value={bookingForm.noticePeriod || ""}
                   onChange={(e) => handleFieldChange("noticePeriod", e.target.value)}
@@ -383,8 +534,9 @@ export default function CategoryDetailPage({
               </div>
             </div>
             <div>
-              <label className="block text-xs font-bold text-foreground/80 mb-1.5">Applied Position (Preset)</label>
+              <label htmlFor="bookingJobPosition" className="block text-xs font-bold text-foreground/80 mb-1.5">Applied Position (Preset)</label>
               <input
+                id="bookingJobPosition"
                 type="text"
                 readOnly
                 value={activeSubcategory}
@@ -392,8 +544,9 @@ export default function CategoryDetailPage({
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-foreground/80 mb-1.5">Resume Drive Link / Bio*</label>
+              <label htmlFor="bookingJobResume" className="block text-xs font-bold text-foreground/80 mb-1.5">Resume Drive Link / Bio*</label>
               <textarea
+                id="bookingJobResume"
                 required
                 rows={2}
                 value={bookingForm.resume || ""}
@@ -410,8 +563,9 @@ export default function CategoryDetailPage({
           <>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Service Date*</label>
+                <label htmlFor="bookingServiceDate" className="block text-xs font-bold text-foreground/80 mb-1.5">Service Date*</label>
                 <input
+                  id="bookingServiceDate"
                   type="date"
                   required
                   value={bookingForm.date || ""}
@@ -420,8 +574,9 @@ export default function CategoryDetailPage({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Time Preference*</label>
+                <label htmlFor="bookingServiceTimeslot" className="block text-xs font-bold text-foreground/80 mb-1.5">Time Preference*</label>
                 <select
+                  id="bookingServiceTimeslot"
                   required
                   value={bookingForm.timeslot || ""}
                   onChange={(e) => handleFieldChange("timeslot", e.target.value)}
@@ -435,8 +590,9 @@ export default function CategoryDetailPage({
               </div>
             </div>
             <div>
-              <label className="block text-xs font-bold text-foreground/80 mb-1.5">Service Description / Concern*</label>
+              <label htmlFor="bookingServiceIssue" className="block text-xs font-bold text-foreground/80 mb-1.5">Service Description / Concern*</label>
               <input
+                id="bookingServiceIssue"
                 type="text"
                 required
                 value={bookingForm.issue || ""}
@@ -446,8 +602,9 @@ export default function CategoryDetailPage({
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-foreground/80 mb-1.5">Service Address*</label>
+              <label htmlFor="bookingServiceAddress" className="block text-xs font-bold text-foreground/80 mb-1.5">Service Address*</label>
               <textarea
+                id="bookingServiceAddress"
                 required
                 rows={2}
                 value={bookingForm.address || ""}
@@ -464,8 +621,9 @@ export default function CategoryDetailPage({
           <>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Student Age*</label>
+                <label htmlFor="bookingEduStudentAge" className="block text-xs font-bold text-foreground/80 mb-1.5">Student Age*</label>
                 <input
+                  id="bookingEduStudentAge"
                   type="number"
                   required
                   value={bookingForm.studentAge || ""}
@@ -474,8 +632,9 @@ export default function CategoryDetailPage({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Class / Standard*</label>
+                <label htmlFor="bookingEduStudentClass" className="block text-xs font-bold text-foreground/80 mb-1.5">Class / Standard*</label>
                 <input
+                  id="bookingEduStudentClass"
                   type="text"
                   required
                   value={bookingForm.studentClass || ""}
@@ -486,8 +645,9 @@ export default function CategoryDetailPage({
               </div>
             </div>
             <div>
-              <label className="block text-xs font-bold text-foreground/80 mb-1.5">Preferred Batch Timing*</label>
+              <label htmlFor="bookingEduBatchTimings" className="block text-xs font-bold text-foreground/80 mb-1.5">Preferred Batch Timing*</label>
               <select
+                id="bookingEduBatchTimings"
                 required
                 value={bookingForm.batchTimings || ""}
                 onChange={(e) => handleFieldChange("batchTimings", e.target.value)}
@@ -508,8 +668,9 @@ export default function CategoryDetailPage({
           <>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Patient Age*</label>
+                <label htmlFor="bookingHealthPatientAge" className="block text-xs font-bold text-foreground/80 mb-1.5">Patient Age*</label>
                 <input
+                  id="bookingHealthPatientAge"
                   type="number"
                   required
                   value={bookingForm.patientAge || ""}
@@ -518,8 +679,9 @@ export default function CategoryDetailPage({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Appointment Date*</label>
+                <label htmlFor="bookingHealthDate" className="block text-xs font-bold text-foreground/80 mb-1.5">Appointment Date*</label>
                 <input
+                  id="bookingHealthDate"
                   type="date"
                   required
                   value={bookingForm.date || ""}
@@ -529,8 +691,9 @@ export default function CategoryDetailPage({
               </div>
             </div>
             <div>
-              <label className="block text-xs font-bold text-foreground/80 mb-1.5">Appointment Slot*</label>
+              <label htmlFor="bookingHealthTimeslot" className="block text-xs font-bold text-foreground/80 mb-1.5">Appointment Slot*</label>
               <select
+                id="bookingHealthTimeslot"
                 required
                 value={bookingForm.timeslot || ""}
                 onChange={(e) => handleFieldChange("timeslot", e.target.value)}
@@ -543,8 +706,9 @@ export default function CategoryDetailPage({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-foreground/80 mb-1.5">Chief Complaint / Symptoms*</label>
+              <label htmlFor="bookingHealthSymptoms" className="block text-xs font-bold text-foreground/80 mb-1.5">Chief Complaint / Symptoms*</label>
               <textarea
+                id="bookingHealthSymptoms"
                 required
                 rows={2}
                 value={bookingForm.symptoms || ""}
@@ -561,8 +725,9 @@ export default function CategoryDetailPage({
           <>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Check-in Date*</label>
+                <label htmlFor="bookingHotelDate" className="block text-xs font-bold text-foreground/80 mb-1.5">Check-in Date*</label>
                 <input
+                  id="bookingHotelDate"
                   type="date"
                   required
                   value={bookingForm.date || ""}
@@ -571,8 +736,9 @@ export default function CategoryDetailPage({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Check-out Date*</label>
+                <label htmlFor="bookingHotelCheckoutDate" className="block text-xs font-bold text-foreground/80 mb-1.5">Check-out Date*</label>
                 <input
+                  id="bookingHotelCheckoutDate"
                   type="date"
                   required
                   value={bookingForm.checkoutDate || ""}
@@ -583,8 +749,9 @@ export default function CategoryDetailPage({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">No. of Guests*</label>
+                <label htmlFor="bookingHotelGuests" className="block text-xs font-bold text-foreground/80 mb-1.5">No. of Guests*</label>
                 <input
+                  id="bookingHotelGuests"
                   type="number"
                   min="1"
                   required
@@ -594,8 +761,9 @@ export default function CategoryDetailPage({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Room Standard Preferred*</label>
+                <label htmlFor="bookingHotelRoomType" className="block text-xs font-bold text-foreground/80 mb-1.5">Room Standard Preferred*</label>
                 <select
+                  id="bookingHotelRoomType"
                   required
                   value={bookingForm.roomType || ""}
                   onChange={(e) => handleFieldChange("roomType", e.target.value)}
@@ -616,8 +784,9 @@ export default function CategoryDetailPage({
           <>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Rental Start Date*</label>
+                <label htmlFor="bookingCarDate" className="block text-xs font-bold text-foreground/80 mb-1.5">Rental Start Date*</label>
                 <input
+                  id="bookingCarDate"
                   type="date"
                   required
                   value={bookingForm.date || ""}
@@ -626,8 +795,9 @@ export default function CategoryDetailPage({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Duration Required*</label>
+                <label htmlFor="bookingCarDuration" className="block text-xs font-bold text-foreground/80 mb-1.5">Duration Required*</label>
                 <select
+                  id="bookingCarDuration"
                   required
                   value={bookingForm.duration || ""}
                   onChange={(e) => handleFieldChange("duration", e.target.value)}
@@ -643,8 +813,9 @@ export default function CategoryDetailPage({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Vehicle Tier*</label>
+                <label htmlFor="bookingCarType" className="block text-xs font-bold text-foreground/80 mb-1.5">Vehicle Tier*</label>
                 <select
+                  id="bookingCarType"
                   required
                   value={bookingForm.carType || ""}
                   onChange={(e) => handleFieldChange("carType", e.target.value)}
@@ -658,8 +829,9 @@ export default function CategoryDetailPage({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-foreground/80 mb-1.5">Driver Option*</label>
+                <label htmlFor="bookingCarDriverOption" className="block text-xs font-bold text-foreground/80 mb-1.5">Driver Option*</label>
                 <select
+                  id="bookingCarDriverOption"
                   required
                   value={bookingForm.driverOption || ""}
                   onChange={(e) => handleFieldChange("driverOption", e.target.value)}
@@ -678,8 +850,9 @@ export default function CategoryDetailPage({
         return (
           <>
             <div>
-              <label className="block text-xs font-bold text-foreground/80 mb-1.5">Preferred Date*</label>
+              <label htmlFor="bookingDefaultDate" className="block text-xs font-bold text-foreground/80 mb-1.5">Preferred Date*</label>
               <input
+                id="bookingDefaultDate"
                 type="date"
                 required
                 value={bookingForm.date || ""}
@@ -688,8 +861,9 @@ export default function CategoryDetailPage({
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-foreground/80 mb-1.5">Specific Requirements / Details*</label>
+              <label htmlFor="bookingDefaultRequirements" className="block text-xs font-bold text-foreground/80 mb-1.5">Specific Requirements / Details*</label>
               <input
+                id="bookingDefaultRequirements"
                 type="text"
                 required
                 value={bookingForm.requirements || ""}
@@ -699,8 +873,9 @@ export default function CategoryDetailPage({
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-foreground/80 mb-1.5">Booking / Delivery Address*</label>
+              <label htmlFor="bookingDefaultAddress" className="block text-xs font-bold text-foreground/80 mb-1.5">Booking / Delivery Address*</label>
               <textarea
+                id="bookingDefaultAddress"
                 required
                 rows={2}
                 value={bookingForm.address || ""}
@@ -745,10 +920,11 @@ export default function CategoryDetailPage({
               type="text"
               placeholder={`Search in ${activeSubcategory}…`}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => setSearchFilters(prev => ({ ...prev, query: e.target.value }))}
               className="flex-1 bg-transparent px-2 py-1.5 text-xs sm:text-sm outline-none placeholder:text-muted-foreground"
+              aria-label={`Search in ${activeSubcategory}`}
             />
-            <button className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90">
+            <button aria-label="Submit search" className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90">
               <Search className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </button>
           </div>
@@ -800,8 +976,9 @@ export default function CategoryDetailPage({
                   type="text"
                   placeholder="Filter subcategories..."
                   value={subcatSearch}
-                  onChange={(e) => setSubcatSearch(e.target.value)}
+                  onChange={(e) => setSearchFilters(prev => ({ ...prev, subcatQuery: e.target.value }))}
                   className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-xs outline-none focus:border-accent transition-colors"
+                  aria-label="Filter subcategories"
                 />
                 <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               </div>
@@ -971,7 +1148,7 @@ export default function CategoryDetailPage({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-fade-in-up">
             <button
-              onClick={() => setEnquiryModalOpen(false)}
+              onClick={() => dispatchEnquiry({ type: "CLOSE_MODAL" })}
               className="absolute right-4 top-4 text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <X className="h-5 w-5" />
@@ -988,46 +1165,50 @@ export default function CategoryDetailPage({
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-foreground/80 mb-1.5">Your Name*</label>
+                    <label htmlFor="enquiryName" className="block text-xs font-bold text-foreground/80 mb-1.5">Your Name*</label>
                     <input
+                      id="enquiryName"
                       type="text"
                       required
                       value={enquiryForm.name}
-                      onChange={(e) => setEnquiryForm(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => dispatchEnquiry({ type: "UPDATE_FORM", fields: { name: e.target.value } })}
                       placeholder="Enter your full name"
                       className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-foreground/80 mb-1.5">Phone Number*</label>
+                    <label htmlFor="enquiryPhone" className="block text-xs font-bold text-foreground/80 mb-1.5">Phone Number*</label>
                     <input
+                      id="enquiryPhone"
                       type="tel"
                       required
                       value={enquiryForm.phone}
-                      onChange={(e) => setEnquiryForm(prev => ({ ...prev, phone: e.target.value }))}
+                      onChange={(e) => dispatchEnquiry({ type: "UPDATE_FORM", fields: { phone: e.target.value } })}
                       placeholder="Enter 10-digit mobile number"
                       className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-foreground/80 mb-1.5">Email Address</label>
+                    <label htmlFor="enquiryEmail" className="block text-xs font-bold text-foreground/80 mb-1.5">Email Address</label>
                     <input
+                      id="enquiryEmail"
                       type="email"
                       value={enquiryForm.email}
-                      onChange={(e) => setEnquiryForm(prev => ({ ...prev, email: e.target.value }))}
+                      onChange={(e) => dispatchEnquiry({ type: "UPDATE_FORM", fields: { email: e.target.value } })}
                       placeholder="Enter your email (optional)"
                       className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-foreground/80 mb-1.5">Message / Requirements</label>
+                    <label htmlFor="enquiryMessage" className="block text-xs font-bold text-foreground/80 mb-1.5">Message / Requirements</label>
                     <textarea
+                      id="enquiryMessage"
                       rows={3}
                       value={enquiryForm.message}
-                      onChange={(e) => setEnquiryForm(prev => ({ ...prev, message: e.target.value }))}
+                      onChange={(e) => dispatchEnquiry({ type: "UPDATE_FORM", fields: { message: e.target.value } })}
                       placeholder="Describe your requirements..."
                       className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent resize-none"
                     />
@@ -1063,7 +1244,7 @@ export default function CategoryDetailPage({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-fade-in-up">
             <button
-              onClick={() => setBookingModalOpen(false)}
+              onClick={() => dispatchBooking({ type: "CLOSE_MODAL" })}
               className="absolute right-4 top-4 text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <X className="h-5 w-5" />
@@ -1080,24 +1261,26 @@ export default function CategoryDetailPage({
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-foreground/80 mb-1.5">Contact Name*</label>
+                    <label htmlFor="bookingContactName" className="block text-xs font-bold text-foreground/80 mb-1.5">Contact Name*</label>
                     <input
+                      id="bookingContactName"
                       type="text"
                       required
                       value={bookingForm.name || ""}
-                      onChange={(e) => setBookingForm(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { name: e.target.value } })}
                       placeholder="Enter customer name"
                       className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-foreground/80 mb-1.5">Phone Number*</label>
+                    <label htmlFor="bookingPhone" className="block text-xs font-bold text-foreground/80 mb-1.5">Phone Number*</label>
                     <input
+                      id="bookingPhone"
                       type="tel"
                       required
                       value={bookingForm.phone || ""}
-                      onChange={(e) => setBookingForm(prev => ({ ...prev, phone: e.target.value }))}
+                      onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { phone: e.target.value } })}
                       placeholder="Enter mobile number"
                       className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                     />
@@ -1145,25 +1328,25 @@ export default function CategoryDetailPage({
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-[10px] font-bold text-muted-foreground uppercase mb-2">Select Payment Method</label>
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase mb-2">Select Payment Method</span>
                       <div className="grid grid-cols-3 gap-2">
                         <button
                           type="button"
-                          onClick={() => setPaymentMethod("upi")}
+                          onClick={() => dispatchBooking({ type: "SET_PAYMENT_METHOD", method: "upi" })}
                           className={`py-2 text-[10.5px] font-bold border rounded-xl cursor-pointer ${paymentMethod === "upi" ? "bg-primary border-primary text-primary-foreground" : "bg-background border-border text-foreground hover:bg-secondary"}`}
                         >
                           UPI / QR
                         </button>
                         <button
                           type="button"
-                          onClick={() => setPaymentMethod("card")}
+                          onClick={() => dispatchBooking({ type: "SET_PAYMENT_METHOD", method: "card" })}
                           className={`py-2 text-[10.5px] font-bold border rounded-xl cursor-pointer ${paymentMethod === "card" ? "bg-primary border-primary text-primary-foreground" : "bg-background border-border text-foreground hover:bg-secondary"}`}
                         >
                           Card
                         </button>
                         <button
                           type="button"
-                          onClick={() => setPaymentMethod("netbanking")}
+                          onClick={() => dispatchBooking({ type: "SET_PAYMENT_METHOD", method: "netbanking" })}
                           className={`py-2 text-[10.5px] font-bold border rounded-xl cursor-pointer ${paymentMethod === "netbanking" ? "bg-primary border-primary text-primary-foreground" : "bg-background border-border text-foreground hover:bg-secondary"}`}
                         >
                           Net Banking
@@ -1174,13 +1357,14 @@ export default function CategoryDetailPage({
                     {paymentMethod === "upi" && (
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs font-bold text-foreground/80 mb-1.5">Enter UPI ID</label>
+                          <label htmlFor="bookingUpiId" className="block text-xs font-bold text-foreground/80 mb-1.5">Enter UPI ID</label>
                           <input
+                            id="bookingUpiId"
                             type="text"
                             placeholder="username@okaxis, user@upi..."
                             required
                             value={upiId}
-                            onChange={(e) => setUpiId(e.target.value)}
+                            onChange={(e) => dispatchBooking({ type: "SET_PAYMENT_FIELD", field: "upiId", value: e.target.value })}
                             className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                           />
                         </div>
@@ -1193,39 +1377,42 @@ export default function CategoryDetailPage({
                     {paymentMethod === "card" && (
                       <div className="space-y-3 animate-fade-in">
                         <div>
-                          <label className="block text-xs font-bold text-foreground/80 mb-1.5">Card Number</label>
+                          <label htmlFor="bookingCardNumber" className="block text-xs font-bold text-foreground/80 mb-1.5">Card Number</label>
                           <input
+                            id="bookingCardNumber"
                             type="text"
                             maxLength={19}
                             placeholder="4111 2222 3333 4444"
                             required
                             value={cardNumber}
-                            onChange={(e) => setCardNumber(e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim())}
+                            onChange={(e) => dispatchBooking({ type: "SET_PAYMENT_FIELD", field: "cardNumber", value: e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim() })}
                             className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs font-bold text-foreground/80 mb-1.5">Expiry Date</label>
+                            <label htmlFor="bookingCardExpiry" className="block text-xs font-bold text-foreground/80 mb-1.5">Expiry Date</label>
                             <input
+                              id="bookingCardExpiry"
                               type="text"
                               maxLength={5}
                               placeholder="MM/YY"
                               required
                               value={cardExpiry}
-                              onChange={(e) => setCardExpiry(e.target.value)}
+                              onChange={(e) => dispatchBooking({ type: "SET_PAYMENT_FIELD", field: "cardExpiry", value: e.target.value })}
                               className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-foreground/80 mb-1.5">CVV Code</label>
+                            <label htmlFor="bookingCardCvv" className="block text-xs font-bold text-foreground/80 mb-1.5">CVV Code</label>
                             <input
+                              id="bookingCardCvv"
                               type="password"
                               maxLength={3}
                               placeholder="***"
                               required
                               value={cardCvv}
-                              onChange={(e) => setCardCvv(e.target.value)}
+                              onChange={(e) => dispatchBooking({ type: "SET_PAYMENT_FIELD", field: "cardCvv", value: e.target.value })}
                               className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                             />
                           </div>
@@ -1236,8 +1423,8 @@ export default function CategoryDetailPage({
                     {paymentMethod === "netbanking" && (
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs font-bold text-foreground/80 mb-1.5">Select Bank</label>
-                          <select className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent">
+                          <label htmlFor="bookingBankSelect" className="block text-xs font-bold text-foreground/80 mb-1.5">Select Bank</label>
+                          <select id="bookingBankSelect" className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent">
                             <option>State Bank of India (SBI)</option>
                             <option>HDFC Bank</option>
                             <option>ICICI Bank</option>
@@ -1258,11 +1445,11 @@ export default function CategoryDetailPage({
                           alert("Please fill in Card Details.");
                           return;
                         }
-                        setPaymentProcessing(true);
+                        dispatchBooking({ type: "SET_PROCESSING", value: true });
                         setTimeout(() => {
-                          setPaymentProcessing(false);
-                          setBookingStep("success");
-                          setBookingSubmitted(true);
+                          dispatchBooking({ type: "SET_PROCESSING", value: false });
+                          dispatchBooking({ type: "SET_STEP", step: "success" });
+                          dispatchBooking({ type: "SET_SUBMITTED", value: true });
                         }, 2000);
                       }}
                       className="w-full mt-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md text-center"

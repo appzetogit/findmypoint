@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   X, Heart, Bookmark, User, Receipt, Bell, 
   Headphones, Shield, MessageSquare, Handshake, LogOut, LogIn 
@@ -18,29 +18,18 @@ export default function Sidebar({ onClose, username, onLogout, onSignInClick, on
   const userInitial = username ? username.charAt(0).toUpperCase() : "G";
   const displayName = username || "Guest User";
   
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!username) {
-      setAvatarUrl(null);
-      return;
-    }
+  const avatarUrl = useMemo(() => {
+    if (!username) return null;
     try {
-      const savedPersonal = localStorage.getItem("fmp_profile_personal");
+      const savedPersonal = localStorage.getItem("fmp_profile_personal:v1");
       if (savedPersonal) {
         const parsed = JSON.parse(savedPersonal);
-        if (parsed.avatar) {
-          setAvatarUrl(parsed.avatar);
-        } else {
-          setAvatarUrl(null);
-        }
-      } else {
-        setAvatarUrl(null);
+        return parsed.avatar || null;
       }
     } catch (e) {
       console.error("Failed to load profile data from local storage", e);
-      setAvatarUrl(null);
     }
+    return null;
   }, [username]);
 
   const handleProfileClick = () => {

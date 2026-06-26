@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useReducer } from "react";
 import { 
   ArrowLeft, Check, Phone, Building2, MapPin, 
   Layers, Users, ShieldCheck, Sparkles, TrendingUp,
@@ -11,24 +11,59 @@ interface AdvertiseProps {
   username: string | null;
 }
 
+interface AdvertiseFormState {
+  mobile: string;
+  businessName: string;
+  category: string;
+  city: string;
+  submitted: boolean;
+  loading: boolean;
+}
+
+type AdvertiseFormAction =
+  | { type: "CHANGE_FIELD"; field: keyof Omit<AdvertiseFormState, "submitted" | "loading">; value: string }
+  | { type: "SET_SUBMITTED"; value: boolean }
+  | { type: "SET_LOADING"; value: boolean }
+  | { type: "RESET" };
+
+const initialAdvertiseState: AdvertiseFormState = {
+  mobile: "",
+  businessName: "",
+  category: "Restaurant",
+  city: "Mumbai",
+  submitted: false,
+  loading: false,
+};
+
+function advertiseReducer(state: AdvertiseFormState, action: AdvertiseFormAction): AdvertiseFormState {
+  switch (action.type) {
+    case "CHANGE_FIELD":
+      return { ...state, [action.field]: action.value };
+    case "SET_SUBMITTED":
+      return { ...state, submitted: action.value };
+    case "SET_LOADING":
+      return { ...state, loading: action.value };
+    case "RESET":
+      return initialAdvertiseState;
+    default:
+      return state;
+  }
+}
+
 export default function Advertise({ onClose, username }: AdvertiseProps) {
-  const [mobile, setMobile] = useState("");
-  const [businessName, setBusinessName] = useState("");
-  const [category, setCategory] = useState("Restaurant");
-  const [city, setCity] = useState("Mumbai");
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [state, dispatch] = useReducer(advertiseReducer, initialAdvertiseState);
+  const { businessName, category, city } = state;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!mobile || mobile.length < 10) {
+    if (!state.mobile || state.mobile.length < 10) {
       alert("Please enter a valid 10-digit mobile number.");
       return;
     }
-    setLoading(true);
+    dispatch({ type: "SET_LOADING", value: true });
     setTimeout(() => {
-      setLoading(false);
-      setSubmitted(true);
+      dispatch({ type: "SET_LOADING", value: false });
+      dispatch({ type: "SET_SUBMITTED", value: true });
     }, 1500);
   };
 
@@ -74,7 +109,7 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
 
       {/* Main Hero Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8 md:py-16">
-        {submitted ? (
+        {state.submitted ? (
           <div className="max-w-xl mx-auto text-center bg-white border border-slate-200/85 rounded-3xl p-8 md:p-12 shadow-2xl animate-scale-up">
             <div className="h-16 w-16 bg-emerald-100 border-2 border-emerald-200 rounded-full flex items-center justify-center mx-auto mb-6 text-emerald-600">
               <Sparkles className="h-8 w-8 animate-bounce" />
@@ -83,32 +118,30 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
               Application Submitted!
             </h2>
             <p className="text-slate-600 text-sm leading-relaxed mb-6 font-medium">
-              Thank you for choosing FindMyPoint to accelerate your growth. Our business relations manager will contact you on <span className="font-black text-primary">+91 {mobile}</span> within the next 24 hours to set up your Premium listing.
+              Thank you for choosing FindMyPoint to accelerate your growth. Our business relations manager will contact you on <span className="font-black text-primary">+91 {state.mobile}</span> within the next 24 hours to set up your Premium listing.
             </p>
             <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left space-y-2 mb-8">
               <div className="flex justify-between text-xs font-bold text-slate-500">
                 <span>Business Name:</span>
-                <span className="text-slate-800">{businessName || "Unnamed Business"}</span>
+                <span className="text-slate-800">{state.businessName || "Unnamed Business"}</span>
               </div>
               <div className="flex justify-between text-xs font-bold text-slate-500">
                 <span>Category:</span>
-                <span className="text-slate-800">{category}</span>
+                 <span className="text-slate-800">{state.category}</span>
               </div>
               <div className="flex justify-between text-xs font-bold text-slate-500">
                 <span>Target City:</span>
-                <span className="text-slate-800">{city}</span>
+                <span className="text-slate-800">{state.city}</span>
               </div>
-            </div>
-            <button
-              onClick={() => {
-                setSubmitted(false);
-                setMobile("");
-                setBusinessName("");
-              }}
-              className="w-full bg-primary hover:bg-primary/95 text-white font-black text-xs py-3.5 rounded-xl shadow-md transition-all cursor-pointer"
-            >
-              Advertise Another Business
-            </button>
+             </div>
+             <button
+               onClick={() => {
+                 dispatch({ type: "RESET" });
+               }}
+               className="w-full bg-primary hover:bg-primary/95 text-white font-black text-xs py-3.5 rounded-xl shadow-md transition-all cursor-pointer"
+             >
+               Advertise Another Business
+             </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
@@ -134,15 +167,16 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
                 <div className="space-y-4">
                   {/* Business Name */}
                   <div>
-                    <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Business Name</label>
+                    <label htmlFor="advBusinessName" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Business Name</label>
                     <div className="relative">
                       <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <input 
+                        id="advBusinessName"
                         type="text" 
                         required
                         placeholder="e.g. Shree Shyam Caterers" 
-                        value={businessName}
-                        onChange={(e) => setBusinessName(e.target.value)}
+                        value={state.businessName}
+                        onChange={(e) => dispatch({ type: "CHANGE_FIELD", field: "businessName", value: e.target.value })}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-xs font-bold outline-none focus:border-primary focus:bg-white transition"
                       />
                     </div>
@@ -151,10 +185,11 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
                   <div className="grid grid-cols-2 gap-4">
                     {/* Category Selector */}
                     <div>
-                      <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Business Category</label>
+                      <label htmlFor="advCategory" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Business Category</label>
                       <select 
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
+                        id="advCategory"
+                        value={state.category}
+                        onChange={(e) => dispatch({ type: "CHANGE_FIELD", field: "category", value: e.target.value })}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-xs font-bold outline-none focus:border-primary focus:bg-white transition"
                       >
                         {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -163,10 +198,11 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
 
                     {/* City Selector */}
                     <div>
-                      <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Target City</label>
+                      <label htmlFor="advCity" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Target City</label>
                       <select 
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
+                        id="advCity"
+                        value={state.city}
+                        onChange={(e) => dispatch({ type: "CHANGE_FIELD", field: "city", value: e.target.value })}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-xs font-bold outline-none focus:border-primary focus:bg-white transition"
                       >
                         {cities.map(c => <option key={c} value={c}>{c}</option>)}
@@ -176,7 +212,7 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
 
                   {/* Phone Input with flag */}
                   <div>
-                    <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Mobile Number</label>
+                    <label htmlFor="advMobile" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Mobile Number</label>
                     <div className="flex gap-2">
                       <div className="flex items-center gap-1.5 px-3 border border-slate-200 bg-slate-50 rounded-xl text-xs font-bold text-slate-500 shrink-0">
                         <span className="text-base">🇮🇳</span> <span>+91</span>
@@ -184,12 +220,13 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
                       <div className="relative flex-1">
                         <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <input 
+                          id="advMobile"
                           type="tel" 
                           required
                           maxLength={10}
                           placeholder="Enter 10-digit mobile" 
-                          value={mobile}
-                          onChange={(e) => setMobile(e.target.value.replace(/[^0-9]/g, ""))}
+                          value={state.mobile}
+                          onChange={(e) => dispatch({ type: "CHANGE_FIELD", field: "mobile", value: e.target.value.replace(/[^0-9]/g, "") })}
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-xs font-black tracking-wide outline-none focus:border-primary focus:bg-white transition"
                         />
                       </div>
@@ -199,10 +236,10 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={state.loading}
                   className="w-full bg-primary hover:bg-primary/95 text-white font-black text-xs py-3.5 rounded-xl shadow-md transition-all cursor-pointer disabled:opacity-75 flex items-center justify-center gap-2 uppercase tracking-wide mt-2"
                 >
-                  {loading ? (
+                  {state.loading ? (
                     <span>Registering...</span>
                   ) : (
                     <>

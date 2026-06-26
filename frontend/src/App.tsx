@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useReducer } from "react";
 import HomePage from "./pages/Home";
 import ArticleDetailPage from "./pages/ArticleDetail";
 import BusinessDetailPage from "./pages/BusinessDetail";
@@ -10,96 +10,179 @@ import ProfileWizard from "./pages/ProfileWizard";
 import SidebarPages from "./components/SidebarPages";
 import Advertise from "./pages/Advertise";
 
+interface AppViewState {
+  selectedArticleId: number | null;
+  selectedBusinessId: string | null;
+  selectedPlaceName: string | null;
+  selectedCategoryName: string | null;
+  selectedSubcategoryName: string | null;
+  showSignIn: boolean;
+  showSidebar: boolean;
+  scrollToReview: boolean;
+  showProfileWizard: boolean;
+  activeSidebarPage: string | null;
+  showAdvertise: boolean;
+}
+
+const initialAppState: AppViewState = {
+  selectedArticleId: null,
+  selectedBusinessId: null,
+  selectedPlaceName: null,
+  selectedCategoryName: null,
+  selectedSubcategoryName: null,
+  showSignIn: false,
+  showSidebar: false,
+  scrollToReview: false,
+  showProfileWizard: false,
+  activeSidebarPage: null,
+  showAdvertise: false,
+};
+
+type AppAction =
+  | { type: "SET_SHOW_SIGN_IN"; show: boolean }
+  | { type: "SET_SHOW_SIDEBAR"; show: boolean }
+  | { type: "SET_SHOW_PROFILE_WIZARD"; show: boolean }
+  | { type: "SET_ACTIVE_SIDEBAR_PAGE"; page: string | null }
+  | { type: "SET_SHOW_ADVERTISE"; show: boolean }
+  | { type: "SELECT_ARTICLE"; id: number | null }
+  | { type: "SELECT_BUSINESS"; id: string | null; scrollToReview?: boolean }
+  | { type: "SELECT_PLACE"; name: string | null }
+  | { type: "SELECT_CATEGORY"; name: string | null; subcategoryName?: string | null }
+  | { type: "LOGOUT" };
+
+function appReducer(state: AppViewState, action: AppAction): AppViewState {
+  switch (action.type) {
+    case "SET_SHOW_SIGN_IN":
+      return { ...state, showSignIn: action.show };
+    case "SET_SHOW_SIDEBAR":
+      return { ...state, showSidebar: action.show };
+    case "SET_SHOW_PROFILE_WIZARD":
+      return { ...state, showProfileWizard: action.show };
+    case "SET_ACTIVE_SIDEBAR_PAGE":
+      return { ...state, activeSidebarPage: action.page };
+    case "SET_SHOW_ADVERTISE":
+      return { ...state, showAdvertise: action.show };
+    case "SELECT_ARTICLE":
+      return {
+        ...state,
+        selectedArticleId: action.id,
+        selectedBusinessId: null,
+        selectedPlaceName: null,
+        selectedCategoryName: null,
+        selectedSubcategoryName: null,
+        scrollToReview: false,
+      };
+    case "SELECT_BUSINESS":
+      return {
+        ...state,
+        selectedArticleId: null,
+        selectedBusinessId: action.id,
+        selectedPlaceName: null,
+        selectedCategoryName: null,
+        selectedSubcategoryName: null,
+        scrollToReview: !!action.scrollToReview,
+      };
+    case "SELECT_PLACE":
+      return {
+        ...state,
+        selectedArticleId: null,
+        selectedBusinessId: null,
+        selectedPlaceName: action.name,
+        selectedCategoryName: null,
+        selectedSubcategoryName: null,
+        scrollToReview: false,
+      };
+    case "SELECT_CATEGORY":
+      return {
+        ...state,
+        selectedArticleId: null,
+        selectedBusinessId: null,
+        selectedPlaceName: null,
+        selectedCategoryName: action.name,
+        selectedSubcategoryName: action.subcategoryName || null,
+        scrollToReview: false,
+      };
+    case "LOGOUT":
+      return {
+        ...state,
+        showSidebar: false,
+      };
+    default:
+      return state;
+  }
+}
 
 export default function App() {
-  const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null);
-  const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
-  const [selectedPlaceName, setSelectedPlaceName] = useState<string | null>(null);
-  const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
-  const [showSignIn, setShowSignIn] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
-  const [scrollToReview, setScrollToReview] = useState(false);
-  const [showProfileWizard, setShowProfileWizard] = useState(false);
-  const [activeSidebarPage, setActiveSidebarPage] = useState<string | null>(null);
-  const [showAdvertise, setShowAdvertise] = useState(false);
+  const [state, dispatch] = useReducer(appReducer, initialAppState);
 
   useEffect(() => {
-    const handleAdvertiseOpen = () => setShowAdvertise(true);
+    const handleAdvertiseOpen = () => dispatch({ type: "SET_SHOW_ADVERTISE", show: true });
     window.addEventListener("fmp-open-advertise", handleAdvertiseOpen);
     return () => window.removeEventListener("fmp-open-advertise", handleAdvertiseOpen);
   }, []);
 
   let content;
 
-  if (showAdvertise) {
+  if (state.showAdvertise) {
     content = (
       <Advertise
-        onClose={() => setShowAdvertise(false)}
+        onClose={() => dispatch({ type: "SET_SHOW_ADVERTISE", show: false })}
         username={username}
       />
     );
-  } else if (selectedArticleId !== null) {
+  } else if (state.selectedArticleId !== null) {
     content = (
       <ArticleDetailPage
-        articleId={selectedArticleId}
+        articleId={state.selectedArticleId}
         onBack={() => {
-          setSelectedArticleId(null);
-          setScrollToReview(false);
+          dispatch({ type: "SELECT_ARTICLE", id: null });
         }}
         onArticleSelect={(id) => {
-          setSelectedPlaceName(null);
-          setSelectedBusinessId(null);
-          setSelectedArticleId(id);
-          setScrollToReview(false);
+          dispatch({ type: "SELECT_ARTICLE", id });
         }}
       />
     );
-  } else if (selectedBusinessId !== null) {
+  } else if (state.selectedBusinessId !== null) {
     content = (
       <BusinessDetailPage
-        businessId={selectedBusinessId}
+        businessId={state.selectedBusinessId}
         onBack={() => {
-          setSelectedBusinessId(null);
-          setScrollToReview(false);
+          dispatch({ type: "SELECT_BUSINESS", id: null });
         }}
         onBusinessSelect={(id) => {
-          setSelectedBusinessId(id);
-          setScrollToReview(false);
+          dispatch({ type: "SELECT_BUSINESS", id });
         }}
-        scrollToReview={scrollToReview}
-        onSignInClick={() => setShowSignIn(true)}
-        onProfileClick={() => setShowSidebar(true)}
+        scrollToReview={state.scrollToReview}
+        onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
+        onProfileClick={() => dispatch({ type: "SET_SHOW_SIDEBAR", show: true })}
         username={username}
       />
     );
-  } else if (selectedPlaceName !== null) {
+  } else if (state.selectedPlaceName !== null) {
     content = (
       <PlaceDetailPage
-        placeName={selectedPlaceName}
-        onBack={() => setSelectedPlaceName(null)}
+        placeName={state.selectedPlaceName}
+        onBack={() => dispatch({ type: "SELECT_PLACE", name: null })}
         onBusinessSelect={(id) => {
-          setSelectedPlaceName(null);
-          setSelectedBusinessId(id);
-          setScrollToReview(false);
+          dispatch({ type: "SELECT_BUSINESS", id });
         }}
-        onSignInClick={() => setShowSignIn(true)}
-        onProfileClick={() => setShowSidebar(true)}
+        onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
+        onProfileClick={() => dispatch({ type: "SET_SHOW_SIDEBAR", show: true })}
         username={username}
       />
     );
-  } else if (selectedCategoryName !== null) {
+  } else if (state.selectedCategoryName !== null) {
     content = (
       <CategoryDetailPage
-        categoryName={selectedCategoryName}
-        onBack={() => setSelectedCategoryName(null)}
+        categoryName={state.selectedCategoryName}
+        initialSubcategory={state.selectedSubcategoryName}
+        onBack={() => dispatch({ type: "SELECT_CATEGORY", name: null })}
         onBusinessSelect={(id) => {
-          setSelectedCategoryName(null);
-          setSelectedBusinessId(id);
-          setScrollToReview(false);
+          dispatch({ type: "SELECT_BUSINESS", id });
         }}
-        onSignInClick={() => setShowSignIn(true)}
-        onProfileClick={() => setShowSidebar(true)}
+        onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
+        onProfileClick={() => dispatch({ type: "SET_SHOW_SIDEBAR", show: true })}
         username={username}
       />
     );
@@ -107,33 +190,20 @@ export default function App() {
     content = (
       <HomePage 
         onArticleClick={(id) => {
-          setSelectedPlaceName(null);
-          setSelectedBusinessId(null);
-          setSelectedArticleId(id);
-          setScrollToReview(false);
+          dispatch({ type: "SELECT_ARTICLE", id });
         }} 
         onReviewClick={(id) => {
-          setSelectedPlaceName(null);
-          setSelectedArticleId(null);
-          setSelectedBusinessId(id);
-          setScrollToReview(true);
+          dispatch({ type: "SELECT_BUSINESS", id, scrollToReview: true });
         }}
         onPlaceClick={(placeName) => {
-          setSelectedArticleId(null);
-          setSelectedBusinessId(null);
-          setSelectedPlaceName(placeName);
-          setScrollToReview(false);
+          dispatch({ type: "SELECT_PLACE", name: placeName });
         }}
-        onCategoryClick={(categoryName) => {
-          setSelectedArticleId(null);
-          setSelectedBusinessId(null);
-          setSelectedPlaceName(null);
-          setSelectedCategoryName(categoryName);
-          setScrollToReview(false);
+        onCategoryClick={(categoryName, subcategoryName) => {
+          dispatch({ type: "SELECT_CATEGORY", name: categoryName, subcategoryName });
         }}
-        onSignInClick={() => setShowSignIn(true)}
-        onProfileClick={() => setShowSidebar(true)}
-        onAdvertiseClick={() => setShowAdvertise(true)}
+        onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
+        onProfileClick={() => dispatch({ type: "SET_SHOW_SIDEBAR", show: true })}
+        onAdvertiseClick={() => dispatch({ type: "SET_SHOW_ADVERTISE", show: true })}
         username={username}
       />
     );
@@ -144,54 +214,54 @@ export default function App() {
       {content}
       
       {/* Sign In Overlay */}
-      {showSignIn && (
+      {state.showSignIn && (
         <SignInPage
-          onBack={() => setShowSignIn(false)}
+          onBack={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: false })}
           onSuccess={(name) => {
             setUsername(name);
-            setShowSignIn(false);
+            dispatch({ type: "SET_SHOW_SIGN_IN", show: false });
           }}
         />
       )}
 
       {/* Sidebar Overlay */}
-      {showSidebar && (
+      {state.showSidebar && (
         <Sidebar
-          onClose={() => setShowSidebar(false)}
+          onClose={() => dispatch({ type: "SET_SHOW_SIDEBAR", show: false })}
           username={username}
           onLogout={() => {
             setUsername(null);
-            setShowSidebar(false);
+            dispatch({ type: "LOGOUT" });
             alert("Logged out successfully!");
           }}
           onSignInClick={() => {
-            setShowSidebar(false);
-            setShowSignIn(true);
+            dispatch({ type: "SET_SHOW_SIDEBAR", show: false });
+            dispatch({ type: "SET_SHOW_SIGN_IN", show: true });
           }}
           onMyProfileClick={() => {
-            setShowSidebar(false);
-            setShowProfileWizard(true);
+            dispatch({ type: "SET_SHOW_SIDEBAR", show: false });
+            dispatch({ type: "SET_SHOW_PROFILE_WIZARD", show: true });
           }}
           onMenuClick={(page) => {
-            setShowSidebar(false);
-            setActiveSidebarPage(page);
+            dispatch({ type: "SET_SHOW_SIDEBAR", show: false });
+            dispatch({ type: "SET_ACTIVE_SIDEBAR_PAGE", page });
           }}
         />
       )}
 
       {/* Profile Wizard Overlay */}
-      {showProfileWizard && (
+      {state.showProfileWizard && (
         <ProfileWizard
-          onClose={() => setShowProfileWizard(false)}
+          onClose={() => dispatch({ type: "SET_SHOW_PROFILE_WIZARD", show: false })}
           username={username}
         />
       )}
 
       {/* Individual Sidebar Settings Pages */}
-      {activeSidebarPage && (
+      {state.activeSidebarPage && (
         <SidebarPages
-          activePage={activeSidebarPage}
-          onClose={() => setActiveSidebarPage(null)}
+          activePage={state.activeSidebarPage}
+          onClose={() => dispatch({ type: "SET_ACTIVE_SIDEBAR_PAGE", page: null })}
           username={username}
         />
       )}

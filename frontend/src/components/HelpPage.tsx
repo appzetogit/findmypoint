@@ -30,6 +30,7 @@ export default function HelpPage() {
         type="text" 
         value={faqSearch}
         onChange={(e) => setFaqSearch(e.target.value)}
+        aria-label="Search FAQ"
         placeholder="Search FAQ keywords: 'hotel', 'refund', 'booking'..."
         className="w-full border border-border bg-card rounded-xl px-4 py-2.5 text-xs font-semibold outline-none focus:border-primary shadow-sm"
       />

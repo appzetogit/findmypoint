@@ -69,33 +69,33 @@ const subcategorySections = [
   {
     title: "Wedding Requisites",
     items: [
-      { img: weddingBanquet, label: "Banquet Halls" },
-      { img: weddingJewellery, label: "Bridal Requisite" },
-      { img: weddingCaterer, label: "Caterers" },
+      { img: weddingBanquet, label: "Banquet Halls", categoryName: "Hotel Point", subcategoryName: "Banquet Halls" },
+      { img: weddingJewellery, label: "Bridal Requisite", categoryName: "Garments Point", subcategoryName: "Bridal Requisite" },
+      { img: weddingCaterer, label: "Caterers", categoryName: "Food Point", subcategoryName: "Caterers" },
     ],
   },
   {
     title: "Beauty & Spa",
     items: [
-      { img: beautyParlour, label: "Beauty Parlours" },
-      { img: beautySpa, label: "Spa & Massages" },
-      { img: beautySalon, label: "Salons" },
+      { img: beautyParlour, label: "Beauty Parlours", categoryName: "Spa Point", subcategoryName: "Beauty Parlours" },
+      { img: beautySpa, label: "Spa & Massages", categoryName: "Spa Point", subcategoryName: "Spa & Massages" },
+      { img: beautySalon, label: "Salons", categoryName: "Spa Point", subcategoryName: "Salons" },
     ],
   },
   {
     title: "Repairs & Services",
     items: [
-      { img: serviceAc, label: "AC Service" },
-      { img: serviceCar, label: "Car Service" },
-      { img: serviceBike, label: "Bike Service" },
+      { img: serviceAc, label: "AC Service", categoryName: "Service Point", subcategoryName: "AC Service" },
+      { img: serviceCar, label: "Car Service", categoryName: "Service Point", subcategoryName: "Car Service" },
+      { img: serviceBike, label: "Bike Service", categoryName: "Service Point", subcategoryName: "Bike Service" },
     ],
   },
   {
     title: "Daily Needs",
     items: [
-      { img: needsMovie, label: "Movies" },
-      { img: needsGrocery, label: "Grocery" },
-      { img: needsElectrician, label: "Electricians" },
+      { img: needsMovie, label: "Movies", categoryName: "Product Point", subcategoryName: "Movies" },
+      { img: needsGrocery, label: "Grocery", categoryName: "Product Point", subcategoryName: "Grocery" },
+      { img: needsElectrician, label: "Electricians", categoryName: "Service Point", subcategoryName: "Electricians" },
     ],
   },
 ];
@@ -285,7 +285,7 @@ interface HomePageProps {
   onArticleClick: (id: number) => void;
   onReviewClick: (id: string) => void;
   onPlaceClick?: (placeName: string) => void;
-  onCategoryClick?: (categoryName: string) => void;
+  onCategoryClick?: (categoryName: string, subcategoryName?: string) => void;
   onSignInClick?: () => void;
   onProfileClick?: () => void;
   onAdvertiseClick?: () => void;
@@ -319,30 +319,51 @@ const cityAreas: Record<string, { trending: string[]; recent: string[] }> = {
 const availableCities = ["Mumbai", "Indore", "Pune", "Jaipur", "Ujjain", "Ahmedabad", "Nashik", "Udaipur"];
 
 export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, onCategoryClick, onSignInClick, onProfileClick, onAdvertiseClick, username }: HomePageProps) {
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activeTab, setActiveTab] = useState<"Trending" | "Urgent" | "Near You">("Trending");
-  const [activeSlide, setActiveSlide] = useState(0);
-  
-  // Location state
-  const [selectedCity, setSelectedCity] = useState("Mumbai");
-  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
-  const [recentLocations, setRecentLocations] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem("fmp_recent_locations") || "[]"); } catch { return []; }
+  // UI states grouped to reduce useState count
+  const [uiState, setUiState] = useState({
+    showSuggestions: false,
+    activeTab: "Trending" as "Trending" | "Urgent" | "Near You",
+    activeSlide: 0
   });
+  const { showSuggestions, activeTab, activeSlide } = uiState;
+  
+  // Location state grouped to reduce useState count
+  const [locationState, setLocationState] = useState({
+    selectedCity: "Mumbai",
+    showLocationDropdown: false,
+    recentLocations: (() => {
+      try { return JSON.parse(localStorage.getItem("fmp_recent_locations:v1") || "[]"); } catch { return []; }
+    })() as string[]
+  });
+  const { selectedCity, showLocationDropdown, recentLocations } = locationState;
   const locationRef = useRef<HTMLDivElement>(null);
   
   const handleSelectArea = useCallback((area: string) => {
     const updated = [area, ...recentLocations.filter(l => l !== area)].slice(0, 5);
-    setRecentLocations(updated);
-    localStorage.setItem("fmp_recent_locations", JSON.stringify(updated));
-    setShowLocationDropdown(false);
+    setLocationState(prev => ({
+      ...prev,
+      recentLocations: updated,
+      showLocationDropdown: false
+    }));
+    localStorage.setItem("fmp_recent_locations:v1", JSON.stringify(updated));
   }, [recentLocations]);
   
   const handleDetectLocation = useCallback(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        () => { setSelectedCity("Mumbai"); setShowLocationDropdown(false); },
-        () => { setShowLocationDropdown(false); }
+        () => {
+          setLocationState(prev => ({
+            ...prev,
+            selectedCity: "Mumbai",
+            showLocationDropdown: false
+          }));
+        },
+        () => {
+          setLocationState(prev => ({
+            ...prev,
+            showLocationDropdown: false
+          }));
+        }
       );
     }
   }, []);
@@ -351,7 +372,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (locationRef.current && !locationRef.current.contains(e.target as Node)) {
-        setShowLocationDropdown(false);
+        setLocationState(prev => ({ ...prev, showLocationDropdown: false }));
       }
     };
     document.addEventListener("mousedown", handler);
@@ -360,34 +381,45 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % heroSlides.length);
+      setUiState((prev) => ({ ...prev, activeSlide: (prev.activeSlide + 1) % heroSlides.length }));
     }, 5000);
     return () => clearInterval(timer);
   }, []);
   
   // Tourist places scroll controls
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
+  
+  // Scroll states grouped to reduce useState count
+  const [scrollState, setScrollState] = useState({
+    canScrollLeft: false,
+    canScrollRight: true,
+    canScrollReviewsLeft: false,
+    canScrollReviewsRight: true
+  });
+  const { canScrollLeft, canScrollRight, canScrollReviewsLeft, canScrollReviewsRight } = scrollState;
 
   const checkScroll = () => {
     if (scrollRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-      setCanScrollLeft(scrollLeft > 10);
-      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+      setScrollState(prev => ({
+        ...prev,
+        canScrollLeft: scrollLeft > 10,
+        canScrollRight: scrollLeft + clientWidth < scrollWidth - 10
+      }));
     }
   };
 
   // Recent reviews scroll controls
   const reviewsScrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollReviewsLeft, setCanScrollReviewsLeft] = useState(false);
-  const [canScrollReviewsRight, setCanScrollReviewsRight] = useState(true);
 
   const checkReviewsScroll = () => {
     if (reviewsScrollRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = reviewsScrollRef.current;
-      setCanScrollReviewsLeft(scrollLeft > 10);
-      setCanScrollReviewsRight(scrollLeft + clientWidth < scrollWidth - 10);
+      setScrollState(prev => ({
+        ...prev,
+        canScrollReviewsLeft: scrollLeft > 10,
+        canScrollReviewsRight: scrollLeft + clientWidth < scrollWidth - 10
+      }));
     }
   };
 
@@ -470,7 +502,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
             {/* Clickable Location Selector */}
             <div ref={locationRef} className="relative">
               <button
-                onClick={() => setShowLocationDropdown(prev => !prev)}
+                onClick={() => setLocationState(prev => ({ ...prev, showLocationDropdown: !prev.showLocationDropdown }))}
                 className="flex items-center gap-2 border-r border-border px-3 py-1.5 text-sm hover:text-primary transition-colors cursor-pointer group"
               >
                 <MapPin className="h-4 w-4 text-accent group-hover:text-primary transition-colors" />
@@ -485,7 +517,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                   {/* Header */}
                   <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border/60">
                     <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Select Location</span>
-                    <button onClick={() => setShowLocationDropdown(false)} className="p-1 rounded-lg hover:bg-secondary transition cursor-pointer">
+                    <button onClick={() => setLocationState(prev => ({ ...prev, showLocationDropdown: false }))} className="p-1 rounded-lg hover:bg-secondary transition cursor-pointer">
                       <X className="h-4 w-4 text-muted-foreground" />
                     </button>
                   </div>
@@ -509,7 +541,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                         {availableCities.map(city => (
                           <button
                             key={city}
-                            onClick={() => setSelectedCity(city)}
+                            onClick={() => setLocationState(prev => ({ ...prev, selectedCity: city }))}
                             className={`px-3 py-1 rounded-full text-xs font-bold border transition cursor-pointer ${
                               selectedCity === city
                                 ? "bg-primary text-white border-primary"
@@ -529,7 +561,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Recent Locations</p>
                           {recentLocations.length > 0 && (
                             <button
-                              onClick={() => { setRecentLocations([]); localStorage.removeItem("fmp_recent_locations"); }}
+                              onClick={() => { setLocationState(prev => ({ ...prev, recentLocations: [] })); localStorage.removeItem("fmp_recent_locations:v1"); }}
                               className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
                             >Clear All</button>
                           )}
@@ -578,8 +610,8 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
               type="text"
               placeholder={`Search doctors, restaurants, services in ${selectedCity}…`}
               className="flex-1 bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              onFocus={() => setUiState(prev => ({ ...prev, showSuggestions: true }))}
+              onBlur={() => setTimeout(() => setUiState(prev => ({ ...prev, showSuggestions: false })), 200)}
             />
             <button className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90">
               <Search className="h-4 w-4" />
@@ -707,7 +739,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
               {heroSlides.map((_, index) => (
                 <button
                   key={index}
-                  onClick={() => setActiveSlide(index)}
+                  onClick={() => setUiState(prev => ({ ...prev, activeSlide: index }))}
                   className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
                     activeSlide === index ? "w-6 bg-accent" : "w-2 bg-white/50 hover:bg-white"
                   }`}
@@ -718,14 +750,14 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
 
             {/* Prev/Next buttons */}
             <button
-              onClick={() => setActiveSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length)}
+              onClick={() => setUiState((prev) => ({ ...prev, activeSlide: (prev.activeSlide - 1 + heroSlides.length) % heroSlides.length }))}
               className="absolute left-4 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-black/25 text-white flex items-center justify-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/40 cursor-pointer"
               aria-label="Previous slide"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button
-              onClick={() => setActiveSlide((prev) => (prev + 1) % heroSlides.length)}
+              onClick={() => setUiState((prev) => ({ ...prev, activeSlide: (prev.activeSlide + 1) % heroSlides.length }))}
               className="absolute right-4 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-black/25 text-white flex items-center justify-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/40 cursor-pointer"
               aria-label="Next slide"
             >
@@ -806,7 +838,11 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                 <h3 className="text-[17px] font-bold text-foreground mb-4 pl-0.5">{sec.title}</h3>
                 <div className="grid grid-cols-3 gap-5">
                   {sec.items.map((item) => (
-                    <div key={item.label} className="group flex flex-col items-center gap-2.5 cursor-pointer">
+                    <div
+                      key={item.label}
+                      onClick={() => onCategoryClick?.(item.categoryName, item.subcategoryName)}
+                      className="group flex flex-col items-center gap-2.5 cursor-pointer"
+                    >
                       <div className="w-full aspect-[1.45] overflow-hidden rounded-xl bg-secondary shadow-sm">
                         <img
                           src={item.img}
@@ -839,7 +875,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                 return (
                   <button
                     key={t}
-                    onClick={() => setActiveTab(t)}
+                    onClick={() => setUiState(prev => ({ ...prev, activeTab: t }))}
                     className={`rounded-full border px-4 py-1.5 text-xs font-semibold cursor-pointer transition-all duration-300 ${
                       isActive
                         ? "border-primary bg-primary text-primary-foreground shadow-sm scale-105"

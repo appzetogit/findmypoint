@@ -1,34 +1,60 @@
-import { useState, FormEvent } from "react";
+import { useReducer, FormEvent } from "react";
+
+interface ServiceFormState {
+  contactName: string;
+  contactEmail: string;
+  contactSubject: string;
+  contactMessage: string;
+  formSubmitted: boolean;
+}
+
+type ServiceFormAction =
+  | { type: "CHANGE_FIELD"; field: keyof Omit<ServiceFormState, "formSubmitted">; value: string }
+  | { type: "SET_SUBMITTED"; value: boolean }
+  | { type: "RESET" };
+
+const initialServiceFormState: ServiceFormState = {
+  contactName: "",
+  contactEmail: "",
+  contactSubject: "",
+  contactMessage: "",
+  formSubmitted: false,
+};
+
+function serviceFormReducer(state: ServiceFormState, action: ServiceFormAction): ServiceFormState {
+  switch (action.type) {
+    case "CHANGE_FIELD":
+      return { ...state, [action.field]: action.value };
+    case "SET_SUBMITTED":
+      return { ...state, formSubmitted: action.value };
+    case "RESET":
+      return initialServiceFormState;
+    default:
+      return state;
+  }
+}
 
 export default function CustomerServicePage() {
-  const [contactName, setContactName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactSubject, setContactSubject] = useState("");
-  const [contactMessage, setContactMessage] = useState("");
-  const [formSubmitted, setFormSubmitted] = useState(false);
+  const [state, dispatch] = useReducer(serviceFormReducer, initialServiceFormState);
 
   const handleFormSubmit = (e: FormEvent) => {
     e.preventDefault();
-    setFormSubmitted(true);
+    dispatch({ type: "SET_SUBMITTED", value: true });
     // save to localStorage support tickets log
     try {
-      const tickets = JSON.parse(localStorage.getItem("fmp_support_tickets") || "[]");
+      const tickets = JSON.parse(localStorage.getItem("fmp_support_tickets:v1") || "[]");
       tickets.push({
-        name: contactName,
-        email: contactEmail,
-        subject: contactSubject,
-        message: contactMessage,
+        name: state.contactName,
+        email: state.contactEmail,
+        subject: state.contactSubject,
+        message: state.contactMessage,
         date: new Date().toLocaleDateString()
       });
-      localStorage.setItem("fmp_support_tickets", JSON.stringify(tickets));
+      localStorage.setItem("fmp_support_tickets:v1", JSON.stringify(tickets));
       
       // Reset form fields after delay
       setTimeout(() => {
-        setContactName("");
-        setContactEmail("");
-        setContactSubject("");
-        setContactMessage("");
-        setFormSubmitted(false);
+        dispatch({ type: "RESET" });
       }, 3000);
     } catch (e) {
       console.error("Failed to save support ticket", e);
@@ -74,23 +100,25 @@ export default function CustomerServicePage() {
           
           <div className="grid grid-cols-2 gap-4">
             <div className="text-left">
-              <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Your Name</label>
+              <label htmlFor="contactName" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Your Name</label>
               <input 
+                id="contactName"
                 type="text" 
                 required
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
+                value={state.contactName}
+                onChange={(e) => dispatch({ type: "CHANGE_FIELD", field: "contactName", value: e.target.value })}
                 placeholder="Your Name"
                 className="w-full border border-border bg-background rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:border-primary"
               />
             </div>
             <div className="text-left">
-              <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Email Address</label>
+              <label htmlFor="contactEmail" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Email Address</label>
               <input 
+                id="contactEmail"
                 type="email" 
                 required
-                value={contactEmail}
-                onChange={(e) => setContactEmail(e.target.value)}
+                value={state.contactEmail}
+                onChange={(e) => dispatch({ type: "CHANGE_FIELD", field: "contactEmail", value: e.target.value })}
                 placeholder="name@example.com"
                 className="w-full border border-border bg-background rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:border-primary"
               />
@@ -98,30 +126,32 @@ export default function CustomerServicePage() {
           </div>
 
           <div className="text-left">
-            <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Subject</label>
+            <label htmlFor="contactSubject" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Subject</label>
             <input 
+              id="contactSubject"
               type="text" 
               required
-              value={contactSubject}
-              onChange={(e) => setContactSubject(e.target.value)}
+              value={state.contactSubject}
+              onChange={(e) => dispatch({ type: "CHANGE_FIELD", field: "contactSubject", value: e.target.value })}
               placeholder="e.g. Table Reservation Cancellation Request"
               className="w-full border border-border bg-background rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-primary"
             />
           </div>
 
           <div className="text-left">
-            <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Message Details</label>
+            <label htmlFor="contactMessage" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Message Details</label>
             <textarea 
+              id="contactMessage"
               rows={3}
               required
-              value={contactMessage}
-              onChange={(e) => setContactMessage(e.target.value)}
+              value={state.contactMessage}
+              onChange={(e) => dispatch({ type: "CHANGE_FIELD", field: "contactMessage", value: e.target.value })}
               placeholder="Describe your issue or request in detail..."
               className="w-full border border-border bg-background rounded-xl p-3.5 text-xs font-semibold outline-none focus:border-primary resize-none"
             />
           </div>
 
-          {formSubmitted ? (
+          {state.formSubmitted ? (
             <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-center text-xs font-bold text-emerald-600 animate-pulse">
               ✓ Support request received! We'll reply to your email shortly.
             </div>

@@ -1,0 +1,1696 @@
+﻿[1mReact Doctor[22m [2mv0.5.8[22m
+
+[90m  [39m
+
+  [33mΓÜá[39m [33mBugs: Array index used as a key[39m [90m├ù20[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-array-index-as-key[39m
+    Your users can see & submit the wrong data when this list
+    reorders or filters, so use a stable id like
+    `key={item.id}`, not the array index "idx".
+[2m    ΓåÆ Use a stable id from the item, like `key={item.id}` or[22m
+[2m    `key={item.slug}`. Index keys break when the list reorders[22m
+[2m    or filters.[22m
+
+[90m    src/components/HelpPage.tsx:45[39m
+
+[90m    src/pages/ArticleDetail.tsx:121[39m
+
+[90m    src/pages/ArticleDetail.tsx:202[39m
+
+[90m    src/pages/ArticleDetail.tsx:216[39m
+
+[90m    src/pages/ArticleDetail.tsx:485[39m
+
+[90m    src/pages/BusinessDetail.tsx:588[39m
+
+[90m    src/pages/BusinessDetail.tsx:649[39m
+
+[90m    src/pages/BusinessDetail.tsx:725[39m
+
+[90m    src/pages/BusinessDetail.tsx:743[39m
+
+[90m    src/pages/BusinessDetail.tsx:803[39m
+
+[90m    src/pages/Footer.tsx:72[39m
+
+[90m    src/pages/Footer.tsx:128[39m
+
+[90m    src/pages/Home.tsx:700[39m
+
+[90m    src/pages/Home.tsx:741[39m
+
+[90m    src/pages/Home.tsx:771[39m
+
+[90m    src/pages/Home.tsx:1048[39m
+
+[90m    src/pages/Home.tsx:1152[39m
+
+[90m    src/pages/PlaceDetail.tsx:756[39m
+
+[90m    src/pages/PlaceDetail.tsx:791[39m
+
+[90m    src/pages/SignIn.tsx:341[39m
+
+  [33mΓÜá[39m [33mBugs: Time or random value in JSX[39m [90m├ù4[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/rendering-hydration-mismatch-time[39m
+    This can cause a hydration mismatch because new Date()
+    reached from JSX gives a different value on the server than
+    in the browser. Move it into useEffect+useState to run only
+    in the browser, or add suppressHydrationWarning to the
+    parent if it's on purpose.
+[2m    ΓåÆ Move time or random values into useEffect+useState so[22m
+[2m    they only run in the browser, or add[22m
+[2m    suppressHydrationWarning to the parent if it's intentional[22m
+
+[90m    src/components/FeedbackPage.tsx:93[39m
+
+[90m    src/pages/BusinessDetail.tsx:469[39m
+
+[90m    src/pages/BusinessDetail.tsx:478[39m
+
+[90m    src/pages/BusinessDetail.tsx:1569[39m
+
+  [33mΓÜá[39m [33mAccessibility: Label missing associated control[39m [90m├ù102[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/label-has-associated-control[39m
+    Screen reader users can't tell which input this label names
+    because it's tied to none, so add `htmlFor` or wrap the
+    input inside it.
+[2m    ΓåÆ Tie every label to a control with `htmlFor`, or by[22m
+[2m    nesting the input.[22m
+
+[90m    src/components/CustomerServicePage.tsx:103[39m
+
+[90m    src/components/CustomerServicePage.tsx:114[39m
+
+[90m    src/components/CustomerServicePage.tsx:127[39m
+
+[90m    src/components/CustomerServicePage.tsx:139[39m
+
+[90m    src/components/FeedbackPage.tsx:58[39m
+
+[90m    src/components/FeedbackPage.tsx:76[39m
+
+[90m    src/components/FeedbackPage.tsx:89[39m
+
+[90m    src/components/FeedbackPage.tsx:101[39m
+
+[90m    src/pages/Advertise.tsx:170[39m
+
+[90m    src/pages/Advertise.tsx:187[39m
+
+[90m    src/pages/Advertise.tsx:199[39m
+
+[90m    src/pages/Advertise.tsx:212[39m
+
+[90m    src/pages/BusinessDetail.tsx:848[39m
+
+[90m    src/pages/BusinessDetail.tsx:860[39m
+
+[90m    src/pages/BusinessDetail.tsx:872[39m
+
+[90m    src/pages/BusinessDetail.tsx:883[39m
+
+[90m    src/pages/BusinessDetail.tsx:985[39m
+
+[90m    src/pages/BusinessDetail.tsx:997[39m
+
+[90m    src/pages/BusinessDetail.tsx:1142[39m
+
+[90m    src/pages/BusinessDetail.tsx:1171[39m
+
+[90m    src/pages/BusinessDetail.tsx:1190[39m
+
+[90m    src/pages/BusinessDetail.tsx:1203[39m
+
+[90m    src/pages/BusinessDetail.tsx:1215[39m
+
+[90m    src/pages/BusinessDetail.tsx:1233[39m
+
+[90m    src/pages/BusinessDetail.tsx:1345[39m
+
+[90m    src/pages/BusinessDetail.tsx:1357[39m
+
+[90m    src/pages/BusinessDetail.tsx:1369[39m
+
+[90m    src/pages/BusinessDetail.tsx:1381[39m
+
+[90m    src/pages/BusinessDetail.tsx:1430[39m
+
+[90m    src/pages/BusinessDetail.tsx:1459[39m
+
+[90m    src/pages/BusinessDetail.tsx:1478[39m
+
+[90m    src/pages/BusinessDetail.tsx:1491[39m
+
+[90m    src/pages/BusinessDetail.tsx:1503[39m
+
+[90m    src/pages/BusinessDetail.tsx:1521[39m
+
+[90m    src/pages/CategoryDetail.tsx:368[39m
+
+[90m    src/pages/CategoryDetail.tsx:378[39m
+
+[90m    src/pages/CategoryDetail.tsx:390[39m
+
+[90m    src/pages/CategoryDetail.tsx:405[39m
+
+[90m    src/pages/CategoryDetail.tsx:428[39m
+
+[90m    src/pages/CategoryDetail.tsx:438[39m
+
+[90m    src/pages/CategoryDetail.tsx:451[39m
+
+[90m    src/pages/CategoryDetail.tsx:466[39m
+
+[90m    src/pages/CategoryDetail.tsx:488[39m
+
+[90m    src/pages/CategoryDetail.tsx:503[39m
+
+[90m    src/pages/CategoryDetail.tsx:519[39m
+
+[90m    src/pages/CategoryDetail.tsx:528[39m
+
+[90m    src/pages/CategoryDetail.tsx:546[39m
+
+[90m    src/pages/CategoryDetail.tsx:556[39m
+
+[90m    src/pages/CategoryDetail.tsx:571[39m
+
+[90m    src/pages/CategoryDetail.tsx:582[39m
+
+[90m    src/pages/CategoryDetail.tsx:600[39m
+
+[90m    src/pages/CategoryDetail.tsx:610[39m
+
+[90m    src/pages/CategoryDetail.tsx:622[39m
+
+[90m    src/pages/CategoryDetail.tsx:644[39m
+
+[90m    src/pages/CategoryDetail.tsx:654[39m
+
+[90m    src/pages/CategoryDetail.tsx:665[39m
+
+[90m    src/pages/CategoryDetail.tsx:679[39m
+
+[90m    src/pages/CategoryDetail.tsx:697[39m
+
+[90m    src/pages/CategoryDetail.tsx:707[39m
+
+[90m    src/pages/CategoryDetail.tsx:719[39m
+
+[90m    src/pages/CategoryDetail.tsx:730[39m
+
+[90m    src/pages/CategoryDetail.tsx:752[39m
+
+[90m    src/pages/CategoryDetail.tsx:762[39m
+
+[90m    src/pages/CategoryDetail.tsx:779[39m
+
+[90m    src/pages/CategoryDetail.tsx:794[39m
+
+[90m    src/pages/CategoryDetail.tsx:814[39m
+
+[90m    src/pages/CategoryDetail.tsx:824[39m
+
+[90m    src/pages/CategoryDetail.tsx:835[39m
+
+[90m    src/pages/CategoryDetail.tsx:1124[39m
+
+[90m    src/pages/CategoryDetail.tsx:1136[39m
+
+[90m    src/pages/CategoryDetail.tsx:1148[39m
+
+[90m    src/pages/CategoryDetail.tsx:1159[39m
+
+[90m    src/pages/CategoryDetail.tsx:1216[39m
+
+[90m    src/pages/CategoryDetail.tsx:1228[39m
+
+[90m    src/pages/CategoryDetail.tsx:1281[39m
+
+[90m    src/pages/CategoryDetail.tsx:1310[39m
+
+[90m    src/pages/CategoryDetail.tsx:1329[39m
+
+[90m    src/pages/CategoryDetail.tsx:1342[39m
+
+[90m    src/pages/CategoryDetail.tsx:1354[39m
+
+[90m    src/pages/CategoryDetail.tsx:1372[39m
+
+[90m    src/pages/PlaceDetail.tsx:833[39m
+
+[90m    src/pages/PlaceDetail.tsx:845[39m
+
+[90m    src/pages/PlaceDetail.tsx:863[39m
+
+[90m    src/pages/ProfileWizard.tsx:406[39m
+
+[90m    src/pages/ProfileWizard.tsx:418[39m
+
+[90m    src/pages/ProfileWizard.tsx:431[39m
+
+[90m    src/pages/ProfileWizard.tsx:441[39m
+
+[90m    src/pages/ProfileWizard.tsx:454[39m
+
+[90m    src/pages/ProfileWizard.tsx:487[39m
+
+[90m    src/pages/ProfileWizard.tsx:500[39m
+
+[90m    src/pages/ProfileWizard.tsx:546[39m
+
+[90m    src/pages/ProfileWizard.tsx:563[39m
+
+[90m    src/pages/ProfileWizard.tsx:624[39m
+
+[90m    src/pages/ProfileWizard.tsx:634[39m
+
+[90m    src/pages/ProfileWizard.tsx:651[39m
+
+[90m    src/pages/ProfileWizard.tsx:663[39m
+
+[90m    src/pages/ProfileWizard.tsx:673[39m
+
+[90m    src/pages/ProfileWizard.tsx:685[39m
+
+[90m    src/pages/ProfileWizard.tsx:697[39m
+
+[90m    src/pages/ProfileWizard.tsx:716[39m
+
+[90m    src/pages/SignIn.tsx:269[39m
+
+[90m    src/pages/SignIn.tsx:402[39m
+
+  [33mΓÜá[39m [33mMaintainability: Component rendered by inline function call[39m [90m├ù2[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-render-in-render[39m
+    Your users lose state because "renderItem()" builds UI from
+    an inline call that React remounts, so pull it into its own
+    component instead.
+[2m    ΓåÆ Make it a named component so React preserves its identity[22m
+[2m    and does not remount its state.[22m
+
+[90m    src/components/Sidebar.tsx:165[39m
+
+[90m    src/pages/CategoryDetail.tsx:1240[39m
+
+  [33mΓÜá[39m [33mPerformance: Unstable context provider value[39m [90m├ù5[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/jsx-no-constructed-context-values[39m
+    Every reader of this context redraws on each render because
+    you build its `value` inline.
+[2m    ΓåÆ Wrap the context value in `useMemo` or move it outside[22m
+[2m    the component so consumers do not redraw every render.[22m
+
+[90m    src/components/ui/carousel.tsx:109[39m
+
+[90m    src/components/ui/chart.tsx:46[39m
+
+[90m    src/components/ui/form.tsx:34[39m
+
+[90m    src/components/ui/form.tsx:78[39m
+
+[90m    src/components/ui/toggle-group.tsx:25[39m
+
+  [33mΓÜá[39m [33mPerformance: Heavy library loaded eagerly[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/prefer-dynamic-import[39m
+    "recharts" ships extra code to your users up front & slows
+    page load. Load it on demand with React.lazy() or
+    next/dynamic.
+[2m    ΓåÆ Load it only when needed: `const Component = dynamic(()[22m
+[2m    => import('library'), { ssr: false })` from next/dynamic,[22m
+[2m    or React.lazy().[22m
+
+[90m    src/components/ui/chart.tsx:2[39m
+
+  [33mΓÜá[39m [33mBugs: Unknown DOM property[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-unknown-property[39m
+    React ignores this prop because it doesn't recognize the
+    name.
+[2m    ΓåÆ Use the prop name React expects, like `className`,[22m
+[2m    `htmlFor`, or `tabIndex`, so the attribute is applied[22m
+[2m    correctly.[22m
+
+[90m    src/components/ui/command.tsx:42[39m
+
+  [33mΓÜá[39m [33mBugs: Prop derived into useState[39m [90m├ù3[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-derived-useState[39m
+    Your users see a stale value when prop "articleId" changes
+    because useState copies it once.
+[2m    ΓåÆ Compute the value inline so prop changes do not leave[22m
+[2m    `useState` holding a stale copy.[22m
+
+[90m    src/pages/ArticleDetail.tsx:23[39m
+
+[90m    src/pages/BusinessDetail.tsx:178[39m
+
+[90m    src/pages/CategoryDetail.tsx:199[39m
+
+  [33mΓÜá[39m [33mAccessibility: Control missing accessible label[39m [90m├ù87[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/control-has-associated-label[39m
+    Blind users can't tell what this control does because
+    screen readers find no label, so add visible text,
+    `aria-label`, or `aria-labelledby`.
+[2m    ΓåÆ Give every interactive control a label screen readers can[22m
+[2m    read.[22m
+
+[90m    src/components/CustomerServicePage.tsx:104[39m
+
+[90m    src/components/CustomerServicePage.tsx:115[39m
+
+[90m    src/components/CustomerServicePage.tsx:128[39m
+
+[90m    src/components/CustomerServicePage.tsx:140[39m
+
+[90m    src/components/FeedbackPage.tsx:90[39m
+
+[90m    src/components/FeedbackPage.tsx:102[39m
+
+[90m    src/components/HelpPage.tsx:29[39m
+
+[90m    src/pages/Advertise.tsx:173[39m
+
+[90m    src/pages/Advertise.tsx:219[39m
+
+[90m    src/pages/ArticleDetail.tsx:93[39m
+
+[90m    src/pages/BusinessDetail.tsx:333[39m
+
+[90m    src/pages/BusinessDetail.tsx:505[39m
+
+[90m    src/pages/BusinessDetail.tsx:571[39m
+
+[90m    src/pages/BusinessDetail.tsx:849[39m
+
+[90m    src/pages/BusinessDetail.tsx:861[39m
+
+[90m    src/pages/BusinessDetail.tsx:873[39m
+
+[90m    src/pages/BusinessDetail.tsx:884[39m
+
+[90m    src/pages/BusinessDetail.tsx:986[39m
+
+[90m    src/pages/BusinessDetail.tsx:998[39m
+
+[90m    src/pages/BusinessDetail.tsx:1015[39m
+
+[90m    src/pages/BusinessDetail.tsx:1040[39m
+
+[90m    src/pages/BusinessDetail.tsx:1073[39m
+
+[90m    src/pages/BusinessDetail.tsx:1172[39m
+
+[90m    src/pages/BusinessDetail.tsx:1191[39m
+
+[90m    src/pages/BusinessDetail.tsx:1204[39m
+
+[90m    src/pages/BusinessDetail.tsx:1216[39m
+
+[90m    src/pages/BusinessDetail.tsx:1346[39m
+
+[90m    src/pages/BusinessDetail.tsx:1358[39m
+
+[90m    src/pages/BusinessDetail.tsx:1370[39m
+
+[90m    src/pages/BusinessDetail.tsx:1382[39m
+
+[90m    src/pages/BusinessDetail.tsx:1460[39m
+
+[90m    src/pages/BusinessDetail.tsx:1479[39m
+
+[90m    src/pages/BusinessDetail.tsx:1492[39m
+
+[90m    src/pages/BusinessDetail.tsx:1504[39m
+
+[90m    src/pages/CategoryDetail.tsx:369[39m
+
+[90m    src/pages/CategoryDetail.tsx:379[39m
+
+[90m    src/pages/CategoryDetail.tsx:429[39m
+
+[90m    src/pages/CategoryDetail.tsx:439[39m
+
+[90m    src/pages/CategoryDetail.tsx:520[39m
+
+[90m    src/pages/CategoryDetail.tsx:529[39m
+
+[90m    src/pages/CategoryDetail.tsx:547[39m
+
+[90m    src/pages/CategoryDetail.tsx:572[39m
+
+[90m    src/pages/CategoryDetail.tsx:583[39m
+
+[90m    src/pages/CategoryDetail.tsx:601[39m
+
+[90m    src/pages/CategoryDetail.tsx:611[39m
+
+[90m    src/pages/CategoryDetail.tsx:645[39m
+
+[90m    src/pages/CategoryDetail.tsx:655[39m
+
+[90m    src/pages/CategoryDetail.tsx:680[39m
+
+[90m    src/pages/CategoryDetail.tsx:698[39m
+
+[90m    src/pages/CategoryDetail.tsx:708[39m
+
+[90m    src/pages/CategoryDetail.tsx:720[39m
+
+[90m    src/pages/CategoryDetail.tsx:753[39m
+
+[90m    src/pages/CategoryDetail.tsx:815[39m
+
+[90m    src/pages/CategoryDetail.tsx:825[39m
+
+[90m    src/pages/CategoryDetail.tsx:836[39m
+
+[90m    src/pages/CategoryDetail.tsx:877[39m
+
+[90m    src/pages/CategoryDetail.tsx:932[39m
+
+[90m    src/pages/CategoryDetail.tsx:1125[39m
+
+[90m    src/pages/CategoryDetail.tsx:1137[39m
+
+[90m    src/pages/CategoryDetail.tsx:1149[39m
+
+[90m    src/pages/CategoryDetail.tsx:1160[39m
+
+[90m    src/pages/CategoryDetail.tsx:1217[39m
+
+[90m    src/pages/CategoryDetail.tsx:1229[39m
+
+[90m    src/pages/CategoryDetail.tsx:1311[39m
+
+[90m    src/pages/CategoryDetail.tsx:1330[39m
+
+[90m    src/pages/CategoryDetail.tsx:1343[39m
+
+[90m    src/pages/CategoryDetail.tsx:1355[39m
+
+[90m    src/pages/Home.tsx:609[39m
+
+[90m    src/pages/PlaceDetail.tsx:212[39m
+
+[90m    src/pages/PlaceDetail.tsx:834[39m
+
+[90m    src/pages/PlaceDetail.tsx:864[39m
+
+[90m    src/pages/ProfileWizard.tsx:419[39m
+
+[90m    src/pages/ProfileWizard.tsx:432[39m
+
+[90m    src/pages/ProfileWizard.tsx:442[39m
+
+[90m    src/pages/ProfileWizard.tsx:551[39m
+
+[90m    src/pages/ProfileWizard.tsx:569[39m
+
+[90m    src/pages/ProfileWizard.tsx:625[39m
+
+[90m    src/pages/ProfileWizard.tsx:639[39m
+
+[90m    src/pages/ProfileWizard.tsx:652[39m
+
+[90m    src/pages/ProfileWizard.tsx:664[39m
+
+[90m    src/pages/ProfileWizard.tsx:674[39m
+
+[90m    src/pages/ProfileWizard.tsx:686[39m
+
+[90m    src/pages/ProfileWizard.tsx:699[39m
+
+[90m    src/pages/ProfileWizard.tsx:706[39m
+
+[90m    src/pages/SignIn.tsx:277[39m
+
+[90m    src/pages/SignIn.tsx:340[39m
+
+[90m    src/pages/SignIn.tsx:406[39m
+
+  [33mΓÜá[39m [33mAccessibility: Heading has no content[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/heading-has-content[39m
+    Blind users can't use this heading to navigate because
+    screen readers skip it empty, so add text, `aria-label`, or
+    `aria-labelledby`.
+[2m    ΓåÆ Put readable text in every heading.[22m
+
+[90m    src/components/ui/alert.tsx:32[39m
+
+  [33mΓÜá[39m [33mBugs: Parent kept in sync with a callback effect[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-prop-callback-in-effect[39m
+    Your parent re-renders on every local state change because
+    this useEffect calls the prop "setApi" just to stay in sync.
+[2m    ΓåÆ Move the shared state into a Provider so both sides read[22m
+[2m    the same value. Then you don't need a useEffect to keep[22m
+[2m    them in sync.[22m
+
+[90m    src/components/ui/carousel.tsx:90[39m
+
+  [33mΓÜá[39m [33mAccessibility: Anchor used as a button[39m [90m├ù17[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/anchor-is-valid[39m
+    Keyboard users can't reach this link because its `href`
+    goes nowhere (`#`, `javascript:`, or empty), so point it at
+    a real destination.
+[2m    ΓåÆ Give links a real destination. Use `<button>` for in-page[22m
+[2m    actions.[22m
+
+[90m    src/pages/Advertise.tsx:402-404[39m
+
+[90m    src/pages/ArticleDetail.tsx:82[39m
+
+[90m    src/pages/ArticleDetail.tsx:134[39m
+
+[90m    src/pages/ArticleDetail.tsx:444[39m
+
+[90m    src/pages/BusinessDetail.tsx:323[39m
+
+[90m    src/pages/BusinessDetail.tsx:415[39m
+
+[90m    src/pages/Footer.tsx:84[39m
+
+[90m    src/pages/Footer.tsx:105[39m
+
+[90m    src/pages/Footer.tsx:140[39m
+
+[90m    src/pages/Footer.tsx:153-159[39m
+
+[90m    src/pages/Home.tsx:1140[39m
+
+[90m    src/pages/PlaceDetail.tsx:201[39m
+
+[90m    src/pages/SignIn.tsx:302[39m
+
+  [33mΓÜá[39m [33mBugs: preventDefault on a form or link[39m [90m├ù11[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-prevent-default[39m
+    Your users click this <a> & nothing navigates because
+    onClick calls preventDefault(), so use a <button> or a
+    routing component instead.
+[2m    ΓåÆ Use `<form action>` where your framework supports it (it[22m
+[2m    works without JS), or use a `<button>` instead of an `<a>`[22m
+[2m    with preventDefault.[22m
+
+[90m    src/pages/ArticleDetail.tsx:82[39m
+
+[90m    src/pages/ArticleDetail.tsx:134[39m
+
+[90m    src/pages/ArticleDetail.tsx:424[39m
+
+[90m    src/pages/ArticleDetail.tsx:444[39m
+
+[90m    src/pages/BusinessDetail.tsx:323[39m
+
+[90m    src/pages/BusinessDetail.tsx:415[39m
+
+[90m    src/pages/BusinessDetail.tsx:963[39m
+
+[90m    src/pages/BusinessDetail.tsx:1308[39m
+
+[90m    src/pages/Home.tsx:1151[39m
+
+[90m    src/pages/PlaceDetail.tsx:201[39m
+
+[90m    src/pages/SignIn.tsx:302[39m
+
+  [33mΓÜá[39m [33mAccessibility: Interaction on static element[39m [90m├ù9[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-static-element-interactions[39m
+    Screen reader users can't tell this click handler is
+    interactive because it has no `role`, so add a `role` or
+    use a button or link.
+[2m    ΓåÆ Give clickable static elements a `role`, or use a button[22m
+[2m    or link.[22m
+
+[90m    src/components/Sidebar.tsx:101[39m
+
+[90m    src/components/Sidebar.tsx:133[39m
+
+[90m    src/pages/ArticleDetail.tsx:451[39m
+
+[90m    src/pages/BusinessDetail.tsx:911[39m
+
+[90m    src/pages/CategoryDetail.tsx:917[39m
+
+[90m    src/pages/CategoryDetail.tsx:990[39m
+
+[90m    src/pages/Home.tsx:978[39m
+
+[90m    src/pages/Home.tsx:1047[39m
+
+[90m    src/pages/PlaceDetail.tsx:755[39m
+
+  [33mΓÜá[39m [33mMaintainability: deslop/unused-file[39m [90m├ù51[39m
+    Unused file is not reachable from any entry point, so it
+    adds maintenance surface without shipping any code.
+[2m    ΓåÆ Delete the file if it is truly unreachable, or import it[22m
+[2m    from an entry point.[22m
+
+[90m    src/components/ui/accordion.tsx[39m
+
+[90m    src/components/ui/alert-dialog.tsx[39m
+
+[90m    src/components/ui/alert.tsx[39m
+
+[90m    src/components/ui/aspect-ratio.tsx[39m
+
+[90m    src/components/ui/avatar.tsx[39m
+
+[90m    src/components/ui/badge.tsx[39m
+
+[90m    src/components/ui/breadcrumb.tsx[39m
+
+[90m    src/components/ui/button.tsx[39m
+
+[90m    src/components/ui/calendar.tsx[39m
+
+[90m    src/components/ui/card.tsx[39m
+
+[90m    src/components/ui/carousel.tsx[39m
+
+[90m    src/components/ui/chart.tsx[39m
+
+[90m    src/components/ui/checkbox.tsx[39m
+
+[90m    src/components/ui/collapsible.tsx[39m
+
+[90m    src/components/ui/command.tsx[39m
+
+[90m    src/components/ui/context-menu.tsx[39m
+
+[90m    src/components/ui/dialog.tsx[39m
+
+[90m    src/components/ui/drawer.tsx[39m
+
+[90m    src/components/ui/dropdown-menu.tsx[39m
+
+[90m    src/components/ui/form.tsx[39m
+
+[90m    src/components/ui/hover-card.tsx[39m
+
+[90m    src/components/ui/input-otp.tsx[39m
+
+[90m    src/components/ui/input.tsx[39m
+
+[90m    src/components/ui/label.tsx[39m
+
+[90m    src/components/ui/menubar.tsx[39m
+
+[90m    src/components/ui/navigation-menu.tsx[39m
+
+[90m    src/components/ui/pagination.tsx[39m
+
+[90m    src/components/ui/popover.tsx[39m
+
+[90m    src/components/ui/progress.tsx[39m
+
+[90m    src/components/ui/radio-group.tsx[39m
+
+[90m    src/components/ui/resizable.tsx[39m
+
+[90m    src/components/ui/scroll-area.tsx[39m
+
+[90m    src/components/ui/select.tsx[39m
+
+[90m    src/components/ui/separator.tsx[39m
+
+[90m    src/components/ui/sheet.tsx[39m
+
+[90m    src/components/ui/sidebar.tsx[39m
+
+[90m    src/components/ui/skeleton.tsx[39m
+
+[90m    src/components/ui/slider.tsx[39m
+
+[90m    src/components/ui/sonner.tsx[39m
+
+[90m    src/components/ui/switch.tsx[39m
+
+[90m    src/components/ui/table.tsx[39m
+
+[90m    src/components/ui/tabs.tsx[39m
+
+[90m    src/components/ui/textarea.tsx[39m
+
+[90m    src/components/ui/toggle-group.tsx[39m
+
+[90m    src/components/ui/toggle.tsx[39m
+
+[90m    src/components/ui/tooltip.tsx[39m
+
+[90m    src/hooks/use-mobile.tsx[39m
+
+[90m    src/lib/error-capture.ts[39m
+
+[90m    src/lib/error-page.ts[39m
+
+[90m    src/lib/lovable-error-reporting.ts[39m
+
+[90m    src/lib/utils.ts[39m
+
+  [33mΓÜá[39m [33mAccessibility: Role used instead of HTML tag[39m [90m├ù4[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/prefer-tag-over-role[39m
+    Screen reader users get more reliable semantics from `<a>`
+    than `role="link"`, so use `<a>` instead.
+[2m    ΓåÆ Use the matching HTML element when one exists so browsers[22m
+[2m    and assistive tech get native semantics.[22m
+
+[90m    src/components/ui/breadcrumb.tsx:58[39m
+
+[90m    src/components/ui/carousel.tsx:124[39m
+
+[90m    src/components/ui/carousel.tsx:163[39m
+
+[90m    src/components/ui/input-otp.tsx:63[39m
+
+  [33mΓÜá[39m [33mBugs: Button missing explicit type[39m [90m├ù112[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/button-has-type[39m
+    Your users can submit the form by accident because a
+    `<button>` with no `type` defaults to submit.
+[2m    ΓåÆ Set an explicit button `type` so plain buttons do not[22m
+[2m    submit forms by accident: `type="button"`, `"submit"`, or[22m
+[2m    `"reset"`.[22m
+
+[90m    src/components/FavoritesPage.tsx:70[39m
+
+[90m    src/components/MyTransactionPage.tsx:95[39m
+
+[90m    src/components/MyTransactionPage.tsx:117[39m
+
+[90m    src/components/MyTransactionPage.tsx:163[39m
+
+[90m    src/components/NotificationsPage.tsx:46[39m
+
+[90m    src/components/NotificationsPage.tsx:84[39m
+
+[90m    src/components/PolicyPage.tsx:20[39m
+
+[90m    src/components/SavedPage.tsx:55[39m
+
+[90m    src/components/SavedPage.tsx:76[39m
+
+[90m    src/components/Sidebar.tsx:86[39m
+
+[90m    src/components/Sidebar.tsx:111[39m
+
+[90m    src/components/Sidebar.tsx:125[39m
+
+[90m    src/components/SidebarPages.tsx:54[39m
+
+[90m    src/components/ui/sidebar.tsx:291[39m
+
+[90m    src/pages/Advertise.tsx:83[39m
+
+[90m    src/pages/Advertise.tsx:100[39m
+
+[90m    src/pages/Advertise.tsx:137[39m
+
+[90m    src/pages/Advertise.tsx:308-309[39m
+
+[90m    src/pages/Advertise.tsx:387[39m
+
+[90m    src/pages/ArticleDetail.tsx:75[39m
+
+[90m    src/pages/ArticleDetail.tsx:101[39m
+
+[90m    src/pages/ArticleDetail.tsx:107-110[39m
+
+[90m    src/pages/ArticleDetail.tsx:159[39m
+
+[90m    src/pages/ArticleDetail.tsx:165[39m
+
+[90m    src/pages/ArticleDetail.tsx:171[39m
+
+[90m    src/pages/ArticleDetail.tsx:201[39m
+
+[90m    src/pages/ArticleDetail.tsx:342[39m
+
+[90m    src/pages/ArticleDetail.tsx:348[39m
+
+[90m    src/pages/BusinessDetail.tsx:316[39m
+
+[90m    src/pages/BusinessDetail.tsx:341[39m
+
+[90m    src/pages/BusinessDetail.tsx:347[39m
+
+[90m    src/pages/BusinessDetail.tsx:351[39m
+
+[90m    src/pages/BusinessDetail.tsx:359[39m
+
+[90m    src/pages/BusinessDetail.tsx:456[39m
+
+[90m    src/pages/BusinessDetail.tsx:467[39m
+
+[90m    src/pages/BusinessDetail.tsx:498[39m
+
+[90m    src/pages/BusinessDetail.tsx:515[39m
+
+[90m    src/pages/BusinessDetail.tsx:521[39m
+
+[90m    src/pages/BusinessDetail.tsx:804[39m
+
+[90m    src/pages/BusinessDetail.tsx:955[39m
+
+[90m    src/pages/BusinessDetail.tsx:1245[39m
+
+[90m    src/pages/BusinessDetail.tsx:1300[39m
+
+[90m    src/pages/BusinessDetail.tsx:1533[39m
+
+[90m    src/pages/BusinessDetail.tsx:1585[39m
+
+[90m    src/pages/CategoryDetail.tsx:855[39m
+
+[90m    src/pages/CategoryDetail.tsx:884[39m
+
+[90m    src/pages/CategoryDetail.tsx:892[39m
+
+[90m    src/pages/CategoryDetail.tsx:902[39m
+
+[90m    src/pages/CategoryDetail.tsx:948[39m
+
+[90m    src/pages/CategoryDetail.tsx:1054[39m
+
+[90m    src/pages/CategoryDetail.tsx:1062[39m
+
+[90m    src/pages/CategoryDetail.tsx:1070[39m
+
+[90m    src/pages/CategoryDetail.tsx:1078[39m
+
+[90m    src/pages/CategoryDetail.tsx:1106[39m
+
+[90m    src/pages/CategoryDetail.tsx:1198[39m
+
+[90m    src/pages/CategoryDetail.tsx:1384[39m
+
+[90m    src/pages/Footer.tsx:130[39m
+
+[90m    src/pages/Home.tsx:504[39m
+
+[90m    src/pages/Home.tsx:520[39m
+
+[90m    src/pages/Home.tsx:527[39m
+
+[90m    src/pages/Home.tsx:542[39m
+
+[90m    src/pages/Home.tsx:563[39m
+
+[90m    src/pages/Home.tsx:573[39m
+
+[90m    src/pages/Home.tsx:594[39m
+
+[90m    src/pages/Home.tsx:616[39m
+
+[90m    src/pages/Home.tsx:624[39m
+
+[90m    src/pages/Home.tsx:665[39m
+
+[90m    src/pages/Home.tsx:672[39m
+
+[90m    src/pages/Home.tsx:680[39m
+
+[90m    src/pages/Home.tsx:722[39m
+
+[90m    src/pages/Home.tsx:740[39m
+
+[90m    src/pages/Home.tsx:752[39m
+
+[90m    src/pages/Home.tsx:759[39m
+
+[90m    src/pages/Home.tsx:770[39m
+
+[90m    src/pages/Home.tsx:819[39m
+
+[90m    src/pages/Home.tsx:872[39m
+
+[90m    src/pages/Home.tsx:904[39m
+
+[90m    src/pages/Home.tsx:929[39m
+
+[90m    src/pages/Home.tsx:952[39m
+
+[90m    src/pages/Home.tsx:962[39m
+
+[90m    src/pages/Home.tsx:1021[39m
+
+[90m    src/pages/Home.tsx:1031[39m
+
+[90m    src/pages/PlaceDetail.tsx:194[39m
+
+[90m    src/pages/PlaceDetail.tsx:220[39m
+
+[90m    src/pages/PlaceDetail.tsx:226[39m
+
+[90m    src/pages/PlaceDetail.tsx:230[39m
+
+[90m    src/pages/PlaceDetail.tsx:238[39m
+
+[90m    src/pages/PlaceDetail.tsx:312[39m
+
+[90m    src/pages/PlaceDetail.tsx:319[39m
+
+[90m    src/pages/PlaceDetail.tsx:342[39m
+
+[90m    src/pages/PlaceDetail.tsx:396[39m
+
+[90m    src/pages/PlaceDetail.tsx:403[39m
+
+[90m    src/pages/PlaceDetail.tsx:462[39m
+
+[90m    src/pages/PlaceDetail.tsx:469[39m
+
+[90m    src/pages/PlaceDetail.tsx:509[39m
+
+[90m    src/pages/PlaceDetail.tsx:541[39m
+
+[90m    src/pages/PlaceDetail.tsx:548[39m
+
+[90m    src/pages/PlaceDetail.tsx:588[39m
+
+[90m    src/pages/PlaceDetail.tsx:614[39m
+
+[90m    src/pages/PlaceDetail.tsx:621[39m
+
+[90m    src/pages/PlaceDetail.tsx:661[39m
+
+[90m    src/pages/PlaceDetail.tsx:687[39m
+
+[90m    src/pages/PlaceDetail.tsx:694[39m
+
+[90m    src/pages/PlaceDetail.tsx:734[39m
+
+[90m    src/pages/ProfileWizard.tsx:284[39m
+
+[90m    src/pages/ProfileWizard.tsx:327[39m
+
+[90m    src/pages/ProfileWizard.tsx:355[39m
+
+[90m    src/pages/ProfileWizard.tsx:751[39m
+
+[90m    src/pages/SignIn.tsx:446[39m
+
+[90m    src/pages/SignIn.tsx:463[39m
+
+  [33mΓÜá[39m [33mPerformance: Listener re-subscribes on every handler change[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/advanced-event-handler-refs[39m
+    useEffect re-adds the "onSelect" listener every time the
+    handler changes.
+[2m    ΓåÆ Store the handler in a ref and have the listener read[22m
+[2m    `handlerRef.current()`. The subscription stays put while[22m
+[2m    the latest handler still runs.[22m
+
+[90m    src/components/ui/carousel.tsx:93[39m
+
+  [33mΓÜá[39m [33mPerformance: State only used in handlers[39m [90m├ù4[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/rerender-state-only-in-handlers[39m
+    Each update to "prevArticleId" redraws your component for
+    nothing because this useState is set but never shown on
+    screen.
+[2m    ΓåÆ Use useRef instead of useState when the value is only set[22m
+[2m    and never shown on screen. `ref.current = ...` updates it[22m
+[2m    without redrawing the component.[22m
+
+[90m    src/pages/ArticleDetail.tsx:23[39m
+
+[90m    src/pages/BusinessDetail.tsx:178[39m
+
+[90m    src/pages/CategoryDetail.tsx:199[39m
+
+[90m    src/pages/CategoryDetail.tsx:267[39m
+
+  [33mΓÜá[39m [33mBugs: Event logic handled in an effect[39m [90m├ù2[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-event-handler[39m
+    Faking an event handler with a prop plus a useEffect costs
+    an extra render & runs late.
+[2m    ΓåÆ Run the side effect in the event handler that triggers[22m
+[2m    it, instead of watching its state from a useEffect. See[22m
+[2m    https://react.dev/learn/you-might-not-need-an-effect#sharing-logic-between-event-handlers[22m
+
+[90m    src/components/ui/calendar.tsx:149[39m
+
+[90m    src/pages/ProfileWizard.tsx:173[39m
+
+  [33mΓÜá[39m [33mBugs: State initialized from a mount effect[39m [90m├ù9[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-initialize-state[39m
+    Your users see an extra render with empty "favorites"
+    because a useEffect sets its starting value.
+[2m    ΓåÆ Pass the initial value directly to useState() instead of[22m
+[2m    setting it from a mount-only useEffect. For SSR hydration,[22m
+[2m    prefer useSyncExternalStore().[22m
+
+[90m    src/components/FavoritesPage.tsx:15-17[39m
+
+[90m    src/components/MyTransactionPage.tsx:12[39m
+
+[90m    src/components/MyTransactionPage.tsx:47[39m
+
+[90m    src/components/NotificationsPage.tsx:11[39m
+
+[90m    src/components/NotificationsPage.tsx:19[39m
+
+[90m    src/components/SavedPage.tsx:15[39m
+
+[90m    src/components/SavedPage.tsx:22[39m
+
+[90m    src/hooks/use-mobile.tsx:14[39m
+
+  [33mΓÜá[39m [33mAccessibility: Click handler missing keyboard handler[39m [90m├ù10[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/click-events-have-key-events[39m
+    Keyboard users can't trigger this click handler because
+    there's no keyboard one, so add `onKeyUp`, `onKeyDown`, or
+    `onKeyPress`.
+[2m    ΓåÆ Pair `onClick` with a key handler so keyboard users can[22m
+[2m    trigger it.[22m
+
+[90m    src/components/Sidebar.tsx:101[39m
+
+[90m    src/components/Sidebar.tsx:133[39m
+
+[90m    src/pages/ArticleDetail.tsx:451[39m
+
+[90m    src/pages/BusinessDetail.tsx:911[39m
+
+[90m    src/pages/CategoryDetail.tsx:917[39m
+
+[90m    src/pages/CategoryDetail.tsx:990[39m
+
+[90m    src/pages/CategoryDetail.tsx:1005[39m
+
+[90m    src/pages/Home.tsx:978[39m
+
+[90m    src/pages/Home.tsx:1047[39m
+
+[90m    src/pages/PlaceDetail.tsx:755[39m
+
+  [33mΓÜá[39m [33mAccessibility: Anchor has no content[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/anchor-has-content[39m
+    Blind users can't follow this link because screen readers
+    announce nothing, so add visible text, `aria-label`, or
+    `aria-labelledby`.
+[2m    ΓåÆ Put readable text inside every `<a>`.[22m
+
+[90m    src/components/ui/pagination.tsx:35[39m
+
+  [33mΓÜá[39m [33mMaintainability: Static value rebuilt every render[39m [90m├ù5[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/prefer-module-scope-static-value[39m
+    `mockRecommended` inside `FavoritesPage` uses no local
+    state but is rebuilt every render, so it looks new each
+    time & breaks memoized children. Move it to the top of the
+    file, outside the component.
+[2m    ΓåÆ Move the value above the component, at the top of the[22m
+[2m    file. It doesn't use local state, so rebuilding it each[22m
+[2m    update is wasted and makes it look new every time.[22m
+
+[90m    src/components/FavoritesPage.tsx:24[39m
+
+[90m    src/components/HelpPage.tsx:8[39m
+
+[90m    src/pages/Advertise.tsx:70[39m
+
+[90m    src/pages/Advertise.tsx:75[39m
+
+[90m    src/pages/ProfileWizard.tsx:252[39m
+
+  [33mΓÜá[39m [33mMaintainability: deslop/unused-export[39m
+    Unused export: `subcategoriesData` is exported but no
+    module imports it, so it expands the public surface and can
+    mislead callers about supported API.
+[2m    ΓåÆ Drop the `export` keyword (or remove the declaration) if[22m
+[2m    no other module uses this symbol.[22m
+
+[90m    src/pages/CategoryDetail.tsx:11[39m
+
+  [33mΓÜá[39m [33mBugs: Data passed to parent via effect[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-pass-data-to-parent[39m
+    Handing data back to a parent from a useEffect costs your
+    users an extra render.
+[2m    ΓåÆ Fetch the data in the parent and pass it down as a prop[22m
+[2m    (or return it from the hook), instead of handing it back up[22m
+[2m    through a prop callback in a useEffect. See[22m
+[2m    https://react.dev/learn/you-might-not-need-an-effect#passing-data-to-the-parent[22m
+
+[90m    src/components/ui/carousel.tsx:90[39m
+
+  [33mΓÜá[39m [33mAccessibility: Handler on non-interactive element[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-noninteractive-element-interactions[39m
+    Keyboard & screen reader users can't trigger this `<h2>`
+    because it isn't interactive, so use a button or link or
+    add an interactive role.
+[2m    ΓåÆ Put interactions on a button or link, or add an[22m
+[2m    interactive role.[22m
+
+[90m    src/pages/CategoryDetail.tsx:1005[39m
+
+  [33mΓÜá[39m [33mAccessibility: Redundant ARIA role[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-redundant-roles[39m
+    Screen reader users gain nothing from this `role` because
+    `<nav>` already acts as a `navigation`, so remove it.
+[2m    ΓåÆ Remove redundant `role` attributes so assistive tech[22m
+[2m    reads the element's native semantics without extra noise.[22m
+
+[90m    src/components/ui/pagination.tsx:9[39m
+
+  [33mΓÜá[39m [33mAccessibility: Autofocus on an element[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-autofocus[39m
+    `autoFocus` moves focus on load, which can disrupt screen
+    reader and keyboard users. Remove it and let users choose
+    where to focus.
+[2m    ΓåÆ Do not use `autoFocus`. It disorients users on load.[22m
+
+[90m    src/pages/SignIn.tsx:413[39m
+
+  [33mΓÜá[39m [33mMaintainability: Pure function rebuilt every render[39m [90m├ù2[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/prefer-module-scope-pure-function[39m
+    `handleEnquire` inside `ArticleDetailPage` uses no local
+    state but is rebuilt on every render, so it wastes work &
+    breaks memoized children. Move it to the top of the file,
+    outside the component.
+[2m    ΓåÆ Move the function above the component, at the top of the[22m
+[2m    file. It doesn't use local state, so rebuilding it each[22m
+[2m    update is wasted work.[22m
+
+[90m    src/pages/ArticleDetail.tsx:53[39m
+
+[90m    src/pages/PlaceDetail.tsx:173[39m
+
+  [33mΓÜá[39m [33mPerformance: useMemo on a cheap value[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-usememo-simple-expression[39m
+    This costs more than it saves because useMemo is wrapping a
+    value that's already cheap, so remove the useMemo
+[2m    ΓåÆ Remove the useMemo. Property reads, math, and ternaries[22m
+[2m    are already fast, so wrapping them doesn't help[22m
+
+[90m    src/components/ui/sidebar.tsx:642[39m
+
+  [33mΓÜá[39m [33mMaintainability: Large component is hard to read and change[39m [90m├ù8[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-giant-component[39m
+    Component "Advertise" is 358 lines long, which is hard to
+    read & change. Split it into a few smaller components.
+[2m    ΓåÆ Pull each section into its own component so the parent is[22m
+[2m    easier to read, test, and change.[22m
+
+[90m    src/pages/Advertise.tsx:53[39m
+
+[90m    src/pages/ArticleDetail.tsx:17[39m
+
+[90m    src/pages/BusinessDetail.tsx:163[39m
+
+[90m    src/pages/CategoryDetail.tsx:188[39m
+
+[90m    src/pages/Home.tsx:321[39m
+
+[90m    src/pages/PlaceDetail.tsx:20[39m
+
+[90m    src/pages/ProfileWizard.tsx:155[39m
+
+[90m    src/pages/SignIn.tsx:73[39m
+
+  [33mΓÜá[39m [33mBugs: Unversioned localStorage key[39m [90m├ù13[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/client-localstorage-no-version[39m
+    localStorage.setItem("fmp_support_tickets",
+    JSON.stringify(...)) has no version, so changing the data
+    shape later crashes your users' saved sessions. Add one to
+    the key (e.g. "fmp_support_tickets:v1").
+[2m    ΓåÆ Put a version in the storage key (e.g. "myKey:v1"). If[22m
+[2m    you change the data shape later, old saved data can be[22m
+[2m    ignored instead of crashing the app.[22m
+
+[90m    src/components/CustomerServicePage.tsx:53[39m
+
+[90m    src/components/FeedbackPage.tsx:21[39m
+
+[90m    src/components/MyTransactionPage.tsx:46[39m
+
+[90m    src/components/NotificationsPage.tsx:18[39m
+
+[90m    src/components/NotificationsPage.tsx:29[39m
+
+[90m    src/components/NotificationsPage.tsx:35[39m
+
+[90m    src/components/SavedPage.tsx:21[39m
+
+[90m    src/components/SavedPage.tsx:32[39m
+
+[90m    src/pages/Home.tsx:348[39m
+
+[90m    src/pages/ProfileWizard.tsx:206[39m
+
+[90m    src/pages/ProfileWizard.tsx:218[39m
+
+[90m    src/pages/ProfileWizard.tsx:226[39m
+
+[90m    src/pages/ProfileWizard.tsx:242[39m
+
+  [33mΓÜá[39m [33mPerformance: Chained array iterations[39m [90m├ù4[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/js-combine-iterations[39m
+    This loops over your list twice because .filter().map()
+    makes two passes, so do it in one pass with .reduce() or a
+    for...of loop
+[2m    ΓåÆ Combine `.map().filter()` style chains into one pass with[22m
+[2m    `.reduce()` or a `for...of` loop, so you only loop over the[22m
+[2m    list once[22m
+
+[90m    src/components/ui/chart.tsx:168[39m
+
+[90m    src/components/ui/chart.tsx:266[39m
+
+[90m    src/data/businessesData.ts:590[39m
+
+[90m    src/pages/ArticleDetail.tsx:448[39m
+
+  [33mΓÜá[39m [33mMaintainability: React 19 API migration can break callers[39m [90m├ù163[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-react19-deprecated-apis[39m
+    forwardRef is dead weight in React 19, since ref is a
+    normal prop now, so drop it & pass ref straight through.
+[2m    ΓåÆ Pass `ref` as a normal prop on function components, since[22m
+[2m    `forwardRef` isn't needed in React 19. Replace[22m
+[2m    `useContext(X)` with `use(X)`. Only runs on React 19+[22m
+[2m    projects.[22m
+
+[90m    src/components/ui/accordion.tsx:9[39m
+
+[90m    src/components/ui/accordion.tsx:17[39m
+
+[90m    src/components/ui/accordion.tsx:37[39m
+
+[90m    src/components/ui/alert-dialog.tsx:13[39m
+
+[90m    src/components/ui/alert-dialog.tsx:28[39m
+
+[90m    src/components/ui/alert-dialog.tsx:59[39m
+
+[90m    src/components/ui/alert-dialog.tsx:71[39m
+
+[90m    src/components/ui/alert-dialog.tsx:83[39m
+
+[90m    src/components/ui/alert-dialog.tsx:91[39m
+
+[90m    src/components/ui/alert.tsx:22[39m
+
+[90m    src/components/ui/alert.tsx:30[39m
+
+[90m    src/components/ui/alert.tsx:41[39m
+
+[90m    src/components/ui/avatar.tsx:8[39m
+
+[90m    src/components/ui/avatar.tsx:20[39m
+
+[90m    src/components/ui/avatar.tsx:32[39m
+
+[90m    src/components/ui/breadcrumb.tsx:7[39m
+
+[90m    src/components/ui/breadcrumb.tsx:15[39m
+
+[90m    src/components/ui/breadcrumb.tsx:29[39m
+
+[90m    src/components/ui/breadcrumb.tsx:36[39m
+
+[90m    src/components/ui/breadcrumb.tsx:54[39m
+
+[90m    src/components/ui/button.tsx:39[39m
+
+[90m    src/components/ui/card.tsx:5[39m
+
+[90m    src/components/ui/card.tsx:16[39m
+
+[90m    src/components/ui/card.tsx:23[39m
+
+[90m    src/components/ui/card.tsx:34[39m
+
+[90m    src/components/ui/card.tsx:41[39m
+
+[90m    src/components/ui/card.tsx:48[39m
+
+[90m    src/components/ui/carousel.tsx:32[39m
+
+[90m    src/components/ui/carousel.tsx:41[39m
+
+[90m    src/components/ui/carousel.tsx:135[39m
+
+[90m    src/components/ui/carousel.tsx:156[39m
+
+[90m    src/components/ui/carousel.tsx:177[39m
+
+[90m    src/components/ui/carousel.tsx:205[39m
+
+[90m    src/components/ui/chart.tsx:26[39m
+
+[90m    src/components/ui/chart.tsx:35[39m
+
+[90m    src/components/ui/chart.tsx:95[39m
+
+[90m    src/components/ui/chart.tsx:243[39m
+
+[90m    src/components/ui/checkbox.tsx:7[39m
+
+[90m    src/components/ui/command.tsx:11[39m
+
+[90m    src/components/ui/command.tsx:38[39m
+
+[90m    src/components/ui/command.tsx:57[39m
+
+[90m    src/components/ui/command.tsx:70[39m
+
+[90m    src/components/ui/command.tsx:79[39m
+
+[90m    src/components/ui/command.tsx:95[39m
+
+[90m    src/components/ui/command.tsx:107[39m
+
+[90m    src/components/ui/context-menu.tsx:19[39m
+
+[90m    src/components/ui/context-menu.tsx:40[39m
+
+[90m    src/components/ui/context-menu.tsx:55[39m
+
+[90m    src/components/ui/context-menu.tsx:72[39m
+
+[90m    src/components/ui/context-menu.tsx:90[39m
+
+[90m    src/components/ui/context-menu.tsx:113[39m
+
+[90m    src/components/ui/context-menu.tsx:135[39m
+
+[90m    src/components/ui/context-menu.tsx:149[39m
+
+[90m    src/components/ui/dialog.tsx:17[39m
+
+[90m    src/components/ui/dialog.tsx:32[39m
+
+[90m    src/components/ui/dialog.tsx:69[39m
+
+[90m    src/components/ui/dialog.tsx:81[39m
+
+[90m    src/components/ui/drawer.tsx:20[39m
+
+[90m    src/components/ui/drawer.tsx:32[39m
+
+[90m    src/components/ui/drawer.tsx:63[39m
+
+[90m    src/components/ui/drawer.tsx:75[39m
+
+[90m    src/components/ui/dropdown-menu.tsx:21[39m
+
+[90m    src/components/ui/dropdown-menu.tsx:42[39m
+
+[90m    src/components/ui/dropdown-menu.tsx:57[39m
+
+[90m    src/components/ui/dropdown-menu.tsx:76[39m
+
+[90m    src/components/ui/dropdown-menu.tsx:94[39m
+
+[90m    src/components/ui/dropdown-menu.tsx:117[39m
+
+[90m    src/components/ui/dropdown-menu.tsx:139[39m
+
+[90m    src/components/ui/dropdown-menu.tsx:153[39m
+
+[90m    src/components/ui/form.tsx:41-42[39m
+
+[90m    src/components/ui/form.tsx:73[39m
+
+[90m    src/components/ui/form.tsx:86[39m
+
+[90m    src/components/ui/form.tsx:103[39m
+
+[90m    src/components/ui/form.tsx:121[39m
+
+[90m    src/components/ui/form.tsx:138[39m
+
+[90m    src/components/ui/hover-card.tsx:10[39m
+
+[90m    src/components/ui/input-otp.tsx:7[39m
+
+[90m    src/components/ui/input-otp.tsx:23[39m
+
+[90m    src/components/ui/input-otp.tsx:31[39m
+
+[90m    src/components/ui/input-otp.tsx:35[39m
+
+[90m    src/components/ui/input-otp.tsx:59[39m
+
+[90m    src/components/ui/input.tsx:5[39m
+
+[90m    src/components/ui/label.tsx:13[39m
+
+[90m    src/components/ui/menubar.tsx:27[39m
+
+[90m    src/components/ui/menubar.tsx:42[39m
+
+[90m    src/components/ui/menubar.tsx:57[39m
+
+[90m    src/components/ui/menubar.tsx:78[39m
+
+[90m    src/components/ui/menubar.tsx:93[39m
+
+[90m    src/components/ui/menubar.tsx:113[39m
+
+[90m    src/components/ui/menubar.tsx:131[39m
+
+[90m    src/components/ui/menubar.tsx:154[39m
+
+[90m    src/components/ui/menubar.tsx:176[39m
+
+[90m    src/components/ui/menubar.tsx:190[39m
+
+[90m    src/components/ui/navigation-menu.tsx:8[39m
+
+[90m    src/components/ui/navigation-menu.tsx:23[39m
+
+[90m    src/components/ui/navigation-menu.tsx:41[39m
+
+[90m    src/components/ui/navigation-menu.tsx:59[39m
+
+[90m    src/components/ui/navigation-menu.tsx:76[39m
+
+[90m    src/components/ui/navigation-menu.tsx:93[39m
+
+[90m    src/components/ui/pagination.tsx:17[39m
+
+[90m    src/components/ui/pagination.tsx:24[39m
+
+[90m    src/components/ui/popover.tsx:12[39m
+
+[90m    src/components/ui/progress.tsx:8[39m
+
+[90m    src/components/ui/radio-group.tsx:7[39m
+
+[90m    src/components/ui/radio-group.tsx:15[39m
+
+[90m    src/components/ui/scroll-area.tsx:6[39m
+
+[90m    src/components/ui/scroll-area.tsx:24[39m
+
+[90m    src/components/ui/select.tsx:15[39m
+
+[90m    src/components/ui/select.tsx:35[39m
+
+[90m    src/components/ui/select.tsx:49[39m
+
+[90m    src/components/ui/select.tsx:63[39m
+
+[90m    src/components/ui/select.tsx:95[39m
+
+[90m    src/components/ui/select.tsx:107[39m
+
+[90m    src/components/ui/select.tsx:129[39m
+
+[90m    src/components/ui/separator.tsx:6[39m
+
+[90m    src/components/ui/sheet.tsx:18[39m
+
+[90m    src/components/ui/sheet.tsx:57[39m
+
+[90m    src/components/ui/sheet.tsx:87[39m
+
+[90m    src/components/ui/sheet.tsx:99[39m
+
+[90m    src/components/ui/sidebar.tsx:41[39m
+
+[90m    src/components/ui/sidebar.tsx:49[39m
+
+[90m    src/components/ui/sidebar.tsx:153[39m
+
+[90m    src/components/ui/sidebar.tsx:260[39m
+
+[90m    src/components/ui/sidebar.tsx:286[39m
+
+[90m    src/components/ui/sidebar.tsx:314[39m
+
+[90m    src/components/ui/sidebar.tsx:331[39m
+
+[90m    src/components/ui/sidebar.tsx:349[39m
+
+[90m    src/components/ui/sidebar.tsx:363[39m
+
+[90m    src/components/ui/sidebar.tsx:377[39m
+
+[90m    src/components/ui/sidebar.tsx:392[39m
+
+[90m    src/components/ui/sidebar.tsx:409[39m
+
+[90m    src/components/ui/sidebar.tsx:423[39m
+
+[90m    src/components/ui/sidebar.tsx:444[39m
+
+[90m    src/components/ui/sidebar.tsx:467[39m
+
+[90m    src/components/ui/sidebar.tsx:479[39m
+
+[90m    src/components/ui/sidebar.tsx:491[39m
+
+[90m    src/components/ui/sidebar.tsx:525[39m
+
+[90m    src/components/ui/sidebar.tsx:584[39m
+
+[90m    src/components/ui/sidebar.tsx:615[39m
+
+[90m    src/components/ui/sidebar.tsx:635[39m
+
+[90m    src/components/ui/sidebar.tsx:668[39m
+
+[90m    src/components/ui/sidebar.tsx:684[39m
+
+[90m    src/components/ui/sidebar.tsx:689[39m
+
+[90m    src/components/ui/slider.tsx:6[39m
+
+[90m    src/components/ui/switch.tsx:6[39m
+
+[90m    src/components/ui/table.tsx:5[39m
+
+[90m    src/components/ui/table.tsx:14[39m
+
+[90m    src/components/ui/table.tsx:22[39m
+
+[90m    src/components/ui/table.tsx:30[39m
+
+[90m    src/components/ui/table.tsx:42[39m
+
+[90m    src/components/ui/table.tsx:56[39m
+
+[90m    src/components/ui/table.tsx:71[39m
+
+[90m    src/components/ui/table.tsx:86[39m
+
+[90m    src/components/ui/tabs.tsx:8[39m
+
+[90m    src/components/ui/tabs.tsx:23[39m
+
+[90m    src/components/ui/tabs.tsx:38[39m
+
+[90m    src/components/ui/textarea.tsx:5[39m
+
+[90m    src/components/ui/toggle-group.tsx:15[39m
+
+[90m    src/components/ui/toggle-group.tsx:31[39m
+
+[90m    src/components/ui/toggle-group.tsx:36[39m
+
+[90m    src/components/ui/toggle.tsx:29[39m
+
+[90m    src/components/ui/tooltip.tsx:14[39m
+
+  [33mΓÜá[39m [33mBugs: Many related useState calls[39m [90m├ù2[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/prefer-useReducer[39m
+    5 useState calls in "ArticleDetailPage" can each trigger a
+    separate render.
+[2m    ΓåÆ Group related state in `useReducer` so one logical update[22m
+[2m    does not fan out into separate renders.[22m
+
+[90m    src/pages/ArticleDetail.tsx:17[39m
+
+[90m    src/pages/CategoryDetail.tsx:195[39m
+
+  [33mΓÜá[39m [33mMaintainability: Multiple components in one file[39m [90m├ù10[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-multi-comp[39m
+    This file declares several components, so each component is
+    harder to find, test, and change.
+[2m    ΓåÆ Move secondary components into their own files so each[22m
+[2m    component stays easier to find, test, and change.[22m
+
+[90m    src/components/ui/accordion.tsx:17[39m
+
+[90m    src/components/ui/accordion.tsx:37[39m
+
+[90m    src/components/ui/alert.tsx:30[39m
+
+[90m    src/components/ui/alert.tsx:41[39m
+
+[90m    src/components/ui/avatar.tsx:20[39m
+
+[90m    src/components/ui/avatar.tsx:32[39m
+
+[90m    src/components/ui/input-otp.tsx:31[39m
+
+[90m    src/components/ui/input-otp.tsx:59[39m
+
+[90m    src/components/ui/tabs.tsx:23[39m
+
+[90m    src/components/ui/tabs.tsx:38[39m
+
+  [33mΓÜá[39m [33mMaintainability: Non-component export in component file[39m [90m├ù5[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/only-export-components[39m
+    This file exports non-components, so Fast Refresh can't
+    safely preserve component state.
+[2m    ΓåÆ Move non-component exports out of component files so Fast[22m
+[2m    Refresh can preserve component state instead of[22m
+[2m    full-reloading.[22m
+
+[90m    src/components/ui/badge.tsx:32[39m
+
+[90m    src/components/ui/button.tsx:49[39m
+
+[90m    src/components/ui/navigation-menu.tsx:111[39m
+
+[90m    src/components/ui/toggle.tsx:42[39m
+
+[90m    src/pages/CategoryDetail.tsx:11[39m
+
+  [33mΓÜá[39m [33mPerformance: Bouncy easing animation[39m [90m├ù3[39m
+    [36mLearn more: https://react.doctor/docs/rules/react-doctor/no-inline-bounce-easing[39m
+    Your users see a dated, tacky animate-bounce, so use a
+    subtle ease-out transform for a smoother finish.
+[2m    ΓåÆ Use `cubic-bezier(0.16, 1, 0.3, 1)` (ease-out-expo) for a[22m
+[2m    natural finish. Real objects don't bounce.[22m
+
+[90m    src/pages/Advertise.tsx:115[39m
+
+[90m    src/pages/Advertise.tsx:327[39m
+
+[90m    src/pages/Advertise.tsx:337[39m
+
+
+[2m  ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ[22m
+
+  [1mAll 679 issues[22m
+
+  [1mBugs[22m [2m>[22m [33m[2m179 warnings[22m[39m
+  [1mPerformance[22m [2m>[22m [33m[2m19 warnings[22m[39m
+  [1mAccessibility[22m [2m>[22m [33m[2m234 warnings[22m[39m
+  [1mMaintainability[22m [2m>[22m [33m[2m247 warnings[22m[39m
+
+  [33mΓÜá[39m [1mMigration-scale change[22m[2m: sample before you sweep[22m
+    deslop/unused-file [90m├ù51 across 51 files[39m
+[2m    Fixing all of them at once is hard to review and prone to[22m
+[2m    subtle mistakes across the whole repo. Fix a representative[22m
+[2m    few first and confirm the recipe holds. Then get the code[22m
+[2m    owner's sign-off before changing the rest.[22m
+    [2mScope it down one area at a time:[22m [36mnpx react-doctor@latest <path>[39m
+
+  [31mΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ[39m  [31m38[39m [2m/ 100[22m [31mCritical[39m
+  [31mΓöé x x Γöé[39m  [31mΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûê[39m[2mΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæ[22m
+  [31mΓöé  Γû╜  Γöé[39m  React Doctor [2m(https://react.doctor)[22m
+  [31mΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ[39m
+
+[90m  Full diagnostics written to C:\Users\ss\AppData\Local\Temp\react-doctor-dcb378a9-8740-4844-aab2-6c7c5ee0049d[39m
+
+[2m  ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ[22m
+
+  [1mShare:[22m [36mhttps://react.doctor/share?p=tanstack_start_ts&s=38&w=679&f=71[39m
+[2m  Tell others how you did on socials[22m
+
+  [1mDocs:[22m [36mhttps://react.doctor/docs[39m
+[2m  Learn more about fixing issues, setting up CI/CD, and[22m
+[2m  configuring rules with a config file[22m
+
+  [1mGitHub:[22m [36mhttps://github.com/millionco/react-doctor[39m
+[2m  Report issues and star the repository![22m
+

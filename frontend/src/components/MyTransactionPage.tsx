@@ -7,7 +7,7 @@ export default function MyTransactionPage() {
 
   useEffect(() => {
     try {
-      const savedBookings = localStorage.getItem("fmp_bookings");
+      const savedBookings = localStorage.getItem("fmp_bookings:v1");
       if (savedBookings) {
         setBookings(JSON.parse(savedBookings));
       } else {
@@ -43,7 +43,7 @@ export default function MyTransactionPage() {
             paymentMode: "Net Banking (SBI)"
           }
         ];
-        localStorage.setItem("fmp_bookings", JSON.stringify(defaultBookings));
+        localStorage.setItem("fmp_bookings:v1", JSON.stringify(defaultBookings));
         setBookings(defaultBookings);
       }
     } catch (e) {

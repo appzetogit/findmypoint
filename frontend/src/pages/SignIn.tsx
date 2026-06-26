@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useReducer } from "react";
 import { ArrowLeft, Check, ShieldCheck } from "lucide-react";
 import logoImg from "@/assets/logo.jpeg";
 
@@ -7,52 +7,118 @@ interface SignInPageProps {
   onSuccess?: (username: string) => void;
 }
 
+interface SignInState {
+  phoneNumber: string;
+  otpSent: boolean;
+  showNameInput: boolean;
+  fullName: string;
+  otpValues: string[];
+  agreeToTerms: boolean;
+  loading: boolean;
+  error: string;
+  success: string;
+}
+
+type SignInAction =
+  | { type: "SET_PHONE_NUMBER"; value: string }
+  | { type: "SET_OTP_SENT"; value: boolean }
+  | { type: "SET_SHOW_NAME_INPUT"; value: boolean }
+  | { type: "SET_FULL_NAME"; value: string }
+  | { type: "SET_OTP_VALUES"; value: string[] }
+  | { type: "SET_AGREE_TO_TERMS"; value: boolean }
+  | { type: "SET_LOADING"; value: boolean }
+  | { type: "SET_ERROR"; value: string }
+  | { type: "SET_SUCCESS"; value: string }
+  | { type: "RESET" };
+
+const initialSignInState: SignInState = {
+  phoneNumber: "",
+  otpSent: false,
+  showNameInput: false,
+  fullName: "",
+  otpValues: ["", "", "", "", "", ""],
+  agreeToTerms: true,
+  loading: false,
+  error: "",
+  success: "",
+};
+
+function signInReducer(state: SignInState, action: SignInAction): SignInState {
+  switch (action.type) {
+    case "SET_PHONE_NUMBER":
+      return { ...state, phoneNumber: action.value };
+    case "SET_OTP_SENT":
+      return { ...state, otpSent: action.value };
+    case "SET_SHOW_NAME_INPUT":
+      return { ...state, showNameInput: action.value };
+    case "SET_FULL_NAME":
+      return { ...state, fullName: action.value };
+    case "SET_OTP_VALUES":
+      return { ...state, otpValues: action.value };
+    case "SET_AGREE_TO_TERMS":
+      return { ...state, agreeToTerms: action.value };
+    case "SET_LOADING":
+      return { ...state, loading: action.value };
+    case "SET_ERROR":
+      return { ...state, error: action.value };
+    case "SET_SUCCESS":
+      return { ...state, success: action.value };
+    case "RESET":
+      return initialSignInState;
+    default:
+      return state;
+  }
+}
+
 export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [showNameInput, setShowNameInput] = useState(false);
-  const [fullName, setFullName] = useState("");
-  const [otpValues, setOtpValues] = useState(["", "", "", "", "", ""]);
-  const [agreeToTerms, setAgreeToTerms] = useState(true);
-  
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [state, dispatch] = useReducer(signInReducer, initialSignInState);
+  const {
+    phoneNumber,
+    otpSent,
+    showNameInput,
+    fullName,
+    otpValues,
+    agreeToTerms,
+    loading,
+    error,
+    success,
+  } = state;
 
   const otpInputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   // Focus first OTP field when OTP is sent
   useEffect(() => {
     if (otpSent && !showNameInput) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         otpInputsRef.current[0]?.focus();
       }, 100);
+      return () => clearTimeout(timer);
     }
   }, [otpSent, showNameInput]);
 
   const handlePhoneSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
+    dispatch({ type: "SET_ERROR", value: "" });
+    dispatch({ type: "SET_SUCCESS", value: "" });
 
     if (!agreeToTerms) {
-      setError("Please agree to the Terms & Conditions.");
+      dispatch({ type: "SET_ERROR", value: "Please agree to the Terms & Conditions." });
       return;
     }
 
     const cleanedPhone = phoneNumber.replace(/\D/g, "");
     if (cleanedPhone.length !== 10) {
-      setError("Please enter a valid 10-digit mobile number.");
+      dispatch({ type: "SET_ERROR", value: "Please enter a valid 10-digit mobile number." });
       return;
     }
 
-    setLoading(true);
+    dispatch({ type: "SET_LOADING", value: true });
     // Simulate sending OTP
     setTimeout(() => {
-      setLoading(false);
-      setOtpSent(true);
-      setSuccess("OTP code sent successfully!");
-      setTimeout(() => setSuccess(""), 3000);
+      dispatch({ type: "SET_LOADING", value: false });
+      dispatch({ type: "SET_OTP_SENT", value: true });
+      dispatch({ type: "SET_SUCCESS", value: "OTP code sent successfully!" });
+      setTimeout(() => dispatch({ type: "SET_SUCCESS", value: "" }), 3000);
     }, 1000);
   };
 
@@ -62,7 +128,7 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
     
     const newOtpValues = [...otpValues];
     newOtpValues[index] = cleanedVal.slice(-1);
-    setOtpValues(newOtpValues);
+    dispatch({ type: "SET_OTP_VALUES", value: newOtpValues });
 
     // Auto-focus next input
     if (cleanedVal && index < 5) {
@@ -79,19 +145,19 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
 
   const handleOtpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
+    dispatch({ type: "SET_ERROR", value: "" });
+    dispatch({ type: "SET_SUCCESS", value: "" });
 
     const fullOtp = otpValues.join("");
     if (fullOtp.length !== 6) {
-      setError("Please enter the complete 6-digit OTP.");
+      dispatch({ type: "SET_ERROR", value: "Please enter the complete 6-digit OTP." });
       return;
     }
 
-    setLoading(true);
+    dispatch({ type: "SET_LOADING", value: true });
     // Simulate verification
     setTimeout(() => {
-      setLoading(false);
+      dispatch({ type: "SET_LOADING", value: false });
       
       // Mock existing registered numbers database
       const existingUserMap: Record<string, string> = {
@@ -101,16 +167,16 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
 
       if (phoneNumber in existingUserMap) {
         // User exists, log them in immediately
-        setSuccess("Welcome back, " + existingUserMap[phoneNumber] + "!");
+        dispatch({ type: "SET_SUCCESS", value: "Welcome back, " + existingUserMap[phoneNumber] + "!" });
         setTimeout(() => {
           onSuccess?.(existingUserMap[phoneNumber]);
         }, 1200);
       } else {
         // New user registration flow
-        setSuccess("OTP verified! Welcome new user.");
+        dispatch({ type: "SET_SUCCESS", value: "OTP verified! Welcome new user." });
         setTimeout(() => {
-          setSuccess("");
-          setShowNameInput(true);
+          dispatch({ type: "SET_SUCCESS", value: "" });
+          dispatch({ type: "SET_SHOW_NAME_INPUT", value: true });
         }, 1000);
       }
     }, 1200);
@@ -118,18 +184,18 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
 
   const handleNameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
+    dispatch({ type: "SET_ERROR", value: "" });
+    dispatch({ type: "SET_SUCCESS", value: "" });
 
     if (fullName.trim().length < 2) {
-      setError("Please enter a valid name.");
+      dispatch({ type: "SET_ERROR", value: "Please enter a valid name." });
       return;
     }
 
-    setLoading(true);
+    dispatch({ type: "SET_LOADING", value: true });
     setTimeout(() => {
-      setLoading(false);
-      setSuccess("Account created successfully!");
+      dispatch({ type: "SET_LOADING", value: false });
+      dispatch({ type: "SET_SUCCESS", value: "Account created successfully!" });
       setTimeout(() => {
         onSuccess?.(fullName.trim());
       }, 1200);
@@ -137,10 +203,10 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
   };
 
   const handleSocialLogin = (provider: string) => {
-    setLoading(true);
+    dispatch({ type: "SET_LOADING", value: true });
     setTimeout(() => {
-      setLoading(false);
-      setSuccess(`Successfully signed in with ${provider}!`);
+      dispatch({ type: "SET_LOADING", value: false });
+      dispatch({ type: "SET_SUCCESS", value: `Successfully signed in with ${provider}!` });
       setTimeout(() => {
         onSuccess?.(`${provider} User`);
       }, 1200);
@@ -200,7 +266,7 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
             
             {/* Input mobile field with premium styling */}
             <div className="relative group">
-              <label className="absolute left-4 top-[-8px] bg-white px-2 text-[10px] font-bold text-slate-400 group-focus-within:text-primary transition-colors uppercase tracking-wider">
+              <label htmlFor="signInPhone" className="absolute left-4 top-[-8px] bg-white px-2 text-[10px] font-bold text-slate-400 group-focus-within:text-primary transition-colors uppercase tracking-wider">
                 Enter Mobile Number
               </label>
               <div className="flex items-center border border-slate-200 rounded-2xl px-5 py-4 bg-slate-50/30 group-focus-within:bg-white group-focus-within:border-primary group-focus-within:ring-4 group-focus-within:ring-primary/10 transition-all duration-300">
@@ -209,11 +275,12 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
                 </span>
                 <div className="h-5 w-[1px] bg-slate-200 mr-3" />
                 <input
+                  id="signInPhone"
                   type="tel"
                   maxLength={10}
                   placeholder="Mobile Number"
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  onChange={(e) => dispatch({ type: "SET_PHONE_NUMBER", value: e.target.value.replace(/\D/g, "").slice(0, 10) })}
                   className="w-full bg-transparent text-[15px] font-bold text-slate-900 outline-none placeholder:text-slate-400 placeholder:font-semibold"
                   required
                 />
@@ -226,7 +293,7 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
                 <input
                   type="checkbox"
                   checked={agreeToTerms}
-                  onChange={(e) => setAgreeToTerms(e.target.checked)}
+                  onChange={(e) => dispatch({ type: "SET_AGREE_TO_TERMS", value: e.target.checked })}
                   className="peer h-5 w-5 border border-slate-200 rounded-lg bg-white checked:bg-primary checked:border-primary transition-all duration-300 cursor-pointer appearance-none shadow-sm group-hover:border-slate-350"
                 />
                 <Check className="absolute h-3.5 w-3.5 text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" />
@@ -276,6 +343,7 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
                   type="text"
                   maxLength={1}
                   value={val}
+                  aria-label={`Digit ${idx + 1}`}
                   ref={(el) => { otpInputsRef.current[idx] = el; }}
                   onChange={(e) => handleOtpChange(idx, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(idx, e)}
@@ -301,7 +369,7 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
               <div className="flex justify-between items-center text-[11px] font-bold px-1">
                 <button
                   type="button"
-                  onClick={() => setOtpSent(false)}
+                  onClick={() => dispatch({ type: "SET_OTP_SENT", value: false })}
                   className="text-slate-400 hover:text-slate-700 transition cursor-pointer"
                 >
                   Change Number
@@ -309,8 +377,8 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    setSuccess("OTP resent successfully!");
-                    setTimeout(() => setSuccess(""), 3000);
+                    dispatch({ type: "SET_SUCCESS", value: "OTP resent successfully!" });
+                    setTimeout(() => dispatch({ type: "SET_SUCCESS", value: "" }), 3000);
                   }}
                   className="text-primary hover:underline cursor-pointer"
                 >
@@ -333,15 +401,16 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
 
             {/* Full Name field with premium styling */}
             <div className="relative group">
-              <label className="absolute left-4 top-[-8px] bg-white px-2 text-[10px] font-bold text-slate-400 group-focus-within:text-primary transition-colors uppercase tracking-wider">
+              <label htmlFor="signInFullName" className="absolute left-4 top-[-8px] bg-white px-2 text-[10px] font-bold text-slate-400 group-focus-within:text-primary transition-colors uppercase tracking-wider">
                 Full Name
               </label>
               <div className="flex items-center border border-slate-200 rounded-2xl px-5 py-4 bg-slate-50/30 group-focus-within:bg-white group-focus-within:border-primary group-focus-within:ring-4 group-focus-within:ring-primary/10 transition-all duration-300">
                 <input
+                  id="signInFullName"
                   type="text"
                   placeholder="Enter Full Name"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => dispatch({ type: "SET_FULL_NAME", value: e.target.value })}
                   className="w-full bg-transparent text-[15px] font-bold text-slate-900 outline-none placeholder:text-slate-400 placeholder:font-semibold"
                   required
                   autoFocus

@@ -20,10 +20,19 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
   // Fallback to first article if not found
   const currentArticle = article || articlesData[0];
 
+  const [prevArticleId, setPrevArticleId] = useState(articleId);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [commentCount, setCommentCount] = useState(currentArticle.commentsCount);
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
+
+  if (articleId !== prevArticleId) {
+    setPrevArticleId(articleId);
+    setActiveImageIndex(0);
+    setCommentCount(currentArticle.commentsCount);
+    setLiked(false);
+    setBookmarked(false);
+  }
 
   // Categories for the subheader (consistent with JDCollections / reference layout)
   const categoryBar = [
@@ -39,7 +48,6 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
   // Scroll to top when article changes
   useEffect(() => {
     window.scrollTo(0, 0);
-    setActiveImageIndex(0);
   }, [articleId]);
 
   const handleEnquire = (businessName: string) => {

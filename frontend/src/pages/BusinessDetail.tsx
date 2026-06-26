@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useReducer } from "react";
 import {
   MapPin, Clock, ArrowLeft, Bookmark, Share2,
   CheckCircle, MessageSquare, Phone, ArrowRight, Star,
@@ -7,6 +7,148 @@ import {
 import logoImg from "@/assets/logo.jpeg";
 import { businessesData, BusinessListingData } from "../data/businessesData";
 import Footer from "./Footer";
+
+// Types and Reducers for Booking Flow
+interface BookingState {
+  modalOpen: boolean;
+  submitted: boolean;
+  step: "form" | "payment" | "success";
+  form: {
+    name: string;
+    phone: string;
+    date: string;
+    time: string;
+    guests: string;
+  };
+}
+
+type BookingAction =
+  | { type: "SET_MODAL"; open: boolean }
+  | { type: "SET_SUBMITTED"; value: boolean }
+  | { type: "SET_STEP"; step: "form" | "payment" | "success" }
+  | { type: "UPDATE_FORM"; fields: Partial<BookingState["form"]> }
+  | { type: "RESET"; username: string };
+
+const initialBookingState = (username: string): BookingState => ({
+  modalOpen: false,
+  submitted: false,
+  step: "form",
+  form: {
+    name: username || "",
+    phone: "",
+    date: new Date().toISOString().split("T")[0],
+    time: "Dinner (07:00 PM - 11:00 PM)",
+    guests: "2"
+  }
+});
+
+function bookingReducer(state: BookingState, action: BookingAction): BookingState {
+  switch (action.type) {
+    case "SET_MODAL":
+      return { ...state, modalOpen: action.open };
+    case "SET_SUBMITTED":
+      return { ...state, submitted: action.value };
+    case "SET_STEP":
+      return { ...state, step: action.step };
+    case "UPDATE_FORM":
+      return { ...state, form: { ...state.form, ...action.fields } };
+    case "RESET":
+      return initialBookingState(action.username);
+    default:
+      return state;
+  }
+}
+
+// Types and Reducers for Checkout Flow
+interface CheckoutState {
+  modalOpen: boolean;
+  submitted: boolean;
+  step: "form" | "payment" | "success";
+  form: {
+    name: string;
+    phone: string;
+    address: string;
+    type: string;
+    notes: string;
+  };
+}
+
+type CheckoutAction =
+  | { type: "SET_MODAL"; open: boolean }
+  | { type: "SET_SUBMITTED"; value: boolean }
+  | { type: "SET_STEP"; step: "form" | "payment" | "success" }
+  | { type: "UPDATE_FORM"; fields: Partial<CheckoutState["form"]> }
+  | { type: "RESET"; username: string };
+
+const initialCheckoutState = (username: string): CheckoutState => ({
+  modalOpen: false,
+  submitted: false,
+  step: "form",
+  form: {
+    name: username || "",
+    phone: "",
+    address: "",
+    type: "Delivery",
+    notes: ""
+  }
+});
+
+function checkoutReducer(state: CheckoutState, action: CheckoutAction): CheckoutState {
+  switch (action.type) {
+    case "SET_MODAL":
+      return { ...state, modalOpen: action.open };
+    case "SET_SUBMITTED":
+      return { ...state, submitted: action.value };
+    case "SET_STEP":
+      return { ...state, step: action.step };
+    case "UPDATE_FORM":
+      return { ...state, form: { ...state.form, ...action.fields } };
+    case "RESET":
+      return initialCheckoutState(action.username);
+    default:
+      return state;
+  }
+}
+
+// Types and Reducers for Payment
+interface PaymentState {
+  method: "upi" | "card" | "netbanking";
+  upiId: string;
+  cardNumber: string;
+  cardExpiry: string;
+  cardCvv: string;
+  processing: boolean;
+}
+
+type PaymentAction =
+  | { type: "SET_METHOD"; method: "upi" | "card" | "netbanking" }
+  | { type: "SET_FIELD"; field: "upiId" | "cardNumber" | "cardExpiry" | "cardCvv"; value: string }
+  | { type: "SET_PROCESSING"; value: boolean }
+  | { type: "RESET" };
+
+const initialPaymentState: PaymentState = {
+  method: "upi",
+  upiId: "",
+  cardNumber: "",
+  cardExpiry: "",
+  cardCvv: "",
+  processing: false
+};
+
+function paymentReducer(state: PaymentState, action: PaymentAction): PaymentState {
+  switch (action.type) {
+    case "SET_METHOD":
+      return { ...state, method: action.method };
+    case "SET_FIELD":
+      return { ...state, [action.field]: action.value };
+    case "SET_PROCESSING":
+      return { ...state, processing: action.value };
+    case "RESET":
+      return initialPaymentState;
+    default:
+      return state;
+  }
+}
 
 interface BusinessDetailPageProps {
   businessId: string;
@@ -24,46 +166,39 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
   // Fallback if not found
   const currentBiz = business || businessesData[0];
 
-  const [revealPhone, setRevealPhone] = useState(false);
-  const [activeFaqIndex, setActiveFaqIndex] = useState<number | null>(null);
-  const [productSearch, setProductSearch] = useState("");
-  const [enquirySubmitted, setEnquirySubmitted] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
+  const [bookingState, dispatchBooking] = useReducer(bookingReducer, initialBookingState(username || ""));
+  const { modalOpen: bookingModalOpen, submitted: bookingSubmitted, step: bookingStep, form: bookingForm } = bookingState;
 
-  // Table booking modal states
-  const [bookingModalOpen, setBookingModalOpen] = useState(false);
-  const [bookingSubmitted, setBookingSubmitted] = useState(false);
-  const [bookingForm, setBookingForm] = useState({
-    name: username || "",
-    phone: "",
-    date: new Date().toISOString().split("T")[0],
-    time: "Dinner (07:00 PM - 11:00 PM)",
-    guests: "2"
+  const [checkoutState, dispatchCheckout] = useReducer(checkoutReducer, initialCheckoutState(username || ""));
+  const { modalOpen: checkoutModalOpen, submitted: checkoutSubmitted, step: checkoutStep, form: checkoutForm } = checkoutState;
+
+  const [paymentState, dispatchPayment] = useReducer(paymentReducer, initialPaymentState);
+  const { method: paymentMethod, upiId, cardNumber, cardExpiry, cardCvv, processing: paymentProcessing } = paymentState;
+
+  const [prevBusinessId, setPrevBusinessId] = useState(businessId);
+  const [uiState, setUiState] = useState({
+    revealPhone: false,
+    activeFaqIndex: null as number | null,
+    productSearch: "",
+    bookmarked: false,
+    enquirySubmitted: false
   });
 
-  // Food menu cart & order checkout states
+  if (businessId !== prevBusinessId) {
+    setPrevBusinessId(businessId);
+    setUiState(prev => ({
+      ...prev,
+      revealPhone: false,
+      enquirySubmitted: false,
+      activeFaqIndex: null,
+      productSearch: ""
+    }));
+  }
+
+  const { revealPhone, activeFaqIndex, productSearch, bookmarked, enquirySubmitted } = uiState;
+
+  // Food menu cart state
   const [cart, setCart] = useState<Record<string, number>>({});
-  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
-  const [checkoutSubmitted, setCheckoutSubmitted] = useState(false);
-  const [checkoutForm, setCheckoutForm] = useState({
-    name: username || "",
-    phone: "",
-    address: "",
-    type: "Delivery",
-    notes: ""
-  });
-
-  // Booking step states
-  const [bookingStep, setBookingStep] = useState<"form" | "payment" | "success">("form");
-  const [checkoutStep, setCheckoutStep] = useState<"form" | "payment" | "success">("form");
-
-  // Reusable Payment Form states
-  const [paymentMethod, setPaymentMethod] = useState<"upi" | "card" | "netbanking">("upi");
-  const [upiId, setUpiId] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
-  const [paymentProcessing, setPaymentProcessing] = useState(false);
 
   const getBookingPrice = () => {
     if (currentBiz.category.includes("Hotel Point")) {
@@ -122,10 +257,6 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
   // Scroll to top when ID changes
   useEffect(() => {
     window.scrollTo(0, 0);
-    setRevealPhone(false);
-    setEnquirySubmitted(false);
-    setActiveFaqIndex(null);
-    setProductSearch("");
   }, [businessId]);
 
   // Scroll to reviews section if navigated from home review click
@@ -147,7 +278,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
       alert("Please fill in your Name and Mobile Number.");
       return;
     }
-    setEnquirySubmitted(true);
+    setUiState(prev => ({ ...prev, enquirySubmitted: true }));
     setTimeout(() => {
       setEnquiryForm({
         name: "",
@@ -338,26 +469,23 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                   const tomorrow = new Date();
                   tomorrow.setDate(tomorrow.getDate() + 1);
                   const tomorrowStr = tomorrow.toISOString().split("T")[0];
-                  setBookingForm({
-                    name: username || "", 
-                    phone: "",
-                    date: new Date().toISOString().split("T")[0],
-                    guests: currentBiz.category.includes("Hotel Point") ? "Deluxe AC Room (₹1,999/night)" : "2",
-                    time: currentBiz.category.includes("Hotel Point") 
-                      ? tomorrowStr 
-                      : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point")) 
-                        ? "Morning Slot Consultation (09:00 AM - 01:00 PM) (Fee: ₹300)" 
-                        : "Dinner (07:00 PM - 11:00 PM)"
+                  dispatchBooking({ type: "RESET", username: username || "" });
+                  dispatchBooking({
+                    type: "UPDATE_FORM",
+                    fields: {
+                      name: username || "", 
+                      phone: "",
+                      date: new Date().toISOString().split("T")[0],
+                      guests: currentBiz.category.includes("Hotel Point") ? "Deluxe AC Room (₹1,999/night)" : "2",
+                      time: currentBiz.category.includes("Hotel Point") 
+                        ? tomorrowStr 
+                        : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point")) 
+                          ? "Morning Slot Consultation (09:00 AM - 01:00 PM) (Fee: ₹300)" 
+                          : "Dinner (07:00 PM - 11:00 PM)"
+                    }
                   });
-                  setBookingStep("form");
-                  setPaymentMethod("upi");
-                  setUpiId("");
-                  setCardNumber("");
-                  setCardExpiry("");
-                  setCardCvv("");
-                  setPaymentProcessing(false);
-                  setBookingSubmitted(false);
-                  setBookingModalOpen(true);
+                  dispatchBooking({ type: "SET_MODAL", open: true });
+                  dispatchPayment({ type: "RESET" });
                 }}
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 py-3 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-md cursor-pointer"
               >
@@ -368,7 +496,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
               </button>
             )}
             <button 
-              onClick={() => setRevealPhone(!revealPhone)}
+              onClick={() => setUiState(prev => ({ ...prev, revealPhone: !prev.revealPhone }))}
               className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-3 text-xs font-bold text-foreground hover:bg-secondary transition shadow-sm cursor-pointer"
             >
               <Phone className="h-4 w-4 text-accent" /> 
@@ -391,7 +519,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
               <Share2 className="h-4.5 w-4.5" />
             </button>
             <button 
-              onClick={() => setBookmarked(!bookmarked)}
+              onClick={() => setUiState(prev => ({ ...prev, bookmarked: !prev.bookmarked }))}
               className={`flex h-11 w-11 items-center justify-center rounded-full border transition shadow-sm cursor-pointer ${bookmarked ? "text-amber-500 border-amber-200 bg-amber-50/20" : "text-muted-foreground border-border bg-card hover:bg-secondary"}`}
             >
               <Bookmark className={`h-4.5 w-4.5 ${bookmarked ? "fill-amber-500" : ""}`} />
@@ -444,7 +572,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     type="text"
                     placeholder="Search in catalog..."
                     value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
+                    onChange={(e) => setUiState(prev => ({ ...prev, productSearch: e.target.value }))}
                     className="w-full bg-card border border-border rounded-full py-1.5 pl-4 pr-10 text-xs font-semibold outline-none focus:border-primary shadow-sm"
                   />
                 </div>
@@ -674,7 +802,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     return (
                       <div key={idx} className="rounded-2xl border border-border bg-card overflow-hidden shadow-[var(--shadow-card)]">
                         <button 
-                          onClick={() => setActiveFaqIndex(isActive ? null : idx)}
+                          onClick={() => setUiState(prev => ({ ...prev, activeFaqIndex: isActive ? null : idx }))}
                           className="w-full px-6 py-4 flex items-center justify-between text-left text-xs sm:text-sm font-black text-foreground hover:bg-secondary/40 transition-colors"
                         >
                           <span>{faq.question}</span>
@@ -717,8 +845,9 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
               ) : (
                 <form onSubmit={handleEnquirySubmit} className="flex flex-col gap-4">
                   <div className="flex flex-col gap-1 text-left">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Your Name</label>
+                    <label htmlFor="enquiryName" className="text-[10px] font-bold text-muted-foreground uppercase">Your Name</label>
                     <input 
+                      id="enquiryName"
                       type="text" 
                       placeholder="e.g. John Doe"
                       value={enquiryForm.name}
@@ -729,8 +858,9 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                   </div>
 
                   <div className="flex flex-col gap-1 text-left">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Mobile Number</label>
+                    <label htmlFor="enquiryMobile" className="text-[10px] font-bold text-muted-foreground uppercase">Mobile Number</label>
                     <input 
+                      id="enquiryMobile"
                       type="tel" 
                       placeholder="10-digit number"
                       value={enquiryForm.mobile}
@@ -741,8 +871,9 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                   </div>
 
                   <div className="flex flex-col gap-1 text-left">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Email Address (Optional)</label>
+                    <label htmlFor="enquiryEmail" className="text-[10px] font-bold text-muted-foreground uppercase">Email Address (Optional)</label>
                     <input 
+                      id="enquiryEmail"
                       type="email" 
                       placeholder="name@example.com"
                       value={enquiryForm.email}
@@ -752,8 +883,9 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                   </div>
 
                   <div className="flex flex-col gap-1 text-left">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Message</label>
+                    <label htmlFor="enquiryMessage" className="text-[10px] font-bold text-muted-foreground uppercase">Message</label>
                     <textarea 
+                      id="enquiryMessage"
                       rows={3}
                       value={enquiryForm.message}
                       onChange={(e) => setEnquiryForm(prev => ({ ...prev, message: e.target.value }))}
@@ -825,7 +957,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left animate-fade-in">
           <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-fade-in-up">
             <button
-              onClick={() => setBookingModalOpen(false)}
+              onClick={() => dispatchBooking({ type: "SET_MODAL", open: false })}
               className="absolute right-4 top-4 text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <X className="h-5 w-5" />
@@ -838,7 +970,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                   alert("Please fill in your Name and Phone Number.");
                   return;
                 }
-                setBookingStep("payment");
+                dispatchBooking({ type: "SET_STEP", step: "payment" });
               }}>
                 <h3 className="font-serif text-xl font-bold text-foreground mb-1">
                   {currentBiz.category.includes("Hotel Point") 
@@ -854,24 +986,26 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-foreground/80 mb-1.5">Contact Name*</label>
+                    <label htmlFor="bookingName" className="block text-xs font-bold text-foreground/80 mb-1.5">Contact Name*</label>
                     <input
+                      id="bookingName"
                       type="text"
                       required
                       value={bookingForm.name}
-                      onChange={(e) => setBookingForm(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { name: e.target.value } })}
                       placeholder="Enter booking name"
                       className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-foreground/80 mb-1.5">Phone Number*</label>
+                    <label htmlFor="bookingPhone" className="block text-xs font-bold text-foreground/80 mb-1.5">Phone Number*</label>
                     <input
+                      id="bookingPhone"
                       type="tel"
                       required
                       value={bookingForm.phone}
-                      onChange={(e) => setBookingForm(prev => ({ ...prev, phone: e.target.value }))}
+                      onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { phone: e.target.value } })}
                       placeholder="Enter mobile number"
                       className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                     />
@@ -879,29 +1013,31 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-foreground/80 mb-1.5">
+                      <label htmlFor="bookingDate" className="block text-xs font-bold text-foreground/80 mb-1.5">
                         {currentBiz.category.includes("Hotel Point") 
                           ? "Check-in Date*" 
                           : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point") ? "Appointment Date*" : "Preferred Date*")}
                       </label>
                       <input
+                        id="bookingDate"
                         type="date"
                         required
                         value={bookingForm.date}
-                        onChange={(e) => setBookingForm(prev => ({ ...prev, date: e.target.value }))}
+                        onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { date: e.target.value } })}
                         className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-foreground/80 mb-1.5">
+                      <label htmlFor="bookingGuests" className="block text-xs font-bold text-foreground/80 mb-1.5">
                         {currentBiz.category.includes("Hotel Point") 
                           ? "Room Standard Preferred*" 
                           : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point") ? "Patient Age*" : "No. of Guests*")}
                       </label>
                       {currentBiz.category.includes("Hotel Point") ? (
                         <select
+                          id="bookingGuests"
                           value={bookingForm.guests}
-                          onChange={(e) => setBookingForm(prev => ({ ...prev, guests: e.target.value }))}
+                          onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { guests: e.target.value } })}
                           className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent animate-none"
                         >
                           <option value="Deluxe AC Room (₹1,999/night)">Deluxe AC Room (₹1,999/night)</option>
@@ -910,18 +1046,20 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                         </select>
                       ) : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point") ? (
                         <input
+                          id="bookingGuests"
                           type="number"
                           required
                           min="1"
                           placeholder="e.g. 28"
                           value={bookingForm.guests}
-                          onChange={(e) => setBookingForm(prev => ({ ...prev, guests: e.target.value }))}
+                          onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { guests: e.target.value } })}
                           className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                         />
                       ) : (
                         <select
+                          id="bookingGuests"
                           value={bookingForm.guests}
-                          onChange={(e) => setBookingForm(prev => ({ ...prev, guests: e.target.value }))}
+                          onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { guests: e.target.value } })}
                           className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent animate-none"
                         >
                           <option value="1">1 Person</option>
@@ -936,23 +1074,25 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-foreground/80 mb-1.5">
+                    <label htmlFor="bookingTime" className="block text-xs font-bold text-foreground/80 mb-1.5">
                       {currentBiz.category.includes("Hotel Point") 
                         ? "Stay Check-out Date*" 
                         : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point") ? "Appointment Slot*" : "Time Slot*")}
                     </label>
                     {currentBiz.category.includes("Hotel Point") ? (
                       <input
+                        id="bookingTime"
                         type="date"
                         required
                         value={bookingForm.time}
-                        onChange={(e) => setBookingForm(prev => ({ ...prev, time: e.target.value }))}
+                        onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { time: e.target.value } })}
                         className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                       />
                     ) : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point")) ? (
                       <select
+                        id="bookingTime"
                         value={bookingForm.time}
-                        onChange={(e) => setBookingForm(prev => ({ ...prev, time: e.target.value }))}
+                        onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { time: e.target.value } })}
                         className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                       >
                         <option value="Morning Slot Consultation (09:00 AM - 01:00 PM) (Fee: ₹300)">Morning Slot (09:00 AM - 01:00 PM) (Fee: ₹300)</option>
@@ -961,8 +1101,9 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                       </select>
                     ) : (
                       <select
+                        id="bookingTime"
                         value={bookingForm.time}
-                        onChange={(e) => setBookingForm(prev => ({ ...prev, time: e.target.value }))}
+                        onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { time: e.target.value } })}
                         className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                       >
                         <option value="Lunch (12:00 PM - 03:00 PM)">Lunch (12:00 PM - 03:00 PM)</option>
@@ -1011,25 +1152,25 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-[10px] font-bold text-muted-foreground uppercase mb-2">Select Payment Method</label>
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase mb-2">Select Payment Method</span>
                       <div className="grid grid-cols-3 gap-2">
                         <button
                           type="button"
-                          onClick={() => setPaymentMethod("upi")}
+                          onClick={() => dispatchPayment({ type: "SET_METHOD", method: "upi" })}
                           className={`py-2 text-[10.5px] font-bold border rounded-xl cursor-pointer ${paymentMethod === "upi" ? "bg-primary border-primary text-primary-foreground" : "bg-background border-border text-foreground hover:bg-secondary"}`}
                         >
                           UPI / QR
                         </button>
                         <button
                           type="button"
-                          onClick={() => setPaymentMethod("card")}
+                          onClick={() => dispatchPayment({ type: "SET_METHOD", method: "card" })}
                           className={`py-2 text-[10.5px] font-bold border rounded-xl cursor-pointer ${paymentMethod === "card" ? "bg-primary border-primary text-primary-foreground" : "bg-background border-border text-foreground hover:bg-secondary"}`}
                         >
                           Card
                         </button>
                         <button
                           type="button"
-                          onClick={() => setPaymentMethod("netbanking")}
+                          onClick={() => dispatchPayment({ type: "SET_METHOD", method: "netbanking" })}
                           className={`py-2 text-[10.5px] font-bold border rounded-xl cursor-pointer ${paymentMethod === "netbanking" ? "bg-primary border-primary text-primary-foreground" : "bg-background border-border text-foreground hover:bg-secondary"}`}
                         >
                           Net Banking
@@ -1040,13 +1181,14 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     {paymentMethod === "upi" && (
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs font-bold text-foreground/80 mb-1.5">Enter UPI ID</label>
+                          <label htmlFor="bookingUpiId" className="block text-xs font-bold text-foreground/80 mb-1.5">Enter UPI ID</label>
                           <input
+                            id="bookingUpiId"
                             type="text"
                             placeholder="username@okaxis, user@upi..."
                             required
                             value={upiId}
-                            onChange={(e) => setUpiId(e.target.value)}
+                            onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "upiId", value: e.target.value })}
                             className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                           />
                         </div>
@@ -1059,39 +1201,42 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     {paymentMethod === "card" && (
                       <div className="space-y-3 animate-fade-in">
                         <div>
-                          <label className="block text-xs font-bold text-foreground/80 mb-1.5">Card Number</label>
+                          <label htmlFor="bookingCardNumber" className="block text-xs font-bold text-foreground/80 mb-1.5">Card Number</label>
                           <input
+                            id="bookingCardNumber"
                             type="text"
                             maxLength={19}
                             placeholder="4111 2222 3333 4444"
                             required
                             value={cardNumber}
-                            onChange={(e) => setCardNumber(e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim())}
+                            onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "cardNumber", value: e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim() })}
                             className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs font-bold text-foreground/80 mb-1.5">Expiry Date</label>
+                            <label htmlFor="bookingCardExpiry" className="block text-xs font-bold text-foreground/80 mb-1.5">Expiry Date</label>
                             <input
+                              id="bookingCardExpiry"
                               type="text"
                               maxLength={5}
                               placeholder="MM/YY"
                               required
                               value={cardExpiry}
-                              onChange={(e) => setCardExpiry(e.target.value)}
+                              onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "cardExpiry", value: e.target.value })}
                               className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-foreground/80 mb-1.5">CVV Code</label>
+                            <label htmlFor="bookingCardCvv" className="block text-xs font-bold text-foreground/80 mb-1.5">CVV Code</label>
                             <input
+                              id="bookingCardCvv"
                               type="password"
                               maxLength={3}
                               placeholder="***"
                               required
                               value={cardCvv}
-                              onChange={(e) => setCardCvv(e.target.value)}
+                              onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "cardCvv", value: e.target.value })}
                               className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                             />
                           </div>
@@ -1102,8 +1247,8 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     {paymentMethod === "netbanking" && (
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs font-bold text-foreground/80 mb-1.5">Select Bank</label>
-                          <select className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent">
+                          <label htmlFor="bookingBank" className="block text-xs font-bold text-foreground/80 mb-1.5">Select Bank</label>
+                          <select id="bookingBank" className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent">
                             <option>State Bank of India (SBI)</option>
                             <option>HDFC Bank</option>
                             <option>ICICI Bank</option>
@@ -1124,11 +1269,11 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                           alert("Please fill in Card Details.");
                           return;
                         }
-                        setPaymentProcessing(true);
+                        dispatchPayment({ type: "SET_PROCESSING", value: true });
                         setTimeout(() => {
-                          setPaymentProcessing(false);
-                          setBookingStep("success");
-                          setBookingSubmitted(true);
+                          dispatchPayment({ type: "SET_PROCESSING", value: false });
+                          dispatchBooking({ type: "SET_STEP", step: "success" });
+                          dispatchBooking({ type: "SET_SUBMITTED", value: true });
                         }, 2000);
                       }}
                       className="w-full mt-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md text-center"
@@ -1170,7 +1315,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left animate-fade-in">
           <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-fade-in-up max-h-[90vh] overflow-y-auto no-scrollbar">
             <button
-              onClick={() => setCheckoutModalOpen(false)}
+              onClick={() => dispatchCheckout({ type: "SET_MODAL", open: false })}
               className="absolute right-4 top-4 text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <X className="h-5 w-5" />
@@ -1183,7 +1328,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                   alert("Please fill in your Name and Phone Number.");
                   return;
                 }
-                setCheckoutStep("payment");
+                dispatchCheckout({ type: "SET_STEP", step: "payment" });
               }}>
                 <h3 className="font-serif text-xl font-bold text-foreground mb-1">
                   Checkout & Place Order
@@ -1214,47 +1359,51 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-foreground/80 mb-1.5">Your Name*</label>
+                    <label htmlFor="checkoutName" className="block text-xs font-bold text-foreground/80 mb-1.5">Your Name*</label>
                     <input
+                      id="checkoutName"
                       type="text"
                       required
                       value={checkoutForm.name}
-                      onChange={(e) => setCheckoutForm(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => dispatchCheckout({ type: "UPDATE_FORM", fields: { name: e.target.value } })}
                       placeholder="Enter customer name"
                       className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-foreground/80 mb-1.5">Phone Number*</label>
+                    <label htmlFor="checkoutPhone" className="block text-xs font-bold text-foreground/80 mb-1.5">Phone Number*</label>
                     <input
+                      id="checkoutPhone"
                       type="tel"
                       required
                       value={checkoutForm.phone}
-                      onChange={(e) => setCheckoutForm(prev => ({ ...prev, phone: e.target.value }))}
+                      onChange={(e) => dispatchCheckout({ type: "UPDATE_FORM", fields: { phone: e.target.value } })}
                       placeholder="Enter mobile number"
                       className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-foreground/80 mb-1.5">Delivery Address*</label>
+                    <label htmlFor="checkoutAddress" className="block text-xs font-bold text-foreground/80 mb-1.5">Delivery Address*</label>
                     <textarea
+                      id="checkoutAddress"
                       required
                       rows={2}
                       value={checkoutForm.address}
-                      onChange={(e) => setCheckoutForm(prev => ({ ...prev, address: e.target.value }))}
+                      onChange={(e) => dispatchCheckout({ type: "UPDATE_FORM", fields: { address: e.target.value } })}
                       placeholder="Provide complete home/office address..."
                       className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent resize-none"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-foreground/80 mb-1.5">Cooking Notes (Optional)</label>
+                    <label htmlFor="checkoutNotes" className="block text-xs font-bold text-foreground/80 mb-1.5">Cooking Notes (Optional)</label>
                     <input
+                      id="checkoutNotes"
                       type="text"
                       value={checkoutForm.notes}
-                      onChange={(e) => setCheckoutForm(prev => ({ ...prev, notes: e.target.value }))}
+                      onChange={(e) => dispatchCheckout({ type: "UPDATE_FORM", fields: { notes: e.target.value } })}
                       placeholder="e.g. Make it extra spicy, no onions..."
                       className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                     />
@@ -1299,25 +1448,25 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-[10px] font-bold text-muted-foreground uppercase mb-2">Select Payment Method</label>
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase mb-2">Select Payment Method</span>
                       <div className="grid grid-cols-3 gap-2">
                         <button
                           type="button"
-                          onClick={() => setPaymentMethod("upi")}
+                          onClick={() => dispatchPayment({ type: "SET_METHOD", method: "upi" })}
                           className={`py-2 text-[10.5px] font-bold border rounded-xl cursor-pointer ${paymentMethod === "upi" ? "bg-primary border-primary text-primary-foreground" : "bg-background border-border text-foreground hover:bg-secondary"}`}
                         >
                           UPI / QR
                         </button>
                         <button
                           type="button"
-                          onClick={() => setPaymentMethod("card")}
+                          onClick={() => dispatchPayment({ type: "SET_METHOD", method: "card" })}
                           className={`py-2 text-[10.5px] font-bold border rounded-xl cursor-pointer ${paymentMethod === "card" ? "bg-primary border-primary text-primary-foreground" : "bg-background border-border text-foreground hover:bg-secondary"}`}
                         >
                           Card
                         </button>
                         <button
                           type="button"
-                          onClick={() => setPaymentMethod("netbanking")}
+                          onClick={() => dispatchPayment({ type: "SET_METHOD", method: "netbanking" })}
                           className={`py-2 text-[10.5px] font-bold border rounded-xl cursor-pointer ${paymentMethod === "netbanking" ? "bg-primary border-primary text-primary-foreground" : "bg-background border-border text-foreground hover:bg-secondary"}`}
                         >
                           Net Banking
@@ -1328,13 +1477,14 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     {paymentMethod === "upi" && (
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs font-bold text-foreground/80 mb-1.5">Enter UPI ID</label>
+                          <label htmlFor="checkoutUpiId" className="block text-xs font-bold text-foreground/80 mb-1.5">Enter UPI ID</label>
                           <input
+                            id="checkoutUpiId"
                             type="text"
                             placeholder="username@okaxis, user@upi..."
                             required
                             value={upiId}
-                            onChange={(e) => setUpiId(e.target.value)}
+                            onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "upiId", value: e.target.value })}
                             className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                           />
                         </div>
@@ -1347,39 +1497,42 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     {paymentMethod === "card" && (
                       <div className="space-y-3 animate-fade-in">
                         <div>
-                          <label className="block text-xs font-bold text-foreground/80 mb-1.5">Card Number</label>
+                          <label htmlFor="checkoutCardNumber" className="block text-xs font-bold text-foreground/80 mb-1.5">Card Number</label>
                           <input
+                            id="checkoutCardNumber"
                             type="text"
                             maxLength={19}
                             placeholder="4111 2222 3333 4444"
                             required
                             value={cardNumber}
-                            onChange={(e) => setCardNumber(e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim())}
+                            onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "cardNumber", value: e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim() })}
                             className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs font-bold text-foreground/80 mb-1.5">Expiry Date</label>
+                            <label htmlFor="checkoutCardExpiry" className="block text-xs font-bold text-foreground/80 mb-1.5">Expiry Date</label>
                             <input
+                              id="checkoutCardExpiry"
                               type="text"
                               maxLength={5}
                               placeholder="MM/YY"
                               required
                               value={cardExpiry}
-                              onChange={(e) => setCardExpiry(e.target.value)}
+                              onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "cardExpiry", value: e.target.value })}
                               className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-foreground/80 mb-1.5">CVV Code</label>
+                            <label htmlFor="checkoutCardCvv" className="block text-xs font-bold text-foreground/80 mb-1.5">CVV Code</label>
                             <input
+                              id="checkoutCardCvv"
                               type="password"
                               maxLength={3}
                               placeholder="***"
                               required
                               value={cardCvv}
-                              onChange={(e) => setCardCvv(e.target.value)}
+                              onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "cardCvv", value: e.target.value })}
                               className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                             />
                           </div>
@@ -1390,8 +1543,8 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     {paymentMethod === "netbanking" && (
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs font-bold text-foreground/80 mb-1.5">Select Bank</label>
-                          <select className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent">
+                          <label htmlFor="checkoutBank" className="block text-xs font-bold text-foreground/80 mb-1.5">Select Bank</label>
+                          <select id="checkoutBank" className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent">
                             <option>State Bank of India (SBI)</option>
                             <option>HDFC Bank</option>
                             <option>ICICI Bank</option>
@@ -1412,11 +1565,11 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                           alert("Please fill in Card Details.");
                           return;
                         }
-                        setPaymentProcessing(true);
+                        dispatchPayment({ type: "SET_PROCESSING", value: true });
                         setTimeout(() => {
-                          setPaymentProcessing(false);
-                          setCheckoutStep("success");
-                          setCheckoutSubmitted(true);
+                          dispatchPayment({ type: "SET_PROCESSING", value: false });
+                          dispatchCheckout({ type: "SET_STEP", step: "success" });
+                          dispatchCheckout({ type: "SET_SUBMITTED", value: true });
                           setCart({});
                         }, 2000);
                       }}
@@ -1456,22 +1609,9 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
             </div>
             <button
               onClick={() => {
-                setCheckoutForm(prev => ({
-                  ...prev,
-                  name: username || "",
-                  phone: "",
-                  address: "",
-                  notes: ""
-                }));
-                setCheckoutStep("form");
-                setPaymentMethod("upi");
-                setUpiId("");
-                setCardNumber("");
-                setCardExpiry("");
-                setCardCvv("");
-                setPaymentProcessing(false);
-                setCheckoutSubmitted(false);
-                setCheckoutModalOpen(true);
+                dispatchCheckout({ type: "RESET", username: username || "" });
+                dispatchCheckout({ type: "SET_MODAL", open: true });
+                dispatchPayment({ type: "RESET" });
               }}
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-all hover:scale-[1.02] flex items-center gap-1.5 cursor-pointer shadow-md"
             >

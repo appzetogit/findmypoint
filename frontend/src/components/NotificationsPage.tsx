@@ -6,7 +6,7 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("fmp_notifications");
+      const saved = localStorage.getItem("fmp_notifications:v1");
       if (saved) {
         setNotifications(JSON.parse(saved));
       } else {
@@ -15,7 +15,7 @@ export default function NotificationsPage() {
           { id: 2, title: "Table Reserved Successfully", text: "Your reservation at Shree shyam restaurant has been confirmed. Receipt FMP-8921 generated.", time: "1 day ago", type: "success", read: false },
           { id: 3, title: "Security Alert: New Sign-in", text: "Logged into your account from Jaipur, IN.", time: "2 days ago", type: "warning", read: true }
         ];
-        localStorage.setItem("fmp_notifications", JSON.stringify(defaultNotifs));
+        localStorage.setItem("fmp_notifications:v1", JSON.stringify(defaultNotifs));
         setNotifications(defaultNotifs);
       }
     } catch (e) {
@@ -26,13 +26,13 @@ export default function NotificationsPage() {
   const markAllRead = () => {
     const updated = notifications.map(n => ({ ...n, read: true }));
     setNotifications(updated);
-    localStorage.setItem("fmp_notifications", JSON.stringify(updated));
+    localStorage.setItem("fmp_notifications:v1", JSON.stringify(updated));
   };
 
   const deleteNotification = (id: number) => {
     const updated = notifications.filter(n => n.id !== id);
     setNotifications(updated);
-    localStorage.setItem("fmp_notifications", JSON.stringify(updated));
+    localStorage.setItem("fmp_notifications:v1", JSON.stringify(updated));
   };
 
   return (

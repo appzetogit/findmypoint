@@ -1,12 +1,12 @@
 // Imports logoImg from assets
-import logoImg from "@/assets/logo.jpeg";
+import logoImg from "@/assets/logo.png";
 
 export default function Footer() {
   return (
-    <footer className="mt-24 border-t border-border">
-      <div className="mx-auto max-w-7xl px-6 py-16">
-        <div className="grid grid-cols-2 gap-10 md:grid-cols-5">
-          <div className="col-span-2">
+    <footer className="mt-24 border-t border-border hidden sm:block">
+      <div className="mx-auto max-w-7xl px-6 py-16 w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-10">
+          <div className="col-span-1 sm:col-span-2">
             <a href="/" className="flex items-center">
               <img
                 src={logoImg}

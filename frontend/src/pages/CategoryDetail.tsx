@@ -3,7 +3,7 @@ import {
   ArrowLeft, Search, MapPin, Star, Phone, MessageSquare,
   BadgeCheck, ChevronRight, Clock, User, X, Check, ShieldCheck
 } from "lucide-react";
-import logoImg from "@/assets/logo.jpeg";
+import logoImg from "@/assets/logo.png";
 import { getBusinessesForSubcategory, BusinessListingData } from "../data/businessesData";
 import Footer from "./Footer";
 
@@ -893,26 +893,26 @@ export default function CategoryDetailPage({
     <div className="min-h-screen bg-background text-foreground font-sans">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-20 max-w-7xl items-center gap-4 sm:gap-8 px-4 sm:px-6">
+        <div className="mx-auto flex h-16 md:h-20 max-w-7xl items-center gap-3 md:gap-4 px-4 sm:px-6 w-full">
           <button
             onClick={onBack}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/80 bg-card hover:bg-secondary transition-colors cursor-pointer"
+            className="flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-xl border border-border/80 bg-card hover:bg-secondary transition-colors cursor-pointer shrink-0"
           >
-            <ArrowLeft className="h-5 w-5 text-foreground" />
+            <ArrowLeft className="h-4.5 w-4.5 md:h-5 md:w-5 text-foreground" />
           </button>
           
           <a href="/" className="hidden md:flex items-center shrink-0">
             <img
               src={logoImg}
               alt="FindMyPoint Logo"
-              className="h-8 w-auto object-contain"
+              className="h-8 w-auto object-contain shrink-0"
               style={{ mixBlendMode: "multiply" }}
             />
           </a>
 
           {/* Search bar inside subcategory page */}
-          <div className="relative flex flex-1 items-center gap-2 rounded-full border border-border bg-card px-2 py-1.5 shadow-[var(--shadow-card)] max-w-xl">
-            <div className="flex items-center gap-1.5 border-r border-border px-3 py-1.5 text-xs sm:text-sm shrink-0">
+          <div className="relative flex flex-1 items-center gap-1.5 md:gap-2 rounded-full border border-border bg-card px-2 py-1 md:py-1.5 shadow-[var(--shadow-card)] max-w-xl">
+            <div className="hidden sm:flex items-center gap-1.5 border-r border-border px-3 py-1.5 text-xs sm:text-sm shrink-0">
               <MapPin className="h-4 w-4 text-accent" />
               <span className="font-semibold text-foreground/80">Mumbai</span>
             </div>
@@ -921,22 +921,22 @@ export default function CategoryDetailPage({
               placeholder={`Search in ${activeSubcategory}…`}
               value={searchQuery}
               onChange={(e) => setSearchFilters(prev => ({ ...prev, query: e.target.value }))}
-              className="flex-1 bg-transparent px-2 py-1.5 text-xs sm:text-sm outline-none placeholder:text-muted-foreground"
+              className="flex-1 bg-transparent px-2 py-1 text-xs sm:text-sm outline-none placeholder:text-muted-foreground"
               aria-label={`Search in ${activeSubcategory}`}
             />
-            <button aria-label="Submit search" className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90">
+            <button aria-label="Submit search" className="flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90 shrink-0">
               <Search className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </button>
           </div>
 
           {/* User profile action */}
-          <div className="flex items-center gap-3 ml-auto">
+          <div className="flex items-center gap-2.5 ml-auto shrink-0">
             {username ? (
               <button
                 onClick={onProfileClick}
-                className="flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-2 text-xs sm:text-sm font-semibold hover:bg-secondary cursor-pointer"
+                className="flex items-center gap-1.5 md:gap-2 rounded-full border border-border bg-card px-2 sm:px-3.5 py-1 sm:py-2 text-[11px] sm:text-sm font-semibold hover:bg-secondary cursor-pointer shrink-0"
               >
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-[11px] font-bold text-white uppercase">
+                <div className="flex h-5 w-5 md:h-6 md:w-6 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-[10px] md:text-[11px] font-bold text-white uppercase shrink-0">
                   {username.charAt(0)}
                 </div>
                 <span className="hidden sm:inline text-foreground/80">{username}</span>
@@ -944,9 +944,9 @@ export default function CategoryDetailPage({
             ) : (
               <button
                 onClick={onSignInClick}
-                className="flex items-center gap-1.5 rounded-full bg-primary px-5 py-2 text-xs sm:text-sm font-semibold text-primary-foreground hover:bg-primary/95 transition-all cursor-pointer"
+                className="flex items-center gap-1 rounded-full bg-primary px-2.5 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-sm font-semibold text-primary-foreground hover:bg-primary/95 transition-all cursor-pointer shrink-0"
               >
-                <User className="h-4 w-4" /> Sign In
+                <User className="h-3.5 w-3.5" /> Sign In
               </button>
             )}
           </div>
@@ -954,7 +954,7 @@ export default function CategoryDetailPage({
       </header>
 
       {/* Main Content Body */}
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-8 w-full">
         {/* Breadcrumb / Title */}
         <div className="mb-6 flex flex-wrap items-center gap-2 text-xs sm:text-sm text-muted-foreground pl-0.5">
           <span className="cursor-pointer hover:text-primary transition-colors" onClick={onBack}>Home</span>
@@ -1094,34 +1094,34 @@ export default function CategoryDetailPage({
                         </div>
 
                         {/* Actions buttons */}
-                        <div className="mt-6 flex flex-wrap gap-2 pt-4 border-t border-border/50">
+                        <div className="mt-6 flex flex-wrap gap-1.5 pt-4 border-t border-border/50">
                           <button
                             onClick={() => togglePhoneReveal(biz.id)}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-4 py-2.5 text-xs font-bold text-foreground transition-all hover:bg-secondary cursor-pointer"
+                            className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full border border-border bg-background px-2.5 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-foreground transition-all hover:bg-secondary cursor-pointer"
                           >
-                            <Phone className="h-3.5 w-3.5 text-accent" />
+                            <Phone className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-accent" />
                             {isPhoneRevealed ? biz.phone : "Show Number"}
                           </button>
 
                           <button
                             onClick={() => openEnquiryModal(biz)}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground transition-all hover:bg-primary/95 cursor-pointer shadow-sm hover:scale-[1.02]"
+                            className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full bg-primary px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-primary-foreground transition-all hover:bg-primary/95 cursor-pointer shadow-sm hover:scale-[1.02]"
                           >
-                            <MessageSquare className="h-3.5 w-3.5" />
+                            <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                             Enquire Now
                           </button>
 
                           <button
                             onClick={() => openBookingModal(biz)}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white transition-all hover:bg-emerald-700 cursor-pointer shadow-sm hover:scale-[1.02]"
+                            className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full bg-emerald-600 px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-white transition-all hover:bg-emerald-700 cursor-pointer shadow-sm hover:scale-[1.02]"
                           >
-                            <Check className="h-3.5 w-3.5" />
+                            <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                             Book Now
                           </button>
 
                           <button
                             onClick={() => onBusinessSelect(biz.id)}
-                            className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-secondary/30 hover:bg-secondary px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition ml-auto cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-secondary/30 hover:bg-secondary px-2.5 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-semibold text-muted-foreground hover:text-foreground transition sm:ml-auto cursor-pointer"
                           >
                             Details <ChevronRight className="h-3 w-3" />
                           </button>

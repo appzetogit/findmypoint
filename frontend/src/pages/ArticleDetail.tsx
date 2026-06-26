@@ -4,7 +4,7 @@ import {
   CheckCircle, MessageSquare, Eye, Calendar,
   ChevronRight, Phone, Heart, Award, ArrowRight, Star
 } from "lucide-react";
-import logoImg from "@/assets/logo.jpeg";
+import logoImg from "@/assets/logo.png";
 import { articlesData, ArticleData } from "../data/articlesData";
 import Footer from "./Footer";
 
@@ -71,19 +71,19 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
     <div className="min-h-screen bg-background text-foreground font-sans">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-20 max-w-7xl items-center gap-8 px-6">
-          <button onClick={onBack} className="flex items-center gap-2 group cursor-pointer">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm transition group-hover:bg-secondary">
-              <ArrowLeft className="h-4 w-4 text-foreground" />
+        <div className="mx-auto flex h-16 md:h-20 max-w-7xl items-center gap-3 md:gap-8 px-4 md:px-6 w-full">
+          <button onClick={onBack} className="flex items-center gap-2 group cursor-pointer shrink-0">
+            <div className="flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm transition group-hover:bg-secondary shrink-0">
+              <ArrowLeft className="h-4.5 w-4.5 md:h-5 md:w-5 text-foreground" />
             </div>
             <span className="hidden sm:inline text-sm font-semibold text-muted-foreground transition group-hover:text-foreground">Back to Home</span>
           </button>
 
-          <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }} className="flex items-center">
+          <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }} className="flex items-center shrink-0">
             <img
               src={logoImg}
               alt="FindMyPoint Logo"
-              className="h-8 w-auto object-contain"
+              className="h-7 md:h-8 w-auto object-contain shrink-0"
               style={{ mixBlendMode: "multiply" }}
             />
           </a>
@@ -97,25 +97,24 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
             />
           </div>
 
-          <div className="flex items-center gap-4 ml-auto md:ml-0">
+          <div className="flex items-center gap-2.5 ml-auto md:ml-0 shrink-0">
             <button 
               onClick={() => onBack()}
-              className="px-4 py-2 text-xs font-bold text-muted-foreground transition hover:text-foreground"
+              className="hidden sm:inline-block px-4 py-2 text-xs font-bold text-muted-foreground transition hover:text-foreground cursor-pointer"
             >
               Home
             </button>
-            <button className="hidden sm:block rounded-full border border-border bg-card px-5 py-2 text-xs font-semibold transition hover:bg-secondary">
+            <button className="hidden md:inline-block rounded-full border border-border bg-card px-5 py-2.5 text-xs font-semibold transition hover:bg-secondary cursor-pointer">
               Discover
             </button>
-            <button className="rounded-full bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90">
+            <button className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 cursor-pointer shrink-0">
               Sign In
             </button>
           </div>
         </div>
 
-        {/* Sub-Header Category Bar */}
         <div className="border-t border-border bg-card/60 overflow-x-auto no-scrollbar">
-          <div className="mx-auto max-w-7xl flex items-center gap-6 px-6 py-2.5 whitespace-nowrap text-xs font-bold text-muted-foreground">
+          <div className="mx-auto max-w-7xl flex items-center gap-6 px-6 py-2.5 whitespace-nowrap text-xs font-bold text-muted-foreground w-full">
             {categoryBar.map((cat, idx) => (
               <span 
                 key={idx} 
@@ -128,7 +127,7 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 py-8">
+      <main className="mx-auto max-w-7xl px-6 py-8 w-full">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-6">
           <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }} className="hover:text-primary transition-colors">Home</a>

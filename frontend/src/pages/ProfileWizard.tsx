@@ -277,7 +277,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
     <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col md:flex-row w-full h-full text-left overflow-hidden animate-fade-in">
         
         {/* LEFT SIDEBAR: Stepper Progress Checklist */}
-        <aside className="w-full md:w-80 bg-gradient-to-b from-primary to-indigo-950 p-6 md:p-8 text-primary-foreground flex flex-col justify-between shrink-0 border-r border-border/10 relative">
+        <aside className="w-full md:w-80 bg-gradient-to-b from-primary to-indigo-950 p-5 md:p-8 text-primary-foreground flex flex-col justify-between shrink-0 border-r border-border/10 relative">
           <div>
             {/* Back Button */}
             <div className="mb-6">
@@ -293,7 +293,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
             <h2 className="font-serif text-2xl font-black mt-1 leading-tight tracking-tight uppercase">Fill Profile</h2>
             
             {/* Progress indicator */}
-            <div className="mt-8 mb-8">
+            <div className="mt-8 mb-4 md:mb-8">
               <div className="flex justify-between text-xs font-bold mb-2">
                 <span className="opacity-90">Overall Completion</span>
                 <span className="text-accent">{getProgressPercent()}%</span>
@@ -306,8 +306,19 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
               </div>
             </div>
 
+            {/* Mobile step progress indicator */}
+            <div className="flex md:hidden items-center justify-between text-xs font-bold mb-4 bg-white/10 px-3.5 py-2.5 rounded-xl border border-white/5">
+              <span>Step {step} of 4</span>
+              <span className="text-accent">
+                {step === 1 && "Personal Details"}
+                {step === 2 && "Addresses"}
+                {step === 3 && "Favorites"}
+                {step === 4 && "Completed"}
+              </span>
+            </div>
+
             {/* Steps checklist */}
-            <div className="space-y-6">
+            <div className="hidden md:block space-y-6">
               {[
                 { s: 1, label: "Personal Details", desc: "Basic information & contact", icon: User },
                 { s: 2, label: "Addresses", desc: "Home and office locations", icon: MapPin },
@@ -588,7 +599,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                             type="button"
                             onClick={mockVerifyMobile}
                             disabled={!personal.mobile2 || mobile2Verified || verifyingMobile}
-                            className={`px-4 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                            className={`px-2.5 sm:px-4 rounded-xl text-xs font-black transition-all cursor-pointer ${
                               mobile2Verified
                                 ? "bg-emerald-50 border border-emerald-200 text-emerald-600 cursor-not-allowed"
                                 : "bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"

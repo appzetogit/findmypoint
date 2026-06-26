@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Search, MapPin, ChevronRight, Star, Phone,
-  ArrowRight, BadgeCheck, TrendingUp, ChevronLeft, Navigation, X, Clock
+  ArrowRight, BadgeCheck, TrendingUp, ChevronLeft, Navigation, X, Clock, Bell, ChevronDown, ChevronUp
 } from "lucide-react";
-import logoImg from "@/assets/logo.jpeg";
+import logoImg from "@/assets/logo.png";
 import heroFeatured from "@/assets/hero-featured.jpg";
 import catWedding from "@/assets/cat-wedding.jpg";
 import catRealestate from "@/assets/cat-realestate.jpg";
@@ -114,7 +114,7 @@ const servicesData = {
     { img: catDoctors, title: "Urgent Medical Care", desc: "Immediate doctor consults" },
   ],
   "Near You": [
-    { img: catDining, title: "Top Restaurants & Cafes", desc: "Best food options nearby" },
+    { img: catDining, title: "Top Restaurants", desc: "Best food options nearby" },
     { img: beautySalon, title: "Salons & Spas", desc: "Top rated local wellness" },
     { img: weddingBanquet, title: "Banquet & Marriage Halls", desc: "Stunning event spaces nearby" },
     { img: needsGrocery, title: "Grocery & Supermarkets", desc: "Fresh supplies delivered fast" },
@@ -319,6 +319,18 @@ const cityAreas: Record<string, { trending: string[]; recent: string[] }> = {
 const availableCities = ["Mumbai", "Indore", "Pune", "Jaipur", "Ujjain", "Ahmedabad", "Nashik", "Udaipur"];
 
 export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, onCategoryClick, onSignInClick, onProfileClick, onAdvertiseClick, username }: HomePageProps) {
+  const [isMobile, setIsMobile] = useState(false);
+  const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
+
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkIsMobile();
+    window.addEventListener("resize", checkIsMobile);
+    return () => window.removeEventListener("resize", checkIsMobile);
+  }, []);
+
   // UI states grouped to reduce useState count
   const [uiState, setUiState] = useState({
     showSuggestions: false,
@@ -484,35 +496,72 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden w-full">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-20 max-w-7xl items-center gap-8 px-6">
-          <a href="/" className="flex items-center">
-            <img
-              src={logoImg}
-              alt="FindMyPoint Logo"
-              className="h-8 w-auto object-contain"
-              style={{ mixBlendMode: "multiply" }}
-            />
-          </a>
+        <div className="mx-auto flex flex-col lg:flex-row h-auto lg:h-20 max-w-7xl items-stretch lg:items-center gap-3 lg:gap-8 px-4 md:px-6 py-3 lg:py-0 w-full">
+          {/* Mobile Top Navigation Row (Profile, Logo, Bell) */}
+          <div className="flex items-center justify-between lg:contents w-full relative">
+            {/* Left: Mobile Profile / Sign In Circular Avatar */}
+            <div className="lg:hidden shrink-0">
+              {username ? (
+                <button 
+                  onClick={onProfileClick}
+                  className="flex h-8.5 w-8.5 items-center justify-center rounded-full text-white hover:scale-105 transition-all duration-300 shadow-sm cursor-pointer font-bold text-xs bg-primary"
+                  title="Open Profile Menu"
+                >
+                  {username.charAt(0).toUpperCase()}
+                </button>
+              ) : (
+                <button 
+                  onClick={onSignInClick}
+                  className="flex h-8.5 w-8.5 items-center justify-center rounded-full border border-border bg-card text-[10px] font-extrabold text-foreground hover:bg-secondary cursor-pointer shadow-sm"
+                  title="Sign In"
+                >
+                  In
+                </button>
+              )}
+            </div>
 
-          <div className="relative ml-auto flex flex-1 items-center gap-2 rounded-full border border-border bg-card px-2 py-1.5 shadow-[var(--shadow-card)] max-w-2xl">
+            {/* Logo */}
+            <a href="/" className="flex items-center shrink-0 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:static lg:transform-none lg:left-auto lg:top-auto">
+              <img
+                src={logoImg}
+                alt="FindMyPoint Logo"
+                className="h-7 md:h-8 w-auto object-contain shrink-0"
+                style={{ mixBlendMode: "multiply" }}
+              />
+            </a>
+
+            {/* Right: Notification Bell */}
+            <div className="lg:hidden shrink-0 flex items-center">
+              <button 
+                onClick={() => alert("No new notifications")}
+                className="relative flex h-8.5 w-8.5 items-center justify-center rounded-full border border-border bg-card hover:bg-secondary text-foreground shadow-sm cursor-pointer"
+                title="Notifications"
+              >
+                <Bell className="h-4.5 w-4.5 text-foreground/85" />
+                <span className="absolute top-1 right-1 flex h-1.5 w-1.5 rounded-full bg-accent" />
+              </button>
+            </div>
+          </div>
+
+          <div className="relative flex flex-1 w-full items-center gap-1.5 md:gap-2 rounded-full border border-border bg-card px-2 py-1 md:py-1.5 shadow-[var(--shadow-card)] max-w-2xl">
             
             {/* Clickable Location Selector */}
             <div ref={locationRef} className="relative">
               <button
                 onClick={() => setLocationState(prev => ({ ...prev, showLocationDropdown: !prev.showLocationDropdown }))}
-                className="flex items-center gap-2 border-r border-border px-3 py-1.5 text-sm hover:text-primary transition-colors cursor-pointer group"
+                className="flex items-center gap-1 md:gap-2 border-r border-border pl-1 pr-2 md:px-3 py-1 text-xs md:text-sm hover:text-primary transition-colors cursor-pointer group"
               >
-                <MapPin className="h-4 w-4 text-accent group-hover:text-primary transition-colors" />
+                <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 text-accent group-hover:text-primary transition-colors shrink-0" />
                 <span className="font-semibold whitespace-nowrap">{selectedCity}</span>
-                <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${showLocationDropdown ? 'rotate-90' : ''}`} />
+                <ChevronRight className={`h-3 w-3 md:h-3.5 md:w-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ${showLocationDropdown ? 'rotate-90' : ''}`} />
               </button>
 
               {/* Location Dropdown */}
               {showLocationDropdown && (
-                <div className="absolute top-[calc(100%+12px)] left-0 min-w-[340px] bg-white border border-border rounded-2xl shadow-2xl z-[60] text-left overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="fixed inset-x-4 top-20 sm:absolute sm:top-[calc(100%+12px)] sm:left-0 sm:min-w-[340px] sm:w-auto bg-white border border-border rounded-2xl shadow-2xl z-[60] text-left overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                   
                   {/* Header */}
                   <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border/60">
@@ -608,13 +657,13 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
 
             <input
               type="text"
-              placeholder={`Search doctors, restaurants, services in ${selectedCity}…`}
-              className="flex-1 bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
+              placeholder={`Search in ${selectedCity}…`}
+              className="flex-1 bg-transparent px-2 py-1 text-xs md:text-sm outline-none placeholder:text-muted-foreground w-0 min-w-0"
               onFocus={() => setUiState(prev => ({ ...prev, showSuggestions: true }))}
               onBlur={() => setTimeout(() => setUiState(prev => ({ ...prev, showSuggestions: false })), 200)}
             />
-            <button className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90">
-              <Search className="h-4 w-4" />
+            <button className="flex h-7 w-7 md:h-9 md:w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90 shrink-0">
+              <Search className="h-3.5 w-3.5 md:h-4 md:w-4" />
             </button>
 
             {showSuggestions && (
@@ -689,9 +738,9 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 pt-10">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 pt-3 sm:pt-10 w-full">
         {/* Hero */}
-        <section className="grid grid-cols-12 gap-5 items-stretch">
+        <section className="hidden sm:grid grid-cols-12 gap-5 items-stretch">
           <div className="group relative col-span-12 overflow-hidden rounded-3xl lg:col-span-7 min-h-[300px] lg:min-h-0 lg:h-auto">
             {heroSlides.map((slide, index) => {
               const isActive = activeSlide === index;
@@ -813,35 +862,57 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
         </section>
 
 
-        <section className="mt-8">
-          <div className="grid grid-cols-3 gap-x-4 gap-y-8 sm:grid-cols-4 md:grid-cols-7 lg:grid-cols-7 xl:grid-cols-7">
-            {categories.map(({ img, label }) => (
+        <section className="mt-3 sm:mt-8">
+          <div className="grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-4 md:grid-cols-7 lg:grid-cols-7 xl:grid-cols-7 sm:gap-x-4 sm:gap-y-8">
+            {(!isMobile || isCategoriesExpanded ? categories : categories.slice(0, 11)).map(({ img, label }) => (
               <button
                 key={label}
                 onClick={() => onCategoryClick?.(label)}
-                className="group flex flex-col items-center justify-center gap-2 text-center transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                className="group flex flex-col items-center justify-center gap-1.5 sm:gap-2 text-center transition-all duration-300 hover:-translate-y-1 cursor-pointer"
               >
-                <div className="h-20 w-20 transition-all duration-300 group-hover:scale-110">
+                <div className="h-11 w-11 sm:h-20 sm:w-20 transition-all duration-300 group-hover:scale-110">
                   <img src={img} alt={label} className="h-full w-full object-contain" />
                 </div>
-                <span className="text-[13px] font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors duration-300">{label}</span>
+                <span className="text-[10px] sm:text-[13px] font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors duration-300">{label}</span>
               </button>
             ))}
+            {isMobile && !isCategoriesExpanded && (
+              <button
+                onClick={() => setIsCategoriesExpanded(true)}
+                className="group flex flex-col items-center justify-center gap-1.5 text-center transition-all duration-300 hover:-translate-y-1 cursor-pointer animate-in fade-in zoom-in duration-200"
+              >
+                <div className="h-11 w-11 flex items-center justify-center rounded-full bg-secondary hover:bg-secondary/80 text-foreground shadow-sm transition-all duration-300 group-hover:scale-110">
+                  <ChevronDown className="h-5 w-5 text-accent stroke-[2.5]" />
+                </div>
+                <span className="text-[10px] font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors duration-300">Show More</span>
+              </button>
+            )}
+            {isMobile && isCategoriesExpanded && (
+              <button
+                onClick={() => setIsCategoriesExpanded(false)}
+                className="group flex flex-col items-center justify-center gap-1.5 text-center transition-all duration-300 hover:-translate-y-1 cursor-pointer animate-in fade-in zoom-in duration-200"
+              >
+                <div className="h-11 w-11 flex items-center justify-center rounded-full bg-secondary hover:bg-secondary/80 text-foreground shadow-sm transition-all duration-300 group-hover:scale-110">
+                  <ChevronUp className="h-5 w-5 text-accent stroke-[2.5]" />
+                </div>
+                <span className="text-[10px] font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors duration-300">Show Less</span>
+              </button>
+            )}
           </div>
         </section>
 
         {/* Subcategories Grid */}
-        <section className="mt-20">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <section className="mt-6 sm:mt-12 md:mt-20">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 md:gap-6">
             {subcategorySections.map((sec) => (
-              <div key={sec.title} className="rounded-2xl border border-border/60 bg-card p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                <h3 className="text-[17px] font-bold text-foreground mb-4 pl-0.5">{sec.title}</h3>
+              <div key={sec.title} className="rounded-2xl border-none sm:border border-border/60 bg-transparent sm:bg-card p-1 sm:p-6 shadow-none sm:shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+                <h3 className="text-base sm:text-[17px] font-bold text-foreground mb-1.5 sm:mb-4 pl-0.5">{sec.title}</h3>
                 <div className="grid grid-cols-3 gap-5">
                   {sec.items.map((item) => (
                     <div
                       key={item.label}
                       onClick={() => onCategoryClick?.(item.categoryName, item.subcategoryName)}
-                      className="group flex flex-col items-center gap-2.5 cursor-pointer"
+                      className="group flex flex-col items-center gap-1.5 sm:gap-2.5 cursor-pointer"
                     >
                       <div className="w-full aspect-[1.45] overflow-hidden rounded-xl bg-secondary shadow-sm">
                         <img
@@ -863,20 +934,19 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
         </section>
 
         {/* Services / Quote section */}
-        <section className="mt-20 rounded-3xl border border-border bg-card p-8 sm:p-12">
-          <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+        <section className="mt-6 sm:mt-12 md:mt-20 rounded-3xl border-none sm:border border-border bg-transparent sm:bg-card p-1 sm:p-12">
+          <div className="mb-4 sm:mb-10 flex flex-row items-center justify-between gap-2 w-full">
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Popular Services</div>
-              <h2 className="mt-2 font-serif text-3xl sm:text-4xl">Get connected in minutes</h2>
+              <div className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-accent whitespace-nowrap">Popular Services</div>
             </div>
-            <div className="flex gap-2">
-              {(["Trending", "Urgent", "Near You"] as const).map((t) => {
+            <div className="flex gap-1.5 sm:gap-2 shrink-0">
+              {(["Trending", "Near You"] as const).map((t) => {
                 const isActive = activeTab === t;
                 return (
                   <button
                     key={t}
                     onClick={() => setUiState(prev => ({ ...prev, activeTab: t }))}
-                    className={`rounded-full border px-4 py-1.5 text-xs font-semibold cursor-pointer transition-all duration-300 ${
+                    className={`rounded-full border px-3 sm:px-4 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold cursor-pointer transition-all duration-300 ${
                       isActive
                         ? "border-primary bg-primary text-primary-foreground shadow-sm scale-105"
                         : "border-border text-muted-foreground bg-background hover:border-muted-foreground/60 hover:text-foreground hover:bg-secondary/40"
@@ -889,49 +959,71 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
             </div>
           </div>
 
-          <div key={activeTab} className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 animate-fade-in-up">
-            {servicesData[activeTab].map((s) => (
-              <div key={s.title} className="group overflow-hidden rounded-2xl border border-border bg-background transition hover:shadow-[var(--shadow-elegant)]">
-                <div className="relative aspect-[16/10] overflow-hidden">
-                  <img src={s.img} alt={s.title} loading="lazy" width={800} height={500} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
-                  <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/90 to-transparent" />
-                  <div className="absolute bottom-3 left-4 right-4 text-primary-foreground">
-                    <div className="font-serif text-lg leading-tight">{s.title}</div>
-                    <div className="text-xs opacity-80">{s.desc}</div>
+          <div className="relative overflow-hidden -mx-4 sm:mx-0">
+            <div
+              key={activeTab}
+              className="flex sm:grid overflow-x-auto sm:overflow-x-visible scroll-smooth sm:scroll-auto gap-1.5 sm:gap-5 w-full no-scrollbar sm:grid-cols-2 lg:grid-cols-4 py-2 px-4 sm:px-0 sm:p-0 sm:m-0 animate-fade-in-up"
+              style={{ scrollbarWidth: "none" }}
+            >
+              {servicesData[activeTab].map((s) => (
+                <div key={s.title} className="group overflow-hidden rounded-xl sm:rounded-2xl border border-border bg-background transition hover:shadow-[var(--shadow-elegant)] shrink-0 w-[30.5%] sm:w-full">
+                  <div className="relative aspect-[16/10] overflow-hidden">
+                    <img src={s.img} alt={s.title} loading="lazy" width={800} height={500} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+                    {/* Desktop View Overlay */}
+                    <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/95 to-transparent hidden sm:block" />
+                    <div className="absolute bottom-3 left-4 right-4 text-primary-foreground hidden sm:block">
+                      <div className="font-serif text-lg leading-tight font-bold">{s.title}</div>
+                      <div className="text-xs opacity-85 mt-0.5">{s.desc}</div>
+                    </div>
+                  </div>
+                  <div className="p-2 sm:p-4 flex items-center justify-between">
+                    {/* Desktop View Bottom Bar */}
+                    <div className="hidden sm:flex items-center justify-between w-full">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <BadgeCheck className="h-3.5 w-3.5 text-accent shrink-0" />
+                        <span>Verified providers</span>
+                      </div>
+                      <button className="inline-flex items-center gap-0.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition group-hover:bg-accent group-hover:text-accent-foreground cursor-pointer shrink-0">
+                        <Phone className="h-3 w-3" /> Enquire
+                      </button>
+                    </div>
+                    
+                    {/* Mobile View Bottom Bar (Title instead of Enquire button and description) */}
+                    <div className="flex sm:hidden flex-col items-center text-center w-full">
+                      <span className="text-[10px] font-bold text-foreground/95 leading-tight line-clamp-2">
+                        {s.title}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-2 p-4">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <BadgeCheck className="h-3.5 w-3.5 text-accent" />
-                    Verified providers
-                  </div>
-                  <button className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition group-hover:bg-accent group-hover:text-accent-foreground cursor-pointer">
-                    <Phone className="h-3 w-3" /> Enquire
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
         </section>
 
         {/* Trending chips */}
-        <section className="mt-20">
-          <div className="mb-6 flex items-end justify-between">
+        <section className="mt-6 sm:mt-12 md:mt-20">
+          <div className="mb-4 sm:mb-6 flex items-end justify-between">
             <div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Live now</div>
-              <h2 className="mt-2 font-serif text-3xl">Trending searches near you</h2>
+              <h2 className="mt-1.5 sm:mt-2 font-serif text-xl sm:text-3xl">Trending searches near you</h2>
             </div>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             {[
               "Paying Guest Accommodations", "Co-working Spaces", "Tax Consultants",
               "Banquet Halls", "Cinema Halls", "Water Suppliers", "Driving Schools",
               "Packers & Movers", "Event Organisers", "Wedding Photographers",
               "Luxury Car Rental", "Yoga Classes",
-            ].map((t) => (
-              <button key={t} className="group inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm transition hover:border-accent hover:bg-secondary">
-                <Search className="h-3.5 w-3.5 text-muted-foreground group-hover:text-accent" />
+            ].map((t, index) => (
+              <button
+                key={t}
+                className={`group items-center gap-1.5 sm:gap-2 rounded-full border border-border bg-card px-2.5 sm:px-4 py-1.5 sm:py-2.5 text-xs sm:text-sm transition hover:border-accent hover:bg-secondary cursor-pointer ${
+                  index >= 6 ? "hidden sm:inline-flex" : "inline-flex"
+                }`}
+              >
+                <Search className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground group-hover:text-accent" />
                 {t}
               </button>
             ))}
@@ -939,11 +1031,11 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
         </section>
 
         {/* Explore Top Tourist Places Section */}
-        <section className="mt-20 mb-10">
-          <div className="relative rounded-2xl border border-border/50 bg-card p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+        <section className="mt-6 sm:mt-12 md:mt-20 mb-6 sm:mb-10">
+          <div className="relative rounded-2xl border-none sm:border border-border/50 bg-transparent sm:bg-card p-1 sm:p-6 shadow-none sm:shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
             {/* Header */}
-            <div className="flex items-center gap-2 mb-6">
-              <h2 className="text-xl font-extrabold text-foreground tracking-tight">
+            <div className="flex items-center gap-2 mb-4 sm:mb-6">
+              <h2 className="text-base sm:text-xl font-extrabold text-foreground tracking-tight">
                 Explore Top Tourist Places
               </h2>
               <span className="inline-flex items-center rounded bg-[#ff3838] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white select-none animate-pulse">
@@ -955,7 +1047,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
             {canScrollLeft && (
               <button
                 onClick={() => scroll("left")}
-                className="absolute left-[-20px] top-[55%] -translate-y-1/2 z-30 flex h-12 w-10 items-center justify-center bg-white border border-border/60 shadow-[0_4px_12px_rgba(0,0,0,0.08)] rounded-xl cursor-pointer hover:bg-secondary transition-colors"
+                className="absolute left-[-20px] top-[55%] -translate-y-1/2 z-30 hidden sm:flex h-12 w-10 items-center justify-center bg-white border border-border/60 shadow-[0_4px_12px_rgba(0,0,0,0.08)] rounded-xl cursor-pointer hover:bg-secondary transition-colors"
               >
                 <ChevronLeft className="h-5 w-5 text-foreground stroke-[2.5px]" />
               </button>
@@ -965,26 +1057,26 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
             {canScrollRight && (
               <button
                 onClick={() => scroll("right")}
-                className="absolute right-[-20px] top-[55%] -translate-y-1/2 z-30 flex h-12 w-10 items-center justify-center bg-white border border-border/60 shadow-[0_4px_12px_rgba(0,0,0,0.08)] rounded-xl cursor-pointer hover:bg-secondary transition-colors"
+                className="absolute right-[-20px] top-[55%] -translate-y-1/2 z-30 hidden sm:flex h-12 w-10 items-center justify-center bg-white border border-border/60 shadow-[0_4px_12px_rgba(0,0,0,0.08)] rounded-xl cursor-pointer hover:bg-secondary transition-colors"
               >
                 <ChevronRight className="h-5 w-5 text-foreground stroke-[2.5px]" />
               </button>
             )}
 
             {/* Sliding Carousel Wrapper */}
-            <div className="relative overflow-hidden w-full">
+            <div className="relative overflow-hidden -mx-4 sm:mx-0">
               <div
                 ref={scrollRef}
-                className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-4 w-full no-scrollbar py-2 px-1 -mx-1"
+                className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-3 sm:gap-4 w-full no-scrollbar py-2 px-4 sm:px-0"
                 style={{ scrollbarWidth: "none" }}
               >
                 {touristPlaces.map((place) => (
                   <div
                     key={place.title}
                     onClick={() => onPlaceClick?.(place.title)}
-                    className="group flex items-center gap-6 rounded-xl border border-border/40 bg-background/20 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/20 hover:bg-card hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)] cursor-pointer"
+                    className="group flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-6 rounded-none sm:rounded-xl border-none sm:border border-border/40 bg-transparent sm:bg-background/20 p-0 sm:p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/20 hover:bg-card hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] snap-start shrink-0 w-[28%] sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)] cursor-pointer"
                   >
-                    <div className="h-24 w-24 sm:h-28 sm:w-28 overflow-hidden rounded-xl shadow-sm shrink-0 bg-secondary">
+                    <div className="w-full sm:h-28 sm:w-28 aspect-square sm:aspect-auto overflow-hidden rounded-xl bg-secondary shrink-0">
                       <img
                         src={place.img}
                         alt={place.title}
@@ -992,12 +1084,12 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-lg sm:text-[20px] font-bold text-foreground/90 group-hover:text-primary transition-colors duration-300">
+                    <div className="flex flex-col items-center sm:items-start text-center sm:text-left w-full">
+                      <span className="text-xs sm:text-[20px] font-semibold sm:font-bold text-foreground/90 group-hover:text-primary transition-colors duration-300 mt-1 sm:mt-0">
                         {place.title}
                       </span>
-                      <span className="inline-flex items-center gap-0.5 text-sm sm:text-[15px] font-bold text-accent mt-1 transition-all duration-300 group-hover:translate-x-0.5">
-                        Explore <ChevronRight className="h-3.5 w-3.5 stroke-[3px]" />
+                      <span className="hidden sm:inline-flex items-center gap-0.5 text-xs sm:text-[15px] font-bold text-accent mt-1 transition-all duration-300 group-hover:translate-x-0.5">
+                        Explore <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 stroke-[3px]" />
                       </span>
                     </div>
                   </div>
@@ -1008,11 +1100,11 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
         </section>
 
         {/* Recent Activity / Reviews Section */}
-        <section className="mt-16 mb-16">
-          <div className="relative rounded-2xl border border-border/50 bg-card p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+        <section className="mt-6 sm:mt-12 md:mt-16 mb-6 sm:mb-16">
+          <div className="relative rounded-2xl border-none sm:border border-border/50 bg-transparent sm:bg-card p-1 sm:p-6 shadow-none sm:shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
             {/* Header */}
-            <div className="flex items-center gap-2 mb-6">
-              <h2 className="text-xl font-extrabold text-foreground tracking-tight">
+            <div className="flex items-center gap-2 mb-4 sm:mb-6">
+              <h2 className="text-base sm:text-xl font-extrabold text-foreground tracking-tight">
                 Recent Activity
               </h2>
               <span className="inline-flex items-center rounded bg-primary px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white select-none">
@@ -1024,7 +1116,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
             {canScrollReviewsLeft && (
               <button
                 onClick={() => scrollReviews("left")}
-                className="absolute left-[-20px] top-[55%] -translate-y-1/2 z-30 flex h-12 w-10 items-center justify-center bg-white border border-border/60 shadow-[0_4px_12px_rgba(0,0,0,0.08)] rounded-xl cursor-pointer hover:bg-secondary transition-colors"
+                className="absolute left-[-20px] top-[55%] -translate-y-1/2 z-30 hidden sm:flex h-12 w-10 items-center justify-center bg-white border border-border/60 shadow-[0_4px_12px_rgba(0,0,0,0.08)] rounded-xl cursor-pointer hover:bg-secondary transition-colors"
               >
                 <ChevronLeft className="h-5 w-5 text-foreground stroke-[2.5px]" />
               </button>
@@ -1034,32 +1126,32 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
             {canScrollReviewsRight && (
               <button
                 onClick={() => scrollReviews("right")}
-                className="absolute right-[-20px] top-[55%] -translate-y-1/2 z-30 flex h-12 w-10 items-center justify-center bg-white border border-border/60 shadow-[0_4px_12px_rgba(0,0,0,0.08)] rounded-xl cursor-pointer hover:bg-secondary transition-colors"
+                className="absolute right-[-20px] top-[55%] -translate-y-1/2 z-30 hidden sm:flex h-12 w-10 items-center justify-center bg-white border border-border/60 shadow-[0_4px_12px_rgba(0,0,0,0.08)] rounded-xl cursor-pointer hover:bg-secondary transition-colors"
               >
                 <ChevronRight className="h-5 w-5 text-foreground stroke-[2.5px]" />
               </button>
             )}
 
             {/* Sliding Carousel Wrapper */}
-            <div className="relative overflow-hidden w-full">
+            <div className="relative overflow-hidden -mx-4 sm:mx-0">
               <div
                 ref={reviewsScrollRef}
-                className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-4 w-full no-scrollbar py-2 px-1 -mx-1"
+                className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-2 w-full no-scrollbar py-2 px-4 sm:px-0"
                 style={{ scrollbarWidth: "none" }}
               >
                 {recentReviews.map((review, i) => (
                   <div
                     key={i}
                     onClick={() => onReviewClick(review.id)}
-                    className="group flex flex-col justify-between rounded-2xl border border-border/40 bg-background/25 shadow-[0_2px_8px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_12px_30px_rgba(0,0,0,0.06)] hover:border-primary/20 hover:bg-card snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(33.333%-11px)] cursor-pointer"
+                    className="group flex flex-col justify-between rounded-xl sm:rounded-2xl border border-border/40 bg-background/25 shadow-[0_2px_8px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_12px_30px_rgba(0,0,0,0.06)] hover:border-primary/20 hover:bg-card snap-start shrink-0 w-[46%] sm:w-[calc(50%-8px)] lg:w-[calc(33.333%-11px)] cursor-pointer"
                   >
                     {/* Header */}
-                    <div className="flex items-start justify-between gap-3 p-5">
+                    <div className="flex items-start justify-between gap-1.5 p-2.5 sm:p-5">
                       <div className="flex flex-col min-w-0">
-                        <span className="text-base font-extrabold text-foreground tracking-tight leading-tight line-clamp-1 group-hover:text-primary transition-colors duration-300">
+                        <span className="text-[10px] sm:text-base font-extrabold text-foreground tracking-tight leading-tight line-clamp-1 group-hover:text-primary transition-colors duration-300">
                           {review.businessName}
                         </span>
-                        <span className="text-[11px] font-medium text-muted-foreground mt-0.5 line-clamp-1">
+                        <span className="text-[8.5px] sm:text-[11px] font-medium text-muted-foreground mt-0.5 line-clamp-1">
                           {review.location}
                         </span>
                       </div>
@@ -1070,10 +1162,10 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 border border-[#25d366]/30 text-[#25d366] font-bold text-[10px] rounded-lg bg-[#25d366]/5 hover:bg-[#25d366] hover:text-white hover:border-[#25d366] transition-all duration-300 shadow-sm shrink-0 cursor-pointer"
+                        className="inline-flex items-center gap-0.5 px-1 py-0.5 sm:px-2.5 sm:py-1 border border-[#25d366]/30 text-[#25d366] font-bold text-[7.5px] sm:text-[10px] rounded-md sm:rounded-lg bg-[#25d366]/5 hover:bg-[#25d366] hover:text-white hover:border-[#25d366] transition-all duration-300 shadow-sm shrink-0 cursor-pointer"
                       >
                         <svg
-                          className="h-3 w-3 fill-current"
+                          className="h-2 w-2 sm:h-3 sm:w-3 fill-current"
                           viewBox="0 0 24 24"
                           xmlns="http://www.w3.org/2000/svg"
                         >
@@ -1082,9 +1174,9 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                         WhatsApp
                       </a>
                     </div>
-
+ 
                     {/* Image */}
-                    <div className="relative aspect-[16/9] w-full overflow-hidden bg-secondary border-y border-border/40">
+                    <div className="relative aspect-[16/8] sm:aspect-[16/9] w-full overflow-hidden bg-secondary border-y border-border/40">
                       <img
                         src={review.businessImg}
                         alt={review.businessName}
@@ -1092,36 +1184,36 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                         className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
                     </div>
-
+ 
                     {/* Review Info */}
-                    <div className="p-5 flex flex-col flex-1">
+                    <div className="p-2.5 sm:p-5 flex flex-col flex-1">
                       {/* User Row */}
-                      <div className="flex items-center gap-3">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-black text-white shadow-inner bg-gradient-to-tr ${review.userColor}`}>
+                      <div className="flex items-center gap-1.5 sm:gap-3">
+                        <div className={`h-5 w-5 sm:h-8 sm:w-8 rounded-full flex items-center justify-center text-[8px] sm:text-xs font-black text-white shadow-inner bg-gradient-to-tr ${review.userColor}`}>
                           {review.userInitial}
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-[13px] font-bold text-foreground leading-tight">
+                          <span className="text-[9.5px] sm:text-[13px] font-bold text-foreground leading-tight">
                             {review.userName}
                           </span>
-                          <span className="text-[10px] font-semibold text-muted-foreground mt-0.5 leading-none">
+                          <span className="text-[7.5px] sm:text-[10px] font-semibold text-muted-foreground mt-0.5 leading-none">
                             Wrote a review
                           </span>
                         </div>
                       </div>
-
+ 
                       {/* Stars */}
-                      <div className="flex items-center gap-0.5 mt-3">
+                      <div className="flex items-center gap-0.5 mt-1.5 sm:mt-3">
                         {Array.from({ length: review.rating }).map((_, starIndex) => (
                           <Star
                             key={starIndex}
-                            className="h-3.5 w-3.5 text-amber-500 fill-amber-500 stroke-[1.5px]"
+                            className="h-2 w-2 sm:h-3.5 sm:w-3.5 text-amber-500 fill-amber-500 stroke-[1.5px]"
                           />
                         ))}
                       </div>
-
+ 
                       {/* Review Text */}
-                      <p className="text-[12px] text-muted-foreground/90 mt-2.5 leading-relaxed line-clamp-3 italic flex-1">
+                      <p className="text-[9.5px] sm:text-[12px] text-muted-foreground/90 mt-1.5 sm:mt-2.5 leading-snug sm:leading-relaxed line-clamp-2 sm:line-clamp-3 italic flex-1">
                         "{review.reviewText}"
                       </p>
                     </div>
@@ -1133,73 +1225,78 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
         </section>
 
         {/* Related Articles Section */}
-        <section className="mt-16 mb-20">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-2.5">
-              <h2 className="text-2xl font-extrabold text-foreground tracking-tight font-serif">
+        <section className="mt-6 sm:mt-12 md:mt-16 mb-6 sm:mb-20">
+          <div className="flex items-center justify-between mb-4 sm:mb-8">
+            <div className="flex items-center gap-2">
+              <h2 className="text-base sm:text-2xl font-extrabold text-foreground tracking-tight font-serif">
                 Related Articles
               </h2>
-              <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+              <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
             </div>
             <a
               href="#"
-              className="group inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary hover:text-accent transition-all duration-300"
+              className="group inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-primary hover:text-accent transition-all duration-300"
             >
               Explore more
-              <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+              <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
             </a>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {relatedArticles.map((article, index) => (
-              <a
-                key={index}
-                href={article.link}
-                onClick={(e) => {
-                  e.preventDefault();
-                  onArticleClick(index);
-                }}
-                className="group flex flex-col overflow-hidden rounded-2xl border border-border/40 bg-card/60 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elegant)] hover:border-primary/20 hover:-translate-y-1.5 transition-all duration-300 cursor-pointer"
-              >
-                {/* Image Container with Tag */}
-                <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
-                  <img
-                    src={article.img}
-                    alt={article.title}
-                    loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                  <div className="absolute top-4 left-4 rounded-lg bg-black/45 backdrop-blur-md px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-white border border-white/10 shadow-sm">
-                    {article.category}
+          <div className="relative overflow-hidden -mx-4 sm:mx-0">
+            <div
+              className="flex sm:grid overflow-x-auto sm:overflow-x-visible scroll-smooth sm:scroll-auto snap-x sm:snap-none snap-mandatory gap-2 sm:gap-8 w-full no-scrollbar sm:grid-cols-2 lg:grid-cols-3 py-2 px-4 sm:px-0 sm:p-0 sm:m-0"
+              style={{ scrollbarWidth: "none" }}
+            >
+              {relatedArticles.map((article, index) => (
+                <a
+                  key={index}
+                  href={article.link}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onArticleClick(index);
+                  }}
+                  className="group flex flex-col overflow-hidden rounded-xl sm:rounded-2xl border border-border/40 bg-card/60 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elegant)] hover:border-primary/20 hover:-translate-y-1.5 transition-all duration-300 cursor-pointer snap-start shrink-0 w-[46%] sm:w-full"
+                >
+                  {/* Image Container with Tag */}
+                  <div className="relative aspect-[16/9] sm:aspect-[16/10] overflow-hidden bg-secondary">
+                    <img
+                      src={article.img}
+                      alt={article.title}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                    <div className="absolute top-1.5 left-1.5 sm:top-4 sm:left-4 rounded-lg bg-black/45 backdrop-blur-md px-1.5 py-0.5 sm:px-3 sm:py-1.5 text-[7px] sm:text-[9px] font-black uppercase tracking-wider text-white border border-white/10 shadow-sm">
+                      {article.category}
+                    </div>
                   </div>
-                </div>
 
-                {/* Content Container */}
-                <div className="p-6 flex flex-col flex-1">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2.5">
-                    {article.readTime}
-                  </div>
-                  
-                  <h3 className="font-serif text-lg font-bold text-foreground leading-snug group-hover:text-primary transition-colors duration-300 line-clamp-2">
-                    {article.title}
-                  </h3>
-                  
-                  <p className="text-[13px] text-muted-foreground/80 mt-3 leading-relaxed line-clamp-3">
-                    {article.desc}
-                  </p>
+                  {/* Content Container */}
+                  <div className="p-2 sm:p-6 flex flex-col flex-1">
+                    <div className="text-[7px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 sm:mb-2.5">
+                      {article.readTime}
+                    </div>
+                    
+                    <h3 className="font-serif text-[10px] sm:text-lg font-bold text-foreground leading-snug group-hover:text-primary transition-colors duration-300 line-clamp-2">
+                      {article.title}
+                    </h3>
+                    
+                    <p className="hidden sm:block text-[13px] text-muted-foreground/80 mt-3 leading-relaxed line-clamp-3">
+                      {article.desc}
+                    </p>
 
-                  <div className="mt-6 pt-4 border-t border-border/40 flex items-center justify-between text-xs font-bold text-primary group-hover:text-accent transition-colors duration-300 mt-auto">
-                    <span>Explore Article</span>
-                    <ChevronRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                    <div className="hidden sm:flex mt-6 pt-4 border-t border-border/40 items-center justify-between text-xs font-bold text-primary group-hover:text-accent transition-colors duration-300 mt-auto">
+                      <span>Explore Article</span>
+                      <ChevronRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                    </div>
                   </div>
-                </div>
-              </a>
-            ))}
+                </a>
+              ))}
+            </div>
           </div>
         </section>
 
         {/* SEO Info & Download App Section */}
-        <section className="mt-16 mb-16 text-left border-t border-border/40 pt-10">
+        <section className="hidden sm:block mt-12 md:mt-16 mb-12 md:mb-16 text-left border-t border-border/40 pt-10">
           {/* Bottom Content Area: SEO Text */}
           <div>
             <h3 className="text-lg sm:text-xl font-extrabold text-foreground tracking-tight leading-snug">

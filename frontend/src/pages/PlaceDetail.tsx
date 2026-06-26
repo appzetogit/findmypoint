@@ -4,7 +4,7 @@ import {
   Star, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
   MessageSquare, Phone, Info
 } from "lucide-react";
-import logoImg from "@/assets/logo.jpeg";
+import logoImg from "@/assets/logo.png";
 import { touristPlacesData, TouristPlaceDetailData } from "../data/touristPlacesData";
 import Footer from "./Footer";
 
@@ -190,7 +190,7 @@ export default function PlaceDetailPage({ placeName, onBack, onBusinessSelect, o
     <div className="min-h-screen bg-background text-foreground font-sans antialiased">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-20 max-w-7xl items-center gap-8 px-6">
+        <div className="mx-auto flex h-20 max-w-7xl items-center gap-8 px-6 w-full">
           <button onClick={onBack} className="flex items-center gap-2 group cursor-pointer">
             <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm transition group-hover:bg-secondary">
               <ArrowLeft className="h-4 w-4 text-foreground animate-none group-hover:-translate-x-0.5 transition-transform" />
@@ -248,7 +248,7 @@ export default function PlaceDetailPage({ placeName, onBack, onBusinessSelect, o
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-6 pt-6 pb-20">
+      <main className="mx-auto max-w-7xl px-6 pt-6 pb-20 w-full">
         
         {/* Collage Collage Section */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[260px] md:h-[380px] overflow-hidden rounded-3xl border border-border/80 shadow-md">

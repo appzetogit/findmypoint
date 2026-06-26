@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useReducer } from "react";
 import { ArrowLeft, Check, ShieldCheck } from "lucide-react";
-import logoImg from "@/assets/logo.jpeg";
+import logoImg from "@/assets/logo.png";
 
 interface SignInPageProps {
   onBack: () => void;
@@ -221,13 +221,13 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
       <div className="absolute w-[250px] h-[250px] rounded-full bg-accent/20 blur-[90px] pointer-events-none animate-pulse" style={{ bottom: '25%', right: '35%', animationDelay: '1.5s' }} />
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-[580px] bg-white/95 rounded-[32px] shadow-[0_32px_80px_rgba(15,23,42,0.18)] p-10 flex flex-col border border-white/50 overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="relative w-full max-w-[580px] bg-white/95 rounded-[32px] shadow-[0_32px_80px_rgba(15,23,42,0.18)] p-6 sm:p-10 flex flex-col border border-white/50 overflow-hidden animate-in zoom-in-95 duration-300">
         
         {/* Ambient Top Glow Border inside modal */}
         <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-transparent via-[#0086ff] to-transparent opacity-80" />
 
         {/* Header with Logo and Welcome */}
-        <div className="flex items-center gap-6 mb-10">
+        <div className="flex items-center gap-4 sm:gap-6 mb-6 sm:mb-10">
           <div className="flex h-10 shrink-0 items-center justify-center transition-transform hover:scale-105 duration-300">
             <img
               src={logoImg}
@@ -336,7 +336,7 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
             </div>
 
             {/* 6 Digit Input Boxes */}
-            <div className="flex justify-between gap-3 my-4">
+            <div className="flex justify-between gap-1.5 sm:gap-3 my-4">
               {otpValues.map((val, idx) => (
                 <input
                   key={idx}
@@ -347,7 +347,7 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
                   ref={(el) => { otpInputsRef.current[idx] = el; }}
                   onChange={(e) => handleOtpChange(idx, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                  className="w-12 h-14 border border-slate-200 rounded-2xl text-center text-xl font-extrabold text-slate-900 bg-slate-50/50 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all duration-300 shadow-sm"
+                  className="w-9 h-11 sm:w-12 sm:h-14 border border-slate-200 rounded-xl sm:rounded-2xl text-center text-lg sm:text-xl font-extrabold text-slate-900 bg-slate-50/50 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all duration-300 shadow-sm"
                   required
                 />
               ))}

@@ -4,7 +4,7 @@ import {
   Layers, Users, ShieldCheck, Sparkles, TrendingUp,
   Star, Briefcase, Zap, HelpCircle
 } from "lucide-react";
-import logoImg from "@/assets/logo.jpeg";
+import logoImg from "@/assets/logo.png";
 
 interface AdvertiseProps {
   onClose: () => void;
@@ -78,28 +78,28 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans animate-fade-in">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
-          <div className="flex items-center gap-4">
+        <div className="mx-auto flex h-16 md:h-20 max-w-7xl items-center justify-between px-4 md:px-6">
+          <div className="flex items-center gap-3 md:gap-4 shrink-0">
             <button 
               onClick={onClose}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm cursor-pointer"
+              className="flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm cursor-pointer shrink-0"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4.5 w-4.5 md:h-5 md:w-5" />
             </button>
             <img
               src={logoImg}
               alt="FindMyPoint Logo"
-              className="h-8 w-auto object-contain"
+              className="h-7 md:h-8 w-auto object-contain shrink-0"
               style={{ mixBlendMode: "multiply" }}
             />
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <span className="hidden md:inline text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">
               Business Portal
             </span>
             <button 
               onClick={onClose}
-              className="text-xs font-black text-primary hover:underline"
+              className="text-xs font-black text-primary hover:underline cursor-pointer"
             >
               Back to Home
             </button>
@@ -144,7 +144,7 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
              </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-center">
             
             {/* Left Column: Branding, Value Proposition & Form */}
             <div className="lg:col-span-7 space-y-8 text-left">
@@ -182,7 +182,7 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Category Selector */}
                     <div>
                       <label htmlFor="advCategory" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Business Category</label>
@@ -328,7 +328,7 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
               </div>
 
               {/* Stats badges floating beside smartphone */}
-              <div className="absolute -right-4 top-10 bg-white border border-slate-200 rounded-2xl p-3 shadow-lg flex items-center gap-2 animate-bounce duration-[4s]">
+              <div className="absolute -right-4 top-10 bg-white border border-slate-200 rounded-2xl p-3 shadow-lg hidden sm:flex items-center gap-2 animate-bounce duration-[4s]">
                 <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
                   <Users className="h-4.5 w-4.5" />
                 </div>
@@ -338,7 +338,7 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
                 </div>
               </div>
 
-              <div className="absolute -left-4 bottom-10 bg-white border border-slate-200 rounded-2xl p-3 shadow-lg flex items-center gap-2 animate-bounce duration-[3.5s]">
+              <div className="absolute -left-4 bottom-10 bg-white border border-slate-200 rounded-2xl p-3 shadow-lg hidden sm:flex items-center gap-2 animate-bounce duration-[3.5s]">
                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                   <Briefcase className="h-4.5 w-4.5" />
                 </div>
@@ -354,7 +354,7 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
         )}
 
         {/* Brand Ambassador Section */}
-        <section className="mt-20 border-t border-slate-200/80 pt-16 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+        <section className="mt-12 md:mt-20 border-t border-slate-200/80 pt-10 md:pt-16 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
           <div className="md:col-span-8 space-y-4 text-left">
             <h3 className="font-serif text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tight">
               India's Trusted Search & Growth Engine

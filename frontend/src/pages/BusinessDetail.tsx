@@ -4,7 +4,7 @@ import {
   CheckCircle, MessageSquare, Phone, ArrowRight, Star,
   Globe, ShieldCheck, ChevronDown, ChevronUp, Send, Navigation, X, Check
 } from "lucide-react";
-import logoImg from "@/assets/logo.jpeg";
+import logoImg from "@/assets/logo.png";
 import { businessesData, BusinessListingData } from "../data/businessesData";
 import Footer from "./Footer";
 
@@ -312,19 +312,19 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
     <div className="min-h-screen bg-background text-foreground font-sans">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-20 max-w-7xl items-center gap-8 px-6">
-          <button onClick={onBack} className="flex items-center gap-2 group cursor-pointer">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm transition group-hover:bg-secondary">
-              <ArrowLeft className="h-4 w-4 text-foreground" />
+        <div className="mx-auto flex h-16 md:h-20 max-w-7xl items-center gap-3 md:gap-8 px-4 md:px-6 w-full">
+          <button onClick={onBack} className="flex items-center gap-2 group cursor-pointer shrink-0">
+            <div className="flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm transition group-hover:bg-secondary shrink-0">
+              <ArrowLeft className="h-4.5 w-4.5 md:h-5 md:w-5 text-foreground" />
             </div>
             <span className="hidden sm:inline text-sm font-semibold text-muted-foreground transition group-hover:text-foreground">Back</span>
           </button>
 
-          <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }} className="flex items-center">
+          <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }} className="flex items-center shrink-0">
             <img
               src={logoImg}
               alt="FindMyPoint Logo"
-              className="h-8 w-auto object-contain"
+              className="h-7 md:h-8 w-auto object-contain shrink-0"
               style={{ mixBlendMode: "multiply" }}
             />
           </a>
@@ -337,20 +337,20 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
             />
           </div>
 
-          <div className="flex items-center gap-4 ml-auto md:ml-0">
+          <div className="flex items-center gap-2.5 ml-auto md:ml-0 shrink-0">
             <button 
               onClick={() => onBack()}
-              className="px-4 py-2 text-xs font-bold text-muted-foreground transition hover:text-foreground"
+              className="hidden sm:inline-block px-4 py-2 text-xs font-bold text-muted-foreground transition hover:text-foreground cursor-pointer"
             >
               Home
             </button>
-            <button className="hidden sm:block rounded-full border border-border bg-card px-5 py-2 text-xs font-semibold transition hover:bg-secondary">
+            <button className="hidden md:inline-block rounded-full border border-border bg-card px-5 py-2.5 text-xs font-semibold transition hover:bg-secondary cursor-pointer">
               Discover
             </button>
             {!username && (
               <button 
                 onClick={onSignInClick}
-                className="rounded-full bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 cursor-pointer"
+                className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 cursor-pointer shrink-0"
               >
                 Sign In
               </button>
@@ -358,7 +358,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
             {username && (
               <button 
                 onClick={onProfileClick}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-white hover:scale-105 transition-all duration-300 shadow-sm cursor-pointer font-bold text-xs bg-primary"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-white hover:scale-105 transition-all duration-300 shadow-sm cursor-pointer font-bold text-xs bg-primary shrink-0"
                 title="Open Profile Menu"
               >
                 {username.charAt(0).toUpperCase()}
@@ -370,7 +370,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
 
       {/* Hero Gallery Collage Section */}
       <div className="bg-secondary/40 border-b border-border py-4">
-        <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-7xl px-6 w-full">
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 h-[240px] sm:h-[320px] overflow-hidden rounded-3xl border border-border/80 shadow-md">
             
             {/* Main large image */}
@@ -407,7 +407,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
       </div>
 
       {/* Main Container */}
-      <main className="mx-auto max-w-7xl px-6 py-8">
+      <main className="mx-auto max-w-7xl px-6 py-8 w-full">
         
         {/* Breadcrumb & Ratings summary row */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -452,13 +452,13 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
           </div>
 
           {/* Quick Actions Panel */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <button 
               onClick={() => {
                 const el = document.getElementById("send-enquiry-section");
                 el?.scrollIntoView({ behavior: "smooth" });
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-xs font-bold text-primary-foreground hover:bg-primary/95 transition shadow-md cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-primary px-4 sm:px-6 py-2.5 sm:py-3 text-xs font-bold text-primary-foreground hover:bg-primary/95 transition shadow-md cursor-pointer"
             >
               Enquire Now
             </button>
@@ -487,9 +487,9 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                   dispatchBooking({ type: "SET_MODAL", open: true });
                   dispatchPayment({ type: "RESET" });
                 }}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 py-3 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-md cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-4 sm:px-6 py-2.5 sm:py-3 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-md cursor-pointer"
               >
-                <Check className="h-4 w-4" /> 
+                <Check className="h-3.5 w-3.5" /> 
                 {currentBiz.category.includes("Hotel Point") 
                   ? "Book Room" 
                   : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point") ? "Book Appointment" : "Book Table")}
@@ -497,32 +497,32 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
             )}
             <button 
               onClick={() => setUiState(prev => ({ ...prev, revealPhone: !prev.revealPhone }))}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-5 py-3 text-xs font-bold text-foreground hover:bg-secondary transition shadow-sm cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3.5 sm:px-5 py-2.5 sm:py-3 text-xs font-bold text-foreground hover:bg-secondary transition shadow-sm cursor-pointer"
             >
-              <Phone className="h-4 w-4 text-accent" /> 
+              <Phone className="h-3.5 w-3.5 text-accent" /> 
               {revealPhone ? currentBiz.phone : "Show Number"}
             </button>
             <a 
               href={`https://wa.me/${currentBiz.phone.replace(/[^0-9]/g, "")}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#25d366]/30 bg-[#25d366]/5 hover:bg-[#25d366] hover:text-white transition-all shadow-sm cursor-pointer text-[#25d366]"
+              className="inline-flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-[#25d366]/30 bg-[#25d366]/5 hover:bg-[#25d366] hover:text-white transition-all shadow-sm cursor-pointer text-[#25d366]"
             >
-              <svg className="h-4.5 w-4.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <svg className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.717-1.456L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.97C16.379 1.968 13.91 .94 11.997.94c-5.442 0-9.867 4.371-9.871 9.8.001 1.83.483 3.61 1.398 5.183L2.5 21.082l5.147-1.33c-.007.005-.007.005 0 0zm9.967-6.758c-.31-.154-1.834-.894-2.115-.995-.28-.102-.485-.153-.687.154-.202.307-.783.995-.96 1.198-.177.205-.355.23-.665.077-1.127-.565-1.953-.972-2.73-1.637-.777-.665-1.28-1.488-1.433-1.753-.153-.307-.016-.473.138-.626.14-.138.31-.36.467-.538.153-.18.204-.307.307-.512.102-.205.05-.384-.025-.538-.077-.154-.687-1.637-.94-2.253-.247-.6-.5-.518-.688-.528-.178-.01-.383-.01-.588-.01-.205 0-.538.077-.82.384-.282.307-1.077 1.05-1.077 2.561 0 1.51 1.1 2.97 1.253 3.176.154.205 2.164 3.266 5.244 4.581.733.313 1.306.499 1.75.64.737.234 1.408.201 1.94.122.592-.088 1.834-.74 2.09-1.455.257-.717.257-1.332.18-1.456-.076-.124-.282-.201-.592-.356z" />
               </svg>
             </a>
             <button 
               onClick={handleShare}
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card hover:bg-secondary transition shadow-sm text-muted-foreground cursor-pointer"
+              className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-border bg-card hover:bg-secondary transition shadow-sm text-muted-foreground cursor-pointer"
             >
-              <Share2 className="h-4.5 w-4.5" />
+              <Share2 className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5" />
             </button>
             <button 
               onClick={() => setUiState(prev => ({ ...prev, bookmarked: !prev.bookmarked }))}
-              className={`flex h-11 w-11 items-center justify-center rounded-full border transition shadow-sm cursor-pointer ${bookmarked ? "text-amber-500 border-amber-200 bg-amber-50/20" : "text-muted-foreground border-border bg-card hover:bg-secondary"}`}
+              className={`flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border transition shadow-sm cursor-pointer ${bookmarked ? "text-amber-500 border-amber-200 bg-amber-50/20" : "text-muted-foreground border-border bg-card hover:bg-secondary"}`}
             >
-              <Bookmark className={`h-4.5 w-4.5 ${bookmarked ? "fill-amber-500" : ""}`} />
+              <Bookmark className={`h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 ${bookmarked ? "fill-amber-500" : ""}`} />
             </button>
           </div>
         </div>

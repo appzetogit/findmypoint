@@ -140,6 +140,25 @@
     border-color: var(--color-border);
   }
 
+  html, body, #root {
+    max-width: 100%;
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  /* Hide scrollbar line in mobile view for app-like layout */
+  @media (max-width: 639px) {
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar,
+    #root::-webkit-scrollbar {
+      display: none !important;
+    }
+    html, body, #root {
+      -ms-overflow-style: none !important;
+      scrollbar-width: none !important;
+    }
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);

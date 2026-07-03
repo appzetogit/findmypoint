@@ -11,7 +11,8 @@ import {
   MessageSquare,
   Star,
   HelpCircle,
-  CreditCard
+  CreditCard,
+  PlusCircle
 } from "lucide-react";
 import logoImg from "../assets/logo.png";
 import { businessesData, BusinessListingData } from "../data/businessesData";
@@ -26,6 +27,7 @@ import Enquiries from "./Enquiries";
 import Reviews from "./Reviews";
 import FAQManagement from "./FAQManagement";
 import PaymentManagement from "./PaymentManagement";
+import AddProduct from "./AddProduct";
 
 interface ClientShellProps {
   onClose: () => void;
@@ -42,6 +44,7 @@ export type ClientView =
   | "edit"
   | "settings"
   | "serviceform"
+  | "addproduct"
   | "reviews"
   | "faq";
 
@@ -166,6 +169,18 @@ export default function ClientShell({ onClose }: ClientShellProps) {
     return { totalListings, totalReviews, avgRating };
   }, [clientListings]);
 
+  const allBookingsDisabled = useMemo(() => {
+    return clientListings.length > 0 && clientListings.every((b) => b.isBookingDisabled);
+  }, [clientListings]);
+
+  useEffect(() => {
+    if (allBookingsDisabled) {
+      if (currentView === "bookings" || currentView === "payments" || currentView === "serviceform") {
+        setCurrentView("overview");
+      }
+    }
+  }, [allBookingsDisabled, currentView]);
+
   const handleEditBusiness = (id: string) => {
     setEditingBusinessId(id);
     setCurrentView("edit");
@@ -247,43 +262,47 @@ export default function ClientShell({ onClose }: ClientShellProps) {
                 <span>My Businesses</span>
               </button>
 
-              <button
-                onClick={() => {
-                  setCurrentView("bookings");
-                }}
-                className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
-                  currentView === "bookings"
-                    ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
-                    : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
-                }`}
-              >
-                {currentView === "bookings" && (
-                  <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
-                )}
-                <Calendar
-                  className={`h-4.5 w-4.5 transition-colors ${currentView === "bookings" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
-                />
-                <span>Bookings</span>
-              </button>
+              {!allBookingsDisabled && (
+                <button
+                  onClick={() => {
+                    setCurrentView("bookings");
+                  }}
+                  className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                    currentView === "bookings"
+                      ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                      : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                  }`}
+                >
+                  {currentView === "bookings" && (
+                    <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                  )}
+                  <Calendar
+                    className={`h-4.5 w-4.5 transition-colors ${currentView === "bookings" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                  />
+                  <span>Bookings</span>
+                </button>
+              )}
 
-              <button
-                onClick={() => {
-                  setCurrentView("payments");
-                }}
-                className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
-                  currentView === "payments"
-                    ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
-                    : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
-                }`}
-              >
-                {currentView === "payments" && (
-                  <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
-                )}
-                <CreditCard
-                  className={`h-4.5 w-4.5 transition-colors ${currentView === "payments" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
-                />
-                <span>Payment Management</span>
-              </button>
+              {!allBookingsDisabled && (
+                <button
+                  onClick={() => {
+                    setCurrentView("payments");
+                  }}
+                  className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                    currentView === "payments"
+                      ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                      : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                  }`}
+                >
+                  {currentView === "payments" && (
+                    <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                  )}
+                  <CreditCard
+                    className={`h-4.5 w-4.5 transition-colors ${currentView === "payments" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                  />
+                  <span>Payment Management</span>
+                </button>
+              )}
 
               <button
                 onClick={() => {
@@ -304,23 +323,44 @@ export default function ClientShell({ onClose }: ClientShellProps) {
                 <span>Enquiries</span>
               </button>
 
+              {!allBookingsDisabled && (
+                <button
+                  onClick={() => {
+                    setCurrentView("serviceform");
+                  }}
+                  className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                    currentView === "serviceform"
+                      ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                      : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                  }`}
+                >
+                  {currentView === "serviceform" && (
+                    <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                  )}
+                  <ClipboardList
+                    className={`h-4.5 w-4.5 transition-colors ${currentView === "serviceform" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                  />
+                  <span>Service Form</span>
+                </button>
+              )}
+
               <button
                 onClick={() => {
-                  setCurrentView("serviceform");
+                  setCurrentView("addproduct");
                 }}
                 className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
-                  currentView === "serviceform"
+                  currentView === "addproduct"
                     ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
                     : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
                 }`}
               >
-                {currentView === "serviceform" && (
+                {currentView === "addproduct" && (
                   <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
                 )}
-                <ClipboardList
-                  className={`h-4.5 w-4.5 transition-colors ${currentView === "serviceform" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                <PlusCircle
+                  className={`h-4.5 w-4.5 transition-colors ${currentView === "addproduct" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
                 />
-                <span>Service Form</span>
+                <span>Add Product</span>
               </button>
 
               <button
@@ -445,6 +485,10 @@ export default function ClientShell({ onClose }: ClientShellProps) {
 
           {currentView === "serviceform" && (
             <ServiceForm clientListings={clientListings} />
+          )}
+
+          {currentView === "addproduct" && (
+            <AddProduct clientListings={clientListings} />
           )}
 
           {currentView === "reviews" && (

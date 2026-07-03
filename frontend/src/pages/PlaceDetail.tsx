@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { touristPlacesData, TouristPlaceDetailData } from "../data/touristPlacesData";
+import { businessesData } from "../data/businessesData";
 import Footer from "./Footer";
 
 interface PlaceDetailPageProps {
@@ -601,18 +602,24 @@ export default function PlaceDetailPage({
                       <span className="text-[9px] font-extrabold text-muted-foreground px-2 py-0.5 rounded bg-secondary uppercase">
                         {hotel.tags[0]}
                       </span>
-                      <button
-                        onClick={() => {
-                          if (onBusinessSelect && hotel.businessId) {
-                            onBusinessSelect(hotel.businessId);
-                          } else {
-                            alert("Contacting Hotel Booking Desk...");
-                          }
-                        }}
-                        className="inline-flex items-center gap-1 bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground font-semibold px-3 py-1.5 rounded-full text-[10px] transition-colors duration-300 cursor-pointer"
-                      >
-                        <Phone className="h-2.5 w-2.5" /> Book Now
-                      </button>
+                      {(() => {
+                        const biz = businessesData.find((b) => b.id === hotel.businessId);
+                        const isBookingDisabled = biz ? !!biz.isBookingDisabled : false;
+                        return !isBookingDisabled ? (
+                          <button
+                            onClick={() => {
+                              if (onBusinessSelect && hotel.businessId) {
+                                onBusinessSelect(hotel.businessId);
+                              } else {
+                                alert("Contacting Hotel Booking Desk...");
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground font-semibold px-3 py-1.5 rounded-full text-[10px] transition-colors duration-300 cursor-pointer"
+                          >
+                            <Phone className="h-2.5 w-2.5" /> {biz?.bookingButtonLabel || "Book Now"}
+                          </button>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
                 </div>

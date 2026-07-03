@@ -1563,27 +1563,7 @@ export default function CategoryDetailPage({
                           </button>
 
                           {(() => {
-                            // Check localStorage for custom form config
-                            const savedForm = localStorage.getItem(`fmp_service_form:${biz.id}`);
-                            let bookNowEnabled = false;
-                            if (savedForm) {
-                              try {
-                                const parsed = JSON.parse(savedForm);
-                                bookNowEnabled = parsed.bookNowEnabled ?? false;
-                              } catch (_) {}
-                            } else {
-                              // Default: show only for bookable categories
-                              const cat = (biz.category || "").toLowerCase();
-                              bookNowEnabled =
-                                cat.includes("food point") ||
-                                cat.includes("restaurant") ||
-                                cat.includes("hotel point") ||
-                                cat.includes("health care") ||
-                                cat.includes("doctor point") ||
-                                cat.includes("spa point") ||
-                                cat.includes("salon") ||
-                                cat.includes("beauty");
-                            }
+                            const bookNowEnabled = !biz.isBookingDisabled;
                             return bookNowEnabled ? (
                               <button
                                 onClick={() => {
@@ -1596,7 +1576,7 @@ export default function CategoryDetailPage({
                                 className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full bg-emerald-600 px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-white transition-all hover:bg-emerald-700 cursor-pointer shadow-sm hover:scale-[1.02]"
                               >
                                 <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                                Book Now
+                                {biz.bookingButtonLabel || "Book Now"}
                               </button>
                             ) : null;
                           })()}

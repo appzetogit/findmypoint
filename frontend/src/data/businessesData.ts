@@ -7,6 +7,7 @@ export interface ProductService {
   price: string;
   img: string;
   desc: string;
+  addedDate?: string;
 }
 
 export interface UserReview {
@@ -69,6 +70,8 @@ export interface BusinessListingData {
   categoryLine?: string;
   highlightsName?: string;
   isVerified?: boolean;
+  isBookingDisabled?: boolean;
+  bookingButtonLabel?: string;
 }
 
 export const businessesData: BusinessListingData[] = [
@@ -665,7 +668,10 @@ if (typeof window !== "undefined") {
       const customBiz = JSON.parse(saved);
       if (Array.isArray(customBiz)) {
         customBiz.forEach((biz) => {
-          if (!businessesData.some((b) => b.id === biz.id)) {
+          const idx = businessesData.findIndex((b) => b.id === biz.id);
+          if (idx > -1) {
+            businessesData[idx] = biz;
+          } else {
             businessesData.push(biz);
           }
         });
@@ -688,5 +694,20 @@ if (typeof window !== "undefined") {
     }
   } catch (e) {
     console.error("Failed to apply verification status overrides", e);
+  }
+
+  // Apply booking disabled overrides
+  try {
+    const overrides = localStorage.getItem("fmp_booking_disabled_statuses");
+    if (overrides) {
+      const parsed = JSON.parse(overrides);
+      businessesData.forEach((biz) => {
+        if (parsed[biz.id] !== undefined) {
+          biz.isBookingDisabled = parsed[biz.id];
+        }
+      });
+    }
+  } catch (e) {
+    console.error("Failed to apply booking disable status overrides", e);
   }
 }

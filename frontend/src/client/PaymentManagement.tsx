@@ -11,7 +11,9 @@ import {
   Calendar,
   Building,
   TrendingUp,
-  ArrowRightLeft
+  ArrowRightLeft,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
 
@@ -35,7 +37,25 @@ const generateMockPayments = (bizId: string): PaymentTransaction[] => {
   const currentYear = new Date().getFullYear();
   return [
     {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 3}`, // 3 days ago
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 1}`,
+      timestamp: `02/07/${currentYear} 10:15`,
+      customerName: "Arjun Mehta",
+      amount: 1500,
+      paymentMethod: "upi",
+      status: "Completed",
+      details: "Full House Deep Cleaning Service"
+    },
+    {
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 2}`,
+      timestamp: `01/07/${currentYear} 16:45`,
+      customerName: "Neha Kapoor",
+      amount: 799,
+      paymentMethod: "card",
+      status: "Completed",
+      details: "Plumbing Inspection & Leak Repair"
+    },
+    {
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 3}`,
       timestamp: `28/06/${currentYear} 14:35`,
       customerName: "Rahul Sharma",
       amount: 499,
@@ -44,7 +64,25 @@ const generateMockPayments = (bizId: string): PaymentTransaction[] => {
       details: "Standard AC Repair Package Service Enquiry Deposit"
     },
     {
-      id: `txn-${Date.now() - 1000 * 60 * 65 * 24 * 6}`, // 6 days ago
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 4}`,
+      timestamp: `27/06/${currentYear} 09:30`,
+      customerName: "Karan Johar",
+      amount: 2500,
+      paymentMethod: "netbanking",
+      status: "Completed",
+      details: "Interior Design Consultation Deposit"
+    },
+    {
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 5}`,
+      timestamp: `26/06/${currentYear} 18:20`,
+      customerName: "Meera Nair",
+      amount: 350,
+      paymentMethod: "upi",
+      status: "Refunded",
+      details: "Kitchen Chimney Cleaning Cancellation Refund"
+    },
+    {
+      id: `txn-${Date.now() - 1000 * 60 * 65 * 24 * 6}`,
       timestamp: `25/06/${currentYear} 11:20`,
       customerName: "Priyanka Verma",
       amount: 999,
@@ -53,7 +91,34 @@ const generateMockPayments = (bizId: string): PaymentTransaction[] => {
       details: "Premium Consulting & Accounting Package"
     },
     {
-      id: `txn-${Date.now() - 1000 * 60 * 70 * 24 * 10}`, // 10 days ago
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 7}`,
+      timestamp: `24/06/${currentYear} 12:10`,
+      customerName: "Rohan Das",
+      amount: 1200,
+      paymentMethod: "upi",
+      status: "Completed",
+      details: "Sofa Dry Cleaning & Sanitization"
+    },
+    {
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 8}`,
+      timestamp: `23/06/${currentYear} 15:40`,
+      customerName: "Ananya Sen",
+      amount: 180,
+      paymentMethod: "upi",
+      status: "Completed",
+      details: "Bathroom Tap Replacement Service"
+    },
+    {
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 9}`,
+      timestamp: `22/06/${currentYear} 08:50`,
+      customerName: "Kabir Singh",
+      amount: 3000,
+      paymentMethod: "card",
+      status: "Completed",
+      details: "Wooden Wardrobe Repair & Polish"
+    },
+    {
+      id: `txn-${Date.now() - 1000 * 60 * 70 * 24 * 10}`,
       timestamp: `21/06/${currentYear} 19:40`,
       customerName: "Aman Gupta",
       amount: 349,
@@ -62,7 +127,16 @@ const generateMockPayments = (bizId: string): PaymentTransaction[] => {
       details: "Product Order: Paneer Tikka Butter Masala x1"
     },
     {
-      id: `txn-${Date.now() - 1000 * 60 * 80 * 24 * 12}`, // 12 days ago
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 11}`,
+      timestamp: `20/06/${currentYear} 11:00`,
+      customerName: "Divya Teja",
+      amount: 650,
+      paymentMethod: "upi",
+      status: "Completed",
+      details: "Washing Machine Installation"
+    },
+    {
+      id: `txn-${Date.now() - 1000 * 60 * 80 * 24 * 12}`,
       timestamp: `19/06/${currentYear} 09:15`,
       customerName: "Sneha Patel",
       amount: 1999,
@@ -71,7 +145,25 @@ const generateMockPayments = (bizId: string): PaymentTransaction[] => {
       details: "Room Stay Reservation Deposit (Deluxe AC Room)"
     },
     {
-      id: `txn-${Date.now() - 1000 * 60 * 90 * 24 * 15}`, // 15 days ago
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 13}`,
+      timestamp: `18/06/${currentYear} 17:30`,
+      customerName: "Yash Birla",
+      amount: 450,
+      paymentMethod: "upi",
+      status: "Completed",
+      details: "Ceiling Fan Repair & Capacitor Change"
+    },
+    {
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 14}`,
+      timestamp: `17/06/${currentYear} 14:20`,
+      customerName: "Ritu Singhal",
+      amount: 850,
+      paymentMethod: "card",
+      status: "Completed",
+      details: "Pest Control - Cockroach Gel Treatment"
+    },
+    {
+      id: `txn-${Date.now() - 1000 * 60 * 90 * 24 * 15}`,
       timestamp: `16/06/${currentYear} 13:10`,
       customerName: "Vikram Rathore",
       amount: 289,
@@ -80,13 +172,49 @@ const generateMockPayments = (bizId: string): PaymentTransaction[] => {
       details: "Product Order: Butter Naan & Dal Makhani Combo x1"
     },
     {
-      id: `txn-${Date.now() - 1000 * 60 * 95 * 24 * 18}`, // 18 days ago
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 16}`,
+      timestamp: `15/06/${currentYear} 10:45`,
+      customerName: "Sanjay Dutt",
+      amount: 2200,
+      paymentMethod: "netbanking",
+      status: "Completed",
+      details: "Water Purifier RO Filter Service & Repair"
+    },
+    {
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 17}`,
+      timestamp: `14/06/${currentYear} 16:15`,
+      customerName: "Nisha Rao",
+      amount: 600,
+      paymentMethod: "upi",
+      status: "Completed",
+      details: "Door Lock Installation & Repair"
+    },
+    {
+      id: `txn-${Date.now() - 1000 * 60 * 95 * 24 * 18}`,
       timestamp: `13/06/${currentYear} 10:00`,
       customerName: "Aditi Rao",
       amount: 300,
       paymentMethod: "card",
       status: "Completed",
       details: "Doctor Consultation Fee Slot Booking"
+    },
+    {
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 19}`,
+      timestamp: `12/06/${currentYear} 15:30`,
+      customerName: "Varun Dhawan",
+      amount: 1100,
+      paymentMethod: "upi",
+      status: "Completed",
+      details: "Geyser Installation & Safety Inspection"
+    },
+    {
+      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 20}`,
+      timestamp: `11/06/${currentYear} 09:00`,
+      customerName: "Isha Ambani",
+      amount: 5000,
+      paymentMethod: "card",
+      status: "Completed",
+      details: "Full House Painting Consultative Inspection"
     }
   ];
 };
@@ -97,6 +225,10 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [successMsg, setSuccessMsg] = useState("");
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   // Set default business
   useEffect(() => {
@@ -112,7 +244,15 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         try {
-          setTransactions(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          // Overwrite with the new expanded mock data if it was using the old, shorter mock data
+          if (parsed.length <= 6) {
+            const mockData = generateMockPayments(selectedBizId);
+            localStorage.setItem(storageKey, JSON.stringify(mockData));
+            setTransactions(mockData);
+          } else {
+            setTransactions(parsed);
+          }
         } catch (e) {
           setTransactions([]);
         }
@@ -143,6 +283,25 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
       return matchesSearch && matchesStatus;
     });
   }, [transactions, searchTerm, statusFilter]);
+
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+
+  // Reset page when search or status filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, selectedBizId]);
+
+  // Adjust page if it exceeds totalPages
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedTransactions = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredTransactions, currentPage, itemsPerPage]);
 
   // Analytics Metrics
   const metrics = useMemo(() => {
@@ -238,6 +397,14 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
       </div>
     );
   }
+  if (selectedBiz?.isBookingDisabled) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-slate-500 dark:text-slate-400">
+        <AlertCircle className="h-12 w-12 text-slate-400 mb-3 opacity-40" />
+        <p className="text-sm font-semibold">Payment management features have been disabled for this business.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in-up text-left max-w-6xl mx-auto pb-10">
@@ -320,98 +487,7 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
         </div>
       </div>
 
-      {/* Analytics Dashboard Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Card: Method Distribution & Analysis */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm lg:col-span-5 text-left">
-          <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-4 pb-2 border-b border-slate-100 dark:border-slate-850">
-            Payment Method Split
-          </h4>
 
-          <div className="space-y-4 mt-2">
-            {/* UPI Bar */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-650 dark:text-slate-350">
-                <span>UPI Payments</span>
-                <span>{metrics.upiPercent}% ({metrics.upiCount})</span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full bg-indigo-500 rounded-full transition-all"
-                  style={{ width: `${metrics.upiPercent}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Card Bar */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-650 dark:text-slate-350">
-                <span>Credit/Debit Card</span>
-                <span>{metrics.cardPercent}% ({metrics.cardCount})</span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 rounded-full transition-all"
-                  style={{ width: `${metrics.cardPercent}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Net Banking Bar */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-650 dark:text-slate-350">
-                <span>Net Banking</span>
-                <span>{metrics.bankPercent}% ({metrics.bankCount})</span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full bg-amber-500 rounded-full transition-all"
-                  style={{ width: `${metrics.bankPercent}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-150/40 dark:border-indigo-900/35 rounded-xl p-3.5 mt-5 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-semibold leading-relaxed">
-              <strong>UPI</strong> continues to be the preferred choice for consumer payments, contributing to faster settlement cycles. Issue instant card/netbanking refunds directly via portal controls.
-            </p>
-          </div>
-        </div>
-
-        {/* Right Card: Weekly Revenue visual bars */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm lg:col-span-7 text-left">
-          <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-4 pb-2 border-b border-slate-100 dark:border-slate-850">
-            Simulated Revenue Growth (Weekly)
-          </h4>
-
-          <div className="h-32 flex items-end gap-5 justify-around mt-4 pb-2 border-b border-slate-100 dark:border-slate-850">
-            {[
-              { label: "W1", height: "40%", revenue: "₹3,450" },
-              { label: "W2", height: "55%", revenue: "₹4,800" },
-              { label: "W3", height: "35%", revenue: "₹2,900" },
-              { label: "W4", height: "80%", revenue: "₹7,200" },
-              { label: "Current", height: "95%", revenue: "₹9,450" }
-            ].map((week, idx) => (
-              <div key={idx} className="flex-1 flex flex-col items-center gap-1 group relative cursor-pointer h-full justify-end">
-                {/* Popover on hover */}
-                <div className="absolute bottom-full mb-2 bg-slate-950 text-white text-[9px] font-bold px-2 py-1 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap">
-                  {week.revenue}
-                </div>
-                <div
-                  className="w-8 sm:w-12 bg-gradient-to-t from-indigo-600 to-violet-500 rounded-t-lg transition-all duration-700 group-hover:from-emerald-500 group-hover:to-emerald-400"
-                  style={{ height: week.height }}
-                />
-                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 mt-2">{week.label}</span>
-              </div>
-            ))}
-          </div>
-          <p className="text-[10px] text-muted-foreground text-center font-bold mt-2.5">
-            Hover over bars to view revenue data per weekly cycle
-          </p>
-        </div>
-      </div>
 
       {/* Filter and Search controls */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -451,72 +527,116 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
       {/* Transactions Table */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl shadow-sm overflow-hidden">
         {filteredTransactions.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-850">
-                  <th className="px-6 py-4.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Transaction ID</th>
-                  <th className="px-6 py-4.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Date & Time</th>
-                  <th className="px-6 py-4.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Customer Name</th>
-                  <th className="px-6 py-4.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Details</th>
-                  <th className="px-6 py-4.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Method</th>
-                  <th className="px-6 py-4.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Amount</th>
-                  <th className="px-6 py-4.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Status</th>
-                  <th className="px-6 py-4.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-150 dark:divide-slate-850">
-                {filteredTransactions.map((txn) => (
-                  <tr key={txn.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-850/20 transition-colors">
-                    <td className="px-6 py-4 text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
-                      {txn.id.slice(0, 15)}...
-                    </td>
-                    <td className="px-6 py-4 text-xs text-slate-600 dark:text-slate-405 font-semibold">
-                      {txn.timestamp}
-                    </td>
-                    <td className="px-6 py-4 text-xs text-slate-900 dark:text-white font-extrabold">
-                      {txn.customerName}
-                    </td>
-                    <td className="px-6 py-4 text-xs text-slate-550 dark:text-slate-400 font-semibold max-w-xs truncate" title={txn.details}>
-                      {txn.details}
-                    </td>
-                    <td className="px-6 py-4 text-xs text-slate-550 dark:text-slate-400 font-black uppercase">
-                      {txn.paymentMethod}
-                    </td>
-                    <td className="px-6 py-4 text-xs text-slate-900 dark:text-white font-serif font-black">
-                      ₹{txn.amount}
-                    </td>
-                    <td className="px-6 py-4 text-xs">
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
-                        txn.status === "Completed"
-                          ? "bg-emerald-50 dark:bg-emerald-950/25 text-emerald-600 dark:text-emerald-450 border border-emerald-250/25"
-                          : txn.status === "Refunded"
-                            ? "bg-amber-50 dark:bg-amber-950/25 text-amber-600 dark:text-amber-450 border border-amber-250/25"
-                            : "bg-rose-50 dark:bg-rose-950/25 text-rose-600 dark:text-rose-450 border border-rose-250/25"
-                      }`}>
-                        {txn.status === "Completed" && <CheckCircle className="h-3 w-3 fill-current stroke-none" />}
-                        {txn.status === "Refunded" && <RefreshCcw className="h-3 w-3" />}
-                        {txn.status === "Failed" && <XCircle className="h-3 w-3 fill-current stroke-none" />}
-                        {txn.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      {txn.status === "Completed" ? (
-                        <button
-                          onClick={() => handleRefund(txn.id)}
-                          className="px-3 py-1 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg text-[10.5px] font-bold transition duration-300 cursor-pointer active:scale-95 border border-amber-500/20"
-                        >
-                          Issue Refund
-                        </button>
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground/60 font-extrabold italic select-none">No Action</span>
-                      )}
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-850">
+                    <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Transaction ID</th>
+                    <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Date & Time</th>
+                    <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Customer Name</th>
+                    <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Details</th>
+                    <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Method</th>
+                    <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Amount</th>
+                    <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-150 dark:divide-slate-850">
+                  {paginatedTransactions.map((txn) => (
+                    <tr key={txn.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-850/20 transition-colors">
+                      <td className="px-4 py-3 text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                        {txn.id}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-405 font-semibold">
+                        {txn.timestamp}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-900 dark:text-white font-extrabold">
+                        {txn.customerName}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-550 dark:text-slate-400 font-semibold max-w-[200px] truncate" title={txn.details}>
+                        {txn.details}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-550 dark:text-slate-400 font-black uppercase">
+                        {txn.paymentMethod}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-900 dark:text-white font-serif font-black">
+                        ₹{txn.amount}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
+                          txn.status === "Completed"
+                            ? "bg-emerald-50 dark:bg-emerald-950/25 text-emerald-600 dark:text-emerald-450 border border-emerald-250/25"
+                            : txn.status === "Refunded"
+                              ? "bg-amber-50 dark:bg-amber-950/25 text-amber-600 dark:text-amber-450 border border-amber-250/25"
+                              : "bg-rose-50 dark:bg-rose-950/25 text-rose-600 dark:text-rose-450 border border-rose-250/25"
+                        }`}>
+                          {txn.status === "Completed" && <CheckCircle className="h-3 w-3 fill-current stroke-none" />}
+                          {txn.status === "Refunded" && <RefreshCcw className="h-3 w-3" />}
+                          {txn.status === "Failed" && <XCircle className="h-3 w-3 fill-current stroke-none" />}
+                          {txn.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {txn.status === "Completed" ? (
+                          <button
+                            onClick={() => handleRefund(txn.id)}
+                            className="px-3 py-1 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg text-[10.5px] font-bold transition duration-300 cursor-pointer active:scale-95 border border-amber-500/20"
+                          >
+                            Issue Refund
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground/60 font-extrabold italic select-none">No Action</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="bg-slate-50/50 dark:bg-slate-950/20 border-t border-slate-200 dark:border-slate-850 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold text-slate-500 dark:text-slate-400">
+              <span>
+                Showing {filteredTransactions.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to{" "}
+                {Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of {filteredTransactions.length} transactions
+              </span>
+
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-850 transition cursor-pointer flex items-center justify-center"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`h-7 w-7 rounded-lg text-xs font-bold border transition cursor-pointer flex items-center justify-center ${
+                        currentPage === page
+                          ? "bg-indigo-600 border-indigo-600 text-white"
+                          : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-850"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-850 transition cursor-pointer flex items-center justify-center"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
         ) : (
           <div className="py-16 text-center text-slate-500 dark:text-slate-400">
             <AlertCircle className="h-10 w-10 text-slate-400 mx-auto mb-3.5 opacity-40" />

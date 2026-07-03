@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Search, Plus, Eye, Edit2, Trash2, MapPin, Tag, Phone, ShieldCheck } from "lucide-react";
+import { Search, Plus, Eye, Edit2, Trash2, MapPin, Tag, Phone, ShieldCheck, Calendar } from "lucide-react";
 import { businessesData, BusinessListingData } from "../data/businessesData";
 
 interface BusinessListingsProps {
@@ -111,6 +111,45 @@ export default function BusinessListings({
         }
       } catch (e) {
         console.error("Failed to save verification status", e);
+      }
+
+      loadListings();
+      window.dispatchEvent(new Event("storage"));
+    }
+  };
+
+  const handleToggleBooking = (id: string) => {
+    const bizIndex = businessesData.findIndex((b) => b.id === id);
+    if (bizIndex > -1) {
+      const biz = businessesData[bizIndex];
+      const newStatus = !biz.isBookingDisabled;
+
+      // Update in active memory
+      biz.isBookingDisabled = newStatus;
+
+      // Save override to localStorage
+      try {
+        const overrides = localStorage.getItem("fmp_booking_disabled_statuses");
+        const parsed = overrides ? JSON.parse(overrides) : {};
+        parsed[id] = newStatus;
+        localStorage.setItem("fmp_booking_disabled_statuses", JSON.stringify(parsed));
+
+        // Also update in fmp_custom_businesses if it exists there
+        const savedCustom = localStorage.getItem("fmp_custom_businesses");
+        if (savedCustom) {
+          const parsedCustom = JSON.parse(savedCustom);
+          if (Array.isArray(parsedCustom)) {
+            const updatedCustom = parsedCustom.map((b: any) => {
+              if (b.id === id) {
+                return { ...b, isBookingDisabled: newStatus };
+              }
+              return b;
+            });
+            localStorage.setItem("fmp_custom_businesses", JSON.stringify(updatedCustom));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to save booking disable status", e);
       }
 
       loadListings();
@@ -274,12 +313,35 @@ export default function BusinessListings({
                             title={item.isVerified ? "Unverify Listing" : "Verify Listing"}
                             className={`p-1.5 rounded-lg border transition cursor-pointer ${
                               item.isVerified
-                                ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-250 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                                ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-250 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-450 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
                                 : "border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-650 dark:text-slate-400 dark:hover:text-slate-200"
                             }`}
                           >
                             <ShieldCheck className="h-3.5 w-3.5" />
                           </button>
+
+                           {/* Toggle switch for Booking Features */}
+                          <div
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-900/40 bg-indigo-50/35 dark:bg-indigo-950/15 hover:border-indigo-400 dark:hover:border-indigo-800/80 transition-all duration-300 select-none align-middle"
+                            title={item.isBookingDisabled ? "Booking Features: Disabled (OFF)" : "Booking Features: Enabled (ON)"}
+                          >
+                            <span className="text-[10px] font-black text-indigo-650 dark:text-indigo-400 uppercase tracking-wider align-middle">
+                              {item.bookingButtonLabel || "Book Option"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleBooking(item.id)}
+                              className={`relative inline-flex h-4 w-7.5 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none align-middle ${
+                                !item.isBookingDisabled ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-700"
+                              }`}
+                            >
+                              <span
+                                className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                  !item.isBookingDisabled ? "translate-x-3.5" : "translate-x-0"
+                                }`}
+                              />
+                            </button>
+                          </div>
 
                           <button
                             onClick={() => onEditBusiness(item.id)}

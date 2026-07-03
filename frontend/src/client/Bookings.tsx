@@ -130,6 +130,14 @@ export default function Bookings({ clientListings }: BookingsProps) {
             You don't have any businesses linked to your account. Bookings will show up here once you have registered listings.
           </p>
         </div>
+      ) : clientListings.find((b) => b.id === selectedBizId)?.isBookingDisabled ? (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center shadow-md space-y-4">
+          <AlertCircle className="h-12 w-12 text-rose-500 mx-auto opacity-70" />
+          <h4 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">Bookings Disabled</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+            Booking features have been disabled for this business by the administrator.
+          </p>
+        </div>
       ) : (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden flex flex-col">
           

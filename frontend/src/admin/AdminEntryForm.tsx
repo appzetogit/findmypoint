@@ -56,6 +56,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
   const [othersDestination, setOthersDestination] = useState("");
   const [categoryLine, setCategoryLine] = useState("");
   const [subCategoryLine, setSubCategoryLine] = useState("");
+  const [bookingButtonLabel, setBookingButtonLabel] = useState("");
 
   // Subcategories matching active category
   const availableSubcategories = subcategoriesData[category] || [];
@@ -99,6 +100,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
         setOthersDestination(biz.othersDestination || "");
         setCategoryLine(biz.categoryLine || "");
         setSubCategoryLine(biz.subCategoryLine || "");
+        setBookingButtonLabel(biz.bookingButtonLabel || "");
       }
     } else {
       try {
@@ -273,6 +275,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
       categoryLine: categoryLine.trim(),
       subCategoryLine: subCategoryLine.trim(),
       highlightsName: highlightsName.trim(),
+      bookingButtonLabel: bookingButtonLabel.trim(),
     };
 
     try {
@@ -962,6 +965,20 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
                   placeholder="e.g. Sub: Hypermarket / Fashion Retailer"
                   value={subCategoryLine}
                   onChange={(e) => setSubCategoryLine(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition-all"
+                />
+              </div>
+
+              {/* Booking Button Custom Label */}
+              <div className="space-y-2 col-span-1 md:col-span-2">
+                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                  Booking Button Name (e.g. Book Table, Book Appointment, Order Now)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Defaults to Book Now / Book Table / Book Room based on category"
+                  value={bookingButtonLabel}
+                  onChange={(e) => setBookingButtonLabel(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition-all"
                 />
               </div>

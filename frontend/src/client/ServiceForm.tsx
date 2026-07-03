@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Type, Hash, Mail, Phone, Calendar, Clock, List, AlignLeft, ToggleLeft,
   GripVertical, Trash2, Save, ChevronDown, ChevronUp, Eye, EyeOff,
-  Plus, CheckSquare, Building, ToggleRight
+  Plus, CheckSquare, Building, ToggleRight, AlertCircle
 } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
 
@@ -1260,6 +1260,15 @@ export default function ServiceForm({ clientListings }: ServiceFormProps) {
       <div className="flex flex-col items-center justify-center h-64 text-slate-500 dark:text-slate-400 space-y-3">
         <Building className="h-12 w-12 text-slate-400" />
         <p className="text-sm font-semibold">No businesses found linked to your account.</p>
+      </div>
+    );
+  }
+
+  if (selectedBiz?.isBookingDisabled) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-slate-500 dark:text-slate-400">
+        <AlertCircle className="h-12 w-12 text-slate-400 mb-3 opacity-40" />
+        <p className="text-sm font-semibold">Service Form configuration has been disabled for this business.</p>
       </div>
     );
   }

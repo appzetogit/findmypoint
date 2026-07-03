@@ -24,6 +24,7 @@ import {
   User,
   Plus,
   Camera,
+  ShoppingCart,
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { businessesData, BusinessListingData, UserReview } from "../data/businessesData";
@@ -294,21 +295,14 @@ export default function BusinessDetailPage({
     enquiryModalOpen: false,
   });
 
-  if (businessId !== prevBusinessId) {
-    setPrevBusinessId(businessId);
-    setUiState((prev) => ({
-      ...prev,
-      revealPhone: false,
-      enquirySubmitted: false,
-      activeFaqIndex: null,
-      productSearch: "",
-    }));
-  }
+
 
   const { revealPhone, activeFaqIndex, productSearch, bookmarked, enquirySubmitted, enquiryModalOpen } = uiState;
 
   // Food menu cart state
   const [cart, setCart] = useState<Record<string, number>>({});
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartCheckoutTotal, setCartCheckoutTotal] = useState<number | null>(null);
 
   // Reviews Form & Custom Reviews State
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -332,6 +326,20 @@ export default function BusinessDetailPage({
       }
     } catch (e) {}
   };
+
+  if (businessId !== prevBusinessId) {
+    setPrevBusinessId(businessId);
+    setCart({});
+    setCartCheckoutTotal(null);
+    setCartOpen(false);
+    setUiState((prev) => ({
+      ...prev,
+      revealPhone: false,
+      enquirySubmitted: false,
+      activeFaqIndex: null,
+      productSearch: "",
+    }));
+  }
 
   useEffect(() => {
     loadDeletedReviews();
@@ -426,6 +434,9 @@ export default function BusinessDetailPage({
   };
 
   const getBookingPrice = () => {
+    if (cartCheckoutTotal !== null) {
+      return cartCheckoutTotal;
+    }
     if (currentBiz.category.includes("Hotel Point")) {
       const room = bookingForm.guests || "";
       if (room.includes("1,999")) return 1999;
@@ -472,6 +483,29 @@ export default function BusinessDetailPage({
       }
       return newCart;
     });
+  };
+
+  const handleCartCheckout = () => {
+    if (Object.keys(cart).length === 0) return;
+    const itemsSummary = Object.entries(cart)
+      .map(([name, qty]) => `${qty}x ${name}`)
+      .join(", ");
+    setCartCheckoutTotal(totalCartPrice);
+    dispatchBooking({ type: "RESET", username: username || "" });
+    dispatchBooking({
+      type: "UPDATE_FORM",
+      fields: {
+        name: username || "",
+        phone: "",
+        date: new Date().toISOString().split("T")[0],
+        guests: itemsSummary,
+        time: currentBiz.category.includes("Hotel Point")
+          ? new Date(Date.now() + 86400000).toISOString().split("T")[0]
+          : "07:00 PM",
+      },
+    });
+    setCartOpen(false);
+    dispatchBooking({ type: "SET_MODAL", open: true });
   };
 
   // Form states
@@ -772,15 +806,10 @@ export default function BusinessDetailPage({
               Enquire Now
             </button>
 
-            {(customFormConfig
-              ? customFormConfig.bookNowEnabled
-              : (currentBiz.category.includes("Food Point") ||
-                 currentBiz.category.toLowerCase().includes("restaurant") ||
-                 currentBiz.category.includes("Hotel Point") ||
-                 currentBiz.category.includes("Health Care Point") ||
-                 currentBiz.category.includes("Doctor Point"))) && (
+            {!currentBiz.isBookingDisabled && (
               <button
                 onClick={() => {
+                  setCartCheckoutTotal(null);
                   const tomorrow = new Date();
                   tomorrow.setDate(tomorrow.getDate() + 1);
                   const tomorrowStr = tomorrow.toISOString().split("T")[0];
@@ -808,14 +837,16 @@ export default function BusinessDetailPage({
                 className="inline-flex items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-4 sm:px-6 py-2.5 sm:py-3 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-md cursor-pointer"
               >
                 <Check className="h-3.5 w-3.5" />
-                {customFormConfig
-                  ? (customFormConfig.formTitle || "Book Now")
-                  : (currentBiz.category.includes("Hotel Point")
-                      ? "Book Room"
-                      : currentBiz.category.includes("Health Care Point") ||
-                          currentBiz.category.includes("Doctor Point")
-                        ? "Book Appointment"
-                        : "Book Table")}
+                {currentBiz.bookingButtonLabel
+                  ? currentBiz.bookingButtonLabel
+                  : (customFormConfig
+                      ? (customFormConfig.formTitle || "Book Now")
+                      : (currentBiz.category.includes("Hotel Point")
+                          ? "Book Room"
+                          : currentBiz.category.includes("Health Care Point") ||
+                              currentBiz.category.includes("Doctor Point")
+                            ? "Book Appointment"
+                            : "Book Table"))}
               </button>
             )}
             <button
@@ -1130,17 +1161,18 @@ export default function BusinessDetailPage({
                           </p>
                         </div>
 
-                        {/* Right: Enquire Button */}
+                        {/* Right: Add to Cart Button */}
                         <div className="shrink-0 pl-2">
                           <button
                             type="button"
                             onClick={() => {
-                              setEnquiryForm({ name: "", mobile: "", email: "", message: "Hi, I am interested in your services. Please contact me." });
-                              setUiState((prev) => ({ ...prev, enquiryModalOpen: true, enquirySubmitted: false }));
+                              addToCart(prod.name);
+                              setCartOpen(true);
                             }}
-                            className="inline-flex items-center gap-1 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
+                            className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer shadow-sm active:scale-95 whitespace-nowrap border-none"
                           >
-                            Enquire Now
+                            <ShoppingCart className="h-3.5 w-3.5" />
+                            Add to Cart
                           </button>
                         </div>
                       </div>
@@ -2210,6 +2242,7 @@ export default function BusinessDetailPage({
                           dispatchPayment({ type: "SET_PROCESSING", value: false });
                           dispatchBooking({ type: "SET_STEP", step: "success" });
                           dispatchBooking({ type: "SET_SUBMITTED", value: true });
+                          setCart({}); // Empty the cart on successful checkout
 
                           // Save submission to localStorage
                           const submissionKey = `fmp_service_submissions:${currentBiz.id}`;
@@ -2995,6 +3028,7 @@ export default function BusinessDetailPage({
           </div>
         </div>
       )}
+
     </div>
   );
 }

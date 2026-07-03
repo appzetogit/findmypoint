@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useReducer } from "react";
-import { ArrowLeft, Check, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Check, ShieldCheck, X } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 
 interface SignInPageProps {
@@ -12,6 +12,8 @@ interface SignInState {
   otpSent: boolean;
   showNameInput: boolean;
   fullName: string;
+  whatsappNumber: string;
+  email: string;
   otpValues: string[];
   agreeToTerms: boolean;
   loading: boolean;
@@ -24,6 +26,8 @@ type SignInAction =
   | { type: "SET_OTP_SENT"; value: boolean }
   | { type: "SET_SHOW_NAME_INPUT"; value: boolean }
   | { type: "SET_FULL_NAME"; value: string }
+  | { type: "SET_WHATSAPP_NUMBER"; value: string }
+  | { type: "SET_EMAIL"; value: string }
   | { type: "SET_OTP_VALUES"; value: string[] }
   | { type: "SET_AGREE_TO_TERMS"; value: boolean }
   | { type: "SET_LOADING"; value: boolean }
@@ -36,6 +40,8 @@ const initialSignInState: SignInState = {
   otpSent: false,
   showNameInput: false,
   fullName: "",
+  whatsappNumber: "",
+  email: "",
   otpValues: ["", "", "", "", "", ""],
   agreeToTerms: true,
   loading: false,
@@ -53,6 +59,10 @@ function signInReducer(state: SignInState, action: SignInAction): SignInState {
       return { ...state, showNameInput: action.value };
     case "SET_FULL_NAME":
       return { ...state, fullName: action.value };
+    case "SET_WHATSAPP_NUMBER":
+      return { ...state, whatsappNumber: action.value };
+    case "SET_EMAIL":
+      return { ...state, email: action.value };
     case "SET_OTP_VALUES":
       return { ...state, otpValues: action.value };
     case "SET_AGREE_TO_TERMS":
@@ -77,6 +87,8 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
     otpSent,
     showNameInput,
     fullName,
+    whatsappNumber,
+    email,
     otpValues,
     agreeToTerms,
     loading,
@@ -125,7 +137,7 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
   const handleOtpChange = (index: number, value: string) => {
     const cleanedVal = value.replace(/\D/g, "");
     if (!cleanedVal && value !== "") return; // only allow digits
-    
+
     const newOtpValues = [...otpValues];
     newOtpValues[index] = cleanedVal.slice(-1);
     dispatch({ type: "SET_OTP_VALUES", value: newOtpValues });
@@ -158,16 +170,35 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
     // Simulate verification
     setTimeout(() => {
       dispatch({ type: "SET_LOADING", value: false });
-      
+
       // Mock existing registered numbers database
       const existingUserMap: Record<string, string> = {
         "9876543210": "Tarun Pratap",
-        "9999988888": "Raj Kalwani"
+        "9999988888": "Raj Kalwani",
       };
 
       if (phoneNumber in existingUserMap) {
         // User exists, log them in immediately
-        dispatch({ type: "SET_SUCCESS", value: "Welcome back, " + existingUserMap[phoneNumber] + "!" });
+        dispatch({
+          type: "SET_SUCCESS",
+          value: "Welcome back, " + existingUserMap[phoneNumber] + "!",
+        });
+        const personalData = {
+          title: "Mr",
+          firstName: existingUserMap[phoneNumber],
+          middleName: "",
+          lastName: "",
+          dobDD: "",
+          dobMM: "",
+          dobYYYY: "",
+          maritalStatus: "Single",
+          occupation: "Employed",
+          mobile1: phoneNumber,
+          mobile2: phoneNumber,
+          email: "",
+          avatar: "",
+        };
+        localStorage.setItem("fmp_profile_personal:v1", JSON.stringify(personalData));
         setTimeout(() => {
           onSuccess?.(existingUserMap[phoneNumber]);
         }, 1200);
@@ -176,6 +207,7 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
         dispatch({ type: "SET_SUCCESS", value: "OTP verified! Welcome new user." });
         setTimeout(() => {
           dispatch({ type: "SET_SUCCESS", value: "" });
+          dispatch({ type: "SET_WHATSAPP_NUMBER", value: phoneNumber });
           dispatch({ type: "SET_SHOW_NAME_INPUT", value: true });
         }, 1000);
       }
@@ -192,7 +224,36 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
       return;
     }
 
+    if (whatsappNumber.trim().length !== 10) {
+      dispatch({ type: "SET_ERROR", value: "Please enter a valid 10-digit WhatsApp number." });
+      return;
+    }
+
+    if (email.trim() && !/\S+@\S+\.\S+/.test(email)) {
+      dispatch({ type: "SET_ERROR", value: "Please enter a valid email address." });
+      return;
+    }
+
     dispatch({ type: "SET_LOADING", value: true });
+
+    // Save info to localstorage so it can be loaded in the application
+    const personalData = {
+      title: "Mr",
+      firstName: fullName.trim(),
+      middleName: "",
+      lastName: "",
+      dobDD: "",
+      dobMM: "",
+      dobYYYY: "",
+      maritalStatus: "Single",
+      occupation: "Employed",
+      mobile1: phoneNumber,
+      mobile2: whatsappNumber,
+      email: email.trim(),
+      avatar: "",
+    };
+    localStorage.setItem("fmp_profile_personal:v1", JSON.stringify(personalData));
+
     setTimeout(() => {
       dispatch({ type: "SET_LOADING", value: false });
       dispatch({ type: "SET_SUCCESS", value: "Account created successfully!" });
@@ -214,15 +275,28 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-[8px] p-4 transition-all duration-500 animate-in fade-in">
-      
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-850 to-indigo-950 p-4 transition-all duration-500 animate-in fade-in">
       {/* Glow Effects Behind the Modal */}
-      <div className="absolute w-[300px] h-[300px] rounded-full bg-primary/20 blur-[100px] pointer-events-none animate-pulse" style={{ top: '25%', left: '35%' }} />
-      <div className="absolute w-[250px] h-[250px] rounded-full bg-accent/20 blur-[90px] pointer-events-none animate-pulse" style={{ bottom: '25%', right: '35%', animationDelay: '1.5s' }} />
+      <div
+        className="absolute w-[300px] h-[300px] rounded-full bg-primary/20 blur-[100px] pointer-events-none animate-pulse"
+        style={{ top: "25%", left: "35%" }}
+      />
+      <div
+        className="absolute w-[250px] h-[250px] rounded-full bg-accent/20 blur-[90px] pointer-events-none animate-pulse"
+        style={{ bottom: "25%", right: "35%", animationDelay: "1.5s" }}
+      />
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-[580px] bg-white/95 rounded-[32px] shadow-[0_32px_80px_rgba(15,23,42,0.18)] p-6 sm:p-10 flex flex-col border border-white/50 overflow-hidden animate-in zoom-in-95 duration-300">
-        
+      <div className="relative w-full max-w-[580px] bg-white rounded-[32px] shadow-[0_32px_80px_rgba(15,23,42,0.18)] p-6 sm:p-10 flex flex-col border border-white/50 overflow-hidden animate-in zoom-in-95 duration-300">
+        {/* Close button */}
+        <button
+          onClick={onBack}
+          className="absolute top-5 right-5 p-1 rounded-full text-slate-400 hover:text-slate-655 hover:bg-slate-100 transition duration-300 cursor-pointer z-10"
+          aria-label="Go Back"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
         {/* Ambient Top Glow Border inside modal */}
         <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-transparent via-[#0086ff] to-transparent opacity-80" />
 
@@ -263,10 +337,12 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
         {!otpSent ? (
           /* State 1: Mobile Phone Submission */
           <form onSubmit={handlePhoneSubmit} className="space-y-6">
-            
             {/* Input mobile field with premium styling */}
             <div className="relative group">
-              <label htmlFor="signInPhone" className="absolute left-4 top-[-8px] bg-white px-2 text-[10px] font-bold text-slate-400 group-focus-within:text-primary transition-colors uppercase tracking-wider">
+              <label
+                htmlFor="signInPhone"
+                className="absolute left-4 top-[-8px] bg-white px-2 text-[10px] font-bold text-slate-400 group-focus-within:text-primary transition-colors uppercase tracking-wider"
+              >
                 Enter Mobile Number
               </label>
               <div className="flex items-center border border-slate-200 rounded-2xl px-5 py-4 bg-slate-50/30 group-focus-within:bg-white group-focus-within:border-primary group-focus-within:ring-4 group-focus-within:ring-primary/10 transition-all duration-300">
@@ -280,7 +356,12 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
                   maxLength={10}
                   placeholder="Mobile Number"
                   value={phoneNumber}
-                  onChange={(e) => dispatch({ type: "SET_PHONE_NUMBER", value: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                  onChange={(e) =>
+                    dispatch({
+                      type: "SET_PHONE_NUMBER",
+                      value: e.target.value.replace(/\D/g, "").slice(0, 10),
+                    })
+                  }
                   className="w-full bg-transparent text-[15px] font-bold text-slate-900 outline-none placeholder:text-slate-400 placeholder:font-semibold"
                   required
                 />
@@ -293,16 +374,23 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
                 <input
                   type="checkbox"
                   checked={agreeToTerms}
-                  onChange={(e) => dispatch({ type: "SET_AGREE_TO_TERMS", value: e.target.checked })}
+                  onChange={(e) =>
+                    dispatch({ type: "SET_AGREE_TO_TERMS", value: e.target.checked })
+                  }
                   className="peer h-5 w-5 border border-slate-200 rounded-lg bg-white checked:bg-primary checked:border-primary transition-all duration-300 cursor-pointer appearance-none shadow-sm group-hover:border-slate-350"
                 />
                 <Check className="absolute h-3.5 w-3.5 text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" />
               </div>
               <div className="flex flex-col">
-                <span className="group-hover:text-slate-700 transition-colors">I Agree to Terms and Conditions</span>
-                <a 
-                  href="#" 
-                  onClick={(e) => { e.preventDefault(); alert("Showing Privacy Policy details..."); }}
+                <span className="group-hover:text-slate-700 transition-colors">
+                  I Agree to Terms and Conditions
+                </span>
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    alert("Showing Privacy Policy details...");
+                  }}
                   className="text-primary hover:text-primary-hover font-extrabold mt-1 block transition-colors"
                 >
                   T&C's Privacy Policy
@@ -327,11 +415,10 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
           /* State 2: OTP Verification Form with Premium Boxes */
           <form onSubmit={handleOtpSubmit} className="space-y-6 animate-in fade-in duration-300">
             <div className="text-center">
-              <p className="text-sm font-bold text-slate-700">
-                Verify Mobile Number
-              </p>
+              <p className="text-sm font-bold text-slate-700">Verify Mobile Number</p>
               <p className="text-[11px] text-slate-400 mt-1.5 font-semibold">
-                Enter the 6-digit OTP code sent to <span className="font-extrabold text-slate-800">+91 {phoneNumber}</span>
+                Enter the 6-digit OTP code sent to{" "}
+                <span className="font-extrabold text-slate-800">+91 {phoneNumber}</span>
               </p>
             </div>
 
@@ -344,7 +431,9 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
                   maxLength={1}
                   value={val}
                   aria-label={`Digit ${idx + 1}`}
-                  ref={(el) => { otpInputsRef.current[idx] = el; }}
+                  ref={(el) => {
+                    otpInputsRef.current[idx] = el;
+                  }}
                   onChange={(e) => handleOtpChange(idx, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                   className="w-9 h-11 sm:w-12 sm:h-14 border border-slate-200 rounded-xl sm:rounded-2xl text-center text-lg sm:text-xl font-extrabold text-slate-900 bg-slate-50/50 outline-none focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all duration-300 shadow-sm"
@@ -389,22 +478,25 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
           </form>
         ) : (
           /* State 3: Name Registration Form for New Users */
-          <form onSubmit={handleNameSubmit} className="space-y-6 animate-in fade-in duration-300">
+          <form onSubmit={handleNameSubmit} className="space-y-4 animate-in fade-in duration-300">
             <div className="text-center">
-              <p className="text-sm font-bold text-slate-700">
-                Create Your Profile
-              </p>
+              <p className="text-sm font-bold text-slate-700">Create Your Profile</p>
               <p className="text-[11px] text-slate-400 mt-1.5 font-semibold">
-                It looks like this is your first time here! Tell us your Full Name to complete registration for <span className="font-extrabold text-slate-800">+91 {phoneNumber}</span>
+                It looks like this is your first time here! Tell us your details to complete
+                registration for{" "}
+                <span className="font-extrabold text-slate-800">+91 {phoneNumber}</span>
               </p>
             </div>
 
             {/* Full Name field with premium styling */}
             <div className="relative group">
-              <label htmlFor="signInFullName" className="absolute left-4 top-[-8px] bg-white px-2 text-[10px] font-bold text-slate-400 group-focus-within:text-primary transition-colors uppercase tracking-wider">
+              <label
+                htmlFor="signInFullName"
+                className="absolute left-4 top-[-8px] bg-white px-2 text-[10px] font-bold text-slate-400 group-focus-within:text-primary transition-colors uppercase tracking-wider"
+              >
                 Full Name
               </label>
-              <div className="flex items-center border border-slate-200 rounded-2xl px-5 py-4 bg-slate-50/30 group-focus-within:bg-white group-focus-within:border-primary group-focus-within:ring-4 group-focus-within:ring-primary/10 transition-all duration-300">
+              <div className="flex items-center border border-slate-200 rounded-2xl px-5 py-3.5 bg-slate-50/30 group-focus-within:bg-white group-focus-within:border-primary group-focus-within:ring-4 group-focus-within:ring-primary/10 transition-all duration-300">
                 <input
                   id="signInFullName"
                   type="text"
@@ -414,6 +506,57 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
                   className="w-full bg-transparent text-[15px] font-bold text-slate-900 outline-none placeholder:text-slate-400 placeholder:font-semibold"
                   required
                   autoFocus
+                />
+              </div>
+            </div>
+
+            {/* WhatsApp Number field with premium styling */}
+            <div className="relative group">
+              <label
+                htmlFor="signInWhatsapp"
+                className="absolute left-4 top-[-8px] bg-white px-2 text-[10px] font-bold text-slate-400 group-focus-within:text-primary transition-colors uppercase tracking-wider"
+              >
+                WhatsApp Number
+              </label>
+              <div className="flex items-center border border-slate-200 rounded-2xl px-5 py-3.5 bg-slate-50/30 group-focus-within:bg-white group-focus-within:border-primary group-focus-within:ring-4 group-focus-within:ring-primary/10 transition-all duration-300">
+                <span className="text-[15px] font-extrabold text-slate-800 select-none mr-3">
+                  +91
+                </span>
+                <div className="h-5 w-[1px] bg-slate-200 mr-3" />
+                <input
+                  id="signInWhatsapp"
+                  type="tel"
+                  maxLength={10}
+                  placeholder="WhatsApp Number"
+                  value={whatsappNumber}
+                  onChange={(e) =>
+                    dispatch({
+                      type: "SET_WHATSAPP_NUMBER",
+                      value: e.target.value.replace(/\D/g, "").slice(0, 10),
+                    })
+                  }
+                  className="w-full bg-transparent text-[15px] font-bold text-slate-900 outline-none placeholder:text-slate-400 placeholder:font-semibold"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Email (Optional) field with premium styling */}
+            <div className="relative group">
+              <label
+                htmlFor="signInEmail"
+                className="absolute left-4 top-[-8px] bg-white px-2 text-[10px] font-bold text-slate-400 group-focus-within:text-primary transition-colors uppercase tracking-wider"
+              >
+                Email Address (Optional)
+              </label>
+              <div className="flex items-center border border-slate-200 rounded-2xl px-5 py-3.5 bg-slate-50/30 group-focus-within:bg-white group-focus-within:border-primary group-focus-within:ring-4 group-focus-within:ring-primary/10 transition-all duration-300">
+                <input
+                  id="signInEmail"
+                  type="email"
+                  placeholder="Enter Email Address"
+                  value={email}
+                  onChange={(e) => dispatch({ type: "SET_EMAIL", value: e.target.value })}
+                  className="w-full bg-transparent text-[15px] font-bold text-slate-900 outline-none placeholder:text-slate-400 placeholder:font-semibold"
                 />
               </div>
             </div>
@@ -469,13 +612,12 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
           >
             Skip & Explore
           </button>
-          
+
           <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
             <span>Secure Verification</span>
           </div>
         </div>
-
       </div>
     </div>
   );

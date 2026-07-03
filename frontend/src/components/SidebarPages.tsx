@@ -12,14 +12,23 @@ interface SidebarPagesProps {
   activePage: string;
   onClose: () => void;
   username: string | null;
-  onNavigateToBusiness?: (categoryName: string, subCategoryName: string, businessId: string) => void;
+  onNavigateToBusiness?: (
+    categoryName: string,
+    subCategoryName: string,
+    businessId: string,
+  ) => void;
 }
 
-export default function SidebarPages({ activePage, onClose, username, onNavigateToBusiness }: SidebarPagesProps) {
+export default function SidebarPages({
+  activePage,
+  onClose,
+  username,
+  onNavigateToBusiness,
+}: SidebarPagesProps) {
   // Setup Visual Config per page
   let pageIcon = "✨";
   let pageSubtitle = "Manage your configurations.";
-  
+
   if (activePage === "Favorites") {
     pageIcon = "❤️";
     pageSubtitle = "Curated list of your preferred service categories";
@@ -48,10 +57,9 @@ export default function SidebarPages({ activePage, onClose, username, onNavigate
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col w-full h-full text-left overflow-hidden">
-      
       {/* Header Block */}
       <div className="flex items-center gap-4 border-b border-slate-100 p-5 bg-white shrink-0 shadow-sm">
-        <button 
+        <button
           onClick={onClose}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-black transition cursor-pointer"
         >
@@ -61,7 +69,9 @@ export default function SidebarPages({ activePage, onClose, username, onNavigate
         <div className="flex items-center gap-3.5">
           <span className="text-3xl filter drop-shadow">{pageIcon}</span>
           <div>
-            <h2 className="text-xl font-bold font-serif text-slate-900 uppercase tracking-tight">{activePage}</h2>
+            <h2 className="text-xl font-bold font-serif text-slate-900 uppercase tracking-tight">
+              {activePage}
+            </h2>
             <p className="text-xs text-slate-500 mt-0.5">{pageSubtitle}</p>
           </div>
         </div>
@@ -69,7 +79,9 @@ export default function SidebarPages({ activePage, onClose, username, onNavigate
 
       {/* Dynamic Content Panel */}
       <div className="flex-1 p-6 md:p-8 overflow-y-auto no-scrollbar max-w-5xl w-full mx-auto bg-slate-50">
-        {activePage === "Favorites" && <FavoritesPage onNavigateToBusiness={onNavigateToBusiness} />}
+        {activePage === "Favorites" && (
+          <FavoritesPage onNavigateToBusiness={onNavigateToBusiness} />
+        )}
         {activePage === "Saved" && <SavedPage onNavigateToBusiness={onNavigateToBusiness} />}
         {activePage === "My Transaction" && <MyTransactionPage />}
         {activePage === "Notifications" && <NotificationsPage />}
@@ -78,7 +90,6 @@ export default function SidebarPages({ activePage, onClose, username, onNavigate
         {activePage === "Feedback" && <FeedbackPage />}
         {activePage === "Help" && <HelpPage />}
       </div>
-
     </div>
   );
 }

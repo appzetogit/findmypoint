@@ -5,10 +5,14 @@ import BusinessDetailPage from "./pages/BusinessDetail";
 import PlaceDetailPage from "./pages/PlaceDetail";
 import CategoryDetailPage from "./pages/CategoryDetail";
 import SignInPage from "./pages/SignIn";
+import AllCategoriesPage from "./pages/AllCategories";
 import Sidebar from "./components/Sidebar";
 import ProfileWizard from "./pages/ProfileWizard";
 import SidebarPages from "./components/SidebarPages";
 import Advertise from "./pages/Advertise";
+import AdminShell from "./admin";
+import ClientShell from "./client";
+
 
 interface AppViewState {
   selectedArticleId: number | null;
@@ -19,9 +23,13 @@ interface AppViewState {
   showSignIn: boolean;
   showSidebar: boolean;
   scrollToReview: boolean;
+  scrollToMenu: boolean;
   showProfileWizard: boolean;
   activeSidebarPage: string | null;
   showAdvertise: boolean;
+  showAllCategoriesPage: boolean;
+  showAdminPanel: boolean;
+  showClientPanel: boolean;
 }
 
 const initialAppState: AppViewState = {
@@ -33,9 +41,13 @@ const initialAppState: AppViewState = {
   showSignIn: false,
   showSidebar: false,
   scrollToReview: false,
+  scrollToMenu: false,
   showProfileWizard: false,
   activeSidebarPage: null,
   showAdvertise: false,
+  showAllCategoriesPage: false,
+  showAdminPanel: false,
+  showClientPanel: false,
 };
 
 type AppAction =
@@ -45,9 +57,12 @@ type AppAction =
   | { type: "SET_ACTIVE_SIDEBAR_PAGE"; page: string | null }
   | { type: "SET_SHOW_ADVERTISE"; show: boolean }
   | { type: "SELECT_ARTICLE"; id: number | null }
-  | { type: "SELECT_BUSINESS"; id: string | null; scrollToReview?: boolean }
+  | { type: "SELECT_BUSINESS"; id: string | null; scrollToReview?: boolean; scrollToMenu?: boolean }
   | { type: "SELECT_PLACE"; name: string | null }
   | { type: "SELECT_CATEGORY"; name: string | null; subcategoryName?: string | null }
+  | { type: "SET_SHOW_ALL_CATEGORIES"; show: boolean }
+  | { type: "SET_SHOW_ADMIN"; show: boolean }
+  | { type: "SET_SHOW_CLIENT"; show: boolean }
   | { type: "LOGOUT" };
 
 function appReducer(state: AppViewState, action: AppAction): AppViewState {
@@ -62,6 +77,8 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
       return { ...state, activeSidebarPage: action.page };
     case "SET_SHOW_ADVERTISE":
       return { ...state, showAdvertise: action.show };
+    case "SET_SHOW_ALL_CATEGORIES":
+      return { ...state, showAllCategoriesPage: action.show };
     case "SELECT_ARTICLE":
       return {
         ...state,
@@ -81,6 +98,7 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
         selectedCategoryName: null,
         selectedSubcategoryName: null,
         scrollToReview: !!action.scrollToReview,
+        scrollToMenu: !!action.scrollToMenu,
       };
     case "SELECT_PLACE":
       return {
@@ -107,6 +125,16 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
         ...state,
         showSidebar: false,
       };
+    case "SET_SHOW_ADMIN":
+      return {
+        ...state,
+        showAdminPanel: action.show,
+      };
+    case "SET_SHOW_CLIENT":
+      return {
+        ...state,
+        showClientPanel: action.show,
+      };
     default:
       return state;
   }
@@ -118,8 +146,38 @@ export default function App() {
 
   useEffect(() => {
     const handleAdvertiseOpen = () => dispatch({ type: "SET_SHOW_ADVERTISE", show: true });
+    const handleOpenPage = (e: Event) => {
+      const page = (e as CustomEvent).detail;
+      dispatch({ type: "SET_ACTIVE_SIDEBAR_PAGE", page });
+    };
     window.addEventListener("fmp-open-advertise", handleAdvertiseOpen);
-    return () => window.removeEventListener("fmp-open-advertise", handleAdvertiseOpen);
+    window.addEventListener("fmp-open-page", handleOpenPage);
+    return () => {
+      window.removeEventListener("fmp-open-advertise", handleAdvertiseOpen);
+      window.removeEventListener("fmp-open-page", handleOpenPage);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      const isPathAdmin = window.location.pathname === "/admin";
+      const isPathClient = window.location.pathname === "/client";
+      dispatch({ type: "SET_SHOW_ADMIN", show: isPathAdmin });
+      dispatch({ type: "SET_SHOW_CLIENT", show: isPathClient });
+    };
+
+    const handleSelectBusiness = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      dispatch({ type: "SELECT_BUSINESS", id: customEvent.detail });
+    };
+
+    handleLocationChange();
+    window.addEventListener("popstate", handleLocationChange);
+    window.addEventListener("fmp-select-business", handleSelectBusiness);
+    return () => {
+      window.removeEventListener("popstate", handleLocationChange);
+      window.removeEventListener("fmp-select-business", handleSelectBusiness);
+    };
   }, []);
 
   let content;
@@ -154,6 +212,7 @@ export default function App() {
           dispatch({ type: "SELECT_BUSINESS", id });
         }}
         scrollToReview={state.scrollToReview}
+        scrollToMenu={state.scrollToMenu}
         onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
         onProfileClick={() => dispatch({ type: "SET_SHOW_SIDEBAR", show: true })}
         username={username}
@@ -181,6 +240,9 @@ export default function App() {
         onBusinessSelect={(id) => {
           dispatch({ type: "SELECT_BUSINESS", id });
         }}
+        onBookNow={(id) => {
+          dispatch({ type: "SELECT_BUSINESS", id, scrollToMenu: true });
+        }}
         onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
         onProfileClick={() => dispatch({ type: "SET_SHOW_SIDEBAR", show: true })}
         username={username}
@@ -188,10 +250,10 @@ export default function App() {
     );
   } else {
     content = (
-      <HomePage 
+      <HomePage
         onArticleClick={(id) => {
           dispatch({ type: "SELECT_ARTICLE", id });
-        }} 
+        }}
         onReviewClick={(id) => {
           dispatch({ type: "SELECT_BUSINESS", id, scrollToReview: true });
         }}
@@ -205,6 +267,57 @@ export default function App() {
         onProfileClick={() => dispatch({ type: "SET_SHOW_SIDEBAR", show: true })}
         onAdvertiseClick={() => dispatch({ type: "SET_SHOW_ADVERTISE", show: true })}
         username={username}
+        onShowAllCategories={() => dispatch({ type: "SET_SHOW_ALL_CATEGORIES", show: true })}
+      />
+    );
+  }
+
+  if (state.showAdminPanel) {
+    return (
+      <AdminShell
+        onClose={() => {
+          dispatch({ type: "SET_SHOW_ADMIN", show: false });
+          window.history.pushState({}, "", "/");
+          window.dispatchEvent(new PopStateEvent("popstate"));
+        }}
+        username={username}
+      />
+    );
+  }
+
+  if (state.showClientPanel) {
+    return (
+      <ClientShell
+        onClose={() => {
+          dispatch({ type: "SET_SHOW_CLIENT", show: false });
+          window.history.pushState({}, "", "/");
+          window.dispatchEvent(new PopStateEvent("popstate"));
+        }}
+        username={username}
+      />
+    );
+  }
+
+  if (state.showSignIn) {
+    return (
+      <SignInPage
+        onBack={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: false })}
+        onSuccess={(name) => {
+          setUsername(name);
+          dispatch({ type: "SET_SHOW_SIGN_IN", show: false });
+        }}
+      />
+    );
+  }
+
+  if (state.showAllCategoriesPage) {
+    return (
+      <AllCategoriesPage
+        onBack={() => dispatch({ type: "SET_SHOW_ALL_CATEGORIES", show: false })}
+        onCategoryClick={(categoryName, subcategoryName) => {
+          dispatch({ type: "SELECT_CATEGORY", name: categoryName, subcategoryName });
+          dispatch({ type: "SET_SHOW_ALL_CATEGORIES", show: false });
+        }}
       />
     );
   }
@@ -212,17 +325,6 @@ export default function App() {
   return (
     <div className="relative min-h-screen overflow-x-hidden w-full">
       {content}
-      
-      {/* Sign In Overlay */}
-      {state.showSignIn && (
-        <SignInPage
-          onBack={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: false })}
-          onSuccess={(name) => {
-            setUsername(name);
-            dispatch({ type: "SET_SHOW_SIGN_IN", show: false });
-          }}
-        />
-      )}
 
       {/* Sidebar Overlay */}
       {state.showSidebar && (
@@ -268,5 +370,3 @@ export default function App() {
     </div>
   );
 }
-
-

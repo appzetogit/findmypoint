@@ -20,7 +20,7 @@ export default function MyTransactionPage() {
             amount: 250,
             date: "2026-06-24",
             status: "Success",
-            paymentMode: "UPI (sharma@okaxis)"
+            paymentMode: "UPI (sharma@okaxis)",
           },
           {
             id: "FMP-7652",
@@ -30,7 +30,7 @@ export default function MyTransactionPage() {
             amount: 850,
             date: "2026-06-20",
             status: "Success",
-            paymentMode: "Card (xxxx-xxxx-xxxx-4321)"
+            paymentMode: "Card (xxxx-xxxx-xxxx-4321)",
           },
           {
             id: "FMP-6541",
@@ -40,8 +40,8 @@ export default function MyTransactionPage() {
             amount: 300,
             date: "2026-06-15",
             status: "Success",
-            paymentMode: "Net Banking (SBI)"
-          }
+            paymentMode: "Net Banking (SBI)",
+          },
         ];
         localStorage.setItem("fmp_bookings:v1", JSON.stringify(defaultBookings));
         setBookings(defaultBookings);
@@ -55,7 +55,9 @@ export default function MyTransactionPage() {
     <div className="space-y-6">
       <div>
         <h3 className="font-serif text-lg font-black text-foreground">Transaction Logs</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">Verification details of secure checkout payments and bookings.</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Verification details of secure checkout payments and bookings.
+        </p>
       </div>
 
       {bookings.length === 0 ? (
@@ -77,7 +79,7 @@ export default function MyTransactionPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {bookings.map(book => (
+                {bookings.map((book) => (
                   <tr key={book.id} className="hover:bg-secondary/5 transition text-left">
                     <td className="p-4 font-bold text-primary">{book.id}</td>
                     <td className="p-4">
@@ -112,9 +114,8 @@ export default function MyTransactionPage() {
       {selectedReceipt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4 text-left animate-fade-in">
           <div className="bg-white border border-slate-200 w-full max-w-sm rounded-2xl shadow-xl overflow-hidden flex flex-col p-5 font-sans relative animate-scale-in">
-            
             {/* Close button */}
-            <button 
+            <button
               onClick={() => setSelectedReceipt(null)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition"
             >
@@ -126,7 +127,9 @@ export default function MyTransactionPage() {
               <div className="h-10 w-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2">
                 <Check className="h-6 w-6 stroke-[3]" />
               </div>
-              <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">Payment Verified</h4>
+              <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                Payment Verified
+              </h4>
               <p className="text-[10px] text-slate-400 mt-0.5">FindmyPoint Secure Receipt</p>
             </div>
 

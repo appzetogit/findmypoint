@@ -1,9 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-
 @custom-variant dark (&:is(.dark *));
-
 
 @theme inline {
   --breakpoint-lg: 60rem;
@@ -82,9 +80,10 @@
   --ink: oklch(0.18 0.03 250);
   --gradient-hero: linear-gradient(135deg, oklch(0.22 0.05 255) 0%, oklch(0.28 0.07 260) 100%);
   --shadow-elegant: 0 20px 60px -20px oklch(0.22 0.05 255 / 0.25);
-  --shadow-card: 0 1px 2px oklch(0.18 0.03 250 / 0.04), 0 8px 24px -12px oklch(0.18 0.03 250 / 0.08);
-  --font-serif: 'Fraunces', 'Times New Roman', serif;
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --shadow-card:
+    0 1px 2px oklch(0.18 0.03 250 / 0.04), 0 8px 24px -12px oklch(0.18 0.03 250 / 0.08);
+  --font-serif: "Fraunces", "Times New Roman", serif;
+  --font-sans: "Inter", system-ui, sans-serif;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -140,7 +139,9 @@
     border-color: var(--color-border);
   }
 
-  html, body, #root {
+  html,
+  body,
+  #root {
     max-width: 100%;
     overflow-x: hidden;
     width: 100%;
@@ -153,7 +154,9 @@
     #root::-webkit-scrollbar {
       display: none !important;
     }
-    html, body, #root {
+    html,
+    body,
+    #root {
       -ms-overflow-style: none !important;
       scrollbar-width: none !important;
     }
@@ -166,7 +169,10 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  h1, h2, h3, .font-serif {
+  h1,
+  h2,
+  h3,
+  .font-serif {
     font-family: var(--font-serif);
     letter-spacing: -0.02em;
   }
@@ -179,8 +185,8 @@
 
 /* Hide scrollbar for IE, Edge and Firefox */
 .no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 @keyframes fadeIn {
@@ -197,4 +203,3 @@
 .animate-fade-in-up {
   animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-

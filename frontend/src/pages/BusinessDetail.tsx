@@ -1,12 +1,46 @@
-import { useState, useEffect, useReducer } from "react";
+import { useState, useEffect, useReducer, useMemo } from "react";
 import {
-  MapPin, Clock, ArrowLeft, Bookmark, Share2,
-  CheckCircle, MessageSquare, Phone, ArrowRight, Star,
-  Globe, ShieldCheck, ChevronDown, ChevronUp, Send, Navigation, X, Check
+  MapPin,
+  Clock,
+  ArrowLeft,
+  Bookmark,
+  Share2,
+  CheckCircle,
+  MessageSquare,
+  Phone,
+  ArrowRight,
+  Star,
+  Globe,
+  ShieldCheck,
+  ChevronDown,
+  ChevronUp,
+  Send,
+  Navigation,
+  X,
+  Check,
+  Mail,
+  Video,
+  Sparkles,
+  User,
+  Plus,
+  Camera,
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
-import { businessesData, BusinessListingData } from "../data/businessesData";
+import { businessesData, BusinessListingData, UserReview } from "../data/businessesData";
 import Footer from "./Footer";
+
+function formatDateTimeDMY(d: Date): string {
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const strHours = String(hours).padStart(2, "0");
+  return `${day}/${month}/${year} ${strHours}:${minutes} ${ampm}`;
+}
 
 // Types and Reducers for Booking Flow
 interface BookingState {
@@ -38,8 +72,8 @@ const initialBookingState = (username: string): BookingState => ({
     phone: "",
     date: new Date().toISOString().split("T")[0],
     time: "Dinner (07:00 PM - 11:00 PM)",
-    guests: "2"
-  }
+    guests: "2",
+  },
 });
 
 function bookingReducer(state: BookingState, action: BookingAction): BookingState {
@@ -89,8 +123,8 @@ const initialCheckoutState = (username: string): CheckoutState => ({
     phone: "",
     address: "",
     type: "Delivery",
-    notes: ""
-  }
+    notes: "",
+  },
 });
 
 function checkoutReducer(state: CheckoutState, action: CheckoutAction): CheckoutState {
@@ -132,7 +166,7 @@ const initialPaymentState: PaymentState = {
   cardNumber: "",
   cardExpiry: "",
   cardCvv: "",
-  processing: false
+  processing: false,
 };
 
 function paymentReducer(state: PaymentState, action: PaymentAction): PaymentState {
@@ -155,25 +189,100 @@ interface BusinessDetailPageProps {
   onBack: () => void;
   onBusinessSelect?: (id: string) => void;
   scrollToReview?: boolean;
+  scrollToMenu?: boolean;
   onSignInClick?: () => void;
   onProfileClick?: () => void;
   username?: string | null;
 }
 
-export default function BusinessDetailPage({ businessId, onBack, onBusinessSelect, scrollToReview, onSignInClick, onProfileClick, username }: BusinessDetailPageProps) {
+export default function BusinessDetailPage({
+  businessId,
+  onBack,
+  onBusinessSelect,
+  scrollToReview,
+  scrollToMenu,
+  onSignInClick,
+  onProfileClick,
+  username,
+}: BusinessDetailPageProps) {
   const business: BusinessListingData | undefined = businessesData.find((b) => b.id === businessId);
 
   // Fallback if not found
   const currentBiz = business || businessesData[0];
 
-  const [bookingState, dispatchBooking] = useReducer(bookingReducer, initialBookingState(username || ""));
-  const { modalOpen: bookingModalOpen, submitted: bookingSubmitted, step: bookingStep, form: bookingForm } = bookingState;
+  const [bookingState, dispatchBooking] = useReducer(
+    bookingReducer,
+    initialBookingState(username || ""),
+  );
+  const {
+    modalOpen: bookingModalOpen,
+    submitted: bookingSubmitted,
+    step: bookingStep,
+    form: bookingForm,
+  } = bookingState;
 
-  const [checkoutState, dispatchCheckout] = useReducer(checkoutReducer, initialCheckoutState(username || ""));
-  const { modalOpen: checkoutModalOpen, submitted: checkoutSubmitted, step: checkoutStep, form: checkoutForm } = checkoutState;
+  const [customFormConfig, setCustomFormConfig] = useState<{
+    fields: any[];
+    formTitle: string;
+    formDescription: string;
+    bookNowEnabled: boolean;
+  } | null>(null);
+
+  const [customFormValues, setCustomFormValues] = useState<Record<string, any>>({});
+  const [openCustomDropdowns, setOpenCustomDropdowns] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (currentBiz?.id) {
+      const saved = localStorage.getItem(`fmp_service_form:${currentBiz.id}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setCustomFormConfig(parsed);
+          // Initialize values
+          const initialVals: Record<string, any> = {};
+          parsed.fields.forEach((f: any) => {
+            if (f.type === "checkbox") {
+              if (f.checkboxMode === "multiple") {
+                initialVals[f.label] = [];
+              } else {
+                initialVals[f.label] = false;
+              }
+            } else if (f.type === "select" && f.selectMode === "multiple") {
+              initialVals[f.label] = [];
+            } else {
+              initialVals[f.label] = "";
+            }
+          });
+          setCustomFormValues(initialVals);
+        } catch (e) {
+          setCustomFormConfig(null);
+        }
+      } else {
+        setCustomFormConfig(null);
+      }
+    }
+  }, [currentBiz?.id]);
+
+  const [checkoutState, dispatchCheckout] = useReducer(
+    checkoutReducer,
+    initialCheckoutState(username || ""),
+  );
+  const {
+    modalOpen: checkoutModalOpen,
+    submitted: checkoutSubmitted,
+    step: checkoutStep,
+    form: checkoutForm,
+  } = checkoutState;
 
   const [paymentState, dispatchPayment] = useReducer(paymentReducer, initialPaymentState);
-  const { method: paymentMethod, upiId, cardNumber, cardExpiry, cardCvv, processing: paymentProcessing } = paymentState;
+  const {
+    method: paymentMethod,
+    upiId,
+    cardNumber,
+    cardExpiry,
+    cardCvv,
+    processing: paymentProcessing,
+  } = paymentState;
 
   const [prevBusinessId, setPrevBusinessId] = useState(businessId);
   const [uiState, setUiState] = useState({
@@ -181,24 +290,140 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
     activeFaqIndex: null as number | null,
     productSearch: "",
     bookmarked: false,
-    enquirySubmitted: false
+    enquirySubmitted: false,
+    enquiryModalOpen: false,
   });
 
   if (businessId !== prevBusinessId) {
     setPrevBusinessId(businessId);
-    setUiState(prev => ({
+    setUiState((prev) => ({
       ...prev,
       revealPhone: false,
       enquirySubmitted: false,
       activeFaqIndex: null,
-      productSearch: ""
+      productSearch: "",
     }));
   }
 
-  const { revealPhone, activeFaqIndex, productSearch, bookmarked, enquirySubmitted } = uiState;
+  const { revealPhone, activeFaqIndex, productSearch, bookmarked, enquirySubmitted, enquiryModalOpen } = uiState;
 
   // Food menu cart state
   const [cart, setCart] = useState<Record<string, number>>({});
+
+  // Reviews Form & Custom Reviews State
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [newRating, setNewRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [newName, setNewName] = useState(username || "");
+  const [newEmail, setNewEmail] = useState("");
+  const [newText, setNewText] = useState("");
+  const [reviewSubmittedSuccess, setReviewSubmittedSuccess] = useState(false);
+  const [customReviews, setCustomReviews] = useState<UserReview[]>([]);
+
+  const [deletedReviews, setDeletedReviews] = useState<string[]>([]);
+
+  const loadDeletedReviews = () => {
+    try {
+      const saved = localStorage.getItem("fmp_deleted_reviews");
+      if (saved) {
+        setDeletedReviews(JSON.parse(saved));
+      } else {
+        setDeletedReviews([]);
+      }
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    loadDeletedReviews();
+    const handleStorage = () => {
+      loadDeletedReviews();
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`fmp_custom_reviews:${currentBiz.id}`);
+      if (saved) {
+        setCustomReviews(JSON.parse(saved));
+      } else {
+        setCustomReviews([]);
+      }
+    } catch (e) {
+      console.error("Failed to load custom reviews", e);
+    }
+  }, [currentBiz.id]);
+
+  const allReviews = useMemo(() => {
+    const combined = [...customReviews, ...currentBiz.reviews];
+    return combined.filter(r => {
+      const key = `${currentBiz.id}:${r.userName}:${r.reviewText}`;
+      return !deletedReviews.includes(key);
+    });
+  }, [customReviews, currentBiz.reviews, deletedReviews, currentBiz.id]);
+
+  const totalReviewCount = useMemo(() => {
+    const deletedStaticCount = currentBiz.reviews.filter(r => {
+      const key = `${currentBiz.id}:${r.userName}:${r.reviewText}`;
+      return deletedReviews.includes(key);
+    }).length;
+    const deletedCustomCount = customReviews.filter(r => {
+      const key = `${currentBiz.id}:${r.userName}:${r.reviewText}`;
+      return deletedReviews.includes(key);
+    }).length;
+
+    return Math.max(0, currentBiz.reviewCount + customReviews.length - deletedStaticCount - deletedCustomCount);
+  }, [currentBiz.reviewCount, customReviews, deletedReviews, currentBiz.id, currentBiz.reviews]);
+
+  const handleReviewSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newRating === 0) {
+      alert("Please select a rating!");
+      return;
+    }
+    if (!newName.trim() || !newText.trim()) {
+      alert("Please fill in your name and review comment!");
+      return;
+    }
+    
+    const colors = [
+      "from-indigo-500 to-purple-600",
+      "from-emerald-500 to-teal-600",
+      "from-rose-500 to-orange-600",
+      "from-amber-500 to-orange-500",
+      "from-blue-500 to-indigo-600"
+    ];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    
+    const newReview: UserReview = {
+      userName: newName.trim(),
+      userInitial: newName.trim().charAt(0).toUpperCase() || "A",
+      userColor: randomColor,
+      rating: newRating,
+      date: new Date().toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" }),
+      reviewText: newText.trim(),
+      userEmail: newEmail.trim() || undefined,
+    };
+    
+    const updated = [newReview, ...customReviews];
+    setCustomReviews(updated);
+    
+    try {
+      localStorage.setItem(`fmp_custom_reviews:${currentBiz.id}`, JSON.stringify(updated));
+    } catch (err) {
+      console.error("Failed to save custom review", err);
+    }
+    
+    // Reset Form
+    setNewRating(0);
+    setNewEmail("");
+    setNewText("");
+    setReviewSubmittedSuccess(true);
+    setTimeout(() => {
+      setReviewSubmittedSuccess(false);
+    }, 2000);
+  };
 
   const getBookingPrice = () => {
     if (currentBiz.category.includes("Hotel Point")) {
@@ -208,7 +433,10 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
       if (room.includes("4,499")) return 4499;
       return 1999;
     }
-    if (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point")) {
+    if (
+      currentBiz.category.includes("Health Care Point") ||
+      currentBiz.category.includes("Doctor Point")
+    ) {
       const slot = bookingForm.time || "";
       if (slot.includes("300")) return 300;
       if (slot.includes("400")) return 400;
@@ -221,21 +449,21 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
   // Dynamic calculations for cart totals
   const totalCartItems = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
   const totalCartPrice = Object.entries(cart).reduce((sum, [name, qty]) => {
-    const item = currentBiz.products.find(p => p.name === name);
+    const item = currentBiz.products.find((p) => p.name === name);
     if (!item) return sum;
     const priceNum = parseInt(item.price.replace(/[^0-9]/g, "")) || 0;
     return sum + priceNum * qty;
   }, 0);
 
   const addToCart = (itemName: string) => {
-    setCart(prev => ({
+    setCart((prev) => ({
       ...prev,
-      [itemName]: (prev[itemName] || 0) + 1
+      [itemName]: (prev[itemName] || 0) + 1,
     }));
   };
 
   const removeFromCart = (itemName: string) => {
-    setCart(prev => {
+    setCart((prev) => {
       const newCart = { ...prev };
       if (newCart[itemName] > 1) {
         newCart[itemName] -= 1;
@@ -251,7 +479,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
     name: "",
     mobile: "",
     email: "",
-    message: `Hi, I am interested in your services. Please contact me.`
+    message: `Hi, I am interested in your services. Please contact me.`,
   });
 
   // Scroll to top when ID changes
@@ -272,30 +500,59 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
     }
   }, [scrollToReview, businessId]);
 
+  // Scroll to menu/booking section when navigated via Book Now
+  useEffect(() => {
+    if (scrollToMenu) {
+      const timer = setTimeout(() => {
+        const element = document.getElementById("menu-section");
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [scrollToMenu, businessId]);
+
   const handleEnquirySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!enquiryForm.name || !enquiryForm.mobile) {
       alert("Please fill in your Name and Mobile Number.");
       return;
     }
-    setUiState(prev => ({ ...prev, enquirySubmitted: true }));
+    setUiState((prev) => ({ ...prev, enquirySubmitted: true }));
+
+    // Save enquiry to localStorage
+    const enquiryKey = `fmp_service_enquiries:${currentBiz.id}`;
+    const existingEnquiries = JSON.parse(localStorage.getItem(enquiryKey) || "[]");
+    const newEnquiry = {
+      id: `enq-${Date.now()}`,
+      timestamp: formatDateTimeDMY(new Date()),
+      name: enquiryForm.name,
+      mobile: enquiryForm.mobile,
+      email: enquiryForm.email || "N/A",
+      message: enquiryForm.message || "",
+    };
+    localStorage.setItem(enquiryKey, JSON.stringify([newEnquiry, ...existingEnquiries]));
+
     setTimeout(() => {
       setEnquiryForm({
         name: "",
         mobile: "",
         email: "",
-        message: `Hi, I am interested in your services. Please contact me.`
+        message: `Hi, I am interested in your services. Please contact me.`,
       });
     }, 3000);
   };
 
   const handleShare = () => {
     if (navigator.share) {
-      navigator.share({
-        title: currentBiz.name,
-        text: currentBiz.description,
-        url: window.location.href,
-      }).catch(console.error);
+      navigator
+        .share({
+          title: currentBiz.name,
+          text: currentBiz.description,
+          url: window.location.href,
+        })
+        .catch(console.error);
     } else {
       navigator.clipboard.writeText(window.location.href);
       alert("Business link copied to clipboard!");
@@ -303,9 +560,10 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
   };
 
   // Filter products based on search term
-  const filteredProducts = currentBiz.products.filter(p => 
-    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-    p.desc.toLowerCase().includes(productSearch.toLowerCase())
+  const filteredProducts = currentBiz.products.filter(
+    (p) =>
+      p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+      p.desc.toLowerCase().includes(productSearch.toLowerCase()),
   );
 
   return (
@@ -313,14 +571,26 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 md:h-20 max-w-7xl items-center gap-3 md:gap-8 px-4 md:px-6 w-full">
-          <button onClick={onBack} className="flex items-center gap-2 group cursor-pointer shrink-0">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 group cursor-pointer shrink-0"
+          >
             <div className="flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm transition group-hover:bg-secondary shrink-0">
               <ArrowLeft className="h-4.5 w-4.5 md:h-5 md:w-5 text-foreground" />
             </div>
-            <span className="hidden sm:inline text-sm font-semibold text-muted-foreground transition group-hover:text-foreground">Back</span>
+            <span className="hidden sm:inline text-sm font-semibold text-muted-foreground transition group-hover:text-foreground">
+              Back
+            </span>
           </button>
 
-          <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }} className="flex items-center shrink-0">
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              onBack();
+            }}
+            className="flex items-center shrink-0"
+          >
             <img
               src={logoImg}
               alt="FindMyPoint Logo"
@@ -338,7 +608,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
           </div>
 
           <div className="flex items-center gap-2.5 ml-auto md:ml-0 shrink-0">
-            <button 
+            <button
               onClick={() => onBack()}
               className="hidden sm:inline-block px-4 py-2 text-xs font-bold text-muted-foreground transition hover:text-foreground cursor-pointer"
             >
@@ -348,7 +618,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
               Discover
             </button>
             {!username && (
-              <button 
+              <button
                 onClick={onSignInClick}
                 className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 cursor-pointer shrink-0"
               >
@@ -356,7 +626,7 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
               </button>
             )}
             {username && (
-              <button 
+              <button
                 onClick={onProfileClick}
                 className="flex h-8 w-8 items-center justify-center rounded-full text-white hover:scale-105 transition-all duration-300 shadow-sm cursor-pointer font-bold text-xs bg-primary shrink-0"
                 title="Open Profile Menu"
@@ -372,12 +642,11 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
       <div className="bg-secondary/40 border-b border-border py-4">
         <div className="mx-auto max-w-7xl px-6 w-full">
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 h-[240px] sm:h-[320px] overflow-hidden rounded-3xl border border-border/80 shadow-md">
-            
             {/* Main large image */}
             <div className="col-span-1 sm:col-span-6 h-full relative group overflow-hidden">
-              <img 
-                src={currentBiz.images[0]} 
-                alt={`${currentBiz.name} main`} 
+              <img
+                src={currentBiz.images[0]}
+                alt={`${currentBiz.name} main`}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent pointer-events-none" />
@@ -387,9 +656,9 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
             <div className="hidden sm:grid sm:col-span-6 grid-cols-2 gap-4 h-full">
               {currentBiz.images.slice(1, 3).map((img, idx) => (
                 <div key={idx} className="h-full relative group overflow-hidden bg-secondary">
-                  <img 
-                    src={img} 
-                    alt={`${currentBiz.name} detail ${idx + 1}`} 
+                  <img
+                    src={img}
+                    alt={`${currentBiz.name} detail ${idx + 1}`}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent pointer-events-none" />
@@ -401,22 +670,33 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                 </div>
               )}
             </div>
-
           </div>
         </div>
       </div>
 
       {/* Main Container */}
       <main className="mx-auto max-w-7xl px-6 py-8 w-full">
-        
         {/* Breadcrumb & Ratings summary row */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <nav className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }} className="hover:text-primary transition-colors">Home</a>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onBack();
+              }}
+              className="hover:text-primary transition-colors"
+            >
+              Home
+            </a>
             <ArrowRight className="h-3 w-3 stroke-[2.5px]" />
-            <span className="hover:text-primary transition-colors cursor-pointer">{currentBiz.location.split(" - ")[1] || "Indore"}</span>
+            <span className="hover:text-primary transition-colors cursor-pointer">
+              {currentBiz.location.split(" - ")[1] || "Indore"}
+            </span>
             <ArrowRight className="h-3 w-3 stroke-[2.5px]" />
-            <span className="hover:text-primary transition-colors cursor-pointer">{currentBiz.category}</span>
+            <span className="hover:text-primary transition-colors cursor-pointer">
+              {currentBiz.category}
+            </span>
             <ArrowRight className="h-3 w-3 stroke-[2.5px]" />
             <span className="text-foreground font-extrabold">{currentBiz.name}</span>
           </nav>
@@ -425,23 +705,52 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
             <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-xs font-black px-2.5 py-1 rounded-lg shadow-sm">
               {currentBiz.rating} <Star className="h-3.5 w-3.5 fill-white stroke-none" />
             </span>
-            <span className="text-xs font-bold text-muted-foreground">{currentBiz.reviewCount} Ratings</span>
-            <span className="inline-flex items-center gap-1 text-[10px] uppercase font-black tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-              <ShieldCheck className="h-3.5 w-3.5 fill-emerald-500 text-white" /> Verified
+            <span className="text-xs font-bold text-muted-foreground">
+              {totalReviewCount} Ratings
             </span>
+            {currentBiz.isVerified ? (
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase font-black tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                <ShieldCheck className="h-3.5 w-3.5 fill-emerald-500 text-white" /> Verified
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase font-black tracking-wider text-slate-500 bg-slate-55 border border-slate-200 px-2 py-0.5 rounded-md">
+                Unverified
+              </span>
+            )}
           </div>
         </div>
 
         {/* Business Title Header */}
         <div className="border-b border-border pb-6 mb-8 flex flex-col md:flex-row md:items-start justify-between gap-6">
-          <div className="flex-1">
-            <h1 className="font-serif text-3xl sm:text-4xl text-foreground font-black tracking-tight leading-none">
+          <div className="flex-1 text-left">
+            {currentBiz.highlightsName && (
+              <div className="inline-flex items-center gap-1.5 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-sm mb-2.5">
+                <Sparkles className="h-3.5 w-3.5" /> {currentBiz.highlightsName}
+              </div>
+            )}
+            <h1 className="font-serif text-3xl sm:text-4xl text-slate-900 dark:text-white font-black tracking-tight leading-none">
               {currentBiz.name}
             </h1>
             <p className="text-muted-foreground text-sm font-semibold mt-2 flex items-center gap-1">
               <MapPin className="h-4 w-4 text-rose-500" /> {currentBiz.address}
             </p>
-            <div className="flex items-center gap-4 text-xs font-bold mt-3 text-muted-foreground">
+
+            {(currentBiz.categoryLine || currentBiz.subCategoryLine) && (
+              <div className="flex flex-wrap gap-2 mt-2.5">
+                {currentBiz.categoryLine && (
+                  <span className="text-[9px] uppercase font-black tracking-wider text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900 px-2 py-0.5 rounded-md">
+                    {currentBiz.categoryLine}
+                  </span>
+                )}
+                {currentBiz.subCategoryLine && (
+                  <span className="text-[9px] uppercase font-black tracking-wider text-slate-600 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-md">
+                    {currentBiz.subCategoryLine}
+                  </span>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center gap-4 text-xs font-bold mt-3.5 text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <Clock className="h-4.5 w-4.5 text-accent" /> Timings: {currentBiz.timings}
               </span>
@@ -453,18 +762,24 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
 
           {/* Quick Actions Panel */}
           <div className="flex flex-wrap items-center gap-2">
-            <button 
+            <button
               onClick={() => {
-                const el = document.getElementById("send-enquiry-section");
-                el?.scrollIntoView({ behavior: "smooth" });
+                setEnquiryForm({ name: "", mobile: "", email: "", message: "Hi, I am interested in your services. Please contact me." });
+                setUiState((prev) => ({ ...prev, enquiryModalOpen: true, enquirySubmitted: false }));
               }}
               className="inline-flex items-center justify-center gap-1.5 rounded-full bg-primary px-4 sm:px-6 py-2.5 sm:py-3 text-xs font-bold text-primary-foreground hover:bg-primary/95 transition shadow-md cursor-pointer"
             >
               Enquire Now
             </button>
 
-            {(currentBiz.category.includes("Food Point") || currentBiz.category.toLowerCase().includes("restaurant") || currentBiz.category.includes("Hotel Point") || currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point")) && (
-              <button 
+            {(customFormConfig
+              ? customFormConfig.bookNowEnabled
+              : (currentBiz.category.includes("Food Point") ||
+                 currentBiz.category.toLowerCase().includes("restaurant") ||
+                 currentBiz.category.includes("Hotel Point") ||
+                 currentBiz.category.includes("Health Care Point") ||
+                 currentBiz.category.includes("Doctor Point"))) && (
+              <button
                 onClick={() => {
                   const tomorrow = new Date();
                   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -473,75 +788,200 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                   dispatchBooking({
                     type: "UPDATE_FORM",
                     fields: {
-                      name: username || "", 
+                      name: username || "",
                       phone: "",
                       date: new Date().toISOString().split("T")[0],
-                      guests: currentBiz.category.includes("Hotel Point") ? "Deluxe AC Room (₹1,999/night)" : "2",
-                      time: currentBiz.category.includes("Hotel Point") 
-                        ? tomorrowStr 
-                        : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point")) 
-                          ? "Morning Slot Consultation (09:00 AM - 01:00 PM) (Fee: ₹300)" 
-                          : "Dinner (07:00 PM - 11:00 PM)"
-                    }
+                      guests: currentBiz.category.includes("Hotel Point")
+                        ? "Deluxe AC Room (₹1,999/night)"
+                        : "2",
+                      time: currentBiz.category.includes("Hotel Point")
+                        ? tomorrowStr
+                        : currentBiz.category.includes("Health Care Point") ||
+                            currentBiz.category.includes("Doctor Point")
+                          ? "Morning Slot Consultation (09:00 AM - 01:00 PM) (Fee: ₹300)"
+                          : "Dinner (07:00 PM - 11:00 PM)",
+                    },
                   });
                   dispatchBooking({ type: "SET_MODAL", open: true });
                   dispatchPayment({ type: "RESET" });
                 }}
                 className="inline-flex items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-4 sm:px-6 py-2.5 sm:py-3 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-md cursor-pointer"
               >
-                <Check className="h-3.5 w-3.5" /> 
-                {currentBiz.category.includes("Hotel Point") 
-                  ? "Book Room" 
-                  : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point") ? "Book Appointment" : "Book Table")}
+                <Check className="h-3.5 w-3.5" />
+                {customFormConfig
+                  ? (customFormConfig.formTitle || "Book Now")
+                  : (currentBiz.category.includes("Hotel Point")
+                      ? "Book Room"
+                      : currentBiz.category.includes("Health Care Point") ||
+                          currentBiz.category.includes("Doctor Point")
+                        ? "Book Appointment"
+                        : "Book Table")}
               </button>
             )}
-            <button 
-              onClick={() => setUiState(prev => ({ ...prev, revealPhone: !prev.revealPhone }))}
+            <button
+              onClick={() => setUiState((prev) => ({ ...prev, revealPhone: !prev.revealPhone }))}
               className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3.5 sm:px-5 py-2.5 sm:py-3 text-xs font-bold text-foreground hover:bg-secondary transition shadow-sm cursor-pointer"
             >
-              <Phone className="h-3.5 w-3.5 text-accent" /> 
+              <Phone className="h-3.5 w-3.5 text-accent" />
               {revealPhone ? currentBiz.phone : "Show Number"}
             </button>
-            <a 
+            <a
               href={`https://wa.me/${currentBiz.phone.replace(/[^0-9]/g, "")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-[#25d366]/30 bg-[#25d366]/5 hover:bg-[#25d366] hover:text-white transition-all shadow-sm cursor-pointer text-[#25d366]"
             >
-              <svg className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <svg
+                className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 fill-current"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
                 <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.717-1.456L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.97C16.379 1.968 13.91 .94 11.997.94c-5.442 0-9.867 4.371-9.871 9.8.001 1.83.483 3.61 1.398 5.183L2.5 21.082l5.147-1.33c-.007.005-.007.005 0 0zm9.967-6.758c-.31-.154-1.834-.894-2.115-.995-.28-.102-.485-.153-.687.154-.202.307-.783.995-.96 1.198-.177.205-.355.23-.665.077-1.127-.565-1.953-.972-2.73-1.637-.777-.665-1.28-1.488-1.433-1.753-.153-.307-.016-.473.138-.626.14-.138.31-.36.467-.538.153-.18.204-.307.307-.512.102-.205.05-.384-.025-.538-.077-.154-.687-1.637-.94-2.253-.247-.6-.5-.518-.688-.528-.178-.01-.383-.01-.588-.01-.205 0-.538.077-.82.384-.282.307-1.077 1.05-1.077 2.561 0 1.51 1.1 2.97 1.253 3.176.154.205 2.164 3.266 5.244 4.581.733.313 1.306.499 1.75.64.737.234 1.408.201 1.94.122.592-.088 1.834-.74 2.09-1.455.257-.717.257-1.332.18-1.456-.076-.124-.282-.201-.592-.356z" />
               </svg>
             </a>
-            <button 
+            <button
               onClick={handleShare}
               className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-border bg-card hover:bg-secondary transition shadow-sm text-muted-foreground cursor-pointer"
             >
               <Share2 className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5" />
             </button>
-            <button 
-              onClick={() => setUiState(prev => ({ ...prev, bookmarked: !prev.bookmarked }))}
+            <button
+              onClick={() => setUiState((prev) => ({ ...prev, bookmarked: !prev.bookmarked }))}
               className={`flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border transition shadow-sm cursor-pointer ${bookmarked ? "text-amber-500 border-amber-200 bg-amber-50/20" : "text-muted-foreground border-border bg-card hover:bg-secondary"}`}
             >
-              <Bookmark className={`h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 ${bookmarked ? "fill-amber-500" : ""}`} />
+              <Bookmark
+                className={`h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 ${bookmarked ? "fill-amber-500" : ""}`}
+              />
             </button>
           </div>
         </div>
 
         {/* Main Grid: Content on Left (8 cols), Sticky Form & Similar Listings on Right (4 cols) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
           {/* LEFT COLUMN: Main Info & Tab Sections */}
           <div className="lg:col-span-8 flex flex-col gap-10">
-            
             {/* About Business description */}
             <div className="prose max-w-none">
               <h3 className="text-lg font-black text-foreground mb-3 uppercase tracking-wider text-left border-b border-border/40 pb-2">
                 About {currentBiz.name}
               </h3>
-              <p className="text-[13px] text-muted-foreground/95 font-semibold leading-relaxed">
+              <p className="text-[13px] text-muted-foreground/95 font-semibold leading-relaxed text-left">
                 {currentBiz.description}
               </p>
+
+              {currentBiz.othersDestination && (
+                <div className="mt-4 bg-amber-500/5 dark:bg-amber-950/10 border border-amber-500/25 dark:border-amber-900/35 rounded-2xl p-4 text-[12px] font-semibold text-slate-700 dark:text-slate-300 flex items-start gap-2.5 text-left">
+                  <span className="text-amber-500 text-sm leading-none mt-0.5">💡</span>
+                  <div>
+                    <span className="block font-black text-amber-800 dark:text-amber-400 text-[10px] uppercase tracking-wider">
+                      Highlight Info
+                    </span>
+                    <p className="mt-0.5">{currentBiz.othersDestination}</p>
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Video Tour Section if present */}
+            {currentBiz.videoLink && (
+              <div className="flex flex-col">
+                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-4 uppercase tracking-wider text-left border-b border-border/40 pb-2 flex items-center gap-2">
+                  <Video className="h-5 w-5 text-rose-500" /> Video Tour & Promo
+                </h3>
+                <div className="aspect-video w-full rounded-3xl overflow-hidden border border-border shadow-md bg-black">
+                  <iframe
+                    src={
+                      currentBiz.videoLink.includes("watch?v=")
+                        ? currentBiz.videoLink.replace("watch?v=", "embed/").split("&")[0]
+                        : currentBiz.videoLink.includes("youtu.be/")
+                          ? currentBiz.videoLink
+                              .replace("youtu.be/", "youtube.com/embed/")
+                              .split("?")[0]
+                          : currentBiz.videoLink
+                    }
+                    title={`${currentBiz.name} Video Tour`}
+                    className="w-full h-full border-none"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  ></iframe>
+                </div>
+              </div>
+            )}
+
+            {/* Business Officers if present */}
+            {currentBiz.officers && currentBiz.officers.length > 0 && (
+              <div className="flex flex-col">
+                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-4 uppercase tracking-wider text-left border-b border-border/40 pb-2 flex items-center gap-2">
+                  <User className="h-5 w-5 text-indigo-500" /> Key Management & Officers
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {currentBiz.officers.map((off, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-3.5 bg-card border border-border p-3.5 rounded-2xl shadow-sm"
+                    >
+                      <div className="h-10 w-10 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-black text-xs uppercase flex items-center justify-center border border-indigo-100 dark:border-indigo-900 shrink-0">
+                        {off.name.charAt(0)}
+                      </div>
+                      <div className="text-left min-w-0">
+                        <span className="block font-bold text-sm text-slate-900 dark:text-white truncate">
+                          {off.name}
+                        </span>
+                        <span className="block text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-wider mt-0.5">
+                          {off.designation}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Business Branches if present */}
+            {currentBiz.branches && currentBiz.branches.length > 0 && (
+              <div className="flex flex-col">
+                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-4 uppercase tracking-wider text-left border-b border-border/40 pb-2 flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-rose-500" /> Business Branches
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {currentBiz.branches.map((branch, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-start gap-2.5 bg-secondary/25 border border-border/60 p-3.5 rounded-2xl"
+                    >
+                      <span className="text-rose-500 mt-0.5 text-sm">📍</span>
+                      <div className="text-left">
+                        <span className="block text-xs font-bold text-slate-900 dark:text-white">
+                          Branch #{idx + 1}
+                        </span>
+                        <p className="text-xs text-muted-foreground mt-0.5 font-semibold">
+                          {branch}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Business Facilities if present */}
+            {currentBiz.facilities && currentBiz.facilities.length > 0 && (
+              <div className="flex flex-col">
+                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-4 uppercase tracking-wider text-left border-b border-border/40 pb-2 flex items-center gap-2">
+                  <Check className="h-5 w-5 text-emerald-500" /> Facilities & Amenities
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {currentBiz.facilities.map((fac, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-905 px-3.5 py-1.5 rounded-xl shadow-sm"
+                    >
+                      <span className="text-emerald-500 text-xs font-black">✓</span> {fac}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Photos Section */}
             <div className="flex flex-col">
@@ -550,10 +990,13 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {currentBiz.images.map((img, idx) => (
-                  <div key={idx} className="aspect-square rounded-2xl overflow-hidden border border-border shadow-sm bg-secondary group">
-                    <img 
-                      src={img} 
-                      alt={`${currentBiz.name} gallery ${idx + 1}`} 
+                  <div
+                    key={idx}
+                    className="aspect-square rounded-2xl overflow-hidden border border-border shadow-sm bg-secondary group"
+                  >
+                    <img
+                      src={img}
+                      alt={`${currentBiz.name} gallery ${idx + 1}`}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   </div>
@@ -562,33 +1005,46 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
             </div>
 
             {/* Popular Products & Services Catalog */}
-            <div className="flex flex-col">
+            <div id="menu-section" className="flex flex-col">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-3 mb-6">
                 <h3 className="text-lg font-black text-foreground uppercase tracking-wider text-left">
-                  {currentBiz.category.includes("Food Point") || currentBiz.category.toLowerCase().includes("restaurant") ? "Menu & Special Dishes" : "Products & Services"}
+                  {currentBiz.category.includes("Food Point") ||
+                  currentBiz.category.toLowerCase().includes("restaurant")
+                    ? "Menu & Special Dishes"
+                    : "Products & Services"}
                 </h3>
                 <div className="relative w-full sm:max-w-xs">
-                  <input 
+                  <input
                     type="text"
                     placeholder="Search in catalog..."
                     value={productSearch}
-                    onChange={(e) => setUiState(prev => ({ ...prev, productSearch: e.target.value }))}
+                    onChange={(e) =>
+                      setUiState((prev) => ({ ...prev, productSearch: e.target.value }))
+                    }
                     className="w-full bg-card border border-border rounded-full py-1.5 pl-4 pr-10 text-xs font-semibold outline-none focus:border-primary shadow-sm"
                   />
                 </div>
               </div>
 
               {filteredProducts.length > 0 ? (
-                currentBiz.category.includes("Food Point") || currentBiz.category.toLowerCase().includes("restaurant") ? (
+                currentBiz.category.includes("Food Point") ||
+                currentBiz.category.toLowerCase().includes("restaurant") ? (
                   // Food List View
                   <div className="flex flex-col gap-4">
                     {filteredProducts.map((prod, idx) => {
                       const qty = cart[prod.name] || 0;
                       return (
-                        <div key={idx} className="flex items-center gap-4 bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)] hover:shadow-md hover:border-primary/10 transition duration-300">
+                        <div
+                          key={idx}
+                          className="flex items-center gap-4 bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)] hover:shadow-md hover:border-primary/10 transition duration-300"
+                        >
                           {/* Left: Food Image */}
                           <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl overflow-hidden bg-secondary shrink-0">
-                            <img src={prod.img} alt={prod.name} className="h-full w-full object-cover" />
+                            <img
+                              src={prod.img}
+                              alt={prod.name}
+                              className="h-full w-full object-cover"
+                            />
                           </div>
 
                           {/* Middle: Details */}
@@ -643,39 +1099,46 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     })}
                   </div>
                 ) : (
-                  // General Grid View
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  // General List View (menu-style)
+                  <div className="flex flex-col gap-4">
                     {filteredProducts.map((prod, idx) => (
-                      <div key={idx} className="group rounded-2xl border border-border bg-card overflow-hidden flex flex-col shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elegant)] hover:border-primary/20 transition-all duration-300">
-                        <div className="aspect-[16/10] overflow-hidden bg-secondary border-b border-border">
-                          <img 
-                            src={prod.img} 
-                            alt={prod.name} 
-                            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      <div
+                        key={idx}
+                        className="flex items-center gap-4 bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)] hover:shadow-md hover:border-primary/10 transition duration-300"
+                      >
+                        {/* Left: Product Image */}
+                        <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl overflow-hidden bg-secondary shrink-0">
+                          <img
+                            src={prod.img}
+                            alt={prod.name}
+                            className="h-full w-full object-cover"
                           />
                         </div>
-                        <div className="p-4 flex flex-col flex-1">
+
+                        {/* Middle: Details */}
+                        <div className="flex-1 min-w-0 text-left">
                           <div className="flex items-start justify-between gap-2">
-                            <h4 className="text-sm font-black text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-1">
+                            <h4 className="text-sm sm:text-base font-black text-foreground line-clamp-1">
                               {prod.name}
                             </h4>
-                            <span className="text-xs font-extrabold text-emerald-600 shrink-0 bg-emerald-50 px-2 py-0.5 rounded-md">
+                            <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md shrink-0">
                               {prod.price}
                             </span>
                           </div>
-                          <p className="text-xs text-muted-foreground/80 mt-2 leading-relaxed flex-1 line-clamp-2">
+                          <p className="text-xs text-muted-foreground/80 mt-1 sm:mt-1.5 leading-relaxed line-clamp-2">
                             {prod.desc}
                           </p>
-                          <button 
+                        </div>
+
+                        {/* Right: Enquire Button */}
+                        <div className="shrink-0 pl-2">
+                          <button
                             type="button"
                             onClick={() => {
-                              setEnquiryForm(prev => ({
-                                ...prev,
-                                message: `Hi, I am interested in your product/service: "${prod.name}". Please share the quotation and availability details.`
-                              }));
-                              document.getElementById("send-enquiry-section")?.scrollIntoView({ behavior: "smooth" });
+                              setEnquiryForm({ name: "", mobile: "", email: "", message: "Hi, I am interested in your services. Please contact me." });
+                              setUiState((prev) => ({ ...prev, enquiryModalOpen: true, enquirySubmitted: false }));
                             }}
-                            className="mt-4 w-full bg-secondary hover:bg-primary hover:text-primary-foreground text-foreground text-xs font-bold py-2 rounded-xl border border-border/80 transition-colors cursor-pointer text-center"
+                            className="inline-flex items-center gap-1 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
                           >
                             Enquire Now
                           </button>
@@ -698,19 +1161,22 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center bg-secondary/25 border border-border/60 rounded-3xl p-6 mb-8 shadow-sm">
-                
                 {/* Visual average card */}
                 <div className="md:col-span-4 flex flex-col items-center justify-center text-center md:border-r border-border/60 py-4 pr-4">
-                  <span className="text-5xl font-black text-foreground leading-none">{currentBiz.rating}</span>
+                  <span className="text-5xl font-black text-foreground leading-none">
+                    {currentBiz.rating}
+                  </span>
                   <div className="flex items-center gap-0.5 mt-3">
                     {Array.from({ length: 5 }).map((_, idx) => (
-                      <Star 
-                        key={idx} 
+                      <Star
+                        key={idx}
                         className={`h-4.5 w-4.5 ${idx < Math.floor(currentBiz.rating) ? "text-amber-500 fill-amber-500" : "text-muted-foreground/20"}`}
                       />
                     ))}
                   </div>
-                  <span className="text-xs font-bold text-muted-foreground mt-2">{currentBiz.reviewCount} user ratings</span>
+                  <span className="text-xs font-bold text-muted-foreground mt-2">
+                    {totalReviewCount} user ratings
+                  </span>
                 </div>
 
                 {/* Progress breakdown */}
@@ -720,49 +1186,57 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     { label: "4 Star", percent: 12 },
                     { label: "3 Star", percent: 6 },
                     { label: "2 Star", percent: 2 },
-                    { label: "1 Star", percent: 0 }
+                    { label: "1 Star", percent: 0 },
                   ].map((row, idx) => (
                     <div key={idx} className="flex items-center gap-3 text-xs font-bold">
                       <span className="w-12 text-muted-foreground shrink-0">{row.label}</span>
                       <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden border border-border/30">
-                        <div 
-                          className="h-full bg-amber-500 rounded-full transition-all" 
+                        <div
+                          className="h-full bg-amber-500 rounded-full transition-all"
                           style={{ width: `${row.percent}%` }}
                         />
                       </div>
-                      <span className="w-8 text-right text-muted-foreground/80 shrink-0">{row.percent}%</span>
+                      <span className="w-8 text-right text-muted-foreground/80 shrink-0">
+                        {row.percent}%
+                      </span>
                     </div>
                   ))}
                 </div>
-
               </div>
 
               {/* Reviews list */}
               <div className="flex flex-col gap-6">
-                {currentBiz.reviews.map((rev, idx) => (
-                  <div key={idx} className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+                {allReviews.map((rev, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]"
+                  >
                     <div className="flex items-center justify-between gap-4">
-                      
                       {/* Reviewer Row */}
                       <div className="flex items-center gap-3">
-                        <div className={`h-9 w-9 rounded-full flex items-center justify-center text-xs font-black text-white bg-gradient-to-tr ${rev.userColor} shadow-inner`}>
+                        <div
+                          className={`h-9 w-9 rounded-full flex items-center justify-center text-xs font-black text-white bg-gradient-to-tr ${rev.userColor} shadow-inner`}
+                        >
                           {rev.userInitial}
                         </div>
                         <div className="flex flex-col">
                           <span className="text-xs font-black text-foreground">{rev.userName}</span>
-                          <span className="text-[10px] font-bold text-muted-foreground mt-0.5">Verified Reviewer</span>
+                          <span className="text-[10px] font-bold text-muted-foreground mt-0.5">
+                            {rev.userEmail || "Verified Reviewer"}
+                          </span>
                         </div>
                       </div>
 
-                      <span className="text-[10px] font-bold text-muted-foreground">{rev.date}</span>
-
+                      <span className="text-[10px] font-bold text-muted-foreground">
+                        {rev.date}
+                      </span>
                     </div>
 
                     {/* Stars Row */}
                     <div className="flex items-center gap-0.5 mt-3">
                       {Array.from({ length: 5 }).map((_, sIdx) => (
-                        <Star 
-                          key={sIdx} 
+                        <Star
+                          key={sIdx}
                           className={`h-3.5 w-3.5 ${sIdx < rev.rating ? "text-amber-500 fill-amber-500" : "text-muted-foreground/20"}`}
                         />
                       ))}
@@ -776,9 +1250,9 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     {/* Review attached image */}
                     {rev.image && (
                       <div className="mt-4 aspect-[16/9] max-w-sm rounded-2xl overflow-hidden border border-border bg-secondary shadow-sm">
-                        <img 
-                          src={rev.image} 
-                          alt="Review attachment" 
+                        <img
+                          src={rev.image}
+                          alt="Review attachment"
                           className="h-full w-full object-cover"
                         />
                       </div>
@@ -786,142 +1260,140 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                   </div>
                 ))}
               </div>
-
             </div>
 
-            {/* Expandable FAQs Section */}
-            {currentBiz.faqs.length > 0 && (
-              <div className="flex flex-col">
-                <h3 className="text-lg font-black text-foreground uppercase tracking-wider text-left border-b border-border/40 pb-3 mb-6">
-                  Frequently Asked Questions
-                </h3>
-                
-                <div className="flex flex-col gap-3">
-                  {currentBiz.faqs.map((faq, idx) => {
-                    const isActive = activeFaqIndex === idx;
-                    return (
-                      <div key={idx} className="rounded-2xl border border-border bg-card overflow-hidden shadow-[var(--shadow-card)]">
-                        <button 
-                          onClick={() => setUiState(prev => ({ ...prev, activeFaqIndex: isActive ? null : idx }))}
-                          className="w-full px-6 py-4 flex items-center justify-between text-left text-xs sm:text-sm font-black text-foreground hover:bg-secondary/40 transition-colors"
-                        >
-                          <span>{faq.question}</span>
-                          {isActive ? <ChevronUp className="h-4.5 w-4.5 text-accent" /> : <ChevronDown className="h-4.5 w-4.5 text-accent" />}
-                        </button>
-                        {isActive && (
-                          <div className="px-6 pb-4 pt-1 text-xs text-muted-foreground font-semibold leading-relaxed border-t border-border/30 bg-secondary/10">
-                            {faq.answer}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
           </div>
 
           {/* RIGHT COLUMN: Sidebar Form & Similar Listings */}
           <div className="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-28">
-            
-            {/* Send Enquiry Form */}
-            <div id="send-enquiry-section" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)] scroll-mt-28">
-              <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-4">
-                <h4 className="text-xs font-black text-foreground uppercase tracking-widest">Send Enquiry</h4>
-                <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-              </div>
+            {/* Send Enquiry Form removed — now shown as modal on Enquire Now click */}
 
-              {enquirySubmitted ? (
-                <div className="py-8 text-center flex flex-col items-center justify-center gap-3">
-                  <div className="h-12 w-12 rounded-full bg-emerald-50 text-emerald-500 border border-emerald-200 flex items-center justify-center">
-                    <CheckCircle className="h-6 w-6" />
-                  </div>
-                  <h5 className="text-xs font-black text-foreground mt-2">Enquiry Sent Successfully!</h5>
-                  <p className="text-[10px] text-muted-foreground/80 font-bold max-w-[200px] leading-relaxed mt-1">
-                    The business representative will get back to you on your provided contact details.
-                  </p>
+            {/* Business Extra Contact Information */}
+            {(currentBiz.email ||
+              currentBiz.website ||
+              currentBiz.whatsapp ||
+              (currentBiz.extraNumbers && currentBiz.extraNumbers.length > 0)) && (
+              <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)] text-left">
+                <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-4">
+                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">
+                    Contact Information
+                  </h4>
+                  <Phone className="h-4.5 w-4.5 text-indigo-500" />
                 </div>
-              ) : (
-                <form onSubmit={handleEnquirySubmit} className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-1 text-left">
-                    <label htmlFor="enquiryName" className="text-[10px] font-bold text-muted-foreground uppercase">Your Name</label>
-                    <input 
-                      id="enquiryName"
-                      type="text" 
-                      placeholder="e.g. John Doe"
-                      value={enquiryForm.name}
-                      onChange={(e) => setEnquiryForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-xs font-semibold outline-none focus:border-primary shadow-sm"
-                      required
-                    />
-                  </div>
 
-                  <div className="flex flex-col gap-1 text-left">
-                    <label htmlFor="enquiryMobile" className="text-[10px] font-bold text-muted-foreground uppercase">Mobile Number</label>
-                    <input 
-                      id="enquiryMobile"
-                      type="tel" 
-                      placeholder="10-digit number"
-                      value={enquiryForm.mobile}
-                      onChange={(e) => setEnquiryForm(prev => ({ ...prev, mobile: e.target.value }))}
-                      className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-xs font-semibold outline-none focus:border-primary shadow-sm"
-                      required
-                    />
-                  </div>
+                <div className="space-y-4">
+                  {/* Website */}
+                  {currentBiz.website && (
+                    <div className="flex items-start gap-3">
+                      <Globe className="h-4.5 w-4.5 text-blue-500 shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <span className="block text-[10px] font-bold text-muted-foreground uppercase">
+                          Official Website
+                        </span>
+                        <a
+                          href={currentBiz.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline font-bold break-all block mt-0.5 text-left"
+                        >
+                          {currentBiz.website}
+                        </a>
+                      </div>
+                    </div>
+                  )}
 
-                  <div className="flex flex-col gap-1 text-left">
-                    <label htmlFor="enquiryEmail" className="text-[10px] font-bold text-muted-foreground uppercase">Email Address (Optional)</label>
-                    <input 
-                      id="enquiryEmail"
-                      type="email" 
-                      placeholder="name@example.com"
-                      value={enquiryForm.email}
-                      onChange={(e) => setEnquiryForm(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-xs font-semibold outline-none focus:border-primary shadow-sm"
-                    />
-                  </div>
+                  {/* Email */}
+                  {currentBiz.email && (
+                    <div className="flex items-start gap-3">
+                      <Mail className="h-4.5 w-4.5 text-indigo-500 shrink-0 mt-0.5" />
+                      <div className="min-w-0 text-left">
+                        <span className="block text-[10px] font-bold text-muted-foreground uppercase">
+                          Email Address
+                        </span>
+                        <a
+                          href={`mailto:${currentBiz.email}`}
+                          className="text-xs text-slate-900 dark:text-white hover:text-primary font-bold break-all block mt-0.5 text-left"
+                        >
+                          {currentBiz.email}
+                        </a>
+                      </div>
+                    </div>
+                  )}
 
-                  <div className="flex flex-col gap-1 text-left">
-                    <label htmlFor="enquiryMessage" className="text-[10px] font-bold text-muted-foreground uppercase">Message</label>
-                    <textarea 
-                      id="enquiryMessage"
-                      rows={3}
-                      value={enquiryForm.message}
-                      onChange={(e) => setEnquiryForm(prev => ({ ...prev, message: e.target.value }))}
-                      className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-xs font-semibold outline-none focus:border-primary shadow-sm resize-none"
-                    />
-                  </div>
+                  {/* Whatsapp */}
+                  {currentBiz.whatsapp && (
+                    <div className="flex items-start gap-3">
+                      <svg
+                        className="h-4.5 w-4.5 text-[#25d366] fill-current shrink-0 mt-0.5"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.717-1.456L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.97C16.379 1.968 13.91 .94 11.997.94c-5.442 0-9.867 4.371-9.871 9.8.001 1.83.483 3.61 1.398 5.183L2.5 21.082l5.147-1.33c-.007.005-.007.005 0 0zm9.967-6.758c-.31-.154-1.834-.894-2.115-.995-.28-.102-.485-.153-.687.154-.202.307-.783.995-.96 1.198-.177.205-.355.23-.665.077-1.127-.565-1.953-.972-2.73-1.637-.777-.665-1.28-1.488-1.433-1.753-.153-.307-.016-.473.138-.626.14-.138.31-.36.467-.538.153-.18.204-.307.307-.512.102-.205.05-.384-.025-.538-.077-.154-.687-1.637-.94-2.253-.247-.6-.5-.518-.688-.528-.178-.01-.383-.01-.588-.01-.205 0-.538.077-.82.384-.282.307-1.077 1.05-1.077 2.561 0 1.51 1.1 2.97 1.253 3.176.154.205 2.164 3.266 5.244 4.581.733.313 1.306.499 1.75.64.737.234 1.408.201 1.94.122.592-.088 1.834-.74 2.09-1.455.257-.717.257-1.332.18-1.456-.076-.124-.282-.201-.592-.356z" />
+                      </svg>
+                      <div className="min-w-0 text-left">
+                        <span className="block text-[10px] font-bold text-muted-foreground uppercase">
+                          WhatsApp Us
+                        </span>
+                        <a
+                          href={`https://wa.me/${currentBiz.whatsapp.replace(/[^0-9]/g, "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-emerald-600 hover:underline font-bold block mt-0.5 text-left"
+                        >
+                          {currentBiz.whatsapp}
+                        </a>
+                      </div>
+                    </div>
+                  )}
 
-                  <button 
-                    type="submit"
-                    className="w-full bg-primary hover:bg-primary/95 text-primary-foreground text-xs font-bold py-3 rounded-xl shadow-md transition cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <Send className="h-3.5 w-3.5" /> Submit Enquiry
-                  </button>
-                </form>
-              )}
-            </div>
+                  {/* Extra Numbers */}
+                  {currentBiz.extraNumbers && currentBiz.extraNumbers.length > 0 && (
+                    <div className="flex items-start gap-3">
+                      <Phone className="h-4.5 w-4.5 text-emerald-500 shrink-0 mt-0.5" />
+                      <div className="min-w-0 text-left">
+                        <span className="block text-[10px] font-bold text-muted-foreground uppercase">
+                          Extra Contact Numbers
+                        </span>
+                        <div className="flex flex-col gap-1.5 mt-1">
+                          {currentBiz.extraNumbers.map((num, idx) => (
+                            <a
+                              key={idx}
+                              href={`tel:${num}`}
+                              className="text-xs text-slate-950 dark:text-white hover:text-primary font-bold block text-left"
+                            >
+                              {num}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* People Also Viewed Widget */}
             {currentBiz.similarListings.length > 0 && (
               <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
                 <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-4">
-                  <h4 className="text-xs font-black text-foreground uppercase tracking-widest">People Also Viewed</h4>
+                  <h4 className="text-xs font-black text-foreground uppercase tracking-widest">
+                    People Also Viewed
+                  </h4>
                 </div>
 
                 <div className="flex flex-col gap-4">
                   {currentBiz.similarListings.map((sim) => (
-                    <div 
+                    <div
                       key={sim.id}
                       onClick={() => onBusinessSelect && onBusinessSelect(sim.id)}
                       className="group flex items-start gap-3 cursor-pointer"
                     >
                       <div className="h-14 w-20 rounded-lg overflow-hidden bg-secondary border border-border shadow-sm shrink-0">
-                        <img 
-                          src={sim.img} 
-                          alt={sim.name} 
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                        <img
+                          src={sim.img}
+                          alt={sim.name}
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       </div>
                       <div className="flex flex-col min-w-0 text-left">
@@ -944,8 +1416,177 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
               </div>
             )}
 
-          </div>
+            {/* Write a Review Widget */}
+            <div id="write-review-form" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)] text-left scroll-mt-28 mt-6">
+              <div className="border-b border-border/30 pb-3 mb-4">
+                <h4 className="text-xs font-black text-foreground uppercase tracking-widest flex items-center gap-1.5">
+                  <Star className="h-4 w-4 text-amber-500 fill-amber-500/10" /> Write a Review
+                </h4>
+              </div>
+              
+              {reviewSubmittedSuccess ? (
+                <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250/30 dark:border-emerald-900/40 rounded-2xl p-5 text-center text-emerald-600 dark:text-emerald-400 text-xs font-bold animate-pulse">
+                  Review submitted successfully!
+                </div>
+              ) : (
+                <form onSubmit={handleReviewSubmit} className="space-y-4">
+                  {/* Rating Selector */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-muted-foreground tracking-wider block">
+                      Rating *
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: 5 }).map((_, sIdx) => {
+                          const starValue = sIdx + 1;
+                          const isLit = starValue <= (hoverRating || newRating);
+                          return (
+                            <button
+                              key={sIdx}
+                              type="button"
+                              onMouseEnter={() => setHoverRating(starValue)}
+                              onMouseLeave={() => setHoverRating(0)}
+                              onClick={() => setNewRating(starValue)}
+                              className="p-0.5 focus:outline-none transition-transform hover:scale-110 cursor-pointer"
+                            >
+                              <Star
+                                className={`h-5 w-5 transition-all ${
+                                  isLit 
+                                    ? "text-amber-500 fill-amber-500" 
+                                    : "text-muted-foreground/35 hover:text-amber-500/70"
+                                }`}
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.2 rounded border border-amber-250/35">
+                        {(() => {
+                          const activeRate = hoverRating || newRating;
+                          if (activeRate === 5) return "Excellent";
+                          if (activeRate === 4) return "Very Good";
+                          if (activeRate === 3) return "Good";
+                          if (activeRate === 2) return "Average";
+                          if (activeRate === 1) return "Poor";
+                          return "Select Rating";
+                        })()}
+                      </span>
+                    </div>
+                  </div>
 
+                  {/* Name field */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-muted-foreground tracking-wider block">
+                      Name *
+                    </label>
+                    <input
+                      id="review-name-input"
+                      type="text"
+                      required
+                      placeholder="Your Name"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900/60 text-xs px-3 py-2 rounded-xl border border-border outline-none focus:border-indigo-500 transition-all font-semibold shadow-sm"
+                    />
+                  </div>
+
+                  {/* Email field (Optional) */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-muted-foreground tracking-wider block">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="Your Email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900/60 text-xs px-3 py-2 rounded-xl border border-border outline-none focus:border-indigo-500 transition-all font-semibold shadow-sm"
+                    />
+                  </div>
+
+                  {/* Comment Area */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-muted-foreground tracking-wider block">
+                      Comment *
+                    </label>
+                    <textarea
+                      rows={3}
+                      required
+                      placeholder="Share details of your experience..."
+                      value={newText}
+                      onChange={(e) => setNewText(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900/60 text-xs px-3 py-2 rounded-xl border border-border outline-none focus:border-indigo-500 transition-all font-semibold shadow-sm resize-none"
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewRating(0);
+                        setNewText("");
+                      }}
+                      className="px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-secondary text-[11px] font-bold transition cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition cursor-pointer"
+                    >
+                      Submit
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Expandable FAQs Section */}
+            {currentBiz.faqs.length > 0 && (
+              <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)] text-left mt-6">
+                <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-4">
+                  <h4 className="text-xs font-black text-foreground uppercase tracking-widest">
+                    Frequently Asked Questions
+                  </h4>
+                </div>
+
+                <div className="flex flex-col gap-3 mt-4">
+                  {currentBiz.faqs.map((faq, idx) => {
+                    const isActive = activeFaqIndex === idx;
+                    return (
+                      <div
+                        key={idx}
+                        className="rounded-xl border border-border bg-card overflow-hidden shadow-sm"
+                      >
+                        <button
+                          onClick={() =>
+                            setUiState((prev) => ({
+                              ...prev,
+                              activeFaqIndex: isActive ? null : idx,
+                            }))
+                          }
+                          className="w-full px-4 py-3 flex items-center justify-between text-left text-xs font-bold text-foreground hover:bg-secondary/40 transition-colors"
+                        >
+                          <span className="leading-snug">{faq.question}</span>
+                          {isActive ? (
+                            <ChevronUp className="h-4 w-4 text-accent shrink-0 ml-2" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-accent shrink-0 ml-2" />
+                          )}
+                        </button>
+                        {isActive && (
+                          <div className="px-4 pb-3 pt-1 text-[11px] text-muted-foreground font-semibold leading-relaxed border-t border-border/30 bg-secondary/10">
+                            {faq.answer}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </main>
 
@@ -964,154 +1605,376 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
             </button>
 
             {bookingStep === "form" && (
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                if (!bookingForm.name || !bookingForm.phone) {
-                  alert("Please fill in your Name and Phone Number.");
-                  return;
-                }
-                dispatchBooking({ type: "SET_STEP", step: "payment" });
-              }}>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (customFormConfig) {
+                    let valid = true;
+                    customFormConfig.fields.forEach((f: any) => {
+                      if (f.required) {
+                        const val = customFormValues[f.label];
+                        if (val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0) || val === false) {
+                          valid = false;
+                        }
+                      }
+                    });
+                    if (!valid) {
+                      alert("Please fill in all required fields.");
+                      return;
+                    }
+                  } else {
+                    if (!bookingForm.name || !bookingForm.phone) {
+                      alert("Please fill in your Name and Phone Number.");
+                      return;
+                    }
+                  }
+                  dispatchBooking({ type: "SET_STEP", step: "payment" });
+                }}
+              >
                 <h3 className="font-serif text-xl font-bold text-foreground mb-1">
-                  {currentBiz.category.includes("Hotel Point") 
-                    ? "Book a Room" 
-                    : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point") ? "Book an Appointment" : "Book a Table")}
+                  {customFormConfig
+                    ? (customFormConfig.formTitle || "Book Services")
+                    : (currentBiz.category.includes("Hotel Point")
+                        ? "Book a Room"
+                        : currentBiz.category.includes("Health Care Point") ||
+                            currentBiz.category.includes("Doctor Point")
+                          ? "Book an Appointment"
+                          : "Book a Table")}
                 </h3>
                 <p className="text-xs text-muted-foreground mb-4">
-                  {currentBiz.category.includes("Hotel Point") 
-                    ? "Reserve your room stay at " 
-                    : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point") ? "Schedule your consultation at " : "Reserve your table at ")}
+                  {customFormConfig
+                    ? (customFormConfig.formDescription || "Fill in the details to book our services at ")
+                    : (currentBiz.category.includes("Hotel Point")
+                        ? "Reserve your room stay at "
+                        : currentBiz.category.includes("Health Care Point") ||
+                            currentBiz.category.includes("Doctor Point")
+                          ? "Schedule your consultation at "
+                          : "Reserve your table at ")}
                   <span className="font-bold text-primary">{currentBiz.name}</span>
                 </p>
 
                 <div className="space-y-4">
-                  <div>
-                    <label htmlFor="bookingName" className="block text-xs font-bold text-foreground/80 mb-1.5">Contact Name*</label>
-                    <input
-                      id="bookingName"
-                      type="text"
-                      required
-                      value={bookingForm.name}
-                      onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { name: e.target.value } })}
-                      placeholder="Enter booking name"
-                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="bookingPhone" className="block text-xs font-bold text-foreground/80 mb-1.5">Phone Number*</label>
-                    <input
-                      id="bookingPhone"
-                      type="tel"
-                      required
-                      value={bookingForm.phone}
-                      onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { phone: e.target.value } })}
-                      placeholder="Enter mobile number"
-                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="bookingDate" className="block text-xs font-bold text-foreground/80 mb-1.5">
-                        {currentBiz.category.includes("Hotel Point") 
-                          ? "Check-in Date*" 
-                          : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point") ? "Appointment Date*" : "Preferred Date*")}
-                      </label>
-                      <input
-                        id="bookingDate"
-                        type="date"
-                        required
-                        value={bookingForm.date}
-                        onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { date: e.target.value } })}
-                        className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="bookingGuests" className="block text-xs font-bold text-foreground/80 mb-1.5">
-                        {currentBiz.category.includes("Hotel Point") 
-                          ? "Room Standard Preferred*" 
-                          : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point") ? "Patient Age*" : "No. of Guests*")}
-                      </label>
-                      {currentBiz.category.includes("Hotel Point") ? (
-                        <select
-                          id="bookingGuests"
-                          value={bookingForm.guests}
-                          onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { guests: e.target.value } })}
-                          className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent animate-none"
+                  {customFormConfig ? (
+                    customFormConfig.fields.map((f: any) => (
+                      <div key={f.id} className="text-left">
+                        <label className="block text-xs font-bold text-foreground/80 mb-1.5">
+                          {f.label} {f.required && <span className="text-rose-500">*</span>}
+                        </label>
+                        {f.type === "textarea" ? (
+                          <textarea
+                            required={f.required}
+                            placeholder={f.placeholder}
+                            value={customFormValues[f.label] || ""}
+                            onChange={(e) => setCustomFormValues((prev) => ({ ...prev, [f.label]: e.target.value }))}
+                            rows={3}
+                            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent resize-none"
+                          />
+                        ) : f.type === "select" ? (
+                          f.selectMode === "multiple" ? (
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setOpenCustomDropdowns((prev) => ({ ...prev, [f.label]: !prev[f.label] }))}
+                                className="w-full bg-background text-xs px-3.5 py-2.5 rounded-xl border border-border outline-none flex items-center justify-between text-foreground cursor-pointer"
+                              >
+                                <span className="truncate">
+                                  {(!customFormValues[f.label] || customFormValues[f.label].length === 0)
+                                    ? f.placeholder || "Select options..."
+                                    : customFormValues[f.label].join(", ")}
+                                </span>
+                                {openCustomDropdowns[f.label] ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                              </button>
+                              {openCustomDropdowns[f.label] && (
+                                <div className="absolute z-55 left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg max-h-40 overflow-y-auto p-2 space-y-1">
+                                  {f.options.map((opt: string) => {
+                                    const currentList: string[] = customFormValues[f.label] || [];
+                                    const checked = currentList.includes(opt);
+                                    return (
+                                      <label key={opt} className="flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-secondary cursor-pointer transition text-xs text-foreground">
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={() => {
+                                            const nextList = checked
+                                              ? currentList.filter((x) => x !== opt)
+                                              : [...currentList, opt];
+                                            setCustomFormValues((prev) => ({ ...prev, [f.label]: nextList }));
+                                          }}
+                                          className="accent-primary h-4 w-4"
+                                        />
+                                        <span>{opt}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <select
+                              required={f.required}
+                              value={customFormValues[f.label] || ""}
+                              onChange={(e) => setCustomFormValues((prev) => ({ ...prev, [f.label]: e.target.value }))}
+                              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                            >
+                              <option value="">Select option</option>
+                              {f.options.map((opt: string) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          )
+                        ) : f.type === "checkbox" ? (
+                          f.checkboxMode === "multiple" ? (
+                            <div className="space-y-2 border border-border bg-background rounded-xl p-3">
+                              {f.options.map((opt: string) => {
+                                const currentList: string[] = customFormValues[f.label] || [];
+                                const checked = currentList.includes(opt);
+                                return (
+                                  <label key={opt} className="flex items-center gap-2 cursor-pointer text-xs">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => {
+                                        const nextList = checked
+                                          ? currentList.filter((x) => x !== opt)
+                                          : [...currentList, opt];
+                                        setCustomFormValues((prev) => ({ ...prev, [f.label]: nextList }));
+                                      }}
+                                      className="accent-primary h-4 w-4"
+                                    />
+                                    <span>{opt}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <label className="flex items-center gap-2 cursor-pointer text-xs py-1">
+                              <input
+                                type="checkbox"
+                                checked={!!customFormValues[f.label]}
+                                onChange={(e) => setCustomFormValues((prev) => ({ ...prev, [f.label]: e.target.checked }))}
+                                className="accent-primary h-4 w-4"
+                              />
+                              <span>{f.placeholder || f.label}</span>
+                            </label>
+                          )
+                        ) : (
+                          <input
+                            type={f.type === "phone" ? "tel" : f.type === "number" ? "number" : f.type}
+                            required={f.required}
+                            placeholder={f.placeholder}
+                            value={customFormValues[f.label] || ""}
+                            onChange={(e) => setCustomFormValues((prev) => ({ ...prev, [f.label]: e.target.value }))}
+                            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                          />
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <>
+                      <div>
+                        <label
+                          htmlFor="bookingName"
+                          className="block text-xs font-bold text-foreground/80 mb-1.5"
                         >
-                          <option value="Deluxe AC Room (₹1,999/night)">Deluxe AC Room (₹1,999/night)</option>
-                          <option value="Super Deluxe Room (Balcony) (₹2,999/night)">Super Deluxe Room (Balcony) (₹2,999/night)</option>
-                          <option value="Luxury Family Suite (₹4,499/night)">Luxury Family Suite (₹4,499/night)</option>
-                        </select>
-                      ) : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point") ? (
+                          Contact Name*
+                        </label>
                         <input
-                          id="bookingGuests"
-                          type="number"
+                          id="bookingName"
+                          type="text"
                           required
-                          min="1"
-                          placeholder="e.g. 28"
-                          value={bookingForm.guests}
-                          onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { guests: e.target.value } })}
+                          value={bookingForm.name}
+                          onChange={(e) =>
+                            dispatchBooking({ type: "UPDATE_FORM", fields: { name: e.target.value } })
+                          }
+                          placeholder="Enter booking name"
                           className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                         />
-                      ) : (
-                        <select
-                          id="bookingGuests"
-                          value={bookingForm.guests}
-                          onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { guests: e.target.value } })}
-                          className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent animate-none"
-                        >
-                          <option value="1">1 Person</option>
-                          <option value="2">2 Persons</option>
-                          <option value="4">4 Persons</option>
-                          <option value="6">6 Persons</option>
-                          <option value="8">8 Persons</option>
-                          <option value="10+">10+ Persons</option>
-                        </select>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
 
-                  <div>
-                    <label htmlFor="bookingTime" className="block text-xs font-bold text-foreground/80 mb-1.5">
-                      {currentBiz.category.includes("Hotel Point") 
-                        ? "Stay Check-out Date*" 
-                        : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point") ? "Appointment Slot*" : "Time Slot*")}
-                    </label>
-                    {currentBiz.category.includes("Hotel Point") ? (
-                      <input
-                        id="bookingTime"
-                        type="date"
-                        required
-                        value={bookingForm.time}
-                        onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { time: e.target.value } })}
-                        className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
-                      />
-                    ) : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point")) ? (
-                      <select
-                        id="bookingTime"
-                        value={bookingForm.time}
-                        onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { time: e.target.value } })}
-                        className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
-                      >
-                        <option value="Morning Slot Consultation (09:00 AM - 01:00 PM) (Fee: ₹300)">Morning Slot (09:00 AM - 01:00 PM) (Fee: ₹300)</option>
-                        <option value="Evening Slot Consultation (05:00 PM - 08:30 PM) (Fee: ₹400)">Evening Slot (05:00 PM - 08:30 PM) (Fee: ₹400)</option>
-                        <option value="Priority / Emergency Walk-in Slot (Fee: ₹800)">Priority / Emergency Slot (Fee: ₹800)</option>
-                      </select>
-                    ) : (
-                      <select
-                        id="bookingTime"
-                        value={bookingForm.time}
-                        onChange={(e) => dispatchBooking({ type: "UPDATE_FORM", fields: { time: e.target.value } })}
-                        className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
-                      >
-                        <option value="Lunch (12:00 PM - 03:00 PM)">Lunch (12:00 PM - 03:00 PM)</option>
-                        <option value="High Tea (04:00 PM - 06:00 PM)">High Tea (04:00 PM - 06:00 PM)</option>
-                        <option value="Dinner (07:00 PM - 11:00 PM)">Dinner (07:00 PM - 11:00 PM)</option>
-                      </select>
-                    )}
-                  </div>
+                      <div>
+                        <label
+                          htmlFor="bookingPhone"
+                          className="block text-xs font-bold text-foreground/80 mb-1.5"
+                        >
+                          Phone Number*
+                        </label>
+                        <input
+                          id="bookingPhone"
+                          type="tel"
+                          required
+                          value={bookingForm.phone}
+                          onChange={(e) =>
+                            dispatchBooking({ type: "UPDATE_FORM", fields: { phone: e.target.value } })
+                          }
+                          placeholder="Enter mobile number"
+                          className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label
+                            htmlFor="bookingDate"
+                            className="block text-xs font-bold text-foreground/80 mb-1.5"
+                          >
+                            {currentBiz.category.includes("Hotel Point")
+                              ? "Check-in Date*"
+                              : currentBiz.category.includes("Health Care Point") ||
+                                  currentBiz.category.includes("Doctor Point")
+                                ? "Appointment Date*"
+                                : "Preferred Date*"}
+                          </label>
+                          <input
+                            id="bookingDate"
+                            type="date"
+                            required
+                            value={bookingForm.date}
+                            onChange={(e) =>
+                              dispatchBooking({ type: "UPDATE_FORM", fields: { date: e.target.value } })
+                            }
+                            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor="bookingGuests"
+                            className="block text-xs font-bold text-foreground/80 mb-1.5"
+                          >
+                            {currentBiz.category.includes("Hotel Point")
+                              ? "Room Standard Preferred*"
+                              : currentBiz.category.includes("Health Care Point") ||
+                                  currentBiz.category.includes("Doctor Point")
+                                ? "Patient Age*"
+                                : "No. of Guests*"}
+                          </label>
+                          {currentBiz.category.includes("Hotel Point") ? (
+                            <select
+                              id="bookingGuests"
+                              value={bookingForm.guests}
+                              onChange={(e) =>
+                                dispatchBooking({
+                                  type: "UPDATE_FORM",
+                                  fields: { guests: e.target.value },
+                                })
+                              }
+                              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent animate-none"
+                            >
+                              <option value="Deluxe AC Room (₹1,999/night)">
+                                Deluxe AC Room (₹1,999/night)
+                              </option>
+                              <option value="Super Deluxe Room (Balcony) (₹2,999/night)">
+                                Super Deluxe Room (Balcony) (₹2,999/night)
+                              </option>
+                              <option value="Luxury Family Suite (₹4,499/night)">
+                                Luxury Family Suite (₹4,499/night)
+                              </option>
+                            </select>
+                          ) : currentBiz.category.includes("Health Care Point") ||
+                            currentBiz.category.includes("Doctor Point") ? (
+                            <input
+                              id="bookingGuests"
+                              type="number"
+                              required
+                              min="1"
+                              placeholder="e.g. 28"
+                              value={bookingForm.guests}
+                              onChange={(e) =>
+                                dispatchBooking({
+                                  type: "UPDATE_FORM",
+                                  fields: { guests: e.target.value },
+                                })
+                              }
+                              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                            />
+                          ) : (
+                            <select
+                              id="bookingGuests"
+                              value={bookingForm.guests}
+                              onChange={(e) =>
+                                dispatchBooking({
+                                  type: "UPDATE_FORM",
+                                  fields: { guests: e.target.value },
+                                })
+                              }
+                              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent animate-none"
+                            >
+                              <option value="1">1 Person</option>
+                              <option value="2">2 Persons</option>
+                              <option value="4">4 Persons</option>
+                              <option value="6">6 Persons</option>
+                              <option value="8">8 Persons</option>
+                              <option value="10+">10+ Persons</option>
+                            </select>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="bookingTime"
+                          className="block text-xs font-bold text-foreground/80 mb-1.5"
+                        >
+                          {currentBiz.category.includes("Hotel Point")
+                            ? "Stay Check-out Date*"
+                            : currentBiz.category.includes("Health Care Point") ||
+                                currentBiz.category.includes("Doctor Point")
+                              ? "Appointment Slot*"
+                              : "Time Slot*"}
+                        </label>
+                        {currentBiz.category.includes("Hotel Point") ? (
+                          <input
+                            id="bookingTime"
+                            type="date"
+                            required
+                            value={bookingForm.time}
+                            onChange={(e) =>
+                              dispatchBooking({ type: "UPDATE_FORM", fields: { time: e.target.value } })
+                            }
+                            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                          />
+                        ) : currentBiz.category.includes("Health Care Point") ||
+                          currentBiz.category.includes("Doctor Point") ? (
+                          <select
+                            id="bookingTime"
+                            value={bookingForm.time}
+                            onChange={(e) =>
+                              dispatchBooking({ type: "UPDATE_FORM", fields: { time: e.target.value } })
+                            }
+                            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                          >
+                            <option value="Morning Slot Consultation (09:00 AM - 01:00 PM) (Fee: ₹300)">
+                              Morning Slot (09:00 AM - 01:00 PM) (Fee: ₹300)
+                            </option>
+                            <option value="Evening Slot Consultation (05:00 PM - 08:30 PM) (Fee: ₹400)">
+                              Evening Slot (05:00 PM - 08:30 PM) (Fee: ₹400)
+                            </option>
+                            <option value="Priority / Emergency Walk-in Slot (Fee: ₹800)">
+                              Priority / Emergency Slot (Fee: ₹800)
+                            </option>
+                          </select>
+                        ) : (
+                          <select
+                            id="bookingTime"
+                            value={bookingForm.time}
+                            onChange={(e) =>
+                              dispatchBooking({ type: "UPDATE_FORM", fields: { time: e.target.value } })
+                            }
+                            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                          >
+                            <option value="Lunch (12:00 PM - 03:00 PM)">
+                              Lunch (12:00 PM - 03:00 PM)
+                            </option>
+                            <option value="High Tea (04:00 PM - 06:00 PM)">
+                              High Tea (04:00 PM - 06:00 PM)
+                            </option>
+                            <option value="Dinner (07:00 PM - 11:00 PM)">
+                              Dinner (07:00 PM - 11:00 PM)
+                            </option>
+                          </select>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <button
@@ -1130,15 +1993,23 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     <ShieldCheck className="h-4.5 w-4.5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-serif text-lg font-bold text-foreground">Secure Payment Gateway</h3>
-                    <p className="text-[10px] text-muted-foreground">Transactions are encrypted securely</p>
+                    <h3 className="font-serif text-lg font-bold text-foreground">
+                      Secure Payment Gateway
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground">
+                      Transactions are encrypted securely
+                    </p>
                   </div>
                 </div>
 
                 <div className="bg-secondary/45 rounded-xl border border-border/80 p-3.5 flex justify-between items-center">
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Booking Deposit Amount</span>
-                    <span className="text-[11px] font-semibold text-foreground/80 mt-0.5">{currentBiz.name}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                      Booking Deposit Amount
+                    </span>
+                    <span className="text-[11px] font-semibold text-foreground/80 mt-0.5">
+                      {currentBiz.name}
+                    </span>
                   </div>
                   <span className="text-2xl font-black text-foreground">₹{getBookingPrice()}</span>
                 </div>
@@ -1146,13 +2017,19 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                 {paymentProcessing ? (
                   <div className="py-8 flex flex-col items-center justify-center text-center gap-3">
                     <div className="h-10 w-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-xs font-bold text-foreground mt-2">Processing Payment Securely...</span>
-                    <p className="text-[10px] text-muted-foreground max-w-[200px] leading-relaxed mx-auto">Do not reload the page or close this modal</p>
+                    <span className="text-xs font-bold text-foreground mt-2">
+                      Processing Payment Securely...
+                    </span>
+                    <p className="text-[10px] text-muted-foreground max-w-[200px] leading-relaxed mx-auto">
+                      Do not reload the page or close this modal
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <span className="block text-[10px] font-bold text-muted-foreground uppercase mb-2">Select Payment Method</span>
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase mb-2">
+                        Select Payment Method
+                      </span>
                       <div className="grid grid-cols-3 gap-2">
                         <button
                           type="button"
@@ -1170,7 +2047,9 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                         </button>
                         <button
                           type="button"
-                          onClick={() => dispatchPayment({ type: "SET_METHOD", method: "netbanking" })}
+                          onClick={() =>
+                            dispatchPayment({ type: "SET_METHOD", method: "netbanking" })
+                          }
                           className={`py-2 text-[10.5px] font-bold border rounded-xl cursor-pointer ${paymentMethod === "netbanking" ? "bg-primary border-primary text-primary-foreground" : "bg-background border-border text-foreground hover:bg-secondary"}`}
                         >
                           Net Banking
@@ -1181,19 +2060,32 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     {paymentMethod === "upi" && (
                       <div className="space-y-3">
                         <div>
-                          <label htmlFor="bookingUpiId" className="block text-xs font-bold text-foreground/80 mb-1.5">Enter UPI ID</label>
+                          <label
+                            htmlFor="bookingUpiId"
+                            className="block text-xs font-bold text-foreground/80 mb-1.5"
+                          >
+                            Enter UPI ID
+                          </label>
                           <input
                             id="bookingUpiId"
                             type="text"
                             placeholder="username@okaxis, user@upi..."
                             required
                             value={upiId}
-                            onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "upiId", value: e.target.value })}
+                            onChange={(e) =>
+                              dispatchPayment({
+                                type: "SET_FIELD",
+                                field: "upiId",
+                                value: e.target.value,
+                              })
+                            }
                             className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                           />
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/20 p-2.5 rounded-xl border border-border/30">
-                          <span className="text-[10px] font-semibold leading-relaxed">Or scan any UPI QR code in your payment app to complete purchase.</span>
+                          <span className="text-[10px] font-semibold leading-relaxed">
+                            Or scan any UPI QR code in your payment app to complete purchase.
+                          </span>
                         </div>
                       </div>
                     )}
@@ -1201,7 +2093,12 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     {paymentMethod === "card" && (
                       <div className="space-y-3 animate-fade-in">
                         <div>
-                          <label htmlFor="bookingCardNumber" className="block text-xs font-bold text-foreground/80 mb-1.5">Card Number</label>
+                          <label
+                            htmlFor="bookingCardNumber"
+                            className="block text-xs font-bold text-foreground/80 mb-1.5"
+                          >
+                            Card Number
+                          </label>
                           <input
                             id="bookingCardNumber"
                             type="text"
@@ -1209,13 +2106,27 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                             placeholder="4111 2222 3333 4444"
                             required
                             value={cardNumber}
-                            onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "cardNumber", value: e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim() })}
+                            onChange={(e) =>
+                              dispatchPayment({
+                                type: "SET_FIELD",
+                                field: "cardNumber",
+                                value: e.target.value
+                                  .replace(/\s?/g, "")
+                                  .replace(/(\d{4})/g, "$1 ")
+                                  .trim(),
+                              })
+                            }
                             className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label htmlFor="bookingCardExpiry" className="block text-xs font-bold text-foreground/80 mb-1.5">Expiry Date</label>
+                            <label
+                              htmlFor="bookingCardExpiry"
+                              className="block text-xs font-bold text-foreground/80 mb-1.5"
+                            >
+                              Expiry Date
+                            </label>
                             <input
                               id="bookingCardExpiry"
                               type="text"
@@ -1223,12 +2134,23 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                               placeholder="MM/YY"
                               required
                               value={cardExpiry}
-                              onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "cardExpiry", value: e.target.value })}
+                              onChange={(e) =>
+                                dispatchPayment({
+                                  type: "SET_FIELD",
+                                  field: "cardExpiry",
+                                  value: e.target.value,
+                                })
+                              }
                               className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                             />
                           </div>
                           <div>
-                            <label htmlFor="bookingCardCvv" className="block text-xs font-bold text-foreground/80 mb-1.5">CVV Code</label>
+                            <label
+                              htmlFor="bookingCardCvv"
+                              className="block text-xs font-bold text-foreground/80 mb-1.5"
+                            >
+                              CVV Code
+                            </label>
                             <input
                               id="bookingCardCvv"
                               type="password"
@@ -1236,7 +2158,13 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                               placeholder="***"
                               required
                               value={cardCvv}
-                              onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "cardCvv", value: e.target.value })}
+                              onChange={(e) =>
+                                dispatchPayment({
+                                  type: "SET_FIELD",
+                                  field: "cardCvv",
+                                  value: e.target.value,
+                                })
+                              }
                               className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                             />
                           </div>
@@ -1247,8 +2175,16 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     {paymentMethod === "netbanking" && (
                       <div className="space-y-3">
                         <div>
-                          <label htmlFor="bookingBank" className="block text-xs font-bold text-foreground/80 mb-1.5">Select Bank</label>
-                          <select id="bookingBank" className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent">
+                          <label
+                            htmlFor="bookingBank"
+                            className="block text-xs font-bold text-foreground/80 mb-1.5"
+                          >
+                            Select Bank
+                          </label>
+                          <select
+                            id="bookingBank"
+                            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                          >
                             <option>State Bank of India (SBI)</option>
                             <option>HDFC Bank</option>
                             <option>ICICI Bank</option>
@@ -1274,6 +2210,55 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                           dispatchPayment({ type: "SET_PROCESSING", value: false });
                           dispatchBooking({ type: "SET_STEP", step: "success" });
                           dispatchBooking({ type: "SET_SUBMITTED", value: true });
+
+                          // Save submission to localStorage
+                          const submissionKey = `fmp_service_submissions:${currentBiz.id}`;
+                          const existingSubmissions = JSON.parse(localStorage.getItem(submissionKey) || "[]");
+
+                          let dataToSave: Record<string, any> = {};
+                          if (customFormConfig) {
+                            dataToSave = { ...customFormValues };
+                          } else {
+                            dataToSave = {
+                              "Full Name": bookingForm.name,
+                              "Phone Number": bookingForm.phone,
+                              "Date": bookingForm.date,
+                              "Guests/Room/Age": bookingForm.guests,
+                              "Time/Check-out/Slot": bookingForm.time,
+                            };
+                          }
+
+                          const newSub = {
+                            id: `sub-${Date.now()}`,
+                            timestamp: formatDateTimeDMY(new Date()),
+                            data: dataToSave
+                          };
+
+                          localStorage.setItem(submissionKey, JSON.stringify([newSub, ...existingSubmissions]));
+
+                          // Save transaction to localStorage
+                          const paymentsKey = `fmp_service_payments:${currentBiz.id}`;
+                          const existingPayments = JSON.parse(localStorage.getItem(paymentsKey) || "[]");
+                          const amount = getBookingPrice();
+                          const customerName = customFormValues["Full Name"] || customFormValues["Your Name"] || bookingForm.name || username || "Guest";
+                          const details = currentBiz.category.includes("Hotel Point")
+                            ? "Room Stay Reservation Deposit"
+                            : currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point")
+                              ? "Appointment Consultation Fee"
+                              : "Table Booking Deposit";
+
+                          const newPayment = {
+                            id: `txn-${Date.now()}`,
+                            bookingId: newSub.id,
+                            timestamp: newSub.timestamp,
+                            customerName,
+                            amount,
+                            paymentMethod: paymentMethod || "upi",
+                            status: "Completed",
+                            details
+                          };
+
+                          localStorage.setItem(paymentsKey, JSON.stringify([newPayment, ...existingPayments]));
                         }, 2000);
                       }}
                       className="w-full mt-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md text-center"
@@ -1291,18 +2276,34 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                   <Check className="h-6 w-6 stroke-[3px]" />
                 </div>
                 <h3 className="font-serif text-lg font-bold text-foreground mb-1">
-                  {currentBiz.category.includes("Hotel Point") 
-                    ? "Room Stay Reserved!" 
-                    : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point") ? "Appointment Confirmed!" : "Table Reserved!")}
+                  {currentBiz.category.includes("Hotel Point")
+                    ? "Room Stay Reserved!"
+                    : currentBiz.category.includes("Health Care Point") ||
+                        currentBiz.category.includes("Doctor Point")
+                      ? "Appointment Confirmed!"
+                      : "Table Reserved!"}
                 </h3>
                 <p className="text-xs text-muted-foreground max-w-xs mx-auto">
                   {currentBiz.category.includes("Hotel Point") ? (
-                    <span>Your room stay reservation at <span className="font-semibold text-primary">{currentBiz.name}</span> ({bookingForm.guests}) for check-in on {bookingForm.date} is confirmed!</span>
-                  ) : (currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point") ? (
-                    <span>Your consultation appointment at <span className="font-semibold text-primary">{currentBiz.name}</span> on {bookingForm.date} has been scheduled!</span>
+                    <span>
+                      Your room stay reservation at{" "}
+                      <span className="font-semibold text-primary">{currentBiz.name}</span> (
+                      {bookingForm.guests}) for check-in on {bookingForm.date} is confirmed!
+                    </span>
+                  ) : currentBiz.category.includes("Health Care Point") ||
+                    currentBiz.category.includes("Doctor Point") ? (
+                    <span>
+                      Your consultation appointment at{" "}
+                      <span className="font-semibold text-primary">{currentBiz.name}</span> on{" "}
+                      {bookingForm.date} has been scheduled!
+                    </span>
                   ) : (
-                    <span>Your table reservation at <span className="font-semibold text-primary">{currentBiz.name}</span> for {bookingForm.guests} guests on {bookingForm.date} is confirmed!</span>
-                  ))}
+                    <span>
+                      Your table reservation at{" "}
+                      <span className="font-semibold text-primary">{currentBiz.name}</span> for{" "}
+                      {bookingForm.guests} guests on {bookingForm.date} is confirmed!
+                    </span>
+                  )}
                 </p>
               </div>
             )}
@@ -1322,31 +2323,57 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
             </button>
 
             {checkoutStep === "form" && (
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                if (!checkoutForm.name || !checkoutForm.phone) {
-                  alert("Please fill in your Name and Phone Number.");
-                  return;
-                }
-                dispatchCheckout({ type: "SET_STEP", step: "payment" });
-              }}>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (customFormConfig) {
+                    let valid = true;
+                    customFormConfig.fields.forEach((f: any) => {
+                      if (f.required) {
+                        const val = customFormValues[f.label];
+                        if (val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0) || val === false) {
+                          valid = false;
+                        }
+                      }
+                    });
+                    if (!valid) {
+                      alert("Please fill in all required fields.");
+                      return;
+                    }
+                  } else {
+                    if (!checkoutForm.name || !checkoutForm.phone) {
+                      alert("Please fill in your Name and Phone Number.");
+                      return;
+                    }
+                  }
+                  dispatchCheckout({ type: "SET_STEP", step: "payment" });
+                }}
+              >
                 <h3 className="font-serif text-xl font-bold text-foreground mb-1">
                   Checkout & Place Order
                 </h3>
                 <p className="text-xs text-muted-foreground mb-4">
-                  Completing order with <span className="font-bold text-primary">{currentBiz.name}</span>
+                  Completing order with{" "}
+                  <span className="font-bold text-primary">{currentBiz.name}</span>
                 </p>
 
                 {/* Items summary */}
                 <div className="bg-secondary/45 rounded-xl border border-border/80 p-3 mb-4 space-y-2">
-                  <span className="text-[10px] font-black uppercase text-muted-foreground tracking-wider block">Order Details</span>
+                  <span className="text-[10px] font-black uppercase text-muted-foreground tracking-wider block">
+                    Order Details
+                  </span>
                   {Object.entries(cart).map(([name, qty]) => {
-                    const item = currentBiz.products.find(p => p.name === name);
+                    const item = currentBiz.products.find((p) => p.name === name);
                     if (!item) return null;
                     const priceNum = parseInt(item.price.replace(/[^0-9]/g, "")) || 0;
                     return (
-                      <div key={name} className="flex justify-between items-center text-xs text-foreground/90 font-medium">
-                        <span>{name} <span className="text-muted-foreground font-semibold">x{qty}</span></span>
+                      <div
+                        key={name}
+                        className="flex justify-between items-center text-xs text-foreground/90 font-medium"
+                      >
+                        <span>
+                          {name} <span className="text-muted-foreground font-semibold">x{qty}</span>
+                        </span>
                         <span>₹{priceNum * qty}</span>
                       </div>
                     );
@@ -1358,56 +2385,206 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                 </div>
 
                 <div className="space-y-4">
-                  <div>
-                    <label htmlFor="checkoutName" className="block text-xs font-bold text-foreground/80 mb-1.5">Your Name*</label>
-                    <input
-                      id="checkoutName"
-                      type="text"
-                      required
-                      value={checkoutForm.name}
-                      onChange={(e) => dispatchCheckout({ type: "UPDATE_FORM", fields: { name: e.target.value } })}
-                      placeholder="Enter customer name"
-                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
-                    />
-                  </div>
+                  {customFormConfig ? (
+                    customFormConfig.fields.map((f: any) => (
+                      <div key={f.id} className="text-left">
+                        <label className="block text-xs font-bold text-foreground/80 mb-1.5">
+                          {f.label} {f.required && <span className="text-rose-500">*</span>}
+                        </label>
+                        {f.type === "textarea" ? (
+                          <textarea
+                            required={f.required}
+                            placeholder={f.placeholder}
+                            value={customFormValues[f.label] || ""}
+                            onChange={(e) => setCustomFormValues((prev) => ({ ...prev, [f.label]: e.target.value }))}
+                            rows={3}
+                            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent resize-none"
+                          />
+                        ) : f.type === "select" ? (
+                          f.selectMode === "multiple" ? (
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setOpenCustomDropdowns((prev) => ({ ...prev, [f.label]: !prev[f.label] }))}
+                                className="w-full bg-background text-xs px-3.5 py-2.5 rounded-xl border border-border outline-none flex items-center justify-between text-foreground cursor-pointer"
+                              >
+                                <span className="truncate">
+                                  {(!customFormValues[f.label] || customFormValues[f.label].length === 0)
+                                    ? f.placeholder || "Select options..."
+                                    : customFormValues[f.label].join(", ")}
+                                </span>
+                                {openCustomDropdowns[f.label] ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                              </button>
+                              {openCustomDropdowns[f.label] && (
+                                <div className="absolute z-55 left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg max-h-40 overflow-y-auto p-2 space-y-1">
+                                  {f.options.map((opt: string) => {
+                                    const currentList: string[] = customFormValues[f.label] || [];
+                                    const checked = currentList.includes(opt);
+                                    return (
+                                      <label key={opt} className="flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-secondary cursor-pointer transition text-xs text-foreground">
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={() => {
+                                            const nextList = checked
+                                              ? currentList.filter((x) => x !== opt)
+                                              : [...currentList, opt];
+                                            setCustomFormValues((prev) => ({ ...prev, [f.label]: nextList }));
+                                          }}
+                                          className="accent-primary h-4 w-4"
+                                        />
+                                        <span>{opt}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <select
+                              required={f.required}
+                              value={customFormValues[f.label] || ""}
+                              onChange={(e) => setCustomFormValues((prev) => ({ ...prev, [f.label]: e.target.value }))}
+                              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                            >
+                              <option value="">Select option</option>
+                              {f.options.map((opt: string) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          )
+                        ) : f.type === "checkbox" ? (
+                          f.checkboxMode === "multiple" ? (
+                            <div className="space-y-2 border border-border bg-background rounded-xl p-3">
+                              {f.options.map((opt: string) => {
+                                const currentList: string[] = customFormValues[f.label] || [];
+                                const checked = currentList.includes(opt);
+                                return (
+                                  <label key={opt} className="flex items-center gap-2 cursor-pointer text-xs">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => {
+                                        const nextList = checked
+                                          ? currentList.filter((x) => x !== opt)
+                                          : [...currentList, opt];
+                                        setCustomFormValues((prev) => ({ ...prev, [f.label]: nextList }));
+                                      }}
+                                      className="accent-primary h-4 w-4"
+                                    />
+                                    <span>{opt}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <label className="flex items-center gap-2 cursor-pointer text-xs py-1">
+                              <input
+                                type="checkbox"
+                                checked={!!customFormValues[f.label]}
+                                onChange={(e) => setCustomFormValues((prev) => ({ ...prev, [f.label]: e.target.checked }))}
+                                className="accent-primary h-4 w-4"
+                              />
+                              <span>{f.placeholder || f.label}</span>
+                            </label>
+                          )
+                        ) : (
+                          <input
+                            type={f.type === "phone" ? "tel" : f.type === "number" ? "number" : f.type}
+                            required={f.required}
+                            placeholder={f.placeholder}
+                            value={customFormValues[f.label] || ""}
+                            onChange={(e) => setCustomFormValues((prev) => ({ ...prev, [f.label]: e.target.value }))}
+                            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                          />
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <>
+                      <div>
+                        <label
+                          htmlFor="checkoutName"
+                          className="block text-xs font-bold text-foreground/80 mb-1.5"
+                        >
+                          Your Name*
+                        </label>
+                        <input
+                          id="checkoutName"
+                          type="text"
+                          required
+                          value={checkoutForm.name}
+                          onChange={(e) =>
+                            dispatchCheckout({ type: "UPDATE_FORM", fields: { name: e.target.value } })
+                          }
+                          placeholder="Enter customer name"
+                          className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                        />
+                      </div>
 
-                  <div>
-                    <label htmlFor="checkoutPhone" className="block text-xs font-bold text-foreground/80 mb-1.5">Phone Number*</label>
-                    <input
-                      id="checkoutPhone"
-                      type="tel"
-                      required
-                      value={checkoutForm.phone}
-                      onChange={(e) => dispatchCheckout({ type: "UPDATE_FORM", fields: { phone: e.target.value } })}
-                      placeholder="Enter mobile number"
-                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
-                    />
-                  </div>
+                      <div>
+                        <label
+                          htmlFor="checkoutPhone"
+                          className="block text-xs font-bold text-foreground/80 mb-1.5"
+                        >
+                          Phone Number*
+                        </label>
+                        <input
+                          id="checkoutPhone"
+                          type="tel"
+                          required
+                          value={checkoutForm.phone}
+                          onChange={(e) =>
+                            dispatchCheckout({ type: "UPDATE_FORM", fields: { phone: e.target.value } })
+                          }
+                          placeholder="Enter mobile number"
+                          className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                        />
+                      </div>
 
-                  <div>
-                    <label htmlFor="checkoutAddress" className="block text-xs font-bold text-foreground/80 mb-1.5">Delivery Address*</label>
-                    <textarea
-                      id="checkoutAddress"
-                      required
-                      rows={2}
-                      value={checkoutForm.address}
-                      onChange={(e) => dispatchCheckout({ type: "UPDATE_FORM", fields: { address: e.target.value } })}
-                      placeholder="Provide complete home/office address..."
-                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent resize-none"
-                    />
-                  </div>
+                      <div>
+                        <label
+                          htmlFor="checkoutAddress"
+                          className="block text-xs font-bold text-foreground/80 mb-1.5"
+                        >
+                          Delivery Address*
+                        </label>
+                        <textarea
+                          id="checkoutAddress"
+                          required
+                          rows={2}
+                          value={checkoutForm.address}
+                          onChange={(e) =>
+                            dispatchCheckout({
+                              type: "UPDATE_FORM",
+                              fields: { address: e.target.value },
+                            })
+                          }
+                          placeholder="Provide complete home/office address..."
+                          className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent resize-none"
+                        />
+                      </div>
 
-                  <div>
-                    <label htmlFor="checkoutNotes" className="block text-xs font-bold text-foreground/80 mb-1.5">Cooking Notes (Optional)</label>
-                    <input
-                      id="checkoutNotes"
-                      type="text"
-                      value={checkoutForm.notes}
-                      onChange={(e) => dispatchCheckout({ type: "UPDATE_FORM", fields: { notes: e.target.value } })}
-                      placeholder="e.g. Make it extra spicy, no onions..."
-                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
-                    />
-                  </div>
+                      <div>
+                        <label
+                          htmlFor="checkoutNotes"
+                          className="block text-xs font-bold text-foreground/80 mb-1.5"
+                        >
+                          Cooking Notes (Optional)
+                        </label>
+                        <input
+                          id="checkoutNotes"
+                          type="text"
+                          value={checkoutForm.notes}
+                          onChange={(e) =>
+                            dispatchCheckout({ type: "UPDATE_FORM", fields: { notes: e.target.value } })
+                          }
+                          placeholder="e.g. Make it extra spicy, no onions..."
+                          className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <button
@@ -1426,15 +2603,23 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     <ShieldCheck className="h-4.5 w-4.5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-serif text-lg font-bold text-foreground">Secure Payment Gateway</h3>
-                    <p className="text-[10px] text-muted-foreground">Transactions are encrypted securely</p>
+                    <h3 className="font-serif text-lg font-bold text-foreground">
+                      Secure Payment Gateway
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground">
+                      Transactions are encrypted securely
+                    </p>
                   </div>
                 </div>
 
                 <div className="bg-secondary/45 rounded-xl border border-border/80 p-3.5 flex justify-between items-center">
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Order Amount</span>
-                    <span className="text-[11px] font-semibold text-foreground/80 mt-0.5">{currentBiz.name}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                      Order Amount
+                    </span>
+                    <span className="text-[11px] font-semibold text-foreground/80 mt-0.5">
+                      {currentBiz.name}
+                    </span>
                   </div>
                   <span className="text-2xl font-black text-foreground">₹{totalCartPrice}</span>
                 </div>
@@ -1442,13 +2627,19 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                 {paymentProcessing ? (
                   <div className="py-8 flex flex-col items-center justify-center text-center gap-3">
                     <div className="h-10 w-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-xs font-bold text-foreground mt-2">Processing Payment Securely...</span>
-                    <p className="text-[10px] text-muted-foreground max-w-[200px] leading-relaxed mx-auto">Do not reload the page or close this modal</p>
+                    <span className="text-xs font-bold text-foreground mt-2">
+                      Processing Payment Securely...
+                    </span>
+                    <p className="text-[10px] text-muted-foreground max-w-[200px] leading-relaxed mx-auto">
+                      Do not reload the page or close this modal
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <span className="block text-[10px] font-bold text-muted-foreground uppercase mb-2">Select Payment Method</span>
+                      <span className="block text-[10px] font-bold text-muted-foreground uppercase mb-2">
+                        Select Payment Method
+                      </span>
                       <div className="grid grid-cols-3 gap-2">
                         <button
                           type="button"
@@ -1466,7 +2657,9 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                         </button>
                         <button
                           type="button"
-                          onClick={() => dispatchPayment({ type: "SET_METHOD", method: "netbanking" })}
+                          onClick={() =>
+                            dispatchPayment({ type: "SET_METHOD", method: "netbanking" })
+                          }
                           className={`py-2 text-[10.5px] font-bold border rounded-xl cursor-pointer ${paymentMethod === "netbanking" ? "bg-primary border-primary text-primary-foreground" : "bg-background border-border text-foreground hover:bg-secondary"}`}
                         >
                           Net Banking
@@ -1477,19 +2670,32 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     {paymentMethod === "upi" && (
                       <div className="space-y-3">
                         <div>
-                          <label htmlFor="checkoutUpiId" className="block text-xs font-bold text-foreground/80 mb-1.5">Enter UPI ID</label>
+                          <label
+                            htmlFor="checkoutUpiId"
+                            className="block text-xs font-bold text-foreground/80 mb-1.5"
+                          >
+                            Enter UPI ID
+                          </label>
                           <input
                             id="checkoutUpiId"
                             type="text"
                             placeholder="username@okaxis, user@upi..."
                             required
                             value={upiId}
-                            onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "upiId", value: e.target.value })}
+                            onChange={(e) =>
+                              dispatchPayment({
+                                type: "SET_FIELD",
+                                field: "upiId",
+                                value: e.target.value,
+                              })
+                            }
                             className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                           />
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/20 p-2.5 rounded-xl border border-border/30">
-                          <span className="text-[10px] font-semibold leading-relaxed">Or scan any UPI QR code in your payment app to complete purchase.</span>
+                          <span className="text-[10px] font-semibold leading-relaxed">
+                            Or scan any UPI QR code in your payment app to complete purchase.
+                          </span>
                         </div>
                       </div>
                     )}
@@ -1497,7 +2703,12 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     {paymentMethod === "card" && (
                       <div className="space-y-3 animate-fade-in">
                         <div>
-                          <label htmlFor="checkoutCardNumber" className="block text-xs font-bold text-foreground/80 mb-1.5">Card Number</label>
+                          <label
+                            htmlFor="checkoutCardNumber"
+                            className="block text-xs font-bold text-foreground/80 mb-1.5"
+                          >
+                            Card Number
+                          </label>
                           <input
                             id="checkoutCardNumber"
                             type="text"
@@ -1505,13 +2716,27 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                             placeholder="4111 2222 3333 4444"
                             required
                             value={cardNumber}
-                            onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "cardNumber", value: e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim() })}
+                            onChange={(e) =>
+                              dispatchPayment({
+                                type: "SET_FIELD",
+                                field: "cardNumber",
+                                value: e.target.value
+                                  .replace(/\s?/g, "")
+                                  .replace(/(\d{4})/g, "$1 ")
+                                  .trim(),
+                              })
+                            }
                             className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label htmlFor="checkoutCardExpiry" className="block text-xs font-bold text-foreground/80 mb-1.5">Expiry Date</label>
+                            <label
+                              htmlFor="checkoutCardExpiry"
+                              className="block text-xs font-bold text-foreground/80 mb-1.5"
+                            >
+                              Expiry Date
+                            </label>
                             <input
                               id="checkoutCardExpiry"
                               type="text"
@@ -1519,12 +2744,23 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                               placeholder="MM/YY"
                               required
                               value={cardExpiry}
-                              onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "cardExpiry", value: e.target.value })}
+                              onChange={(e) =>
+                                dispatchPayment({
+                                  type: "SET_FIELD",
+                                  field: "cardExpiry",
+                                  value: e.target.value,
+                                })
+                              }
                               className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                             />
                           </div>
                           <div>
-                            <label htmlFor="checkoutCardCvv" className="block text-xs font-bold text-foreground/80 mb-1.5">CVV Code</label>
+                            <label
+                              htmlFor="checkoutCardCvv"
+                              className="block text-xs font-bold text-foreground/80 mb-1.5"
+                            >
+                              CVV Code
+                            </label>
                             <input
                               id="checkoutCardCvv"
                               type="password"
@@ -1532,7 +2768,13 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                               placeholder="***"
                               required
                               value={cardCvv}
-                              onChange={(e) => dispatchPayment({ type: "SET_FIELD", field: "cardCvv", value: e.target.value })}
+                              onChange={(e) =>
+                                dispatchPayment({
+                                  type: "SET_FIELD",
+                                  field: "cardCvv",
+                                  value: e.target.value,
+                                })
+                              }
                               className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                             />
                           </div>
@@ -1543,8 +2785,16 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                     {paymentMethod === "netbanking" && (
                       <div className="space-y-3">
                         <div>
-                          <label htmlFor="checkoutBank" className="block text-xs font-bold text-foreground/80 mb-1.5">Select Bank</label>
-                          <select id="checkoutBank" className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent">
+                          <label
+                            htmlFor="checkoutBank"
+                            className="block text-xs font-bold text-foreground/80 mb-1.5"
+                          >
+                            Select Bank
+                          </label>
+                          <select
+                            id="checkoutBank"
+                            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                          >
                             <option>State Bank of India (SBI)</option>
                             <option>HDFC Bank</option>
                             <option>ICICI Bank</option>
@@ -1570,6 +2820,27 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                           dispatchPayment({ type: "SET_PROCESSING", value: false });
                           dispatchCheckout({ type: "SET_STEP", step: "success" });
                           dispatchCheckout({ type: "SET_SUBMITTED", value: true });
+
+                          // Save transaction to localStorage
+                          const paymentsKey = `fmp_service_payments:${currentBiz.id}`;
+                          const existingPayments = JSON.parse(localStorage.getItem(paymentsKey) || "[]");
+                          const amount = totalCartPrice;
+                          const customerName = customFormValues["Full Name"] || customFormValues["Your Name"] || checkoutForm.name || username || "Guest";
+                          const itemNames = Object.entries(cart).map(([name, qty]) => `${name} x${qty}`).join(", ");
+                          const details = itemNames ? `Product Order: ${itemNames}` : "Product Order Checkout";
+
+                          const newPayment = {
+                            id: `txn-${Date.now()}`,
+                            timestamp: formatDateTimeDMY(new Date()),
+                            customerName,
+                            amount,
+                            paymentMethod: paymentMethod || "upi",
+                            status: "Completed",
+                            details
+                          };
+
+                          localStorage.setItem(paymentsKey, JSON.stringify([newPayment, ...existingPayments]));
+
                           setCart({});
                         }, 2000);
                       }}
@@ -1591,7 +2862,12 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
                   Order Confirmed!
                 </h3>
                 <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                  Your order has been placed with <span className="font-semibold text-primary">{currentBiz.name}</span>. Order ID: <span className="font-bold text-foreground">#FMP-{Math.floor(1000 + Math.random() * 9000)}</span>. You will receive an SMS confirmation shortly.
+                  Your order has been placed with{" "}
+                  <span className="font-semibold text-primary">{currentBiz.name}</span>. Order ID:{" "}
+                  <span className="font-bold text-foreground">
+                    #FMP-{Math.floor(1000 + Math.random() * 9000)}
+                  </span>
+                  . You will receive an SMS confirmation shortly.
                 </p>
               </div>
             )}
@@ -1604,7 +2880,9 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
         <div className="fixed bottom-0 inset-x-0 bg-primary border-t border-border p-4 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] z-40 animate-fade-in-up">
           <div className="mx-auto max-w-5xl flex items-center justify-between gap-4 text-white">
             <div className="flex flex-col text-left">
-              <span className="text-xs font-semibold opacity-90">{totalCartItems} Item{totalCartItems > 1 ? 's' : ''} Selected</span>
+              <span className="text-xs font-semibold opacity-90">
+                {totalCartItems} Item{totalCartItems > 1 ? "s" : ""} Selected
+              </span>
               <span className="text-lg font-black leading-tight">Total: ₹{totalCartPrice}</span>
             </div>
             <button
@@ -1620,8 +2898,103 @@ export default function BusinessDetailPage({ businessId, onBack, onBusinessSelec
           </div>
         </div>
       )}
+      {/* Enquiry Modal Popup */}
+      {enquiryModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setUiState((prev) => ({ ...prev, enquiryModalOpen: false, enquirySubmitted: false }))}
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-fade-in-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setUiState((prev) => ({ ...prev, enquiryModalOpen: false, enquirySubmitted: false }))}
+              className="absolute right-4 top-4 text-muted-foreground hover:text-foreground cursor-pointer transition"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-5">
+              <h4 className="text-sm font-black text-foreground uppercase tracking-widest">Send Enquiry</h4>
+              <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+            </div>
+
+            {enquirySubmitted ? (
+              <div className="py-8 text-center flex flex-col items-center justify-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-emerald-50 text-emerald-500 border border-emerald-200 flex items-center justify-center">
+                  <CheckCircle className="h-6 w-6" />
+                </div>
+                <h5 className="text-sm font-black text-foreground mt-2">Enquiry Sent Successfully!</h5>
+                <p className="text-xs text-muted-foreground/80 font-semibold max-w-[220px] leading-relaxed mt-1">
+                  The business representative will get back to you on your provided contact details.
+                </p>
+                <button
+                  onClick={() => setUiState((prev) => ({ ...prev, enquiryModalOpen: false, enquirySubmitted: false }))}
+                  className="mt-2 text-xs font-bold text-primary underline cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={(e) => { handleEnquirySubmit(e); }} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1 text-left">
+                  <label htmlFor="modalEnquiryName" className="text-[10px] font-bold text-muted-foreground uppercase">Your Name</label>
+                  <input
+                    id="modalEnquiryName"
+                    type="text"
+                    placeholder="e.g. John Doe"
+                    value={enquiryForm.name}
+                    onChange={(e) => setEnquiryForm((prev) => ({ ...prev, name: e.target.value }))}
+                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-xs font-semibold outline-none focus:border-primary shadow-sm"
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1 text-left">
+                  <label htmlFor="modalEnquiryMobile" className="text-[10px] font-bold text-muted-foreground uppercase">Mobile Number</label>
+                  <input
+                    id="modalEnquiryMobile"
+                    type="tel"
+                    placeholder="10-digit number"
+                    value={enquiryForm.mobile}
+                    onChange={(e) => setEnquiryForm((prev) => ({ ...prev, mobile: e.target.value }))}
+                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-xs font-semibold outline-none focus:border-primary shadow-sm"
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1 text-left">
+                  <label htmlFor="modalEnquiryEmail" className="text-[10px] font-bold text-muted-foreground uppercase">Email Address (Optional)</label>
+                  <input
+                    id="modalEnquiryEmail"
+                    type="email"
+                    placeholder="name@example.com"
+                    value={enquiryForm.email}
+                    onChange={(e) => setEnquiryForm((prev) => ({ ...prev, email: e.target.value }))}
+                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-xs font-semibold outline-none focus:border-primary shadow-sm"
+                  />
+                </div>
+                <div className="flex flex-col gap-1 text-left">
+                  <label htmlFor="modalEnquiryMessage" className="text-[10px] font-bold text-muted-foreground uppercase">Message</label>
+                  <textarea
+                    id="modalEnquiryMessage"
+                    rows={3}
+                    value={enquiryForm.message}
+                    onChange={(e) => setEnquiryForm((prev) => ({ ...prev, message: e.target.value }))}
+                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-xs font-semibold outline-none focus:border-primary shadow-sm resize-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-primary hover:bg-primary/95 text-primary-foreground text-xs font-bold py-3 rounded-xl shadow-md transition cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Send className="h-3.5 w-3.5" /> Submit Enquiry
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-

@@ -1,7 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
-import { 
-  X, Heart, Bookmark, User, Receipt, Bell, 
-  Headphones, Shield, MessageSquare, Handshake, LogOut, LogIn 
+import {
+  X,
+  Heart,
+  Bookmark,
+  User,
+  Receipt,
+  Bell,
+  Headphones,
+  Shield,
+  MessageSquare,
+  Handshake,
+  LogOut,
+  LogIn,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -13,11 +23,18 @@ interface SidebarProps {
   onMenuClick?: (page: string) => void;
 }
 
-export default function Sidebar({ onClose, username, onLogout, onSignInClick, onMyProfileClick, onMenuClick }: SidebarProps) {
+export default function Sidebar({
+  onClose,
+  username,
+  onLogout,
+  onSignInClick,
+  onMyProfileClick,
+  onMenuClick,
+}: SidebarProps) {
   const isGuest = !username;
   const userInitial = username ? username.charAt(0).toUpperCase() : "G";
   const displayName = username || "Guest User";
-  
+
   const avatarUrl = useMemo(() => {
     if (!username) return null;
     try {
@@ -42,7 +59,7 @@ export default function Sidebar({ onClose, username, onLogout, onSignInClick, on
   };
 
   const handleItemClick = (label: string, action?: () => void) => {
-    if (isGuest && label !== "Help" && label !== "Policy") {
+    if (isGuest && label !== "Help" && label !== "Policy" && label !== "Admin Dashboard") {
       onSignInClick();
       onClose();
       return;
@@ -64,21 +81,86 @@ export default function Sidebar({ onClose, username, onLogout, onSignInClick, on
   };
 
   const group1 = [
-    { label: "Favorites", icon: Heart, action: () => { onMenuClick?.("Favorites"); onClose(); } },
-    { label: "Saved", icon: Bookmark, action: () => { onMenuClick?.("Saved"); onClose(); } },
+    {
+      label: "Favorites",
+      icon: Heart,
+      action: () => {
+        onMenuClick?.("Favorites");
+        onClose();
+      },
+    },
+    {
+      label: "Saved",
+      icon: Bookmark,
+      action: () => {
+        onMenuClick?.("Saved");
+        onClose();
+      },
+    },
     { label: "Edit Profile", icon: User, action: onMyProfileClick },
-    { label: "My Transaction", icon: Receipt, action: () => { onMenuClick?.("My Transaction"); onClose(); } }
+    {
+      label: "My Transaction",
+      icon: Receipt,
+      action: () => {
+        onMenuClick?.("My Transaction");
+        onClose();
+      },
+    },
   ];
 
   const group2 = [
-    { label: "Notifications", icon: Bell, action: () => { onMenuClick?.("Notifications"); onClose(); } },
-    { label: "Customer Service", icon: Headphones, action: () => { onMenuClick?.("Customer Service"); onClose(); } }
+    {
+      label: "Notifications",
+      icon: Bell,
+      action: () => {
+        onMenuClick?.("Notifications");
+        onClose();
+      },
+    },
+    {
+      label: "Customer Service",
+      icon: Headphones,
+      action: () => {
+        onMenuClick?.("Customer Service");
+        onClose();
+      },
+    },
   ];
 
   const group3 = [
-    { label: "Policy", icon: Shield, action: () => { onMenuClick?.("Policy"); onClose(); } },
-    { label: "Feedback", icon: MessageSquare, action: () => { onMenuClick?.("Feedback"); onClose(); } },
-    { label: "Help", icon: Handshake, action: () => { onMenuClick?.("Help"); onClose(); } }
+    {
+      label: "Policy",
+      icon: Shield,
+      action: () => {
+        onMenuClick?.("Policy");
+        onClose();
+      },
+    },
+    {
+      label: "Feedback",
+      icon: MessageSquare,
+      action: () => {
+        onMenuClick?.("Feedback");
+        onClose();
+      },
+    },
+    {
+      label: "Help",
+      icon: Handshake,
+      action: () => {
+        onMenuClick?.("Help");
+        onClose();
+      },
+    },
+    {
+      label: "Admin Dashboard",
+      icon: Shield,
+      action: () => {
+        window.history.pushState({}, "", "/admin");
+        window.dispatchEvent(new PopStateEvent("popstate"));
+        onClose();
+      },
+    },
   ];
 
   const renderItem = (label: string, Icon: any, action?: () => void) => {
@@ -96,9 +178,8 @@ export default function Sidebar({ onClose, username, onLogout, onSignInClick, on
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      
       {/* Backdrop overlay */}
-      <div 
+      <div
         onClick={onClose}
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-[4px] transition-all duration-300 animate-in fade-in"
       />
@@ -108,7 +189,7 @@ export default function Sidebar({ onClose, username, onLogout, onSignInClick, on
         <div>
           {/* Close Button */}
           <div className="flex justify-start mb-4">
-            <button 
+            <button
               onClick={onClose}
               className="text-slate-500 hover:text-slate-800 transition p-1 hover:bg-slate-50 rounded-full cursor-pointer"
             >
@@ -119,10 +200,8 @@ export default function Sidebar({ onClose, username, onLogout, onSignInClick, on
           {/* User Profile Card */}
           <div className="flex items-center justify-between pb-6 mt-2 border-b border-slate-100">
             <div className="flex flex-col text-left">
-              <h3 className="text-xl font-bold text-slate-900 leading-tight">
-                {displayName}
-              </h3>
-              <button 
+              <h3 className="text-xl font-bold text-slate-900 leading-tight">{displayName}</h3>
+              <button
                 onClick={handleProfileClick}
                 className="text-xs text-slate-500 font-medium hover:text-primary transition mt-1 text-left bg-transparent border-none p-0 cursor-pointer"
               >
@@ -130,14 +209,16 @@ export default function Sidebar({ onClose, username, onLogout, onSignInClick, on
               </button>
             </div>
             {/* Circle Avatar */}
-            <div 
+            <div
               onClick={handleProfileClick}
               className="h-14 w-14 rounded-full overflow-hidden border border-slate-100 bg-slate-50 cursor-pointer shadow-sm flex items-center justify-center hover:scale-105 transition shrink-0"
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
               ) : (
-                <div className={`h-full w-full flex items-center justify-center text-white text-lg font-black bg-gradient-to-tr ${isGuest ? 'from-slate-400 to-slate-500' : 'from-[#0062ff] to-[#00a2ff]'}`}>
+                <div
+                  className={`h-full w-full flex items-center justify-center text-white text-lg font-black bg-gradient-to-tr ${isGuest ? "from-slate-400 to-slate-500" : "from-[#0062ff] to-[#00a2ff]"}`}
+                >
                   {userInitial}
                 </div>
               )}
@@ -146,30 +227,25 @@ export default function Sidebar({ onClose, username, onLogout, onSignInClick, on
 
           {/* Group 1 Menu Items */}
           <nav className="mt-4 space-y-1">
-            {group1.map(item => renderItem(item.label, item.icon, item.action))}
+            {group1.map((item) => renderItem(item.label, item.icon, item.action))}
           </nav>
 
           <div className="h-[1px] w-full bg-slate-100 my-4" />
 
           {/* Group 2 Menu Items */}
           <nav className="space-y-1">
-            {group2.map(item => renderItem(item.label, item.icon, item.action))}
+            {group2.map((item) => renderItem(item.label, item.icon, item.action))}
           </nav>
 
           <div className="h-[1px] w-full bg-slate-100 my-4" />
 
           {/* Group 3 Menu Items */}
           <nav className="space-y-1">
-            {group3.map(item => renderItem(item.label, item.icon, item.action))}
+            {group3.map((item) => renderItem(item.label, item.icon, item.action))}
             {/* Logout/Login item inside group 3 list */}
-            {renderItem(
-              isGuest ? "Log In" : "Logout", 
-              isGuest ? LogIn : LogOut, 
-              handleAuthAction
-            )}
+            {renderItem(isGuest ? "Log In" : "Logout", isGuest ? LogIn : LogOut, handleAuthAction)}
           </nav>
         </div>
-
       </div>
     </div>
   );

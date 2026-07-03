@@ -12,11 +12,11 @@ export default function FeedbackPage() {
     setFeedbackSubmitted(true);
     try {
       const savedFeedbacks = JSON.parse(localStorage.getItem("fmp_feedbacks:v1") || "[]");
-      savedFeedbacks.push({ 
-        rating: feedbackRating, 
-        category: feedbackCategory, 
-        comments: feedbackComments, 
-        date: new Date().toLocaleDateString() 
+      savedFeedbacks.push({
+        rating: feedbackRating,
+        category: feedbackCategory,
+        comments: feedbackComments,
+        date: new Date().toLocaleDateString(),
       });
       localStorage.setItem("fmp_feedbacks:v1", JSON.stringify(savedFeedbacks));
     } catch (e) {
@@ -28,7 +28,9 @@ export default function FeedbackPage() {
     <div className="space-y-6">
       <div>
         <h3 className="font-serif text-lg font-black text-foreground">User Feedback Portal</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">Let us know about your experience to refine our search points.</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Let us know about your experience to refine our search points.
+        </p>
       </div>
 
       {feedbackSubmitted ? (
@@ -37,8 +39,11 @@ export default function FeedbackPage() {
             <Check className="h-6 w-6 stroke-[3]" />
           </div>
           <h4 className="text-sm font-black uppercase">Feedback Submitted!</h4>
-          <p className="text-[11.5px] leading-relaxed text-emerald-600/80">Thank you for sharing your thoughts. We have recorded your suggestions securely to implement layouts improvements.</p>
-          <button 
+          <p className="text-[11.5px] leading-relaxed text-emerald-600/80">
+            Thank you for sharing your thoughts. We have recorded your suggestions securely to
+            implement layouts improvements.
+          </p>
+          <button
             type="button"
             onClick={() => {
               setFeedbackSubmitted(false);
@@ -51,11 +56,15 @@ export default function FeedbackPage() {
           </button>
         </div>
       ) : (
-        <form onSubmit={handleFeedbackSubmit} className="bg-card border border-border rounded-2xl p-5 md:p-6 space-y-5 text-xs max-w-lg mx-auto shadow-sm">
-          
+        <form
+          onSubmit={handleFeedbackSubmit}
+          className="bg-card border border-border rounded-2xl p-5 md:p-6 space-y-5 text-xs max-w-lg mx-auto shadow-sm"
+        >
           {/* Rating */}
           <div className="space-y-2">
-            <span className="block text-[10px] font-black uppercase text-slate-400 tracking-wider text-left">Overall Rating</span>
+            <span className="block text-[10px] font-black uppercase text-slate-400 tracking-wider text-left">
+              Overall Rating
+            </span>
             <div className="flex gap-2 justify-center py-2 bg-secondary/5 border border-border/40 rounded-xl">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
@@ -65,7 +74,9 @@ export default function FeedbackPage() {
                   aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
                   className="text-slate-300 hover:text-amber-400 transition cursor-pointer transform hover:scale-110"
                 >
-                  <Star className={`h-8 w-8 ${star <= feedbackRating ? "text-amber-500 fill-amber-500" : "text-slate-200"}`} />
+                  <Star
+                    className={`h-8 w-8 ${star <= feedbackRating ? "text-amber-500 fill-amber-500" : "text-slate-200"}`}
+                  />
                 </button>
               ))}
             </div>
@@ -74,8 +85,13 @@ export default function FeedbackPage() {
           {/* Category */}
           <div className="grid grid-cols-2 gap-4">
             <div className="text-left">
-              <label htmlFor="feedbackCategory" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Category Concern</label>
-              <select 
+              <label
+                htmlFor="feedbackCategory"
+                className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2"
+              >
+                Category Concern
+              </label>
+              <select
                 id="feedbackCategory"
                 value={feedbackCategory}
                 onChange={(e) => setFeedbackCategory(e.target.value)}
@@ -88,11 +104,16 @@ export default function FeedbackPage() {
               </select>
             </div>
             <div className="text-left">
-              <label htmlFor="dateSubmitted" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Date Submitted</label>
-              <input 
+              <label
+                htmlFor="dateSubmitted"
+                className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2"
+              >
+                Date Submitted
+              </label>
+              <input
                 id="dateSubmitted"
-                type="text" 
-                readOnly 
+                type="text"
+                readOnly
                 value={new Date().toLocaleDateString()}
                 className="w-full border border-border bg-secondary/40 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-500 cursor-not-allowed outline-none"
               />
@@ -101,8 +122,13 @@ export default function FeedbackPage() {
 
           {/* Comments */}
           <div className="text-left">
-            <label htmlFor="feedbackComments" className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Feedback Details</label>
-            <textarea 
+            <label
+              htmlFor="feedbackComments"
+              className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2"
+            >
+              Feedback Details
+            </label>
+            <textarea
               id="feedbackComments"
               rows={3}
               required
@@ -113,7 +139,7 @@ export default function FeedbackPage() {
             />
           </div>
 
-          <button 
+          <button
             type="submit"
             className="w-full bg-primary hover:bg-primary/95 text-primary-foreground text-xs font-black py-3 rounded-xl shadow transition cursor-pointer"
           >

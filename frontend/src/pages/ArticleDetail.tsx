@@ -1,8 +1,20 @@
 import { useState, useEffect } from "react";
 import {
-  MapPin, Clock, ArrowLeft, Bookmark, Share2,
-  CheckCircle, MessageSquare, Eye, Calendar,
-  ChevronRight, Phone, Heart, Award, ArrowRight, Star
+  MapPin,
+  Clock,
+  ArrowLeft,
+  Bookmark,
+  Share2,
+  CheckCircle,
+  MessageSquare,
+  Eye,
+  Calendar,
+  ChevronRight,
+  Phone,
+  Heart,
+  Award,
+  ArrowRight,
+  Star,
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { articlesData, ArticleData } from "../data/articlesData";
@@ -14,7 +26,11 @@ interface ArticleDetailPageProps {
   onArticleSelect?: (id: number) => void;
 }
 
-export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }: ArticleDetailPageProps) {
+export default function ArticleDetailPage({
+  articleId,
+  onBack,
+  onArticleSelect,
+}: ArticleDetailPageProps) {
   const article: ArticleData | undefined = articlesData.find((a) => a.id === articleId);
 
   // Fallback to first article if not found
@@ -42,7 +58,7 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
     { label: "Health & Fitness", active: false },
     { label: "Recreation", active: false },
     { label: "Education & Career", active: currentArticle.category === "Home Decor" },
-    { label: "Daily Needs", active: false }
+    { label: "Daily Needs", active: false },
   ];
 
   // Scroll to top when article changes
@@ -51,16 +67,20 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
   }, [articleId]);
 
   const handleEnquire = (businessName: string) => {
-    alert(`Enquiry submitted for ${businessName}! A customer representative will contact you soon.`);
+    alert(
+      `Enquiry submitted for ${businessName}! A customer representative will contact you soon.`,
+    );
   };
 
   const handleShare = () => {
     if (navigator.share) {
-      navigator.share({
-        title: currentArticle.title,
-        text: currentArticle.introParagraphs[0],
-        url: window.location.href,
-      }).catch(console.error);
+      navigator
+        .share({
+          title: currentArticle.title,
+          text: currentArticle.introParagraphs[0],
+          url: window.location.href,
+        })
+        .catch(console.error);
     } else {
       navigator.clipboard.writeText(window.location.href);
       alert("Article link copied to clipboard!");
@@ -72,14 +92,26 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 md:h-20 max-w-7xl items-center gap-3 md:gap-8 px-4 md:px-6 w-full">
-          <button onClick={onBack} className="flex items-center gap-2 group cursor-pointer shrink-0">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 group cursor-pointer shrink-0"
+          >
             <div className="flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm transition group-hover:bg-secondary shrink-0">
               <ArrowLeft className="h-4.5 w-4.5 md:h-5 md:w-5 text-foreground" />
             </div>
-            <span className="hidden sm:inline text-sm font-semibold text-muted-foreground transition group-hover:text-foreground">Back to Home</span>
+            <span className="hidden sm:inline text-sm font-semibold text-muted-foreground transition group-hover:text-foreground">
+              Back to Home
+            </span>
           </button>
 
-          <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }} className="flex items-center shrink-0">
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              onBack();
+            }}
+            className="flex items-center shrink-0"
+          >
             <img
               src={logoImg}
               alt="FindMyPoint Logo"
@@ -98,7 +130,7 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
           </div>
 
           <div className="flex items-center gap-2.5 ml-auto md:ml-0 shrink-0">
-            <button 
+            <button
               onClick={() => onBack()}
               className="hidden sm:inline-block px-4 py-2 text-xs font-bold text-muted-foreground transition hover:text-foreground cursor-pointer"
             >
@@ -116,8 +148,8 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
         <div className="border-t border-border bg-card/60 overflow-x-auto no-scrollbar">
           <div className="mx-auto max-w-7xl flex items-center gap-6 px-6 py-2.5 whitespace-nowrap text-xs font-bold text-muted-foreground w-full">
             {categoryBar.map((cat, idx) => (
-              <span 
-                key={idx} 
+              <span
+                key={idx}
                 className={`cursor-pointer transition-colors duration-200 hover:text-primary ${cat.active ? "text-primary border-b-2 border-primary pb-0.5" : ""}`}
               >
                 {cat.label}
@@ -130,11 +162,24 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
       <main className="mx-auto max-w-7xl px-6 py-8 w-full">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-6">
-          <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }} className="hover:text-primary transition-colors">Home</a>
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              onBack();
+            }}
+            className="hover:text-primary transition-colors"
+          >
+            Home
+          </a>
           <ChevronRight className="h-3 w-3 stroke-[2.5px]" />
-          <span className="hover:text-primary transition-colors cursor-pointer">{currentArticle.category}</span>
+          <span className="hover:text-primary transition-colors cursor-pointer">
+            {currentArticle.category}
+          </span>
           <ChevronRight className="h-3 w-3 stroke-[2.5px]" />
-          <span className="text-foreground font-extrabold truncate max-w-xs sm:max-w-md">{currentArticle.title}</span>
+          <span className="text-foreground font-extrabold truncate max-w-xs sm:max-w-md">
+            {currentArticle.title}
+          </span>
         </nav>
 
         {/* Article Header Title */}
@@ -153,22 +198,22 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
                 <MessageSquare className="h-4 w-4" /> Comments ({commentCount})
               </span>
             </div>
-            
+
             <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setLiked(!liked)} 
+              <button
+                onClick={() => setLiked(!liked)}
                 className={`flex h-9 w-9 items-center justify-center rounded-full border border-border/50 bg-card shadow-sm hover:bg-secondary transition-colors ${liked ? "text-rose-500 border-rose-200 bg-rose-50/30" : "text-muted-foreground"}`}
               >
                 <Heart className={`h-4 w-4 ${liked ? "fill-rose-500" : ""}`} />
               </button>
-              <button 
-                onClick={() => setBookmarked(!bookmarked)} 
+              <button
+                onClick={() => setBookmarked(!bookmarked)}
                 className={`flex h-9 w-9 items-center justify-center rounded-full border border-border/50 bg-card shadow-sm hover:bg-secondary transition-colors ${bookmarked ? "text-amber-500 border-amber-200 bg-amber-50/30" : "text-muted-foreground"}`}
               >
                 <Bookmark className={`h-4 w-4 ${bookmarked ? "fill-amber-500" : ""}`} />
               </button>
-              <button 
-                onClick={handleShare} 
+              <button
+                onClick={handleShare}
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-border/50 bg-card shadow-sm hover:bg-secondary transition-colors text-muted-foreground"
               >
                 <Share2 className="h-4 w-4" />
@@ -179,10 +224,8 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
 
         {/* Main Grid: Content (left) and Sidebar (right) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
           {/* LEFT COLUMN: Main Content */}
           <div className="lg:col-span-8 flex flex-col gap-8">
-            
             {/* Gallery Section */}
             <div className="relative rounded-2xl overflow-hidden bg-secondary border border-border shadow-sm">
               <div className="aspect-[16/9] w-full overflow-hidden relative">
@@ -192,7 +235,7 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
                   className="h-full w-full object-cover transition-all duration-500"
                 />
               </div>
-              
+
               {/* Thumbnails list */}
               {currentArticle.galleryImages.length > 0 && (
                 <div className="flex gap-2.5 p-4 bg-card border-t border-border">
@@ -219,7 +262,11 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
             {/* List of Businesses details */}
             <div className="flex flex-col gap-12 mt-4">
               {currentArticle.businesses.map((biz) => (
-                <section key={biz.id} id={biz.id} className="scroll-mt-28 border-t border-border/60 pt-8 flex flex-col gap-6">
+                <section
+                  key={biz.id}
+                  id={biz.id}
+                  className="scroll-mt-28 border-t border-border/60 pt-8 flex flex-col gap-6"
+                >
                   {/* Business H3 Title */}
                   <div className="flex items-center justify-between border-b border-border/30 pb-3">
                     <h3 className="text-xl font-serif font-black text-foreground hover:text-primary transition-colors cursor-pointer">
@@ -235,18 +282,23 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
                           />
                         );
                       })}
-                      <span className="text-xs font-bold text-muted-foreground ml-1">({biz.rating || 5.0})</span>
+                      <span className="text-xs font-bold text-muted-foreground ml-1">
+                        ({biz.rating || 5.0})
+                      </span>
                     </div>
                   </div>
 
                   {/* Two Column Images (Side-by-side) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {biz.images.map((img, idx) => (
-                      <div key={idx} className="aspect-[4/3] rounded-2xl overflow-hidden border border-border shadow-sm bg-secondary group">
-                        <img 
-                          src={img} 
-                          alt={`${biz.name} dish ${idx + 1}`} 
-                          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                      <div
+                        key={idx}
+                        className="aspect-[4/3] rounded-2xl overflow-hidden border border-border shadow-sm bg-secondary group"
+                      >
+                        <img
+                          src={img}
+                          alt={`${biz.name} dish ${idx + 1}`}
+                          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                         />
                       </div>
                     ))}
@@ -260,11 +312,15 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
                   {/* Testimonial Quote */}
                   {biz.quote && (
                     <div className="relative rounded-2xl bg-secondary/35 border border-border/40 p-6 flex flex-col gap-2">
-                      <span className="absolute top-2 left-4 text-4xl text-accent/20 font-serif leading-none select-none">“</span>
+                      <span className="absolute top-2 left-4 text-4xl text-accent/20 font-serif leading-none select-none">
+                        “
+                      </span>
                       <p className="text-xs italic text-muted-foreground font-semibold pl-4 z-10 leading-relaxed">
                         {biz.quote}
                       </p>
-                      <span className="absolute bottom-2 right-4 text-4xl text-accent/20 font-serif leading-none select-none">”</span>
+                      <span className="absolute bottom-2 right-4 text-4xl text-accent/20 font-serif leading-none select-none">
+                        ”
+                      </span>
                     </div>
                   )}
 
@@ -275,7 +331,9 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
                       <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-1.5 shadow-[var(--shadow-card)]">
                         <div className="flex items-center gap-2 text-accent">
                           <Award className="h-4 w-4" />
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Range / Service</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                            Range / Service
+                          </span>
                         </div>
                         <p className="text-xs font-bold text-foreground leading-snug line-clamp-2">
                           {biz.foodRange}
@@ -288,7 +346,9 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
                       <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-1.5 shadow-[var(--shadow-card)]">
                         <div className="flex items-center gap-2 text-amber-500">
                           <Award className="h-4 w-4" />
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Must Try</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                            Must Try
+                          </span>
                         </div>
                         <p className="text-xs font-bold text-foreground leading-snug line-clamp-2">
                           {biz.mustTry}
@@ -301,7 +361,9 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
                       <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-1.5 shadow-[var(--shadow-card)]">
                         <div className="flex items-center gap-2 text-emerald-500">
                           <Award className="h-4 w-4" />
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Price Estimate</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                            Price Estimate
+                          </span>
                         </div>
                         <p className="text-xs font-bold text-foreground leading-snug">
                           {biz.priceForTwo}
@@ -314,7 +376,9 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
                       <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-1.5 shadow-[var(--shadow-card)]">
                         <div className="flex items-center gap-2 text-indigo-500">
                           <Clock className="h-4 w-4" />
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Timings</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                            Timings
+                          </span>
                         </div>
                         <p className="text-xs font-bold text-foreground leading-snug">
                           {biz.timings}
@@ -327,7 +391,9 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
                       <div className="sm:col-span-2 rounded-2xl border border-border bg-card p-4 flex flex-col gap-1.5 shadow-[var(--shadow-card)]">
                         <div className="flex items-center gap-2 text-rose-500">
                           <MapPin className="h-4 w-4" />
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Location</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                            Location
+                          </span>
                         </div>
                         <p className="text-xs font-bold text-foreground leading-snug line-clamp-1">
                           {biz.address}
@@ -338,13 +404,13 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
 
                   {/* Actions Row */}
                   <div className="flex justify-end gap-3 mt-2">
-                    <button 
+                    <button
                       onClick={() => handleEnquire(biz.name)}
                       className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-6 py-2.5 text-xs font-bold text-foreground hover:bg-secondary transition shadow-sm cursor-pointer"
                     >
                       View Menu
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleEnquire(biz.name)}
                       className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/95 transition shadow-md cursor-pointer"
                     >
@@ -362,10 +428,10 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
                 {currentArticle.recommendations.map((rec, rIdx) => (
                   <div key={rIdx} className="group flex flex-col gap-2 cursor-pointer">
                     <div className="aspect-[16/10] rounded-xl overflow-hidden bg-secondary border border-border shadow-sm">
-                      <img 
-                        src={rec.img} 
-                        alt={rec.title} 
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                      <img
+                        src={rec.img}
+                        alt={rec.title}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     </div>
                     <span className="text-[11.5px] font-bold text-foreground/80 leading-snug group-hover:text-primary transition-colors line-clamp-2">
@@ -375,28 +441,30 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
                 ))}
               </div>
             </div>
-
           </div>
 
           {/* RIGHT COLUMN: Sticky Sidebar */}
           <div className="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-28">
-            
             {/* Author Profile Card */}
             <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="flex items-center gap-4">
-                <img 
-                  src={currentArticle.author.avatar} 
+                <img
+                  src={currentArticle.author.avatar}
                   alt={currentArticle.author.name}
                   className="h-12 w-12 rounded-full object-cover border border-border shadow-sm"
                 />
                 <div className="flex flex-col">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-black text-foreground">{currentArticle.author.name}</span>
+                    <span className="text-sm font-black text-foreground">
+                      {currentArticle.author.name}
+                    </span>
                     {currentArticle.author.verified && (
                       <CheckCircle className="h-4 w-4 text-emerald-500 fill-emerald-50" />
                     )}
                   </div>
-                  <span className="text-[10px] font-bold text-muted-foreground mt-0.5">{currentArticle.author.role}</span>
+                  <span className="text-[10px] font-bold text-muted-foreground mt-0.5">
+                    {currentArticle.author.role}
+                  </span>
                 </div>
               </div>
 
@@ -413,15 +481,17 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
             {/* List of Contents (Table of Contents) */}
             <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-3">
-                <h4 className="text-xs font-black text-foreground uppercase tracking-widest">List of Contents</h4>
+                <h4 className="text-xs font-black text-foreground uppercase tracking-widest">
+                  List of Contents
+                </h4>
                 <div className="h-1.5 w-1.5 rounded-full bg-accent" />
               </div>
 
               <ul className="flex flex-col gap-2.5">
                 {currentArticle.businesses.map((biz) => (
                   <li key={biz.id}>
-                    <a 
-                      href={`#${biz.id}`} 
+                    <a
+                      href={`#${biz.id}`}
                       className="group flex items-center justify-between text-xs font-bold text-muted-foreground hover:text-primary transition-colors py-0.5"
                       onClick={(e) => {
                         e.preventDefault();
@@ -439,24 +509,35 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
             {/* More Like This (Vertical Widget) */}
             <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-4">
-                <h4 className="text-xs font-black text-foreground uppercase tracking-widest">More like this</h4>
-                <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }} className="text-[10px] font-bold text-primary hover:underline lowercase">explore</a>
+                <h4 className="text-xs font-black text-foreground uppercase tracking-widest">
+                  More like this
+                </h4>
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onBack();
+                  }}
+                  className="text-[10px] font-bold text-primary hover:underline lowercase"
+                >
+                  explore
+                </a>
               </div>
 
               <div className="flex flex-col gap-4">
                 {articlesData
                   .filter((a) => a.id !== currentArticle.id)
                   .map((art) => (
-                    <div 
-                      key={art.id} 
+                    <div
+                      key={art.id}
                       onClick={() => onArticleSelect && onArticleSelect(art.id)}
                       className="group flex items-start gap-3 cursor-pointer"
                     >
                       <div className="h-14 w-20 rounded-lg overflow-hidden bg-secondary border border-border shadow-sm shrink-0">
-                        <img 
-                          src={art.mainImage} 
-                          alt={art.title} 
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                        <img
+                          src={art.mainImage}
+                          alt={art.title}
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       </div>
                       <div className="flex flex-col min-w-0">
@@ -475,13 +556,15 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
             {/* Related Tags */}
             <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-3">
-                <h4 className="text-xs font-black text-foreground uppercase tracking-widest">Related Tags</h4>
+                <h4 className="text-xs font-black text-foreground uppercase tracking-widest">
+                  Related Tags
+                </h4>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 {currentArticle.tags.map((tag, idx) => (
-                  <span 
-                    key={idx} 
+                  <span
+                    key={idx}
                     className="cursor-pointer text-[10px] font-bold text-muted-foreground border border-border/60 bg-secondary/25 px-2.5 py-1.5 rounded-lg hover:border-primary/20 hover:bg-card hover:text-primary transition-colors"
                   >
                     #{tag}
@@ -489,9 +572,7 @@ export default function ArticleDetailPage({ articleId, onBack, onArticleSelect }
                 ))}
               </div>
             </div>
-
           </div>
-
         </div>
       </main>
 

@@ -1,7 +1,22 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
-  Search, MapPin, ChevronRight, Star, Phone,
-  ArrowRight, BadgeCheck, TrendingUp, ChevronLeft, Navigation, X, Clock, Bell, ChevronDown, ChevronUp
+  Search,
+  MapPin,
+  ChevronRight,
+  Star,
+  Phone,
+  ArrowRight,
+  BadgeCheck,
+  TrendingUp,
+  ChevronLeft,
+  Navigation,
+  X,
+  Clock,
+  Bell,
+  ChevronDown,
+  ChevronUp,
+  ArrowLeft,
+  ArrowUp,
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import heroFeatured from "@/assets/hero-featured.jpg";
@@ -12,6 +27,8 @@ import catRepairs from "@/assets/cat-repairs.jpg";
 import catInterior from "@/assets/cat-interior.jpg";
 import catDining from "@/assets/cat-dining.jpg";
 import Footer from "./Footer";
+import { loadAboutData, AboutData } from "../data/aboutData";
+import { subcategoriesData } from "./CategoryDetail";
 
 import weddingBanquet from "@/assets/wedding_banquet.png";
 import weddingJewellery from "@/assets/wedding_jewellery.png";
@@ -48,7 +65,7 @@ import foodpoint from "@/assets/category/foodpoint.png";
 import courierpoint from "@/assets/category/courierpoint.png";
 import carrentalpoint from "@/assets/category/carrentalpoint.png";
 
-const categories = [
+export const categories = [
   { img: spapoint, label: "Spa Point" },
   { img: tourpoint, label: "Tour Point" },
   { img: jobpoint, label: "Job Point" },
@@ -65,37 +82,109 @@ const categories = [
   { img: carrentalpoint, label: "Car Rental Point" },
 ];
 
+// Load custom categories from local storage on startup
+if (typeof window !== "undefined") {
+  try {
+    const savedCats = localStorage.getItem("fmp_custom_categories");
+    if (savedCats) {
+      const parsed = JSON.parse(savedCats);
+      parsed.forEach((cat: any) => {
+        if (!categories.some((c) => c.label.toLowerCase() === cat.label.toLowerCase())) {
+          categories.push(cat);
+        }
+      });
+    }
+  } catch (err) {
+    console.error("Error loading custom categories:", err);
+  }
+}
+
 const subcategorySections = [
   {
     title: "Wedding Requisites",
     items: [
-      { img: weddingBanquet, label: "Banquet Halls", categoryName: "Hotel Point", subcategoryName: "Banquet Halls" },
-      { img: weddingJewellery, label: "Bridal Requisite", categoryName: "Garments Point", subcategoryName: "Bridal Requisite" },
-      { img: weddingCaterer, label: "Caterers", categoryName: "Food Point", subcategoryName: "Caterers" },
+      {
+        img: weddingBanquet,
+        label: "Banquet Halls",
+        categoryName: "Hotel Point",
+        subcategoryName: "Banquet Halls",
+      },
+      {
+        img: weddingJewellery,
+        label: "Bridal Requisite",
+        categoryName: "Garments Point",
+        subcategoryName: "Bridal Requisite",
+      },
+      {
+        img: weddingCaterer,
+        label: "Caterers",
+        categoryName: "Food Point",
+        subcategoryName: "Caterers",
+      },
     ],
   },
   {
     title: "Beauty & Spa",
     items: [
-      { img: beautyParlour, label: "Beauty Parlours", categoryName: "Spa Point", subcategoryName: "Beauty Parlours" },
-      { img: beautySpa, label: "Spa & Massages", categoryName: "Spa Point", subcategoryName: "Spa & Massages" },
+      {
+        img: beautyParlour,
+        label: "Beauty Parlours",
+        categoryName: "Spa Point",
+        subcategoryName: "Beauty Parlours",
+      },
+      {
+        img: beautySpa,
+        label: "Spa & Massages",
+        categoryName: "Spa Point",
+        subcategoryName: "Spa & Massages",
+      },
       { img: beautySalon, label: "Salons", categoryName: "Spa Point", subcategoryName: "Salons" },
     ],
   },
   {
     title: "Repairs & Services",
     items: [
-      { img: serviceAc, label: "AC Service", categoryName: "Service Point", subcategoryName: "AC Service" },
-      { img: serviceCar, label: "Car Service", categoryName: "Service Point", subcategoryName: "Car Service" },
-      { img: serviceBike, label: "Bike Service", categoryName: "Service Point", subcategoryName: "Bike Service" },
+      {
+        img: serviceAc,
+        label: "AC Service",
+        categoryName: "Service Point",
+        subcategoryName: "AC Service",
+      },
+      {
+        img: serviceCar,
+        label: "Car Service",
+        categoryName: "Service Point",
+        subcategoryName: "Car Service",
+      },
+      {
+        img: serviceBike,
+        label: "Bike Service",
+        categoryName: "Service Point",
+        subcategoryName: "Bike Service",
+      },
     ],
   },
   {
     title: "Daily Needs",
     items: [
-      { img: needsMovie, label: "Movies", categoryName: "Product Point", subcategoryName: "Movies" },
-      { img: needsGrocery, label: "Grocery", categoryName: "Product Point", subcategoryName: "Grocery" },
-      { img: needsElectrician, label: "Electricians", categoryName: "Service Point", subcategoryName: "Electricians" },
+      {
+        img: needsMovie,
+        label: "Movies",
+        categoryName: "Product Point",
+        subcategoryName: "Movies",
+      },
+      {
+        img: needsGrocery,
+        label: "Grocery",
+        categoryName: "Product Point",
+        subcategoryName: "Grocery",
+      },
+      {
+        img: needsElectrician,
+        label: "Electricians",
+        categoryName: "Service Point",
+        subcategoryName: "Electricians",
+      },
     ],
   },
 ];
@@ -116,11 +205,14 @@ const servicesData = {
   "Near You": [
     { img: catDining, title: "Top Restaurants", desc: "Best food options nearby" },
     { img: beautySalon, title: "Salons & Spas", desc: "Top rated local wellness" },
-    { img: weddingBanquet, title: "Banquet & Marriage Halls", desc: "Stunning event spaces nearby" },
+    {
+      img: weddingBanquet,
+      title: "Banquet & Marriage Halls",
+      desc: "Stunning event spaces nearby",
+    },
     { img: needsGrocery, title: "Grocery & Supermarkets", desc: "Fresh supplies delivered fast" },
   ],
 };
-
 
 const touristPlaces = [
   { img: touristUjjain, title: "Ujjain", link: "#" },
@@ -143,8 +235,9 @@ const recentReviews = [
     userInitial: "T",
     userColor: "from-blue-500 to-indigo-600",
     rating: 5,
-    reviewText: "Vishal Mega Mart is a convenient one-stop shop for all your needs. With easily accessible locations, it offers a wide range of products at affordable prices. Whether you're looking for garments, groceries or household items, this store has it all.",
-    whatsappLink: "https://wa.me/919999999999"
+    reviewText:
+      "Vishal Mega Mart is a convenient one-stop shop for all your needs. With easily accessible locations, it offers a wide range of products at affordable prices. Whether you're looking for garments, groceries or household items, this store has it all.",
+    whatsappLink: "https://wa.me/919999999999",
   },
   {
     id: "sunny-chilled-water",
@@ -155,8 +248,9 @@ const recentReviews = [
     userInitial: "R",
     userColor: "from-emerald-500 to-teal-600",
     rating: 5,
-    reviewText: "Excellent behaviour by staff and owner and excellent service. Very prompt delivery of water cans. Always reliable and highly recommended for parties and daily usage.",
-    whatsappLink: "https://wa.me/919999999999"
+    reviewText:
+      "Excellent behaviour by staff and owner and excellent service. Very prompt delivery of water cans. Always reliable and highly recommended for parties and daily usage.",
+    whatsappLink: "https://wa.me/919999999999",
   },
   {
     id: "riya-chilled-water",
@@ -167,8 +261,9 @@ const recentReviews = [
     userInitial: "V",
     userColor: "from-purple-500 to-fuchsia-600",
     rating: 5,
-    reviewText: "They provide you the best reverse osmosis quality of water in the entire agrasen square area. They have very polite staff and many delivery vehicles to parcel your cane within your time.",
-    whatsappLink: "https://wa.me/919999999999"
+    reviewText:
+      "They provide you the best reverse osmosis quality of water in the entire agrasen square area. They have very polite staff and many delivery vehicles to parcel your cane within your time.",
+    whatsappLink: "https://wa.me/919999999999",
   },
   {
     id: "sagar-wedding-banquet",
@@ -179,8 +274,9 @@ const recentReviews = [
     userInitial: "S",
     userColor: "from-amber-500 to-orange-600",
     rating: 5,
-    reviewText: "Absolutely beautiful banquet hall. The catering service was superb, decorations were top-notch, and the staff was extremely professional. Made our wedding memorable!",
-    whatsappLink: "https://wa.me/919999999999"
+    reviewText:
+      "Absolutely beautiful banquet hall. The catering service was superb, decorations were top-notch, and the staff was extremely professional. Made our wedding memorable!",
+    whatsappLink: "https://wa.me/919999999999",
   },
   {
     id: "vogue-beauty-salon",
@@ -191,9 +287,10 @@ const recentReviews = [
     userInitial: "S",
     userColor: "from-rose-500 to-pink-600",
     rating: 5,
-    reviewText: "Very good service. Timing was perfect and the quality of facial and haircut is excellent. Pure hygienic conditions and polite behaviour of therapists.",
-    whatsappLink: "https://wa.me/919999999999"
-  }
+    reviewText:
+      "Very good service. Timing was perfect and the quality of facial and haircut is excellent. Pure hygienic conditions and polite behaviour of therapists.",
+    whatsappLink: "https://wa.me/919999999999",
+  },
 ];
 
 const relatedArticles = [
@@ -203,7 +300,7 @@ const relatedArticles = [
     readTime: "4 min read",
     img: catDining,
     desc: "Discover the culinary revolution sweeping Indore. From gourmet fusion to traditional home-cooked delights, explore the top-rated cloud kitchens delivering directly to your home.",
-    link: "#"
+    link: "#",
   },
   {
     title: "Top 5 Interior Design Trends Transforming Modern Homes in Indore",
@@ -211,7 +308,7 @@ const relatedArticles = [
     readTime: "5 min read",
     img: catInterior,
     desc: "Discover how modern homeowners in Indore are blending traditional heritage with contemporary minimalist styles. We highlight key design elements and tips from top local experts.",
-    link: "#"
+    link: "#",
   },
   {
     title: "Bridal Makeup Artists in Manik Bagh Road: Best Names for Your Big Day",
@@ -219,8 +316,8 @@ const relatedArticles = [
     readTime: "6 min read",
     img: weddingJewellery,
     desc: "Your wedding day deserves nothing less than perfection. We review the most talented bridal makeup artists on Manik Bagh Road known for their flawless and elegant makeovers.",
-    link: "#"
-  }
+    link: "#",
+  },
 ];
 
 const heroCards = [
@@ -230,7 +327,7 @@ const heroCards = [
     img: catRepairs,
     gradient: "from-[#1e3d75] to-[#12274d]",
     themeColor: "group-hover:text-[#1e3d75]",
-    categoryName: "Service Point"
+    categoryName: "Service Point",
   },
   {
     title: "Hotel\npoint",
@@ -238,7 +335,7 @@ const heroCards = [
     img: catRealestate,
     gradient: "from-[#635bff] to-[#483fd3]",
     themeColor: "group-hover:text-[#635bff]",
-    categoryName: "Hotel Point"
+    categoryName: "Hotel Point",
   },
   {
     title: "DOCTORS",
@@ -246,7 +343,7 @@ const heroCards = [
     img: catDoctors,
     gradient: "from-[#008f5d] to-[#006b44]",
     themeColor: "group-hover:text-[#008f5d]",
-    categoryName: "Doctor Point"
+    categoryName: "Doctor Point",
   },
 ];
 
@@ -254,31 +351,32 @@ const heroSlides = [
   {
     tag: "# FEATURED SPOTLIGHT",
     title: "Discover the city's\nfinest establishments.",
-    description: "Search across 5.3 crore+ verified businesses, professionals and services — curated for quality.",
+    description:
+      "Search across 5.3 crore+ verified businesses, professionals and services — curated for quality.",
     img: heroFeatured,
-    categoryName: null
+    categoryName: null,
   },
   {
     tag: "# WEDDING REQUISITES",
     title: "Plan your dream\nwedding day with us.",
     description: "Find top-rated banquet halls, caterers, decorators, and bridal makeup services.",
     img: catWedding,
-    categoryName: "Spa Point"
+    categoryName: "Spa Point",
   },
   {
     tag: "# FOOD & DINING",
     title: "Satisfy your cravings\nwith delicious food.",
     description: "Explore the best local restaurants, cafés, fast food joints, and cloud kitchens.",
     img: catDining,
-    categoryName: "Food Point"
+    categoryName: "Food Point",
   },
   {
     tag: "# TRAVEL & TOURS",
     title: "Explore premium\ntravel destinations.",
     description: "Book custom holiday packages, car rentals, and luxury stays effortlessly.",
     img: touristUdaipur,
-    categoryName: "Tour Point"
-  }
+    categoryName: "Tour Point",
+  },
 ];
 
 interface HomePageProps {
@@ -290,37 +388,126 @@ interface HomePageProps {
   onProfileClick?: () => void;
   onAdvertiseClick?: () => void;
   username?: string | null;
+  onShowAllCategories?: () => void;
 }
 
 // City-specific area data for location dropdown
 const cityAreas: Record<string, { trending: string[]; recent: string[] }> = {
   Mumbai: {
-    trending: ["Bandra West, Mumbai", "Andheri West, Mumbai", "Colaba, Mumbai", "Powai, Mumbai", "Juhu, Mumbai", "Worli, Mumbai", "Dadar, Mumbai"],
-    recent: ["Bandra, Mumbai"]
+    trending: [
+      "Bandra West, Mumbai",
+      "Andheri West, Mumbai",
+      "Colaba, Mumbai",
+      "Powai, Mumbai",
+      "Juhu, Mumbai",
+      "Worli, Mumbai",
+      "Dadar, Mumbai",
+    ],
+    recent: ["Bandra, Mumbai"],
   },
   Indore: {
-    trending: ["Vijay Nagar, Indore", "Vijay Nagar Road Vijay Nagar, Indore", "Bhawar Kuan, Indore", "Khajrana, Indore", "Sudama Nagar, Indore", "Mhow, Indore", "MG Road, Indore"],
-    recent: ["Chhoti Gwaltoli, Indore"]
+    trending: [
+      "Vijay Nagar, Indore",
+      "Vijay Nagar Road Vijay Nagar, Indore",
+      "Bhawar Kuan, Indore",
+      "Khajrana, Indore",
+      "Sudama Nagar, Indore",
+      "Mhow, Indore",
+      "MG Road, Indore",
+    ],
+    recent: ["Chhoti Gwaltoli, Indore"],
   },
   Ujjain: {
-    trending: ["Mahakal Marg, Ujjain", "Freeganj, Ujjain", "Dewas Gate, Ujjain", "Ram Ghat, Ujjain"],
-    recent: []
+    trending: [
+      "Mahakal Marg, Ujjain",
+      "Freeganj, Ujjain",
+      "Dewas Gate, Ujjain",
+      "Ram Ghat, Ujjain",
+    ],
+    recent: [],
   },
   Pune: {
-    trending: ["Koregaon Park, Pune", "Viman Nagar, Pune", "Hinjewadi, Pune", "Kothrud, Pune", "Baner, Pune"],
-    recent: []
+    trending: [
+      "Koregaon Park, Pune",
+      "Viman Nagar, Pune",
+      "Hinjewadi, Pune",
+      "Kothrud, Pune",
+      "Baner, Pune",
+    ],
+    recent: [],
   },
   Jaipur: {
-    trending: ["Malviya Nagar, Jaipur", "C-Scheme, Jaipur", "Mansarovar, Jaipur", "Vaishali Nagar, Jaipur", "Tonk Road, Jaipur"],
-    recent: []
+    trending: [
+      "Malviya Nagar, Jaipur",
+      "C-Scheme, Jaipur",
+      "Mansarovar, Jaipur",
+      "Vaishali Nagar, Jaipur",
+      "Tonk Road, Jaipur",
+    ],
+    recent: [],
   },
 };
 
-const availableCities = ["Mumbai", "Indore", "Pune", "Jaipur", "Ujjain", "Ahmedabad", "Nashik", "Udaipur"];
+const availableCities = [
+  "Mumbai",
+  "Indore",
+  "Pune",
+  "Jaipur",
+  "Ujjain",
+  "Ahmedabad",
+  "Nashik",
+  "Udaipur",
+];
 
-export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, onCategoryClick, onSignInClick, onProfileClick, onAdvertiseClick, username }: HomePageProps) {
+export default function HomePage({
+  onArticleClick,
+  onReviewClick,
+  onPlaceClick,
+  onCategoryClick,
+  onSignInClick,
+  onProfileClick,
+  onAdvertiseClick,
+  username,
+  onShowAllCategories,
+}: HomePageProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
+  const [allPlaces, setAllPlaces] = useState<any[]>([]);
+  const [aboutData, setAboutData] = useState<AboutData>(loadAboutData);
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setAboutData(loadAboutData());
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  useEffect(() => {
+    const list = [...touristPlaces];
+    try {
+      const saved = localStorage.getItem("fmp_custom_tourist_places");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((custom: any) => {
+            if (!list.some((p) => p.title.toLowerCase() === custom.name.toLowerCase())) {
+              list.push({
+                img:
+                  custom.coverImage ||
+                  "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80",
+                title: custom.name,
+                link: "#",
+              });
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setAllPlaces(list);
+  }, []);
 
   useEffect(() => {
     const checkIsMobile = () => {
@@ -335,56 +522,63 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
   const [uiState, setUiState] = useState({
     showSuggestions: false,
     activeTab: "Trending" as "Trending" | "Urgent" | "Near You",
-    activeSlide: 0
+    activeSlide: 0,
   });
   const { showSuggestions, activeTab, activeSlide } = uiState;
-  
+
   // Location state grouped to reduce useState count
   const [locationState, setLocationState] = useState({
     selectedCity: "Mumbai",
     showLocationDropdown: false,
     recentLocations: (() => {
-      try { return JSON.parse(localStorage.getItem("fmp_recent_locations:v1") || "[]"); } catch { return []; }
-    })() as string[]
+      try {
+        return JSON.parse(localStorage.getItem("fmp_recent_locations:v1") || "[]");
+      } catch {
+        return [];
+      }
+    })() as string[],
   });
   const { selectedCity, showLocationDropdown, recentLocations } = locationState;
   const locationRef = useRef<HTMLDivElement>(null);
-  
-  const handleSelectArea = useCallback((area: string) => {
-    const updated = [area, ...recentLocations.filter(l => l !== area)].slice(0, 5);
-    setLocationState(prev => ({
-      ...prev,
-      recentLocations: updated,
-      showLocationDropdown: false
-    }));
-    localStorage.setItem("fmp_recent_locations:v1", JSON.stringify(updated));
-  }, [recentLocations]);
-  
+
+  const handleSelectArea = useCallback(
+    (area: string) => {
+      const updated = [area, ...recentLocations.filter((l) => l !== area)].slice(0, 5);
+      setLocationState((prev) => ({
+        ...prev,
+        recentLocations: updated,
+        showLocationDropdown: false,
+      }));
+      localStorage.setItem("fmp_recent_locations:v1", JSON.stringify(updated));
+    },
+    [recentLocations],
+  );
+
   const handleDetectLocation = useCallback(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         () => {
-          setLocationState(prev => ({
+          setLocationState((prev) => ({
             ...prev,
             selectedCity: "Mumbai",
-            showLocationDropdown: false
+            showLocationDropdown: false,
           }));
         },
         () => {
-          setLocationState(prev => ({
+          setLocationState((prev) => ({
             ...prev,
-            showLocationDropdown: false
+            showLocationDropdown: false,
           }));
-        }
+        },
       );
     }
   }, []);
-  
+
   // Close location dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (locationRef.current && !locationRef.current.contains(e.target as Node)) {
-        setLocationState(prev => ({ ...prev, showLocationDropdown: false }));
+        setLocationState((prev) => ({ ...prev, showLocationDropdown: false }));
       }
     };
     document.addEventListener("mousedown", handler);
@@ -397,26 +591,27 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
     }, 5000);
     return () => clearInterval(timer);
   }, []);
-  
+
   // Tourist places scroll controls
   const scrollRef = useRef<HTMLDivElement>(null);
-  
+
   // Scroll states grouped to reduce useState count
   const [scrollState, setScrollState] = useState({
     canScrollLeft: false,
     canScrollRight: true,
     canScrollReviewsLeft: false,
-    canScrollReviewsRight: true
+    canScrollReviewsRight: true,
   });
-  const { canScrollLeft, canScrollRight, canScrollReviewsLeft, canScrollReviewsRight } = scrollState;
+  const { canScrollLeft, canScrollRight, canScrollReviewsLeft, canScrollReviewsRight } =
+    scrollState;
 
   const checkScroll = () => {
     if (scrollRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-      setScrollState(prev => ({
+      setScrollState((prev) => ({
         ...prev,
         canScrollLeft: scrollLeft > 10,
-        canScrollRight: scrollLeft + clientWidth < scrollWidth - 10
+        canScrollRight: scrollLeft + clientWidth < scrollWidth - 10,
       }));
     }
   };
@@ -427,10 +622,10 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
   const checkReviewsScroll = () => {
     if (reviewsScrollRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = reviewsScrollRef.current;
-      setScrollState(prev => ({
+      setScrollState((prev) => ({
         ...prev,
         canScrollReviewsLeft: scrollLeft > 10,
-        canScrollReviewsRight: scrollLeft + clientWidth < scrollWidth - 10
+        canScrollReviewsRight: scrollLeft + clientWidth < scrollWidth - 10,
       }));
     }
   };
@@ -505,7 +700,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
             {/* Left: Mobile Profile / Sign In Circular Avatar */}
             <div className="lg:hidden shrink-0">
               {username ? (
-                <button 
+                <button
                   onClick={onProfileClick}
                   className="flex h-8.5 w-8.5 items-center justify-center rounded-full text-white hover:scale-105 transition-all duration-300 shadow-sm cursor-pointer font-bold text-xs bg-primary"
                   title="Open Profile Menu"
@@ -513,7 +708,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                   {username.charAt(0).toUpperCase()}
                 </button>
               ) : (
-                <button 
+                <button
                   onClick={onSignInClick}
                   className="flex h-8.5 w-8.5 items-center justify-center rounded-full border border-border bg-card text-[10px] font-extrabold text-foreground hover:bg-secondary cursor-pointer shadow-sm"
                   title="Sign In"
@@ -524,7 +719,10 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
             </div>
 
             {/* Logo */}
-            <a href="/" className="flex items-center shrink-0 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:static lg:transform-none lg:left-auto lg:top-auto">
+            <a
+              href="/"
+              className="flex items-center shrink-0 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:static lg:translate-x-0 lg:translate-y-0 lg:left-auto lg:top-auto"
+            >
               <img
                 src={logoImg}
                 alt="FindMyPoint Logo"
@@ -535,7 +733,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
 
             {/* Right: Notification Bell */}
             <div className="lg:hidden shrink-0 flex items-center">
-              <button 
+              <button
                 onClick={() => alert("No new notifications")}
                 className="relative flex h-8.5 w-8.5 items-center justify-center rounded-full border border-border bg-card hover:bg-secondary text-foreground shadow-sm cursor-pointer"
                 title="Notifications"
@@ -547,26 +745,38 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
           </div>
 
           <div className="relative flex flex-1 w-full items-center gap-1.5 md:gap-2 rounded-full border border-border bg-card px-2 py-1 md:py-1.5 shadow-[var(--shadow-card)] max-w-2xl">
-            
             {/* Clickable Location Selector */}
             <div ref={locationRef} className="relative">
               <button
-                onClick={() => setLocationState(prev => ({ ...prev, showLocationDropdown: !prev.showLocationDropdown }))}
+                onClick={() =>
+                  setLocationState((prev) => ({
+                    ...prev,
+                    showLocationDropdown: !prev.showLocationDropdown,
+                  }))
+                }
                 className="flex items-center gap-1 md:gap-2 border-r border-border pl-1 pr-2 md:px-3 py-1 text-xs md:text-sm hover:text-primary transition-colors cursor-pointer group"
               >
                 <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 text-accent group-hover:text-primary transition-colors shrink-0" />
                 <span className="font-semibold whitespace-nowrap">{selectedCity}</span>
-                <ChevronRight className={`h-3 w-3 md:h-3.5 md:w-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ${showLocationDropdown ? 'rotate-90' : ''}`} />
+                <ChevronRight
+                  className={`h-3 w-3 md:h-3.5 md:w-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ${showLocationDropdown ? "rotate-90" : ""}`}
+                />
               </button>
 
               {/* Location Dropdown */}
               {showLocationDropdown && (
                 <div className="fixed inset-x-4 top-20 sm:absolute sm:top-[calc(100%+12px)] sm:left-0 sm:min-w-[340px] sm:w-auto bg-white border border-border rounded-2xl shadow-2xl z-[60] text-left overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                  
                   {/* Header */}
                   <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border/60">
-                    <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Select Location</span>
-                    <button onClick={() => setLocationState(prev => ({ ...prev, showLocationDropdown: false }))} className="p-1 rounded-lg hover:bg-secondary transition cursor-pointer">
+                    <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
+                      Select Location
+                    </span>
+                    <button
+                      onClick={() =>
+                        setLocationState((prev) => ({ ...prev, showLocationDropdown: false }))
+                      }
+                      className="p-1 rounded-lg hover:bg-secondary transition cursor-pointer"
+                    >
                       <X className="h-4 w-4 text-muted-foreground" />
                     </button>
                   </div>
@@ -585,12 +795,16 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
 
                     {/* City Switcher */}
                     <div className="pt-2 pb-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-2">Switch City</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-2">
+                        Switch City
+                      </p>
                       <div className="flex flex-wrap gap-1.5 px-2">
-                        {availableCities.map(city => (
+                        {availableCities.map((city) => (
                           <button
                             key={city}
-                            onClick={() => setLocationState(prev => ({ ...prev, selectedCity: city }))}
+                            onClick={() =>
+                              setLocationState((prev) => ({ ...prev, selectedCity: city }))
+                            }
                             className={`px-3 py-1 rounded-full text-xs font-bold border transition cursor-pointer ${
                               selectedCity === city
                                 ? "bg-primary text-white border-primary"
@@ -604,42 +818,55 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                     </div>
 
                     {/* Recent Locations */}
-                    {(recentLocations.length > 0 || (cityAreas[selectedCity]?.recent?.length ?? 0) > 0) && (
+                    {(recentLocations.length > 0 ||
+                      (cityAreas[selectedCity]?.recent?.length ?? 0) > 0) && (
                       <div className="pt-2">
                         <div className="flex items-center justify-between px-3 mb-1">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Recent Locations</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            Recent Locations
+                          </p>
                           {recentLocations.length > 0 && (
                             <button
-                              onClick={() => { setLocationState(prev => ({ ...prev, recentLocations: [] })); localStorage.removeItem("fmp_recent_locations:v1"); }}
+                              onClick={() => {
+                                setLocationState((prev) => ({ ...prev, recentLocations: [] }));
+                                localStorage.removeItem("fmp_recent_locations:v1");
+                              }}
                               className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
-                            >Clear All</button>
+                            >
+                              Clear All
+                            </button>
                           )}
                         </div>
                         {[...recentLocations, ...(cityAreas[selectedCity]?.recent || [])]
                           .filter((v, i, a) => a.indexOf(v) === i)
                           .slice(0, 3)
-                          .map(loc => (
+                          .map((loc) => (
                             <button
                               key={loc}
                               onClick={() => handleSelectArea(loc)}
                               className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer"
                             >
                               <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                              <span className="text-[13px] font-semibold text-foreground">{loc}</span>
+                              <span className="text-[13px] font-semibold text-foreground">
+                                {loc}
+                              </span>
                             </button>
-                          ))
-                        }
+                          ))}
                       </div>
                     )}
 
                     {/* Trending Areas */}
                     <div className="pt-2 pb-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-1">Trending Areas</p>
-                      {(cityAreas[selectedCity]?.trending || [
-                        `Central ${selectedCity}`,
-                        `North ${selectedCity}`,
-                        `South ${selectedCity}`
-                      ]).map(area => (
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-1">
+                        Trending Areas
+                      </p>
+                      {(
+                        cityAreas[selectedCity]?.trending || [
+                          `Central ${selectedCity}`,
+                          `North ${selectedCity}`,
+                          `South ${selectedCity}`,
+                        ]
+                      ).map((area) => (
                         <button
                           key={area}
                           onClick={() => handleSelectArea(area)}
@@ -659,8 +886,10 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
               type="text"
               placeholder={`Search in ${selectedCity}…`}
               className="flex-1 bg-transparent px-2 py-1 text-xs md:text-sm outline-none placeholder:text-muted-foreground w-0 min-w-0"
-              onFocus={() => setUiState(prev => ({ ...prev, showSuggestions: true }))}
-              onBlur={() => setTimeout(() => setUiState(prev => ({ ...prev, showSuggestions: false })), 200)}
+              onFocus={() => setUiState((prev) => ({ ...prev, showSuggestions: true }))}
+              onBlur={() =>
+                setTimeout(() => setUiState((prev) => ({ ...prev, showSuggestions: false })), 200)
+              }
             />
             <button className="flex h-7 w-7 md:h-9 md:w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90 shrink-0">
               <Search className="h-3.5 w-3.5 md:h-4 md:w-4" />
@@ -670,9 +899,11 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
               <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-card border border-border rounded-2xl shadow-xl p-5 z-50 text-left max-h-[420px] overflow-y-auto">
                 <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 px-1">
                   <span>Recent Searches</span>
-                  <button className="text-primary hover:underline lowercase font-semibold text-xs tracking-normal">Clear All</button>
+                  <button className="text-primary hover:underline lowercase font-semibold text-xs tracking-normal">
+                    Clear All
+                  </button>
                 </div>
-                
+
                 {/* Recent search item */}
                 <div className="flex items-center gap-3 py-1.5 px-2 hover:bg-secondary/60 rounded-xl cursor-pointer transition-colors duration-200">
                   <Search className="h-4 w-4 text-muted-foreground shrink-0 ml-1" />
@@ -694,9 +925,12 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                   "Real Estate Agents",
                   "Dentists",
                   "Banquet Halls",
-                  "Car Rental"
+                  "Car Rental",
                 ].map((item) => (
-                  <div key={item} className="flex items-center gap-3 py-1.5 px-2 hover:bg-secondary/60 rounded-xl cursor-pointer transition-colors duration-200">
+                  <div
+                    key={item}
+                    className="flex items-center gap-3 py-1.5 px-2 hover:bg-secondary/60 rounded-xl cursor-pointer transition-colors duration-200"
+                  >
                     <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-secondary/80 text-muted-foreground shrink-0">
                       <TrendingUp className="h-3.5 w-3.5" />
                     </div>
@@ -711,14 +945,14 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
           </div>
 
           <div className="hidden items-center gap-2 lg:flex">
-            <button 
+            <button
               onClick={onAdvertiseClick}
               className="px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground cursor-pointer"
             >
               Advertise
             </button>
             {!username && (
-              <button 
+              <button
                 onClick={onSignInClick}
                 className="rounded-full border border-border bg-card px-5 py-2.5 text-sm font-medium transition hover:bg-secondary cursor-pointer"
               >
@@ -726,7 +960,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
               </button>
             )}
             {username && (
-              <button 
+              <button
                 onClick={onProfileClick}
                 className="flex h-10 w-10 items-center justify-center rounded-full text-white hover:scale-105 transition-all duration-300 shadow-sm cursor-pointer ml-1 font-bold text-xs bg-primary"
                 title="Open Profile Menu"
@@ -788,7 +1022,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
               {heroSlides.map((_, index) => (
                 <button
                   key={index}
-                  onClick={() => setUiState(prev => ({ ...prev, activeSlide: index }))}
+                  onClick={() => setUiState((prev) => ({ ...prev, activeSlide: index }))}
                   className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
                     activeSlide === index ? "w-6 bg-accent" : "w-2 bg-white/50 hover:bg-white"
                   }`}
@@ -799,14 +1033,24 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
 
             {/* Prev/Next buttons */}
             <button
-              onClick={() => setUiState((prev) => ({ ...prev, activeSlide: (prev.activeSlide - 1 + heroSlides.length) % heroSlides.length }))}
+              onClick={() =>
+                setUiState((prev) => ({
+                  ...prev,
+                  activeSlide: (prev.activeSlide - 1 + heroSlides.length) % heroSlides.length,
+                }))
+              }
               className="absolute left-4 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-black/25 text-white flex items-center justify-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/40 cursor-pointer"
               aria-label="Previous slide"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button
-              onClick={() => setUiState((prev) => ({ ...prev, activeSlide: (prev.activeSlide + 1) % heroSlides.length }))}
+              onClick={() =>
+                setUiState((prev) => ({
+                  ...prev,
+                  activeSlide: (prev.activeSlide + 1) % heroSlides.length,
+                }))
+              }
               className="absolute right-4 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-black/25 text-white flex items-center justify-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/40 cursor-pointer"
               aria-label="Next slide"
             >
@@ -836,7 +1080,9 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
 
                 {/* Arrow Button */}
                 <div className="absolute left-0 bottom-5 z-20">
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-r-lg bg-black/15 text-white backdrop-blur-sm transition-all duration-500 ease-in-out group-hover:w-24 group-hover:bg-white ${card.themeColor}`}>
+                  <div
+                    className={`flex h-8 w-8 items-center justify-center rounded-r-lg bg-black/15 text-white backdrop-blur-sm transition-all duration-500 ease-in-out group-hover:w-24 group-hover:bg-white ${card.themeColor}`}
+                  >
                     <span className="max-w-0 opacity-0 overflow-hidden text-[11px] font-bold uppercase tracking-wider transition-all duration-500 ease-in-out group-hover:max-w-16 group-hover:opacity-100 group-hover:mr-1">
                       Explore
                     </span>
@@ -852,7 +1098,8 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                     className="h-full w-full object-cover object-top mix-blend-normal opacity-95"
                     style={{
                       maskImage: "linear-gradient(to left, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)",
-                      WebkitMaskImage: "linear-gradient(to left, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)"
+                      WebkitMaskImage:
+                        "linear-gradient(to left, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)",
                     }}
                   />
                 </div>
@@ -861,30 +1108,35 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
           </div>
         </section>
 
-
         <section className="mt-3 sm:mt-8">
           <div className="grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-4 md:grid-cols-7 lg:grid-cols-7 xl:grid-cols-7 sm:gap-x-4 sm:gap-y-8">
-            {(!isMobile || isCategoriesExpanded ? categories : categories.slice(0, 11)).map(({ img, label }) => (
-              <button
-                key={label}
-                onClick={() => onCategoryClick?.(label)}
-                className="group flex flex-col items-center justify-center gap-1.5 sm:gap-2 text-center transition-all duration-300 hover:-translate-y-1 cursor-pointer"
-              >
-                <div className="h-11 w-11 sm:h-20 sm:w-20 transition-all duration-300 group-hover:scale-110">
-                  <img src={img} alt={label} className="h-full w-full object-contain" />
-                </div>
-                <span className="text-[10px] sm:text-[13px] font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors duration-300">{label}</span>
-              </button>
-            ))}
+            {(!isMobile || isCategoriesExpanded ? categories : categories.slice(0, 11)).map(
+              ({ img, label }) => (
+                <button
+                  key={label}
+                  onClick={() => onCategoryClick?.(label)}
+                  className="group flex flex-col items-center justify-center gap-1.5 sm:gap-2 text-center transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                >
+                  <div className="h-11 w-11 sm:h-20 sm:w-20 transition-all duration-300 group-hover:scale-110">
+                    <img src={img} alt={label} className="h-full w-full object-contain" />
+                  </div>
+                  <span className="text-[10px] sm:text-[13px] font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors duration-300">
+                    {label}
+                  </span>
+                </button>
+              ),
+            )}
             {isMobile && !isCategoriesExpanded && (
               <button
-                onClick={() => setIsCategoriesExpanded(true)}
+                onClick={onShowAllCategories}
                 className="group flex flex-col items-center justify-center gap-1.5 text-center transition-all duration-300 hover:-translate-y-1 cursor-pointer animate-in fade-in zoom-in duration-200"
               >
                 <div className="h-11 w-11 flex items-center justify-center rounded-full bg-secondary hover:bg-secondary/80 text-foreground shadow-sm transition-all duration-300 group-hover:scale-110">
                   <ChevronDown className="h-5 w-5 text-accent stroke-[2.5]" />
                 </div>
-                <span className="text-[10px] font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors duration-300">Show More</span>
+                <span className="text-[10px] font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors duration-300">
+                  Show More
+                </span>
               </button>
             )}
             {isMobile && isCategoriesExpanded && (
@@ -895,7 +1147,9 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                 <div className="h-11 w-11 flex items-center justify-center rounded-full bg-secondary hover:bg-secondary/80 text-foreground shadow-sm transition-all duration-300 group-hover:scale-110">
                   <ChevronUp className="h-5 w-5 text-accent stroke-[2.5]" />
                 </div>
-                <span className="text-[10px] font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors duration-300">Show Less</span>
+                <span className="text-[10px] font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors duration-300">
+                  Show Less
+                </span>
               </button>
             )}
           </div>
@@ -905,8 +1159,13 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
         <section className="mt-6 sm:mt-12 md:mt-20">
           <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 md:gap-6">
             {subcategorySections.map((sec) => (
-              <div key={sec.title} className="rounded-2xl border-none sm:border border-border/60 bg-transparent sm:bg-card p-1 sm:p-6 shadow-none sm:shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                <h3 className="text-base sm:text-[17px] font-bold text-foreground mb-1.5 sm:mb-4 pl-0.5">{sec.title}</h3>
+              <div
+                key={sec.title}
+                className="rounded-2xl border-none sm:border border-border/60 bg-transparent sm:bg-card p-1 sm:p-6 shadow-none sm:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+              >
+                <h3 className="text-base sm:text-[17px] font-bold text-foreground mb-1.5 sm:mb-4 pl-0.5">
+                  {sec.title}
+                </h3>
                 <div className="grid grid-cols-3 gap-5">
                   {sec.items.map((item) => (
                     <div
@@ -937,7 +1196,9 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
         <section className="mt-6 sm:mt-12 md:mt-20 rounded-3xl border-none sm:border border-border bg-transparent sm:bg-card p-1 sm:p-12">
           <div className="mb-4 sm:mb-10 flex flex-row items-center justify-between gap-2 w-full">
             <div>
-              <div className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-accent whitespace-nowrap">Popular Services</div>
+              <div className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-accent whitespace-nowrap">
+                Popular Services
+              </div>
             </div>
             <div className="flex gap-1.5 sm:gap-2 shrink-0">
               {(["Trending", "Near You"] as const).map((t) => {
@@ -945,7 +1206,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                 return (
                   <button
                     key={t}
-                    onClick={() => setUiState(prev => ({ ...prev, activeTab: t }))}
+                    onClick={() => setUiState((prev) => ({ ...prev, activeTab: t }))}
                     className={`rounded-full border px-3 sm:px-4 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold cursor-pointer transition-all duration-300 ${
                       isActive
                         ? "border-primary bg-primary text-primary-foreground shadow-sm scale-105"
@@ -966,9 +1227,19 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
               style={{ scrollbarWidth: "none" }}
             >
               {servicesData[activeTab].map((s) => (
-                <div key={s.title} className="group overflow-hidden rounded-xl sm:rounded-2xl border border-border bg-background transition hover:shadow-[var(--shadow-elegant)] shrink-0 w-[30.5%] sm:w-full">
+                <div
+                  key={s.title}
+                  className="group overflow-hidden rounded-xl sm:rounded-2xl border border-border bg-background transition hover:shadow-[var(--shadow-elegant)] shrink-0 w-[30.5%] sm:w-full"
+                >
                   <div className="relative aspect-[16/10] overflow-hidden">
-                    <img src={s.img} alt={s.title} loading="lazy" width={800} height={500} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+                    <img
+                      src={s.img}
+                      alt={s.title}
+                      loading="lazy"
+                      width={800}
+                      height={500}
+                      className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                    />
                     {/* Desktop View Overlay */}
                     <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/95 to-transparent hidden sm:block" />
                     <div className="absolute bottom-3 left-4 right-4 text-primary-foreground hidden sm:block">
@@ -987,7 +1258,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                         <Phone className="h-3 w-3" /> Enquire
                       </button>
                     </div>
-                    
+
                     {/* Mobile View Bottom Bar (Title instead of Enquire button and description) */}
                     <div className="flex sm:hidden flex-col items-center text-center w-full">
                       <span className="text-[10px] font-bold text-foreground/95 leading-tight line-clamp-2">
@@ -999,23 +1270,34 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
               ))}
             </div>
           </div>
-
         </section>
 
         {/* Trending chips */}
         <section className="mt-6 sm:mt-12 md:mt-20">
           <div className="mb-4 sm:mb-6 flex items-end justify-between">
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Live now</div>
-              <h2 className="mt-1.5 sm:mt-2 font-serif text-xl sm:text-3xl">Trending searches near you</h2>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
+                Live now
+              </div>
+              <h2 className="mt-1.5 sm:mt-2 font-serif text-xl sm:text-3xl">
+                Trending searches near you
+              </h2>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-3">
             {[
-              "Paying Guest Accommodations", "Co-working Spaces", "Tax Consultants",
-              "Banquet Halls", "Cinema Halls", "Water Suppliers", "Driving Schools",
-              "Packers & Movers", "Event Organisers", "Wedding Photographers",
-              "Luxury Car Rental", "Yoga Classes",
+              "Paying Guest Accommodations",
+              "Co-working Spaces",
+              "Tax Consultants",
+              "Banquet Halls",
+              "Cinema Halls",
+              "Water Suppliers",
+              "Driving Schools",
+              "Packers & Movers",
+              "Event Organisers",
+              "Wedding Photographers",
+              "Luxury Car Rental",
+              "Yoga Classes",
             ].map((t, index) => (
               <button
                 key={t}
@@ -1070,7 +1352,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                 className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-3 sm:gap-4 w-full no-scrollbar py-2 px-4 sm:px-0"
                 style={{ scrollbarWidth: "none" }}
               >
-                {touristPlaces.map((place) => (
+                {allPlaces.map((place) => (
                   <div
                     key={place.title}
                     onClick={() => onPlaceClick?.(place.title)}
@@ -1100,7 +1382,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
         </section>
 
         {/* Recent Activity / Reviews Section */}
-        <section className="mt-6 sm:mt-12 md:mt-16 mb-6 sm:mb-16">
+        <section className="mt-6 sm:mt-12 md:mt-16 mb-2 sm:mb-4">
           <div className="relative rounded-2xl border-none sm:border border-border/50 bg-transparent sm:bg-card p-1 sm:p-6 shadow-none sm:shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
             {/* Header */}
             <div className="flex items-center gap-2 mb-4 sm:mb-6">
@@ -1155,7 +1437,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                           {review.location}
                         </span>
                       </div>
-                      
+
                       {/* WhatsApp Button */}
                       <a
                         href={review.whatsappLink}
@@ -1174,7 +1456,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                         WhatsApp
                       </a>
                     </div>
- 
+
                     {/* Image */}
                     <div className="relative aspect-[16/8] sm:aspect-[16/9] w-full overflow-hidden bg-secondary border-y border-border/40">
                       <img
@@ -1184,12 +1466,14 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                         className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
                     </div>
- 
+
                     {/* Review Info */}
                     <div className="p-2.5 sm:p-5 flex flex-col flex-1">
                       {/* User Row */}
                       <div className="flex items-center gap-1.5 sm:gap-3">
-                        <div className={`h-5 w-5 sm:h-8 sm:w-8 rounded-full flex items-center justify-center text-[8px] sm:text-xs font-black text-white shadow-inner bg-gradient-to-tr ${review.userColor}`}>
+                        <div
+                          className={`h-5 w-5 sm:h-8 sm:w-8 rounded-full flex items-center justify-center text-[8px] sm:text-xs font-black text-white shadow-inner bg-gradient-to-tr ${review.userColor}`}
+                        >
                           {review.userInitial}
                         </div>
                         <div className="flex flex-col">
@@ -1201,7 +1485,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                           </span>
                         </div>
                       </div>
- 
+
                       {/* Stars */}
                       <div className="flex items-center gap-0.5 mt-1.5 sm:mt-3">
                         {Array.from({ length: review.rating }).map((_, starIndex) => (
@@ -1211,7 +1495,7 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                           />
                         ))}
                       </div>
- 
+
                       {/* Review Text */}
                       <p className="text-[9.5px] sm:text-[12px] text-muted-foreground/90 mt-1.5 sm:mt-2.5 leading-snug sm:leading-relaxed line-clamp-2 sm:line-clamp-3 italic flex-1">
                         "{review.reviewText}"
@@ -1225,8 +1509,8 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
         </section>
 
         {/* Related Articles Section */}
-        <section className="mt-6 sm:mt-12 md:mt-16 mb-6 sm:mb-20">
-          <div className="flex items-center justify-between mb-4 sm:mb-8">
+        <section className="mt-2 sm:mt-4 md:mt-6 mb-6 sm:mb-20">
+          <div className="flex items-center justify-between mb-2 sm:mb-4">
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-2xl font-extrabold text-foreground tracking-tight font-serif">
                 Related Articles
@@ -1275,11 +1559,11 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
                     <div className="text-[7px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 sm:mb-2.5">
                       {article.readTime}
                     </div>
-                    
+
                     <h3 className="font-serif text-[10px] sm:text-lg font-bold text-foreground leading-snug group-hover:text-primary transition-colors duration-300 line-clamp-2">
                       {article.title}
                     </h3>
-                    
+
                     <p className="hidden sm:block text-[13px] text-muted-foreground/80 mt-3 leading-relaxed line-clamp-3">
                       {article.desc}
                     </p>
@@ -1300,19 +1584,24 @@ export default function HomePage({ onArticleClick, onReviewClick, onPlaceClick, 
           {/* Bottom Content Area: SEO Text */}
           <div>
             <h3 className="text-lg sm:text-xl font-extrabold text-foreground tracking-tight leading-snug">
-              One-Stop for All Local Businesses, Services, & Stores Nearby Across India
+              {aboutData.title}
             </h3>
-            
+
             <div className="mt-5 space-y-4 text-[13px] text-muted-foreground/80 leading-relaxed font-semibold">
               <p>
-                Welcome to <span className="font-extrabold text-foreground">FindmyPoint</span>, your "one stop shop" where you are assisted with day-to-day and exclusive planning and purchasing activities. We take pride in our curated search listings, advanced search filters, and the fact that we own a strong, verified hold on local business information pan India.
+                {aboutData.paragraph1.includes("FindmyPoint")
+                  ? aboutData.paragraph1.split("FindmyPoint").map((chunk, i, arr) => (
+                      <span key={i}>
+                        {chunk}
+                        {i < arr.length - 1 && (
+                          <span className="font-extrabold text-foreground">FindmyPoint</span>
+                        )}
+                      </span>
+                    ))
+                  : aboutData.paragraph1}
               </p>
-              <p>
-                Our service extends from providing address and contact details of business establishments around the country, to making orders and reservations for leisure, medical, financial, travel and domestic purposes. We enlist business information across varied sectors like Hotels, Restaurants, Auto Care, Home Decor, Personal and Pet Care, Fitness, Insurance, Real Estate, Sports, Schools, etc. from all over the country. Holding information right from major cities like Mumbai, Delhi, Bangalore, Hyderabad, Chennai, Ahmedabad and Pune, our reach stretches out to other smaller cities across the country too.
-              </p>
-              <p>
-                Our "Free Listing" feature gives a platform to showcase varied specialities. We then furnish you with the information via web and mobile application as well as create a space for you to share your experiences through our "Rate & Review" feature. Through the "Best Deals" and "Live Quotes", we make sure that you are offered the best bargains in the market.
-              </p>
+              <p>{aboutData.paragraph2}</p>
+              <p>{aboutData.paragraph3}</p>
             </div>
           </div>
         </section>

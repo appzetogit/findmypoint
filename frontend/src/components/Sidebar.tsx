@@ -59,7 +59,7 @@ export default function Sidebar({
   };
 
   const handleItemClick = (label: string, action?: () => void) => {
-    if (isGuest && label !== "Help" && label !== "Policy" && label !== "Admin Dashboard") {
+    if (isGuest && label !== "Help" && label !== "Policy") {
       onSignInClick();
       onClose();
       return;
@@ -137,27 +137,10 @@ export default function Sidebar({
       },
     },
     {
-      label: "Feedback",
-      icon: MessageSquare,
-      action: () => {
-        onMenuClick?.("Feedback");
-        onClose();
-      },
-    },
-    {
       label: "Help",
       icon: Handshake,
       action: () => {
         onMenuClick?.("Help");
-        onClose();
-      },
-    },
-    {
-      label: "Admin Dashboard",
-      icon: Shield,
-      action: () => {
-        window.history.pushState({}, "", "/admin");
-        window.dispatchEvent(new PopStateEvent("popstate"));
         onClose();
       },
     },

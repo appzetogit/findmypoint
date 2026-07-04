@@ -1104,21 +1104,19 @@ export default function BusinessDetailPage({
                                 Add +
                               </button>
                             ) : (
-                              <div className="flex items-center border border-emerald-600/30 bg-emerald-50 text-emerald-700 rounded-xl overflow-hidden shadow-sm">
+                              <div className="flex items-center justify-between border border-emerald-600 bg-white text-emerald-600 rounded-full px-3 py-1 w-24 h-[34px] text-xs font-bold shadow-sm select-none">
                                 <button
                                   type="button"
                                   onClick={() => removeFromCart(prod.name)}
-                                  className="px-3 py-1.5 text-xs font-black hover:bg-emerald-100 transition cursor-pointer"
+                                  className="hover:text-emerald-800 active:scale-90 font-black cursor-pointer text-sm w-6 h-6 flex items-center justify-center transition border-none bg-transparent"
                                 >
                                   -
                                 </button>
-                                <span className="px-2 text-xs font-black min-w-6 text-center select-none">
-                                  {qty}
-                                </span>
+                                <span className="font-bold text-xs min-w-[12px] text-center">{qty}</span>
                                 <button
                                   type="button"
                                   onClick={() => addToCart(prod.name)}
-                                  className="px-3 py-1.5 text-xs font-black hover:bg-emerald-100 transition cursor-pointer"
+                                  className="hover:text-emerald-800 active:scale-90 font-black cursor-pointer text-sm w-6 h-6 flex items-center justify-center transition border-none bg-transparent"
                                 >
                                   +
                                 </button>
@@ -1132,51 +1130,74 @@ export default function BusinessDetailPage({
                 ) : (
                   // General List View (menu-style)
                   <div className="flex flex-col gap-4">
-                    {filteredProducts.map((prod, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-4 bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)] hover:shadow-md hover:border-primary/10 transition duration-300"
-                      >
-                        {/* Left: Product Image */}
-                        <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl overflow-hidden bg-secondary shrink-0">
-                          <img
-                            src={prod.img}
-                            alt={prod.name}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-
-                        {/* Middle: Details */}
-                        <div className="flex-1 min-w-0 text-left">
-                          <div className="flex items-start justify-between gap-2">
-                            <h4 className="text-sm sm:text-base font-black text-foreground line-clamp-1">
-                              {prod.name}
-                            </h4>
-                            <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md shrink-0">
-                              {prod.price}
-                            </span>
+                    {filteredProducts.map((prod, idx) => {
+                      const qty = cart[prod.name] || 0;
+                      return (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-4 bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)] hover:shadow-md hover:border-primary/10 transition duration-300"
+                        >
+                          {/* Left: Product Image */}
+                          <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl overflow-hidden bg-secondary shrink-0">
+                            <img
+                              src={prod.img}
+                              alt={prod.name}
+                              className="h-full w-full object-cover"
+                            />
                           </div>
-                          <p className="text-xs text-muted-foreground/80 mt-1 sm:mt-1.5 leading-relaxed line-clamp-2">
-                            {prod.desc}
-                          </p>
-                        </div>
 
-                        {/* Right: Add to Cart Button */}
-                        <div className="shrink-0 pl-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              addToCart(prod.name);
-                              setCartOpen(true);
-                            }}
-                            className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer shadow-sm active:scale-95 whitespace-nowrap border-none"
-                          >
-                            <ShoppingCart className="h-3.5 w-3.5" />
-                            Add to Cart
-                          </button>
+                          {/* Middle: Details */}
+                          <div className="flex-1 min-w-0 text-left">
+                            <div className="flex items-start justify-between gap-2">
+                              <h4 className="text-sm sm:text-base font-black text-foreground line-clamp-1">
+                                {prod.name}
+                              </h4>
+                              <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md shrink-0">
+                                {prod.price}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground/80 mt-1 sm:mt-1.5 leading-relaxed line-clamp-2">
+                              {prod.desc}
+                            </p>
+                          </div>
+
+                          {/* Right: Add to Cart Button / Quantity Selector */}
+                          <div className="shrink-0 pl-2">
+                            {qty === 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  addToCart(prod.name);
+                                  setCartOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer shadow-sm active:scale-95 whitespace-nowrap border-none"
+                              >
+                                <ShoppingCart className="h-3.5 w-3.5" />
+                                Add to Cart
+                              </button>
+                            ) : (
+                              <div className="flex items-center justify-between border border-emerald-600 bg-white text-emerald-600 rounded-full px-3 py-1 w-24 h-[34px] text-xs font-bold shadow-sm select-none">
+                                <button
+                                  type="button"
+                                  onClick={() => removeFromCart(prod.name)}
+                                  className="hover:text-emerald-800 active:scale-90 font-black cursor-pointer text-sm w-6 h-6 flex items-center justify-center transition border-none bg-transparent"
+                                >
+                                  &minus;
+                                </button>
+                                <span className="font-bold text-xs min-w-[12px] text-center">{qty}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => addToCart(prod.name)}
+                                  className="hover:text-emerald-800 active:scale-90 font-black cursor-pointer text-sm w-6 h-6 flex items-center justify-center transition border-none bg-transparent"
+                                >
+                                  &#43;
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )
               ) : (

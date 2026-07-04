@@ -474,6 +474,52 @@ export default function HomePage({
   const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
   const [allPlaces, setAllPlaces] = useState<any[]>([]);
   const [aboutData, setAboutData] = useState<AboutData>(loadAboutData);
+  const [allHeroCards, setAllHeroCards] = useState<any[]>(heroCards);
+  const [allHeroSlides, setAllHeroSlides] = useState<any[]>(heroSlides);
+
+  useEffect(() => {
+    const loadHeroData = () => {
+      try {
+        const savedCards = localStorage.getItem("fmp_hero_cards");
+        if (savedCards) {
+          const parsed = JSON.parse(savedCards);
+          if (Array.isArray(parsed) && parsed.length === 3) {
+            setAllHeroCards(parsed);
+          } else {
+            setAllHeroCards(heroCards);
+          }
+        } else {
+          setAllHeroCards(heroCards);
+        }
+      } catch (e) {
+        setAllHeroCards(heroCards);
+      }
+
+      try {
+        const savedSlides = localStorage.getItem("fmp_hero_slides");
+        if (savedSlides) {
+          const parsed = JSON.parse(savedSlides);
+          if (Array.isArray(parsed) && parsed.length === 4) {
+            setAllHeroSlides(parsed);
+          } else {
+            setAllHeroSlides(heroSlides);
+          }
+        } else {
+          setAllHeroSlides(heroSlides);
+        }
+      } catch (e) {
+        setAllHeroSlides(heroSlides);
+      }
+    };
+
+    loadHeroData();
+
+    const handleStorage = () => {
+      loadHeroData();
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   useEffect(() => {
     const handleStorage = () => {
@@ -587,10 +633,10 @@ export default function HomePage({
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setUiState((prev) => ({ ...prev, activeSlide: (prev.activeSlide + 1) % heroSlides.length }));
+      setUiState((prev) => ({ ...prev, activeSlide: (prev.activeSlide + 1) % allHeroSlides.length }));
     }, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [allHeroSlides.length]);
 
   // Tourist places scroll controls
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -976,7 +1022,7 @@ export default function HomePage({
         {/* Hero */}
         <section className="hidden sm:grid grid-cols-12 gap-5 items-stretch">
           <div className="group relative col-span-12 overflow-hidden rounded-3xl lg:col-span-7 min-h-[300px] lg:min-h-0 lg:h-auto">
-            {heroSlides.map((slide, index) => {
+            {allHeroSlides.map((slide, index) => {
               const isActive = activeSlide === index;
               return (
                 <div
@@ -1019,7 +1065,7 @@ export default function HomePage({
 
             {/* Navigation Dots */}
             <div className="absolute bottom-5 right-6 z-20 flex gap-2">
-              {heroSlides.map((_, index) => (
+              {allHeroSlides.map((_, index) => (
                 <button
                   key={index}
                   onClick={() => setUiState((prev) => ({ ...prev, activeSlide: index }))}
@@ -1036,7 +1082,7 @@ export default function HomePage({
               onClick={() =>
                 setUiState((prev) => ({
                   ...prev,
-                  activeSlide: (prev.activeSlide - 1 + heroSlides.length) % heroSlides.length,
+                  activeSlide: (prev.activeSlide - 1 + allHeroSlides.length) % allHeroSlides.length,
                 }))
               }
               className="absolute left-4 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-black/25 text-white flex items-center justify-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/40 cursor-pointer"
@@ -1048,7 +1094,7 @@ export default function HomePage({
               onClick={() =>
                 setUiState((prev) => ({
                   ...prev,
-                  activeSlide: (prev.activeSlide + 1) % heroSlides.length,
+                  activeSlide: (prev.activeSlide + 1) % allHeroSlides.length,
                 }))
               }
               className="absolute right-4 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-black/25 text-white flex items-center justify-center backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/40 cursor-pointer"
@@ -1059,7 +1105,7 @@ export default function HomePage({
           </div>
 
           <div className="col-span-12 lg:col-span-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {heroCards.map((card, i) => (
+            {allHeroCards.map((card, i) => (
               <button
                 key={i}
                 onClick={() => onCategoryClick?.(card.categoryName)}

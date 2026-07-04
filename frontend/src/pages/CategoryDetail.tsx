@@ -2036,6 +2036,59 @@ export default function CategoryDetailPage({
                           dispatchBooking({ type: "SET_PROCESSING", value: false });
                           dispatchBooking({ type: "SET_STEP", step: "success" });
                           dispatchBooking({ type: "SET_SUBMITTED", value: true });
+
+                          if (selectedBizForBooking) {
+                            const submissionKey = `fmp_service_submissions:${selectedBizForBooking.id}`;
+                            const existingSubmissions = JSON.parse(localStorage.getItem(submissionKey) || "[]");
+
+                            const dataToSave = {
+                              "Full Name": bookingForm.name,
+                              "Phone Number": bookingForm.phone,
+                              "Date": bookingForm.date || new Date().toISOString().split("T")[0],
+                              "Persons/Guests/Travelers": bookingForm.persons || bookingForm.guests || bookingForm.travelers || "1",
+                              "Room/Timeslot/Package": bookingForm.roomType || bookingForm.timeslot || bookingForm.package || "General Selection",
+                            };
+
+                            const formatDateTimeDMY = (date: Date) => {
+                              const d = String(date.getDate()).padStart(2, "0");
+                              const m = String(date.getMonth() + 1).padStart(2, "0");
+                              const y = date.getFullYear();
+                              const hrs = String(date.getHours()).padStart(2, "0");
+                              const mins = String(date.getMinutes()).padStart(2, "0");
+                              return `${d}/${m}/${y} ${hrs}:${mins}`;
+                            };
+
+                            const newSub = {
+                              id: `sub-${Date.now()}`,
+                              timestamp: formatDateTimeDMY(new Date()),
+                              data: dataToSave
+                            };
+
+                            localStorage.setItem(submissionKey, JSON.stringify([newSub, ...existingSubmissions]));
+
+                            const paymentsKey = `fmp_service_payments:${selectedBizForBooking.id}`;
+                            const existingPayments = JSON.parse(localStorage.getItem(paymentsKey) || "[]");
+                            const amount = getBookingPrice();
+                            const details = selectedBizForBooking.category.includes("Hotel Point")
+                              ? "Room Stay Reservation Deposit"
+                              : selectedBizForBooking.category.includes("Health Care Point") || selectedBizForBooking.category.includes("Doctor Point")
+                                ? "Appointment Consultation Fee"
+                                : "Table Booking Deposit";
+
+                            const newPayment = {
+                              id: `txn-${Date.now()}`,
+                              bookingId: newSub.id,
+                              timestamp: newSub.timestamp,
+                              customerName: bookingForm.name,
+                              amount,
+                              paymentMethod: paymentMethod || "upi",
+                              status: "Completed",
+                              details
+                            };
+
+                            localStorage.setItem(paymentsKey, JSON.stringify([newPayment, ...existingPayments]));
+                            window.dispatchEvent(new Event("storage"));
+                          }
                         }, 2000);
                       }}
                       className="w-full mt-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md text-center"

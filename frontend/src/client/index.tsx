@@ -12,7 +12,9 @@ import {
   Star,
   HelpCircle,
   CreditCard,
-  PlusCircle
+  PlusCircle,
+  Image as ImageIcon,
+  Wallet as WalletIcon
 } from "lucide-react";
 import logoImg from "../assets/logo.png";
 import { businessesData, BusinessListingData } from "../data/businessesData";
@@ -28,6 +30,8 @@ import Reviews from "./Reviews";
 import FAQManagement from "./FAQManagement";
 import PaymentManagement from "./PaymentManagement";
 import AddProduct from "./AddProduct";
+import PostMedia from "./PostMedia";
+import Wallet from "./Wallet";
 
 interface ClientShellProps {
   onClose: () => void;
@@ -38,6 +42,7 @@ export type ClientView =
   | "overview"
   | "listings"
   | "bookings"
+  | "wallet"
   | "payments"
   | "enquiries"
   | "add"
@@ -46,6 +51,7 @@ export type ClientView =
   | "serviceform"
   | "addproduct"
   | "reviews"
+  | "postmedia"
   | "faq";
 
 interface ClientSession {
@@ -166,7 +172,61 @@ export default function ClientShell({ onClose }: ClientShellProps) {
       ? Number((clientListings.reduce((sum, item) => sum + (item.rating || 0), 0) / totalListings).toFixed(1))
       : 0.0;
 
-    return { totalListings, totalReviews, avgRating };
+    // 1. Total Booking, Accepted, Cancelled
+    let totalBookings = 0;
+    let hasSubmissions = false;
+    clientListings.forEach((biz) => {
+      const subSaved = localStorage.getItem(`fmp_service_submissions:${biz.id}`);
+      if (subSaved) {
+        try {
+          const parsed = JSON.parse(subSaved);
+          if (Array.isArray(parsed)) {
+            totalBookings += parsed.length;
+            hasSubmissions = true;
+          }
+        } catch (e) {}
+      }
+    });
+    if (!hasSubmissions) {
+      totalBookings = 11;
+    }
+    const totalAccepted = hasSubmissions ? Math.round(totalBookings * 0.6) : 6;
+    const totalCancelled = hasSubmissions ? (totalBookings - totalAccepted) : 5;
+
+    // 2. Total Enquiries
+    let totalEnquiries = 0;
+    let hasEnquiries = false;
+    clientListings.forEach((biz) => {
+      const saved = localStorage.getItem(`fmp_service_enquiries:${biz.id}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            totalEnquiries += parsed.length;
+            hasEnquiries = true;
+          }
+        } catch (e) {}
+      }
+    });
+    if (!hasEnquiries) {
+      totalEnquiries = 18;
+    }
+
+    // 3. Total Products
+    const totalProducts = clientListings.reduce((sum, item) => sum + (item.products?.length || 0), 0);
+
+    const totalRevenue = hasSubmissions ? totalBookings * 180 : 1080;
+
+    return {
+      totalBookings,
+      totalAccepted,
+      totalCancelled,
+      totalEnquiries,
+      totalProducts,
+      totalReviews,
+      avgRating,
+      totalRevenue
+    };
   }, [clientListings]);
 
   const allBookingsDisabled = useMemo(() => {
@@ -286,6 +346,27 @@ export default function ClientShell({ onClose }: ClientShellProps) {
               {!allBookingsDisabled && (
                 <button
                   onClick={() => {
+                    setCurrentView("wallet");
+                  }}
+                  className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                    currentView === "wallet"
+                      ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                      : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                  }`}
+                >
+                  {currentView === "wallet" && (
+                    <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                  )}
+                  <WalletIcon
+                    className={`h-4.5 w-4.5 transition-colors ${currentView === "wallet" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                  />
+                  <span>Wallet</span>
+                </button>
+              )}
+
+              {!allBookingsDisabled && (
+                <button
+                  onClick={() => {
                     setCurrentView("payments");
                   }}
                   className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
@@ -384,6 +465,25 @@ export default function ClientShell({ onClose }: ClientShellProps) {
 
               <button
                 onClick={() => {
+                  setCurrentView("postmedia");
+                }}
+                className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                  currentView === "postmedia"
+                    ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                    : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                }`}
+              >
+                {currentView === "postmedia" && (
+                  <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                )}
+                <ImageIcon
+                  className={`h-4.5 w-4.5 transition-colors ${currentView === "postmedia" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                />
+                <span>Post Media</span>
+              </button>
+
+              <button
+                onClick={() => {
                   setCurrentView("faq");
                 }}
                 className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
@@ -458,7 +558,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
         {/* Dashboard Main Area */}
         <main className="flex-1 p-6 md:p-10 max-w-7xl w-full mx-auto overflow-y-auto no-scrollbar">
           {currentView === "overview" && (
-            <Dashboard stats={stats} />
+            <Dashboard stats={stats} isBookingDisabled={allBookingsDisabled} />
           )}
 
           {currentView === "listings" && (
@@ -473,6 +573,10 @@ export default function ClientShell({ onClose }: ClientShellProps) {
 
           {currentView === "bookings" && (
             <Bookings clientListings={clientListings} />
+          )}
+
+          {currentView === "wallet" && (
+            <Wallet clientListings={clientListings} />
           )}
 
           {currentView === "payments" && (
@@ -493,6 +597,10 @@ export default function ClientShell({ onClose }: ClientShellProps) {
 
           {currentView === "reviews" && (
             <Reviews clientListings={clientListings} />
+          )}
+
+          {currentView === "postmedia" && (
+            <PostMedia clientListings={clientListings} />
           )}
 
           {currentView === "faq" && (

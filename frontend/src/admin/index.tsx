@@ -18,6 +18,13 @@ import {
   Sliders,
   Scale,
   HelpCircle,
+  Image as ImageIcon,
+  Calendar,
+  CreditCard,
+  MessageSquare,
+  Percent,
+  Send,
+  Wallet,
 } from "lucide-react";
 import Dashboard from "./Dashboard";
 import AdminEntryForm from "./AdminEntryForm";
@@ -30,9 +37,17 @@ import AddTouristPlaceForm from "./AddTouristPlaceForm";
 import UsersManagement from "./UsersManagement";
 import AboutManagement from "./AboutManagement";
 import FooterManagement from "./FooterManagement";
+import BannerManagement from "./BannerManagement";
 import PrivacyPolicyManagement from "./PrivacyPolicyManagement";
 import TermsConditionsManagement from "./TermsConditionsManagement";
 import HelpCenterManagement from "./HelpCenterManagement";
+import AllBookings from "./AllBookings";
+import AdminPaymentManagement from "./AdminPaymentManagement";
+import AllEnquiries from "./AllEnquiries";
+import AllClientDashboard from "./AllClientDashboard";
+import BusinessCommission from "./BusinessCommission";
+import AdminWithdrawals from "./AdminWithdrawals";
+import AdminBusinessWallets from "./AdminBusinessWallets";
 import logoImg from "../assets/logo.png";
 
 interface AdminShellProps {
@@ -53,9 +68,17 @@ export type AdminView =
   | "users"
   | "about"
   | "footer"
+  | "banner_management"
   | "privacy_policy"
   | "terms_conditions"
-  | "help_center";
+  | "help_center"
+  | "bookings"
+  | "payments"
+  | "all_enquiries"
+  | "all_client_dashboard"
+  | "commissions"
+  | "admin_withdrawals"
+  | "business_wallets";
 
 export default function AdminShell({ onClose, username }: AdminShellProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -430,6 +453,23 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
                   </button>
 
                   <button
+                    onClick={() => handleViewChange("banner_management")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "banner_management"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-855 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "banner_management" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <ImageIcon
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "banner_management" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>Banner Management</span>
+                  </button>
+
+                  <button
                     onClick={() => handleViewChange("privacy_policy")}
                     className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                       currentView === "privacy_policy"
@@ -488,6 +528,23 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
                 </div>
                 <nav className="space-y-2">
                   <button
+                    onClick={() => handleViewChange("all_client_dashboard")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "all_client_dashboard"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "all_client_dashboard" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <LayoutDashboard
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "all_client_dashboard" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>All Client Dashboard</span>
+                  </button>
+
+                  <button
                     onClick={() => handleViewChange("listings")}
                     className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                       currentView === "listings" || currentView === "add" || currentView === "edit"
@@ -504,6 +561,108 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
                       className={`h-4.5 w-4.5 transition-colors ${currentView === "listings" || currentView === "add" || currentView === "edit" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
                     />
                     <span>Register Business</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleViewChange("bookings")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "bookings"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "bookings" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <Calendar
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "bookings" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>All Bookings</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleViewChange("payments")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "payments"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "payments" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <CreditCard
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "payments" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>Admin Payment Management</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleViewChange("all_enquiries")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "all_enquiries"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "all_enquiries" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <MessageSquare
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "all_enquiries" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>All Enquiries</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleViewChange("commissions")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "commissions"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "commissions" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <Percent
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "commissions" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>Business Commission</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleViewChange("admin_withdrawals")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "admin_withdrawals"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "admin_withdrawals" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <Send
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "admin_withdrawals" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>Withdrawal Requests</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleViewChange("business_wallets")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "business_wallets"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "business_wallets" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <Wallet
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "business_wallets" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>Business Wallet</span>
                   </button>
                 </nav>
               </>
@@ -640,11 +799,27 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
 
           {currentView === "footer" && <FooterManagement />}
 
+          {currentView === "banner_management" && <BannerManagement />}
+
           {currentView === "privacy_policy" && <PrivacyPolicyManagement />}
 
           {currentView === "terms_conditions" && <TermsConditionsManagement />}
 
           {currentView === "help_center" && <HelpCenterManagement />}
+
+          {currentView === "bookings" && <AllBookings />}
+
+          {currentView === "payments" && <AdminPaymentManagement />}
+
+          {currentView === "all_enquiries" && <AllEnquiries />}
+
+          {currentView === "all_client_dashboard" && <AllClientDashboard />}
+
+          {currentView === "commissions" && <BusinessCommission />}
+
+          {currentView === "admin_withdrawals" && <AdminWithdrawals />}
+
+          {currentView === "business_wallets" && <AdminBusinessWallets />}
 
           {currentView === "profile_settings" && (
             <AdminProfileSettings

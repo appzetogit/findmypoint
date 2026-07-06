@@ -25,6 +25,7 @@ import {
   Percent,
   Send,
   Wallet,
+  Briefcase,
 } from "lucide-react";
 import Dashboard from "./Dashboard";
 import AdminEntryForm from "./AdminEntryForm";
@@ -38,6 +39,7 @@ import UsersManagement from "./UsersManagement";
 import AboutManagement from "./AboutManagement";
 import FooterManagement from "./FooterManagement";
 import BannerManagement from "./BannerManagement";
+import EmployeeManagement from "./EmployeeManagement";
 import PrivacyPolicyManagement from "./PrivacyPolicyManagement";
 import TermsConditionsManagement from "./TermsConditionsManagement";
 import HelpCenterManagement from "./HelpCenterManagement";
@@ -48,6 +50,7 @@ import AllClientDashboard from "./AllClientDashboard";
 import BusinessCommission from "./BusinessCommission";
 import AdminWithdrawals from "./AdminWithdrawals";
 import AdminBusinessWallets from "./AdminBusinessWallets";
+import BusinessRequests from "./BusinessRequests";
 import logoImg from "../assets/logo.png";
 
 interface AdminShellProps {
@@ -69,6 +72,7 @@ export type AdminView =
   | "about"
   | "footer"
   | "banner_management"
+  | "employee_management"
   | "privacy_policy"
   | "terms_conditions"
   | "help_center"
@@ -78,7 +82,8 @@ export type AdminView =
   | "all_client_dashboard"
   | "commissions"
   | "admin_withdrawals"
-  | "business_wallets";
+  | "business_wallets"
+  | "business_requests";
 
 export default function AdminShell({ onClose, username }: AdminShellProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -470,6 +475,23 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
                   </button>
 
                   <button
+                    onClick={() => handleViewChange("employee_management")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "employee_management"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-855 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "employee_management" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <Briefcase
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "employee_management" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>Employee Management</span>
+                  </button>
+
+                  <button
                     onClick={() => handleViewChange("privacy_policy")}
                     className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                       currentView === "privacy_policy"
@@ -649,6 +671,23 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
                   </button>
 
                   <button
+                    onClick={() => handleViewChange("business_requests")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "business_requests"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "business_requests" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <ImageIcon
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "business_requests" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>Business Requests</span>
+                  </button>
+
+                  <button
                     onClick={() => handleViewChange("business_wallets")}
                     className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                       currentView === "business_wallets"
@@ -801,6 +840,8 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
 
           {currentView === "banner_management" && <BannerManagement />}
 
+          {currentView === "employee_management" && <EmployeeManagement />}
+
           {currentView === "privacy_policy" && <PrivacyPolicyManagement />}
 
           {currentView === "terms_conditions" && <TermsConditionsManagement />}
@@ -818,6 +859,8 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
           {currentView === "commissions" && <BusinessCommission />}
 
           {currentView === "admin_withdrawals" && <AdminWithdrawals />}
+
+          {currentView === "business_requests" && <BusinessRequests />}
 
           {currentView === "business_wallets" && <AdminBusinessWallets />}
 

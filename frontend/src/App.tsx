@@ -164,6 +164,12 @@ export default function App() {
       const isPathClient = window.location.pathname === "/client";
       dispatch({ type: "SET_SHOW_ADMIN", show: isPathAdmin });
       dispatch({ type: "SET_SHOW_CLIENT", show: isPathClient });
+
+      const params = new URLSearchParams(window.location.search);
+      const bizId = params.get("biz");
+      if (bizId) {
+        dispatch({ type: "SELECT_BUSINESS", id: bizId });
+      }
     };
 
     const handleSelectBusiness = (e: Event) => {

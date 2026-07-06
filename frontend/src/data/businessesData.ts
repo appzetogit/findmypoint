@@ -72,6 +72,12 @@ export interface BusinessListingData {
   isVerified?: boolean;
   isBookingDisabled?: boolean;
   bookingButtonLabel?: string;
+  isTimingMandatory?: boolean;
+  country?: string;
+  state?: string;
+  district?: string;
+  cityTown?: string;
+  pincode?: string;
 }
 
 export const businessesData: BusinessListingData[] = [

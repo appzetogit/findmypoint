@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Search, Plus, Eye, Edit2, Trash2, MapPin, Tag, Phone, ShieldCheck, Calendar } from "lucide-react";
+import { Search, Plus, Eye, Edit2, Trash2, MapPin, Tag, Phone, ShieldCheck, Calendar, QrCode, Download, X } from "lucide-react";
 import { businessesData, BusinessListingData } from "../data/businessesData";
 
 interface BusinessListingsProps {
@@ -15,6 +15,7 @@ export default function BusinessListings({
 }: BusinessListingsProps) {
   const [listings, setListings] = useState<BusinessListingData[]>([]);
   const [viewingBusiness, setViewingBusiness] = useState<BusinessListingData | null>(null);
+  const [qrBusiness, setQrBusiness] = useState<BusinessListingData | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
@@ -162,6 +163,26 @@ export default function BusinessListings({
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent("fmp-select-business", { detail: id }));
     }, 50);
+  };
+
+  const handleDownloadQr = async (business: BusinessListingData) => {
+    try {
+      const url = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(
+        window.location.origin + "/?biz=" + business.id
+      )}`;
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `${business.name.replace(/\s+/g, "_")}_QR.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.error("Failed to download QR code", e);
+    }
   };
 
   return (
@@ -342,6 +363,14 @@ export default function BusinessListings({
                               />
                             </button>
                           </div>
+
+                          <button
+                            onClick={() => setQrBusiness(item)}
+                            title="Generate & Download QR Code"
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition cursor-pointer"
+                          >
+                            <QrCode className="h-3.5 w-3.5" />
+                          </button>
 
                           <button
                             onClick={() => onEditBusiness(item.id)}
@@ -657,6 +686,73 @@ export default function BusinessListings({
                 className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-xs font-bold rounded-xl transition cursor-pointer"
               >
                 Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Viewer Modal */}
+      {qrBusiness && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-left">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800/80 max-w-sm w-full p-6 text-center space-y-6 relative overflow-hidden animate-zoom-in">
+            {/* Background design accents */}
+            <div className="absolute top-0 right-0 h-28 w-28 bg-indigo-500/5 rounded-full blur-xl -translate-y-5 translate-x-5 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 h-28 w-28 bg-indigo-500/5 rounded-full blur-xl translate-y-5 -translate-x-5 pointer-events-none" />
+
+            {/* Header / Close button */}
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">
+                Business QR Code
+              </span>
+              <button
+                onClick={() => setQrBusiness(null)}
+                className="h-8 w-8 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-955 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-slate-450 hover:text-rose-600 transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Business Info */}
+            <div className="space-y-1">
+              <h2 className="font-serif text-lg font-bold text-slate-900 dark:text-white">
+                {qrBusiness.name}
+              </h2>
+              <p className="text-[11px] text-slate-450 dark:text-slate-400 font-semibold truncate px-4">
+                {qrBusiness.cityTown}, {qrBusiness.district}
+              </p>
+            </div>
+
+            {/* QR Image Container */}
+            <div className="relative group max-w-[200px] mx-auto">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
+                  window.location.origin + "/?biz=" + qrBusiness.id
+                )}`}
+                alt={`${qrBusiness.name} QR Code`}
+                className="w-full aspect-square border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3 bg-white shadow-md group-hover:scale-[1.02] transition-transform duration-300"
+              />
+            </div>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                onClick={() => handleDownloadQr(qrBusiness)}
+                className="w-full inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl text-xs shadow-md shadow-indigo-600/10 transition cursor-pointer"
+              >
+                <Download className="h-4 w-4" />
+                Download QR Code Image
+              </button>
+
+              <button
+                onClick={() => {
+                  const shareUrl = window.location.origin + "/?biz=" + qrBusiness.id;
+                  navigator.clipboard.writeText(shareUrl);
+                  alert("Business detail page link copied to clipboard!");
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-950/60 text-slate-700 dark:text-slate-350 border border-slate-200/60 dark:border-slate-800 py-3 px-4 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Copy Shareable Link
               </button>
             </div>
           </div>

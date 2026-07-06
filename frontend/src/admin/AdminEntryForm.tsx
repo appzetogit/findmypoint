@@ -18,6 +18,120 @@ import {
 import { categories } from "../pages/Home";
 import { subcategoriesData } from "../pages/CategoryDetail";
 import { businessesData, BusinessListingData } from "../data/businessesData";
+import statesData from "../data/states-and-districts.json";
+import countryCodesData from "../data/country-by-calling-code.json";
+
+interface CountryCodeItem {
+  country: string;
+  calling_code: number | string;
+}
+
+const rawCodes: CountryCodeItem[] = (countryCodesData as any) || [];
+const ALL_CALLING_CODES: string[] = Array.from(
+  new Set(
+    rawCodes
+      .map((item) => {
+        const code = String(item.calling_code).trim();
+        return code.startsWith("+") ? code : `+${code}`;
+      })
+      .filter((code) => code !== "+")
+  )
+).sort((a, b) => {
+  const numA = parseInt(a.replace(/[^\d]/g, ""), 10);
+  const numB = parseInt(b.replace(/[^\d]/g, ""), 10);
+  return numA - numB;
+});
+
+const PRIORITY_CODES = ["+91", "+1", "+44", "+61", "+65", "+971"];
+const SORTED_CALLING_CODES = [
+  ...PRIORITY_CODES,
+  ...ALL_CALLING_CODES.filter((code) => !PRIORITY_CODES.includes(code))
+];
+
+interface StateItem {
+  state: string;
+  districts: string[];
+}
+
+const statesList: StateItem[] = (statesData as any).states || [];
+
+const STATE_DISTRICTS_MAP: Record<string, string[]> = {};
+statesList.forEach((item) => {
+  STATE_DISTRICTS_MAP[item.state] = [...item.districts, "Other"];
+});
+STATE_DISTRICTS_MAP["Other State"] = ["Other"];
+
+const GLOBAL_LOCATIONS_MAP: Record<string, Record<string, string[]>> = {
+  "India": STATE_DISTRICTS_MAP,
+  "United States": {
+    "California": ["Los Angeles", "San Francisco", "San Diego", "San Jose", "Other"],
+    "New York": ["New York City", "Buffalo", "Rochester", "Yonkers", "Other"],
+    "Texas": ["Houston", "San Antonio", "Dallas", "Austin", "Other"],
+    "Florida": ["Miami", "Orlando", "Tampa", "Jacksonville", "Other"],
+    "Illinois": ["Chicago", "Aurora", "Naperville", "Joliet", "Other"],
+    "Washington": ["Seattle", "Spokane", "Tacoma", "Bellevue", "Other"],
+    "Other State": ["Other"]
+  },
+  "Canada": {
+    "Ontario": ["Toronto", "Ottawa", "Mississauga", "Hamilton", "Other"],
+    "Quebec": ["Montreal", "Quebec City", "Laval", "Gatineau", "Other"],
+    "British Columbia": ["Vancouver", "Victoria", "Burnaby", "Richmond", "Other"],
+    "Alberta": ["Calgary", "Edmonton", "Red Deer", "Lethbridge", "Other"],
+    "Manitoba": ["Winnipeg", "Brandon", "Steinbach", "Thompson", "Other"],
+    "Other State": ["Other"]
+  },
+  "Australia": {
+    "New South Wales": ["Sydney", "Newcastle", "Wollongong", "Other"],
+    "Victoria": ["Melbourne", "Geelong", "Ballarat", "Bendigo", "Other"],
+    "Queensland": ["Brisbane", "Gold Coast", "Sunshine Coast", "Cairns", "Other"],
+    "Western Australia": ["Perth", "Mandurah", "Bunbury", "Other"],
+    "South Australia": ["Adelaide", "Mount Gambier", "Whyalla", "Other"],
+    "Other State": ["Other"]
+  },
+  "United Kingdom": {
+    "England": ["London", "Birmingham", "Manchester", "Leeds", "Liverpool", "Other"],
+    "Scotland": ["Edinburgh", "Glasgow", "Aberdeen", "Dundee", "Other"],
+    "Wales": ["Cardiff", "Swansea", "Newport", "Wrexham", "Other"],
+    "Northern Ireland": ["Belfast", "Derry", "Lisburn", "Newry", "Other"],
+    "Other State": ["Other"]
+  },
+  "United Arab Emirates": {
+    "Dubai": ["Dubai City", "Jebel Ali", "Hatta", "Other"],
+    "Abu Dhabi": ["Abu Dhabi City", "Al Ain", "Al Dhafra", "Other"],
+    "Sharjah": ["Sharjah City", "Khor Fakkan", "Kalba", "Other"],
+    "Ajman": ["Ajman City", "Masfout", "Manama", "Other"],
+    "Ras Al Khaimah": ["RAK City", "Al Jazirah Al Hamra", "Other"],
+    "Fujairah": ["Fujairah City", "Dibba Al-Fujairah", "Other"],
+    "Umm Al Quwain": ["UAQ City", "Falaj Al Mualla", "Other"],
+    "Other State": ["Other"]
+  },
+  "Singapore": {
+    "Central Region": ["Downtown Core", "Bukit Merah", "Queenstown", "Geylang", "Other"],
+    "East Region": ["Tampines", "Bedok", "Pasir Ris", "Other"],
+    "North Region": ["Woodlands", "Yishun", "Sembawang", "Other"],
+    "North-East Region": ["Sengkang", "Hougang", "Punggol", "Serangoon", "Other"],
+    "West Region": ["Jurong West", "Choa Chu Kang", "Bukit Batok", "Other"],
+    "Other State": ["Other"]
+  },
+  "Others": {
+    "Other State": ["Other"]
+  }
+};
+
+const splitPhoneNumber = (fullPhone: string) => {
+  const cleanPhone = (fullPhone || "").trim();
+  const match = cleanPhone.match(/^(\+\d+)\s*(.*)$/);
+  if (match) {
+    return {
+      code: match[1],
+      number: match[2]
+    };
+  }
+  return {
+    code: "+91",
+    number: cleanPhone
+  };
+};
 
 interface AdminEntryFormProps {
   businessId: string | null; // If null, we are in Add mode, otherwise Edit mode
@@ -44,6 +158,14 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
   const [openTime, setOpenTime] = useState("09:00 AM");
   const [closeTime, setCloseTime] = useState("09:00 PM");
   const [holidayTime, setHolidayTime] = useState("Sunday");
+  const [isTimingMandatory, setIsTimingMandatory] = useState(false);
+  const [country, setCountry] = useState("India");
+  const [selectedState, setSelectedState] = useState("Madhya Pradesh");
+  const [customState, setCustomState] = useState("");
+  const [selectedDistrict, setSelectedDistrict] = useState("Indore");
+  const [customDistrict, setCustomDistrict] = useState("");
+  const [cityTown, setCityTown] = useState("");
+  const [pincode, setPincode] = useState("");
   const [description, setDescription] = useState("");
   const [officers, setOfficers] = useState<{ name: string; designation: string }[]>([]);
   const [facilities, setFacilities] = useState<string[]>([]);
@@ -88,6 +210,39 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
         setOpenTime(biz.openTime || "09:00 AM");
         setCloseTime(biz.closeTime || "09:00 PM");
         setHolidayTime(biz.holidayTime || "Sunday");
+        setIsTimingMandatory(biz.isTimingMandatory || false);
+        const dbCountry = biz.country || "India";
+        setCountry(dbCountry);
+
+        const countryMap = GLOBAL_LOCATIONS_MAP[dbCountry] || { "Other State": ["Other"] };
+        const dbState = biz.state || "";
+        const stateKeys = Object.keys(countryMap);
+        if (stateKeys.includes(dbState) && dbState !== "Other State") {
+          setSelectedState(dbState);
+          setCustomState("");
+        } else if (dbState) {
+          setSelectedState("Other State");
+          setCustomState(dbState);
+        } else {
+          setSelectedState(stateKeys[0] || "Other State");
+          setCustomState("");
+        }
+
+        const dbDistrict = biz.district || "";
+        const currentStateKey = stateKeys.includes(dbState) && dbState !== "Other State" ? dbState : "Other State";
+        const districtsForState = countryMap[currentStateKey] || [];
+        if (districtsForState.includes(dbDistrict) && dbDistrict !== "Other") {
+          setSelectedDistrict(dbDistrict);
+          setCustomDistrict("");
+        } else if (dbDistrict) {
+          setSelectedDistrict("Other");
+          setCustomDistrict(dbDistrict);
+        } else {
+          setSelectedDistrict(districtsForState[0] || "Other");
+          setCustomDistrict("");
+        }
+        setCityTown(biz.cityTown || "");
+        setPincode(biz.pincode || "");
         setDescription(biz.description || "");
         setOfficers(biz.officers || []);
         setFacilities(biz.facilities || []);
@@ -176,15 +331,6 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
     }
   };
 
-  // Custom facility text input
-  const [customFacility, setCustomFacility] = useState("");
-  const handleAddCustomFacility = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (customFacility.trim() && !facilities.includes(customFacility.trim())) {
-      setFacilities([...facilities, customFacility.trim()]);
-      setCustomFacility("");
-    }
-  };
 
   // Save / Submit Form
   const handleSubmit = (e: React.FormEvent) => {
@@ -197,9 +343,39 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
       alert("Business Address is required.");
       return;
     }
+
+    const finalState = selectedState === "Other State" ? customState : selectedState;
+    const finalDistrict = selectedDistrict === "Other" ? customDistrict : selectedDistrict;
+
+    if (!finalState.trim()) {
+      alert("State is required.");
+      return;
+    }
+    if (!finalDistrict.trim()) {
+      alert("District is required.");
+      return;
+    }
+    if (!cityTown.trim()) {
+      alert("Area / City / Town is required.");
+      return;
+    }
+    if (!pincode.trim()) {
+      alert("Pincode is required.");
+      return;
+    }
     if (!phone.trim()) {
       alert("Contact Number is required.");
       return;
+    }
+    if (isTimingMandatory) {
+      if (!openTime.trim()) {
+        alert("Open Time is required because timings are set to mandatory.");
+        return;
+      }
+      if (!closeTime.trim()) {
+        alert("Close Time is required because timings are set to mandatory.");
+        return;
+      }
     }
 
     // Default Images fallback if empty
@@ -276,6 +452,12 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
       subCategoryLine: subCategoryLine.trim(),
       highlightsName: highlightsName.trim(),
       bookingButtonLabel: bookingButtonLabel.trim(),
+      isTimingMandatory,
+      country: country.trim(),
+      state: finalState.trim(),
+      district: finalDistrict.trim(),
+      cityTown: cityTown.trim(),
+      pincode: pincode.trim(),
     };
 
     try {
@@ -471,19 +653,159 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
                 />
               </div>
 
+              {/* Country Selection */}
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                  Country *
+                </label>
+                <select
+                  value={country}
+                  onChange={(e) => {
+                    const c = e.target.value;
+                    setCountry(c);
+                    const states = Object.keys(GLOBAL_LOCATIONS_MAP[c] || {});
+                    const defaultState = states[0] || "Other State";
+                    setSelectedState(defaultState);
+                    const districts = GLOBAL_LOCATIONS_MAP[c]?.[defaultState] || [];
+                    setSelectedDistrict(districts[0] || "Other");
+                    setCustomState("");
+                    setCustomDistrict("");
+                  }}
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
+                >
+                  {Object.keys(GLOBAL_LOCATIONS_MAP).map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* State */}
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                  State *
+                </label>
+                <select
+                  value={selectedState}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedState(val);
+                    const nextDistricts = GLOBAL_LOCATIONS_MAP[country]?.[val] || [];
+                    setSelectedDistrict(nextDistricts[0] || "Other");
+                  }}
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
+                >
+                  {Object.keys(GLOBAL_LOCATIONS_MAP[country] || {}).map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+                {selectedState === "Other State" && (
+                  <input
+                    type="text"
+                    required
+                    placeholder="Type custom state name..."
+                    value={customState}
+                    onChange={(e) => setCustomState(e.target.value)}
+                    className="w-full mt-2 bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  />
+                )}
+              </div>
+
+              {/* District */}
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                  District *
+                </label>
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => setSelectedDistrict(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
+                >
+                  {(GLOBAL_LOCATIONS_MAP[country]?.[selectedState] || ["Other"]).map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+                {(selectedState === "Other State" || selectedDistrict === "Other") && (
+                  <input
+                    type="text"
+                    required
+                    placeholder="Type custom district/city name..."
+                    value={customDistrict}
+                    onChange={(e) => setCustomDistrict(e.target.value)}
+                    className="w-full mt-2 bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-450 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  />
+                )}
+              </div>
+
+              {/* Area / City / Town */}
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                  Area / City / Town *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. South Tukoganj"
+                  value={cityTown}
+                  onChange={(e) => setCityTown(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                />
+              </div>
+
+              {/* Pincode */}
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                  Pincode *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 452001"
+                  value={pincode}
+                  onChange={(e) => setPincode(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                />
+              </div>
+
               {/* Contact Number */}
               <div className="space-y-2">
                 <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
                   4. Contact Number *
                 </label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="e.g. +91 98765 43210"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                />
+                {(() => {
+                  const splitVal = splitPhoneNumber(phone);
+                  const selectOptions = SORTED_CALLING_CODES.includes(splitVal.code)
+                    ? SORTED_CALLING_CODES
+                    : [splitVal.code, ...SORTED_CALLING_CODES];
+                  return (
+                    <div className="flex gap-2">
+                      <select
+                        value={splitVal.code}
+                        onChange={(e) => setPhone(`${e.target.value} ${splitVal.number}`.trim())}
+                        className="w-24 bg-slate-50 dark:bg-slate-955 text-sm px-2 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold cursor-pointer shrink-0 text-center"
+                      >
+                        {selectOptions.map((code) => (
+                          <option key={code} value={code}>
+                            {code}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="e.g. 98765 43210"
+                        value={splitVal.number}
+                        onChange={(e) => setPhone(`${splitVal.code} ${e.target.value}`.trim())}
+                        className="flex-1 bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                      />
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Whatsapp Number */}
@@ -491,13 +813,34 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
                 <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
                   5. Whatsapp Number
                 </label>
-                <input
-                  type="tel"
-                  placeholder="e.g. +91 98765 43210"
-                  value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                />
+                {(() => {
+                  const splitVal = splitPhoneNumber(whatsapp);
+                  const selectOptions = SORTED_CALLING_CODES.includes(splitVal.code)
+                    ? SORTED_CALLING_CODES
+                    : [splitVal.code, ...SORTED_CALLING_CODES];
+                  return (
+                    <div className="flex gap-2">
+                      <select
+                        value={splitVal.code}
+                        onChange={(e) => setWhatsapp(`${e.target.value} ${splitVal.number}`.trim())}
+                        className="w-24 bg-slate-50 dark:bg-slate-955 text-sm px-2 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold cursor-pointer shrink-0 text-center"
+                      >
+                        {selectOptions.map((code) => (
+                          <option key={code} value={code}>
+                            {code}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="tel"
+                        placeholder="e.g. 98765 43210"
+                        value={splitVal.number}
+                        onChange={(e) => setWhatsapp(`${splitVal.code} ${e.target.value}`.trim())}
+                        className="flex-1 bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                      />
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Business Location link */}
@@ -531,24 +874,41 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {extraNumbers.map((num, idx) => (
-                  <div key={idx} className="flex gap-2 items-center">
-                    <input
-                      type="tel"
-                      placeholder={`Extra Phone #${idx + 1}`}
-                      value={num}
-                      onChange={(e) => handleExtraNumberChange(idx, e.target.value)}
-                      className="flex-1 bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveExtraNumber(idx)}
-                      className="h-11 w-11 shrink-0 flex items-center justify-center text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition cursor-pointer"
-                    >
-                      <Trash2 className="h-4.5 w-4.5" />
-                    </button>
-                  </div>
-                ))}
+                {extraNumbers.map((num, idx) => {
+                  const splitVal = splitPhoneNumber(num);
+                  const selectOptions = SORTED_CALLING_CODES.includes(splitVal.code)
+                    ? SORTED_CALLING_CODES
+                    : [splitVal.code, ...SORTED_CALLING_CODES];
+                  return (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <select
+                        value={splitVal.code}
+                        onChange={(e) => handleExtraNumberChange(idx, `${e.target.value} ${splitVal.number}`.trim())}
+                        className="w-24 bg-slate-50 dark:bg-slate-955 text-sm px-2 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold cursor-pointer shrink-0 text-center"
+                      >
+                        {selectOptions.map((code) => (
+                          <option key={code} value={code}>
+                            {code}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="tel"
+                        placeholder={`Extra Phone #${idx + 1}`}
+                        value={splitVal.number}
+                        onChange={(e) => handleExtraNumberChange(idx, `${splitVal.code} ${e.target.value}`.trim())}
+                        className="flex-1 bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExtraNumber(idx)}
+                        className="h-11 w-11 shrink-0 flex items-center justify-center text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition cursor-pointer"
+                      >
+                        <Trash2 className="h-4.5 w-4.5" />
+                      </button>
+                    </div>
+                  );
+                })}
                 {extraNumbers.length === 0 && (
                   <p className="text-xs text-slate-400 dark:text-slate-500 col-span-2 italic">
                     No extra contact numbers added.
@@ -608,12 +968,48 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
               <Clock className="h-5 w-5 text-indigo-500" /> Timing, Email & Facilities
             </h3>
 
+            {/* Timings Requirement Switcher */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/20 max-w-xl">
+              <div>
+                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
+                  Timings Requirement
+                </label>
+                <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 block">
+                  Select if Open & Close Times are mandatory to fill.
+                </span>
+              </div>
+              <div className="inline-flex items-center bg-slate-100/80 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsTimingMandatory(true)}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    isTimingMandatory
+                      ? "bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-sm"
+                      : "text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-200"
+                  }`}
+                >
+                  Mandatory
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsTimingMandatory(false)}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    !isTimingMandatory
+                      ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-sm"
+                      : "text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-200"
+                  }`}
+                >
+                  Not Mandatory
+                </button>
+              </div>
+            </div>
+
             {/* Operating Times */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Open Time */}
               <div className="space-y-2">
                 <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  8. Open Time
+                  8. Open Time {isTimingMandatory && <span className="text-rose-500 font-bold">*</span>}
                 </label>
                 <input
                   type="text"
@@ -627,7 +1023,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
               {/* Close Time */}
               <div className="space-y-2">
                 <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  8. Close Time
+                  8. Close Time {isTimingMandatory && <span className="text-rose-500 font-bold">*</span>}
                 </label>
                 <input
                   type="text"
@@ -719,43 +1115,22 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
                 })}
               </div>
 
-              {/* Custom facility input */}
-              <div className="flex gap-2 max-w-sm pt-2">
+              {/* Unified facilities text input field */}
+              <div className="space-y-2 pt-2">
+                <span className="text-[11px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider block">
+                  Or enter facilities manually (comma separated)
+                </span>
                 <input
                   type="text"
-                  placeholder="Add custom facility..."
-                  value={customFacility}
-                  onChange={(e) => setCustomFacility(e.target.value)}
-                  className="flex-1 bg-slate-50 dark:bg-slate-950 text-xs px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition-all"
+                  placeholder="e.g. Free Wi-Fi, Parking Space, AC Facility, CCTV"
+                  value={facilities.join(", ")}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const list = val.split(",").map((item) => item.trim()).filter(Boolean);
+                    setFacilities(list);
+                  }}
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                 />
-                <button
-                  type="button"
-                  onClick={handleAddCustomFacility}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition cursor-pointer shrink-0"
-                >
-                  Add Tag
-                </button>
-              </div>
-
-              {/* Extra Dynamic Facilities tags output */}
-              <div className="flex flex-wrap gap-1.5 pt-2">
-                {facilities
-                  .filter((f) => !standardFacilities.includes(f))
-                  .map((fac) => (
-                    <span
-                      key={fac}
-                      className="inline-flex items-center gap-1 text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-full font-bold border border-slate-200 dark:border-slate-700"
-                    >
-                      {fac}
-                      <button
-                        type="button"
-                        onClick={() => handleFacilityToggle(fac)}
-                        className="text-slate-400 hover:text-rose-500 font-normal text-xs pl-1 cursor-pointer focus:outline-none"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
               </div>
             </div>
           </div>

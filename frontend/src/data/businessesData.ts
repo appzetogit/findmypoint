@@ -102,25 +102,25 @@ export const businessesData: BusinessListingData[] = [
       "Vishal Mega Mart is India's leading Fashion led hypermarket. It offers a wide range of fashion clothing, grocery, and household utility items at affordable prices. It provides an excellent one-stop shopping experience to catering to all household needs under one roof. With multiple outlets in Indore, the South Tukoganj branch is loved for its vast inventory and regular discounts.",
     products: [
       {
-        name: "Fresh Farm Vegetables Basket",
-        price: "₹50 / kg onwards",
+        name: "Fresh Farm",
+        price: "₹50 / kg",
         img: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=400&q=80",
         desc: "Direct from local farms, fresh green vegetables, potatoes, onions, and seasonal items.",
       },
       {
-        name: "Organic Groceries Combo Pack",
+        name: "Pastaa",
         price: "₹349 / pack",
         img: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=400&q=80",
         desc: "Includes 5kg premium basmati rice, 2kg organic pulses, and 1L cold-pressed mustard oil.",
       },
       {
-        name: "Premium Men's Cotton Polo Shirts",
+        name: "T-Shirt",
         price: "₹499 each",
         img: "https://images.unsplash.com/photo-1586363104862-3a5e2ab60d99?auto=format&fit=crop&w=400&q=80",
         desc: "100% combed cotton, breathable fabric available in 6 trending colors and all sizes.",
       },
       {
-        name: "Non-Stick Cookware Set (3 Pieces)",
+        name: "Maggiee",
         price: "₹899 / set",
         img: "https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=400&q=80",
         desc: "Includes frying pan, kadhai with glass lid, and flat tawa with scratch-proof coating.",

@@ -34,6 +34,7 @@ export default function Sidebar({
   const isGuest = !username;
   const userInitial = username ? username.charAt(0).toUpperCase() : "G";
   const displayName = username || "Guest User";
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const avatarUrl = useMemo(() => {
     if (!username) return null;
@@ -74,21 +75,13 @@ export default function Sidebar({
   const handleAuthAction = () => {
     if (isGuest) {
       onSignInClick();
+      onClose();
     } else {
-      onLogout();
+      setShowLogoutConfirm(true);
     }
-    onClose();
   };
 
   const group1 = [
-    {
-      label: "Favorites",
-      icon: Heart,
-      action: () => {
-        onMenuClick?.("Favorites");
-        onClose();
-      },
-    },
     {
       label: "Saved",
       icon: Bookmark,
@@ -230,6 +223,42 @@ export default function Sidebar({
           </nav>
         </div>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 pb-6">
+          <div className="w-full max-w-sm bg-card rounded-3xl shadow-2xl border border-border overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+            <div className="px-6 pt-6 pb-4 text-center">
+              <div className="w-14 h-14 bg-rose-100 dark:bg-rose-950/40 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <LogOut className="h-7 w-7 text-rose-500" />
+              </div>
+              <h2 className="text-lg font-bold text-foreground">Log Out?</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Are you sure you want to log out of your account?
+              </p>
+            </div>
+            <div className="px-6 pb-6 flex flex-col gap-2.5">
+              <button
+                onClick={() => {
+                  setShowLogoutConfirm(false);
+                  onClose();
+                  onLogout();
+                  onSignInClick();
+                }}
+                className="w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold transition cursor-pointer"
+              >
+                Yes, Log Out
+              </button>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="w-full py-3 rounded-2xl bg-secondary hover:bg-secondary/80 text-foreground text-sm font-semibold transition cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

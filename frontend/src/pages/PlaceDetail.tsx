@@ -252,7 +252,7 @@ export default function PlaceDetailPage({
               e.preventDefault();
               onBack();
             }}
-            className="flex items-center"
+            className="hidden md:flex items-center"
           >
             <img
               src={logoImg}
@@ -271,7 +271,7 @@ export default function PlaceDetailPage({
             />
           </div>
 
-          <div className="flex items-center gap-4 ml-auto md:ml-0">
+          <div className="hidden md:flex items-center gap-4 ml-auto md:ml-0">
             <button
               onClick={() => onBack()}
               className="px-4 py-2 text-xs font-bold text-muted-foreground transition hover:text-foreground"
@@ -305,7 +305,7 @@ export default function PlaceDetailPage({
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-6 pt-6 pb-20 w-full">
         {/* Collage Collage Section */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[260px] md:h-[380px] overflow-hidden rounded-3xl border border-border/80 shadow-md">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[190px] md:h-[380px] overflow-hidden rounded-3xl border border-border/80 shadow-md">
           {/* Main Large Image */}
           <div className="col-span-1 md:col-span-8 h-full relative group overflow-hidden">
             <img
@@ -422,7 +422,7 @@ export default function PlaceDetailPage({
           </div>
 
           {/* Right quick stats panel */}
-          <div className="lg:col-span-4 bg-card border border-border rounded-2xl p-6 shadow-[var(--shadow-card)]">
+          <div className="lg:col-span-4 bg-transparent sm:bg-card border-none sm:border sm:border-border rounded-none sm:rounded-2xl p-2 sm:p-6 shadow-none sm:shadow-[var(--shadow-card)]">
             <h3 className="text-base font-bold text-foreground mb-4 flex items-center gap-2 border-b border-border/60 pb-3">
               <Info className="h-4.5 w-4.5 text-accent" />
               Quick Travel Info
@@ -460,7 +460,7 @@ export default function PlaceDetailPage({
 
         {/* Section 1: Places to Visit / Temples */}
         {placeData.temples && placeData.temples.length > 0 && (
-          <section id="temples-sec" className="mt-16 relative">
+          <section id="temples-sec" className="mt-0 sm:mt-16 relative">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
@@ -491,16 +491,16 @@ export default function PlaceDetailPage({
 
             <div
               ref={templesScrollRef}
-              className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-4 w-full no-scrollbar pb-3 px-1"
+              className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-4 w-full no-scrollbar pb-1.5 px-1"
               style={{ scrollbarWidth: "none" }}
               onScroll={() => checkSectionScroll(templesScrollRef, "temples")}
             >
               {placeData.temples.map((temple) => (
                 <div
                   key={temple.id}
-                  className="group flex flex-col justify-between rounded-xl border border-border/50 bg-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)]"
+                  className="group flex flex-col justify-between rounded-none sm:rounded-xl border-none sm:border sm:border-border/50 bg-transparent sm:bg-card overflow-hidden transition-all duration-300 hover:shadow-none sm:hover:-translate-y-1 sm:hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)]"
                 >
-                  <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
+                  <div className="relative h-44 sm:h-auto sm:aspect-[16/10] rounded-2xl overflow-hidden bg-secondary">
                     <img
                       src={temple.image}
                       alt={temple.name}
@@ -537,7 +537,7 @@ export default function PlaceDetailPage({
 
         {/* Section 2: Hotels */}
         {placeData.hotels && placeData.hotels.length > 0 && (
-          <section id="hotels-sec" className="mt-16 relative">
+          <section id="hotels-sec" className="mt-4 sm:mt-16 relative">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
@@ -568,16 +568,16 @@ export default function PlaceDetailPage({
 
             <div
               ref={hotelsScrollRef}
-              className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-4 w-full no-scrollbar pb-3 px-1"
+              className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-4 w-full no-scrollbar pb-1.5 px-1"
               style={{ scrollbarWidth: "none" }}
               onScroll={() => checkSectionScroll(hotelsScrollRef, "hotels")}
             >
               {placeData.hotels.map((hotel) => (
                 <div
                   key={hotel.id}
-                  className="group flex flex-col justify-between rounded-xl border border-border/50 bg-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)]"
+                  className="group flex flex-col justify-between rounded-none sm:rounded-xl border-none sm:border sm:border-border/50 bg-transparent sm:bg-card overflow-hidden transition-all duration-300 hover:shadow-none sm:hover:-translate-y-1 sm:hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)]"
                 >
-                  <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
+                  <div className="relative h-44 sm:h-auto sm:aspect-[16/10] rounded-2xl overflow-hidden bg-secondary">
                     <img
                       src={hotel.image}
                       alt={hotel.name}
@@ -630,7 +630,7 @@ export default function PlaceDetailPage({
 
         {/* Section 3: Restaurants */}
         {placeData.restaurants && placeData.restaurants.length > 0 && (
-          <section id="food-sec" className="mt-16 relative">
+          <section id="food-sec" className="mt-4 sm:mt-16 relative">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
@@ -661,16 +661,16 @@ export default function PlaceDetailPage({
 
             <div
               ref={restaurantsScrollRef}
-              className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-4 w-full no-scrollbar pb-3 px-1"
+              className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-4 w-full no-scrollbar pb-1.5 px-1"
               style={{ scrollbarWidth: "none" }}
               onScroll={() => checkSectionScroll(restaurantsScrollRef, "restaurants")}
             >
               {placeData.restaurants.map((rest) => (
                 <div
                   key={rest.id}
-                  className="group flex flex-col justify-between rounded-xl border border-border/50 bg-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)]"
+                  className="group flex flex-col justify-between rounded-none sm:rounded-xl border-none sm:border sm:border-border/50 bg-transparent sm:bg-card overflow-hidden transition-all duration-300 hover:shadow-none sm:hover:-translate-y-1 sm:hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)]"
                 >
-                  <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
+                  <div className="relative h-44 sm:h-auto sm:aspect-[16/10] rounded-2xl overflow-hidden bg-secondary">
                     <img
                       src={rest.image}
                       alt={rest.name}
@@ -711,7 +711,7 @@ export default function PlaceDetailPage({
 
         {/* Section 4: Spas */}
         {placeData.spas && placeData.spas.length > 0 && (
-          <section id="spas-sec" className="mt-16 relative">
+          <section id="spas-sec" className="mt-4 sm:mt-16 relative">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
@@ -742,16 +742,16 @@ export default function PlaceDetailPage({
 
             <div
               ref={spasScrollRef}
-              className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-4 w-full no-scrollbar pb-3 px-1"
+              className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-4 w-full no-scrollbar pb-1.5 px-1"
               style={{ scrollbarWidth: "none" }}
               onScroll={() => checkSectionScroll(spasScrollRef, "spas")}
             >
               {placeData.spas.map((spa) => (
                 <div
                   key={spa.id}
-                  className="group flex flex-col justify-between rounded-xl border border-border/50 bg-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)]"
+                  className="group flex flex-col justify-between rounded-none sm:rounded-xl border-none sm:border sm:border-border/50 bg-transparent sm:bg-card overflow-hidden transition-all duration-300 hover:shadow-none sm:hover:-translate-y-1 sm:hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)]"
                 >
-                  <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
+                  <div className="relative h-44 sm:h-auto sm:aspect-[16/10] rounded-2xl overflow-hidden bg-secondary">
                     <img
                       src={spa.image}
                       alt={spa.name}
@@ -792,7 +792,7 @@ export default function PlaceDetailPage({
 
         {/* Section 5: Activities */}
         {placeData.activities && placeData.activities.length > 0 && (
-          <section id="activities-sec" className="mt-16 relative">
+          <section id="activities-sec" className="mt-4 sm:mt-16 relative">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
@@ -823,16 +823,16 @@ export default function PlaceDetailPage({
 
             <div
               ref={activitiesScrollRef}
-              className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-4 w-full no-scrollbar pb-3 px-1"
+              className="flex overflow-x-auto scroll-smooth snap-x snap-mandatory gap-4 w-full no-scrollbar pb-1.5 px-1"
               style={{ scrollbarWidth: "none" }}
               onScroll={() => checkSectionScroll(activitiesScrollRef, "activities")}
             >
               {placeData.activities.map((act) => (
                 <div
                   key={act.id}
-                  className="group flex flex-col justify-between rounded-xl border border-border/50 bg-card overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(33.333%-11px)]"
+                  className="group flex flex-col justify-between rounded-none sm:rounded-xl border-none sm:border sm:border-border/50 bg-transparent sm:bg-card overflow-hidden transition-all duration-300 hover:shadow-none sm:hover:-translate-y-1 sm:hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(33.333%-11px)]"
                 >
-                  <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
+                  <div className="relative h-44 sm:h-auto sm:aspect-[16/10] rounded-2xl overflow-hidden bg-secondary">
                     <img
                       src={act.image}
                       alt={act.name}
@@ -874,7 +874,7 @@ export default function PlaceDetailPage({
         )}
 
         {/* FAQs Section */}
-        <section className="mt-20 border-t border-border/50 pt-16">
+        <section className="mt-6 sm:mt-20 border-t border-border/50 pt-6 sm:pt-16">
           <div className="max-w-3xl">
             <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
               FAQs
@@ -886,7 +886,7 @@ export default function PlaceDetailPage({
               {placeData.faqs.map((faq, index) => (
                 <div
                   key={index}
-                  className="rounded-xl border border-border/60 bg-card p-4.5 cursor-pointer shadow-[0_1px_4px_rgba(0,0,0,0.02)] transition hover:border-border/80"
+                  className="bg-transparent sm:bg-card rounded-none sm:rounded-xl border-none border-b border-border/40 sm:border sm:border-border/60 p-2 sm:p-4.5 cursor-pointer shadow-none sm:shadow-[0_1px_4px_rgba(0,0,0,0.02)] transition hover:border-border/80"
                   onClick={() =>
                     setUiState((prev) => ({
                       ...prev,
@@ -914,14 +914,14 @@ export default function PlaceDetailPage({
         </section>
 
         {/* Reviews Section */}
-        <section id="reviews-section" className="mt-20 border-t border-border/50 pt-16">
+        <section id="reviews-section" className="mt-6 sm:mt-20 border-t border-border/50 pt-6 sm:pt-16">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
             {/* Reviews list */}
             <div className="lg:col-span-7">
               <div className="flex items-center gap-2 mb-8">
                 <MessageSquare className="h-5 w-5 text-accent" />
                 <h2 className="text-2xl font-bold tracking-tight text-foreground">
-                  User Reviews & Experiences
+                  User Reviews
                 </h2>
               </div>
 
@@ -929,7 +929,7 @@ export default function PlaceDetailPage({
                 {reviewsList.map((rev, index) => (
                   <div
                     key={index}
-                    className="bg-card border border-border/60 p-5 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.02)]"
+                    className="bg-transparent sm:bg-card border-none border-b border-border/40 sm:border sm:border-border/60 p-2 sm:p-5 rounded-none sm:rounded-2xl shadow-none sm:shadow-[0_2px_8px_rgba(0,0,0,0.02)] pb-4"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -967,7 +967,7 @@ export default function PlaceDetailPage({
 
             {/* Write a review form */}
             <div className="lg:col-span-5">
-              <div className="bg-card border border-border/80 p-6 rounded-2xl shadow-md sticky top-24">
+              <div className="bg-transparent sm:bg-card border-none sm:border sm:border-border/80 p-2 sm:p-6 rounded-none sm:rounded-2xl shadow-none sm:shadow-md sticky top-24">
                 <h3 className="text-[17px] font-bold text-foreground mb-4">
                   Share Your Experience
                 </h3>

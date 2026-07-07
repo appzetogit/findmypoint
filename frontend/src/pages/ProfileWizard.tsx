@@ -308,8 +308,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col md:flex-row w-full h-full text-left overflow-hidden animate-fade-in">
-      {/* LEFT SIDEBAR: Stepper Progress Checklist */}
-      <aside className="w-full md:w-80 bg-gradient-to-b from-primary to-indigo-950 p-5 md:p-8 text-primary-foreground flex flex-col justify-between shrink-0 border-r border-border/10 relative">
+      <aside className="hidden md:flex md:w-80 bg-gradient-to-b from-primary to-indigo-950 p-8 text-primary-foreground flex-col justify-between shrink-0 border-r border-border/10 relative">
         <div>
           {/* Back Button */}
           <div className="mb-6">
@@ -438,19 +437,37 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
       </aside>
 
       {/* RIGHT PANEL: Form Body Content */}
-      <main className="flex-1 p-6 md:p-8 overflow-y-auto no-scrollbar flex flex-col justify-between">
-        <div className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col overflow-hidden bg-background">
+        {/* Mobile Top Bar */}
+        <div className="md:hidden shrink-0 flex items-center justify-between border-b border-border/60 px-5 pt-5 pb-3 bg-background z-10">
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-xl hover:bg-secondary transition cursor-pointer text-foreground"
+            title="Back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <span className="text-sm font-black uppercase tracking-wider text-foreground">
+            Edit Profile
+          </span>
+          <div className="w-8 h-8" /> {/* Spacer */}
+        </div>
+
+        {/* Scrollable form body content */}
+        <div className="flex-1 overflow-y-auto no-scrollbar p-5 md:p-8 flex flex-col justify-between">
+          <div className="flex-1 flex flex-col">
           {/* STEP 1: Personal Details Form */}
           {step === 1 && (
             <form
               onSubmit={handleSavePersonal}
-              className="space-y-6 text-left my-auto animate-fade-in"
+              className="space-y-6 text-left md:my-auto animate-fade-in"
             >
               <div>
                 <h3 className="font-serif text-2xl font-black text-foreground">
                   Provide personal details
                 </h3>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1 hidden md:block">
                   Please fill in your primary details to establish your profile.
                 </p>
               </div>
@@ -458,6 +475,36 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 {/* Left fields */}
                 <div className="lg:col-span-8 space-y-4">
+                  {/* Mobile-only avatar upload block */}
+                  <div className="lg:hidden flex flex-col items-center text-center pb-2">
+                    <div className="relative group">
+                      <div className="h-24 w-24 rounded-full overflow-hidden border-2 border-primary bg-secondary shadow-md flex items-center justify-center">
+                        {personal.avatar ? (
+                          <img
+                            src={personal.avatar}
+                            alt="Avatar Preview"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <User className="h-9 w-9 text-muted-foreground" />
+                        )}
+                      </div>
+                      <label className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-primary text-white flex items-center justify-center cursor-pointer shadow border border-card hover:bg-primary/95 transition">
+                        <Upload className="h-3 w-3" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          aria-label="Upload Avatar"
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                    <span className="text-[10px] font-bold text-muted-foreground block uppercase mt-2">
+                      Upload Member Avatar
+                    </span>
+                  </div>
+
                   {/* Name fields */}
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
                     <div className="sm:col-span-3">
@@ -612,33 +659,36 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
 
                 {/* Right side: Avatar Upload & Mobiles */}
                 <div className="lg:col-span-4 space-y-5 text-center flex flex-col items-center">
-                  {/* Avatar preview block */}
-                  <div className="relative group">
-                    <div className="h-28 w-28 rounded-full overflow-hidden border-2 border-primary bg-secondary shadow-md flex items-center justify-center">
-                      {personal.avatar ? (
-                        <img
-                          src={personal.avatar}
-                          alt="Avatar Preview"
-                          className="h-full w-full object-cover"
+                  {/* Desktop-only Avatar upload block */}
+                  <div className="hidden lg:flex flex-col items-center text-center space-y-5">
+                    {/* Avatar preview block */}
+                    <div className="relative group">
+                      <div className="h-28 w-28 rounded-full overflow-hidden border-2 border-primary bg-secondary shadow-md flex items-center justify-center">
+                        {personal.avatar ? (
+                          <img
+                            src={personal.avatar}
+                            alt="Avatar Preview"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <User className="h-10 w-10 text-muted-foreground" />
+                        )}
+                      </div>
+                      <label className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center cursor-pointer shadow border border-card hover:bg-primary/95 transition">
+                        <Upload className="h-3.5 w-3.5" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          aria-label="Upload Avatar"
+                          className="hidden"
                         />
-                      ) : (
-                        <User className="h-10 w-10 text-muted-foreground" />
-                      )}
+                      </label>
                     </div>
-                    <label className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center cursor-pointer shadow border border-card hover:bg-primary/95 transition">
-                      <Upload className="h-3.5 w-3.5" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        aria-label="Upload Avatar"
-                        className="hidden"
-                      />
-                    </label>
+                    <span className="text-[10px] font-bold text-muted-foreground block uppercase">
+                      Upload Member Avatar
+                    </span>
                   </div>
-                  <span className="text-[10px] font-bold text-muted-foreground block uppercase">
-                    Upload Member Avatar
-                  </span>
 
                   {/* Mobiles */}
                   <div className="w-full text-left space-y-3 pt-2">
@@ -716,68 +766,36 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
 
           {/* STEP 2: Addresses Form */}
           {step === 2 && (
-            <div className="space-y-6 text-left my-auto animate-fade-in">
+            <div className="space-y-6 text-left md:my-auto animate-fade-in">
               <div>
                 <h3 className="font-serif text-2xl font-black text-foreground">
-                  Provide home and office address
+                  Home and office address
                 </h3>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1 hidden md:block">
                   Add your frequent address nodes for faster checkout and deliveries.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 {/* Address input block */}
-                <div className="lg:col-span-7 bg-secondary/25 border border-border/80 rounded-2xl p-5 space-y-4">
-                  <span className="text-[10px] font-black uppercase text-primary tracking-wider block">
-                    Add Address Node
-                  </span>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label
-                        htmlFor="addrName"
-                        className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5"
-                      >
-                        Recipient Name
-                      </label>
-                      <input
-                        id="addrName"
-                        type="text"
-                        value={newAddr.name}
-                        onChange={(e) =>
-                          dispatch({ type: "UPDATE_NEW_ADDR", fields: { name: e.target.value } })
-                        }
-                        placeholder="Recipient Name"
-                        className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="addrPhone"
-                        className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5"
-                      >
-                        Contact Number
-                      </label>
-                      <div className="relative flex">
-                        <span className="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 border-border bg-secondary text-[11px] font-bold text-muted-foreground">
-                          +91
-                        </span>
-                        <input
-                          id="addrPhone"
-                          type="tel"
-                          value={newAddr.phone}
-                          onChange={(e) =>
-                            dispatch({
-                              type: "UPDATE_NEW_ADDR",
-                              fields: { phone: e.target.value.replace(/[^0-9]/g, "") },
-                            })
-                          }
-                          placeholder="Mobile"
-                          className="flex-1 rounded-r-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
-                        />
-                      </div>
-                    </div>
+                <div className="lg:col-span-7 space-y-4">
+                  <div>
+                    <label
+                      htmlFor="addrName"
+                      className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5"
+                    >
+                      Recipient Name
+                    </label>
+                    <input
+                      id="addrName"
+                      type="text"
+                      value={newAddr.name}
+                      onChange={(e) =>
+                        dispatch({ type: "UPDATE_NEW_ADDR", fields: { name: e.target.value } })
+                      }
+                      placeholder="Recipient Name"
+                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
+                    />
                   </div>
 
                   <div>
@@ -838,25 +856,6 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                     </div>
                   </div>
 
-                  <div>
-                    <label
-                      htmlFor="addrDetails"
-                      className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5"
-                    >
-                      Address Details
-                    </label>
-                    <textarea
-                      id="addrDetails"
-                      rows={2}
-                      value={newAddr.address}
-                      onChange={(e) =>
-                        dispatch({ type: "UPDATE_NEW_ADDR", fields: { address: e.target.value } })
-                      }
-                      placeholder="House No, Floor, Street, Landmark details..."
-                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent resize-none"
-                    />
-                  </div>
-
                   <div className="grid grid-cols-12 gap-3 items-end">
                     <div className="col-span-8">
                       <span className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5">
@@ -913,6 +912,25 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                     </div>
                   </div>
 
+                  <div>
+                    <label
+                      htmlFor="addrDetails"
+                      className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5"
+                    >
+                      Address Details
+                    </label>
+                    <textarea
+                      id="addrDetails"
+                      rows={2}
+                      value={newAddr.address}
+                      onChange={(e) =>
+                        dispatch({ type: "UPDATE_NEW_ADDR", fields: { address: e.target.value } })
+                      }
+                      placeholder="House No, Floor, Street, Landmark details..."
+                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent resize-none"
+                    />
+                  </div>
+
                   <button
                     type="button"
                     onClick={handleAddAddress}
@@ -925,7 +943,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                 {/* Address List View */}
                 <div className="lg:col-span-5 space-y-4">
                   <span className="text-[10px] font-black uppercase text-muted-foreground tracking-wider block">
-                    Addresses Configured ({addresses.length})
+                     Addresses Configured ({addresses.length})
                   </span>
 
                   {addresses.length === 0 ? (
@@ -941,7 +959,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                         >
                           <button
                             onClick={() => handleDeleteAddress(item.id)}
-                            className="absolute top-4 right-4 text-rose-500 bg-rose-50 hover:bg-rose-100 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition duration-200 cursor-pointer"
+                            className="absolute top-4 right-4 text-rose-500 bg-rose-50 hover:bg-rose-100 p-1.5 rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 transition duration-200 cursor-pointer"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -954,10 +972,11 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                           <p className="text-[11.5px] text-muted-foreground mt-2 font-medium leading-relaxed pr-6">
                             {item.address}, {item.city} - {item.pincode}
                           </p>
-                          <div className="text-[10px] font-bold text-slate-400 mt-2 flex flex-wrap gap-x-4">
-                            <span>📞 +91 {item.phone}</span>
-                            {item.email && <span>✉️ {item.email}</span>}
-                          </div>
+                          {item.email && (
+                            <div className="text-[10px] font-bold text-slate-400 mt-2 flex flex-wrap gap-x-4">
+                              <span>✉️ {item.email}</span>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -986,17 +1005,17 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
 
           {/* STEP 3: Favorites Grid */}
           {step === 3 && (
-            <div className="space-y-6 text-left my-auto animate-fade-in">
+            <div className="space-y-6 text-left md:my-auto animate-fade-in">
               <div>
                 <h3 className="font-serif text-2xl font-black text-foreground">
-                  Select a category to enter details
+                  Interested Category
                 </h3>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1 hidden md:block">
                   Select your favorite services to highlight them on your dashboard.
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
                 {FAVORITE_CATEGORIES.map((cat) => {
                   const isSelected = selectedFavorites.includes(cat.id);
                   return (
@@ -1004,14 +1023,14 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                       key={cat.id}
                       type="button"
                       onClick={() => toggleFavorite(cat.id)}
-                      className={`p-4.5 rounded-2xl border text-center transition-all duration-300 flex flex-col items-center justify-center gap-2 cursor-pointer shadow-sm ${
+                      className={`p-2.5 sm:p-4.5 rounded-xl sm:rounded-2xl border text-center transition-all duration-300 flex flex-col items-center justify-center gap-1 sm:gap-2 cursor-pointer shadow-sm ${
                         isSelected
                           ? "bg-primary border-primary text-primary-foreground scale-102 font-black shadow-md"
                           : "bg-card border-border hover:bg-secondary/40 text-foreground/80 hover:border-primary/20"
                       }`}
                     >
-                      <span className="text-3xl filter drop-shadow">{cat.icon}</span>
-                      <span className="text-xs font-bold mt-1 block tracking-tight">
+                      <span className="text-xl sm:text-3xl filter drop-shadow">{cat.icon}</span>
+                      <span className="text-[10px] sm:text-xs font-bold mt-0.5 sm:mt-1 block tracking-tight leading-none text-center">
                         {cat.label}
                       </span>
                     </button>
@@ -1040,7 +1059,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
 
           {/* STEP 4: Setup Completed Successfully */}
           {step === 4 && (
-            <div className="py-8 text-center flex flex-col items-center max-w-lg mx-auto justify-center my-auto animate-fade-in">
+            <div className="py-8 text-center flex flex-col items-center max-w-lg mx-auto justify-center md:my-auto animate-fade-in">
               <div className="h-16 w-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-5 animate-pulse border-2 border-emerald-200">
                 <CheckCircle2 className="h-10 w-10 stroke-[2.5px]" />
               </div>
@@ -1121,10 +1140,11 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                 onClick={onClose}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-3.5 rounded-xl shadow-md transition-all cursor-pointer hover:scale-[1.01]"
               >
-                Done & Close Wizard
+                Done & Close
               </button>
             </div>
           )}
+        </div>
         </div>
       </main>
     </div>

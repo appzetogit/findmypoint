@@ -17,6 +17,10 @@ import {
   ChevronUp,
   ArrowLeft,
   ArrowUp,
+  Home,
+  CalendarDays,
+  Receipt,
+  User,
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import heroFeatured from "@/assets/hero-featured.jpg";
@@ -29,6 +33,7 @@ import catDining from "@/assets/cat-dining.jpg";
 import Footer from "./Footer";
 import { loadAboutData, AboutData } from "../data/aboutData";
 import { subcategoriesData } from "./CategoryDetail";
+
 
 import weddingBanquet from "@/assets/wedding_banquet.png";
 import weddingJewellery from "@/assets/wedding_jewellery.png";
@@ -389,6 +394,14 @@ interface HomePageProps {
   onAdvertiseClick?: () => void;
   username?: string | null;
   onShowAllCategories?: () => void;
+  onLogout?: () => void;
+  onEditProfileClick?: () => void;
+  onNotificationsClick?: () => void;
+  onHelpClick?: () => void;
+  onMyReviewsClick?: () => void;
+  onSavedBusinessesClick?: () => void;
+  onPrivacyPolicyClick?: () => void;
+  onTermsConditionsClick?: () => void;
 }
 
 // City-specific area data for location dropdown
@@ -469,6 +482,14 @@ export default function HomePage({
   onAdvertiseClick,
   username,
   onShowAllCategories,
+  onLogout,
+  onEditProfileClick,
+  onNotificationsClick,
+  onHelpClick,
+  onMyReviewsClick,
+  onSavedBusinessesClick,
+  onPrivacyPolicyClick,
+  onTermsConditionsClick,
 }: HomePageProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
@@ -740,48 +761,27 @@ export default function HomePage({
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden w-full">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto flex flex-col lg:flex-row h-auto lg:h-20 max-w-7xl items-stretch lg:items-center gap-3 lg:gap-8 px-4 md:px-6 py-3 lg:py-0 w-full">
+          <div className="mx-auto flex flex-col lg:flex-row h-auto lg:h-20 max-w-7xl items-stretch lg:items-center gap-3 lg:gap-8 px-4 md:px-6 py-3 lg:py-0 w-full">
           {/* Mobile Top Navigation Row (Profile, Logo, Bell) */}
-          <div className="flex items-center justify-between lg:contents w-full relative">
-            {/* Left: Mobile Profile / Sign In Circular Avatar */}
-            <div className="lg:hidden shrink-0">
-              {username ? (
-                <button
-                  onClick={onProfileClick}
-                  className="flex h-8.5 w-8.5 items-center justify-center rounded-full text-white hover:scale-105 transition-all duration-300 shadow-sm cursor-pointer font-bold text-xs bg-primary"
-                  title="Open Profile Menu"
-                >
-                  {username.charAt(0).toUpperCase()}
-                </button>
-              ) : (
-                <button
-                  onClick={onSignInClick}
-                  className="flex h-8.5 w-8.5 items-center justify-center rounded-full border border-border bg-card text-[10px] font-extrabold text-foreground hover:bg-secondary cursor-pointer shadow-sm"
-                  title="Sign In"
-                >
-                  In
-                </button>
-              )}
-            </div>
-
+          <div className="flex items-center justify-between lg:contents w-full">
             {/* Logo */}
             <a
               href="/"
-              className="flex items-center shrink-0 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:static lg:translate-x-0 lg:translate-y-0 lg:left-auto lg:top-auto"
+              className="flex items-center shrink-0"
             >
               <img
                 src={logoImg}
                 alt="FindMyPoint Logo"
-                className="h-7 md:h-8 w-auto object-contain shrink-0"
+                className="h-6 md:h-8 w-auto object-contain shrink-0"
                 style={{ mixBlendMode: "multiply" }}
               />
             </a>
 
             {/* Right: Notification Bell */}
-            <div className="lg:hidden shrink-0 flex items-center">
+            <div className="lg:hidden shrink-0 flex items-center gap-2">
               <button
-                onClick={() => alert("No new notifications")}
-                className="relative flex h-8.5 w-8.5 items-center justify-center rounded-full border border-border bg-card hover:bg-secondary text-foreground shadow-sm cursor-pointer"
+                onClick={() => onNotificationsClick?.()}
+                className="relative flex h-8.5 w-8.5 items-center justify-center text-foreground hover:text-primary transition-colors cursor-pointer"
                 title="Notifications"
               >
                 <Bell className="h-4.5 w-4.5 text-foreground/85" />
@@ -1018,7 +1018,7 @@ export default function HomePage({
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 pt-3 sm:pt-10 w-full">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 pt-3 sm:pt-10 w-full pb-20 sm:pb-0">
         {/* Hero */}
         <section className="hidden sm:grid grid-cols-12 gap-5 items-stretch">
           <div className="group relative col-span-12 overflow-hidden rounded-3xl lg:col-span-7 min-h-[300px] lg:min-h-0 lg:h-auto">
@@ -1318,8 +1318,8 @@ export default function HomePage({
           </div>
         </section>
 
-        {/* Trending chips */}
-        <section className="mt-6 sm:mt-12 md:mt-20">
+        {/* Trending chips — hidden on mobile, shown on sm+ */}
+        <section className="hidden sm:block mt-12 md:mt-20">
           <div className="mb-4 sm:mb-6 flex items-end justify-between">
             <div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
@@ -1344,17 +1344,76 @@ export default function HomePage({
               "Wedding Photographers",
               "Luxury Car Rental",
               "Yoga Classes",
-            ].map((t, index) => (
+            ].map((t) => (
               <button
                 key={t}
-                className={`group items-center gap-1.5 sm:gap-2 rounded-full border border-border bg-card px-2.5 sm:px-4 py-1.5 sm:py-2.5 text-xs sm:text-sm transition hover:border-accent hover:bg-secondary cursor-pointer ${
-                  index >= 6 ? "hidden sm:inline-flex" : "inline-flex"
-                }`}
+                className="group inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm transition hover:border-accent hover:bg-secondary cursor-pointer"
               >
-                <Search className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground group-hover:text-accent" />
+                <Search className="h-3.5 w-3.5 text-muted-foreground group-hover:text-accent" />
                 {t}
               </button>
             ))}
+          </div>
+        </section>
+
+        {/* Promo Banner — mobile only */}
+        <section className="block sm:hidden mt-6">
+          {/* Mobile Hero Slideshow */}
+          <div className="relative w-full overflow-hidden rounded-2xl shadow-lg" style={{ height: "170px" }}>
+            {allHeroSlides.map((slide, index) => {
+              const isActive = activeSlide === index;
+              return (
+                <div
+                  key={index}
+                  className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                    isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+                  }`}
+                >
+                  <img
+                    src={slide.img}
+                    alt={slide.tag}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-primary/90 via-primary/40 to-transparent" />
+                  <div className="absolute inset-0 flex flex-col justify-end p-5 text-primary-foreground">
+                    <div className="mb-1.5 inline-flex w-fit items-center gap-1.5 rounded-full border border-accent/40 bg-accent/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.15em] text-accent">
+                      {slide.tag}
+                    </div>
+                    <h2 className="font-serif text-lg leading-tight whitespace-pre-line mb-1.5">
+                      {slide.title}
+                    </h2>
+                    <p className="text-[11px] text-primary-foreground/80 leading-relaxed line-clamp-2">
+                      {slide.description}
+                    </p>
+                    {slide.categoryName && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCategoryClick?.(slide.categoryName!);
+                        }}
+                        className="mt-3 w-fit bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-full text-[11px] font-bold transition shadow cursor-pointer"
+                      >
+                        Explore Now
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Navigation Dots */}
+            <div className="absolute bottom-3 right-4 z-20 flex gap-1.5">
+              {allHeroSlides.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setUiState((prev) => ({ ...prev, activeSlide: index }))}
+                  className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                    activeSlide === index ? "w-5 bg-accent" : "w-1.5 bg-white/50"
+                  }`}
+                  aria-label={`Go to slide ${index + 1}`}
+                />
+              ))}
+            </div>
           </div>
         </section>
 

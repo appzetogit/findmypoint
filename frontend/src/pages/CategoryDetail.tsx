@@ -31,6 +31,90 @@ function formatDateTimeDMY(d: Date): string {
   return `${day}/${month}/${year} ${strHours}:${minutes} ${ampm}`;
 }
 
+const getSubcategoryEmoji = (category: string, subcatName: string): string => {
+  const name = subcatName.toLowerCase();
+  const cat = category.toLowerCase();
+
+  if (name.includes("massage")) return "💆";
+  if (name.includes("salon")) return "💇";
+  if (name.includes("parlour")) return "💄";
+
+  if (name.includes("india")) return "🇮🇳";
+  if (name.includes("nepal")) return "🇳🇵";
+  if (name.includes("sri lanka")) return "🇱🇰";
+  if (name.includes("bangladesh")) return "🇧🇩";
+  if (name.includes("indonesia")) return "🇮🇩";
+  if (name.includes("dubai")) return "🇦🇪";
+  if (name.includes("uk")) return "🇬🇧";
+  if (name.includes("usa")) return "🇺🇸";
+  if (name.includes("australia")) return "🇦🇺";
+  if (name.includes("japan")) return "🇯🇵";
+  if (name.includes("china")) return "🇨🇳";
+  if (name.includes("russia")) return "🇷🇺";
+  if (name.includes("thailand")) return "🇹🇭";
+  if (name.includes("france")) return "🇫🇷";
+  if (name.includes("germany")) return "🇩🇪";
+  if (name.includes("switzerland")) return "🇨🇭";
+
+  if (name.includes("accounting") || name.includes("bank")) return "💰";
+  if (name.includes("fresher") || name.includes("student")) return "👶";
+  if (name.includes("government")) return "🏛️";
+  if (name.includes("it") || name.includes("computer")) return "💻";
+  if (name.includes("marketing") || name.includes("sales")) return "📈";
+  if (name.includes("delivery")) return "🛵";
+
+  if (name.includes("ac repair") || name.includes("ac service")) return "❄️";
+  if (name.includes("carpenter")) return "🪚";
+  if (name.includes("plumber")) return "🪠";
+  if (name.includes("electrician")) return "⚡";
+  if (name.includes("cleaner") || name.includes("cleaning")) return "🧹";
+
+  if (name.includes("school") || name.includes("college") || name.includes("university"))
+    return "🏫";
+  if (name.includes("coaching") || name.includes("institute")) return "📚";
+
+  if (name.includes("medicine") || name.includes("pharmacy")) return "💊";
+  if (name.includes("clinic") || name.includes("hospital") || name.includes("nursing")) return "🏥";
+  if (name.includes("doctor")) return "🩺";
+
+  if (name.includes("resort")) return "🏖️";
+  if (name.includes("banquet")) return "🏰";
+
+  if (name.includes("women")) return "👚";
+  if (name.includes("men")) return "👕";
+  if (name.includes("kids")) return "🧒";
+
+  if (
+    name.includes("vedic") ||
+    name.includes("palm") ||
+    name.includes("horoscope") ||
+    name.includes("tarot")
+  )
+    return "🔮";
+
+  if (name.includes("restaurant") || name.includes("cafe")) return "🍲";
+  if (name.includes("sweet") || name.includes("bakery")) return "🍰";
+
+  if (name.includes("courier") || name.includes("parcel")) return "📦";
+
+  if (cat.includes("spa")) return "💆";
+  if (cat.includes("tour")) return "✈️";
+  if (cat.includes("job")) return "💼";
+  if (cat.includes("service")) return "🛠️";
+  if (cat.includes("education")) return "🎓";
+  if (cat.includes("health")) return "🏥";
+  if (cat.includes("hotel")) return "🏨";
+  if (cat.includes("doctor")) return "🩺";
+  if (cat.includes("garment")) return "👗";
+  if (cat.includes("astrologer")) return "🔮";
+  if (cat.includes("product")) return "🛒";
+  if (cat.includes("food")) return "🍲";
+  if (cat.includes("courier")) return "📦";
+  if (cat.includes("car")) return "🚗";
+
+  return "🏷️";
+};
+
 // Master list of subcategories provided by the client + standard fallbacks
 export const subcategoriesData: Record<string, string[]> = {
   "Spa Point": [
@@ -223,6 +307,16 @@ export const subcategoriesData: Record<string, string[]> = {
 // Load custom subcategories from local storage on startup
 if (typeof window !== "undefined") {
   try {
+    let savedAll = localStorage.getItem("fmp_all_subcategories");
+    if (!savedAll) {
+      localStorage.setItem("fmp_all_subcategories", JSON.stringify(subcategoriesData));
+    } else {
+      const parsed = JSON.parse(savedAll);
+      Object.keys(subcategoriesData).forEach((k) => delete subcategoriesData[k]);
+      Object.assign(subcategoriesData, parsed);
+    }
+
+    // Migrate fmp_custom_subcategories if present
     const savedSubcats = localStorage.getItem("fmp_custom_subcategories");
     if (savedSubcats) {
       const parsed = JSON.parse(savedSubcats);
@@ -231,14 +325,16 @@ if (typeof window !== "undefined") {
           subcategoriesData[catLabel] = [];
         }
         parsed[catLabel].forEach((subcat: string) => {
-          if (!subcategoriesData[catLabel].some((s) => s.toLowerCase() === subcat.toLowerCase())) {
+          if (!subcategoriesData[catLabel].includes(subcat)) {
             subcategoriesData[catLabel].push(subcat);
           }
         });
       });
+      localStorage.setItem("fmp_all_subcategories", JSON.stringify(subcategoriesData));
+      localStorage.removeItem("fmp_custom_subcategories");
     }
   } catch (err) {
-    console.error("Error loading custom subcategories:", err);
+    console.error("Error loading subcategories:", err);
   }
 }
 
@@ -429,6 +525,18 @@ export default function CategoryDetailPage({
     subcatQuery: "",
   });
   const { query: searchQuery, subcatQuery: subcatSearch } = searchFilters;
+
+  const [subcatIcons, setSubcatIcons] = useState<Record<string, string>>({});
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("fmp_subcategory_icons");
+      if (saved) {
+        setSubcatIcons(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   const [bookingState, dispatchBooking] = useReducer(bookingReducer, initialBookingState);
   const {
@@ -1312,9 +1420,9 @@ export default function CategoryDetailPage({
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
+    <div className="h-screen lg:h-auto lg:min-h-screen w-full bg-background flex flex-col overflow-hidden lg:overflow-visible text-foreground font-sans">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur-xl shrink-0">
         <div className="mx-auto flex h-16 md:h-20 max-w-7xl items-center gap-3 md:gap-4 px-4 sm:px-6 w-full">
           <button
             onClick={onBack}
@@ -1379,9 +1487,9 @@ export default function CategoryDetailPage({
       </header>
 
       {/* Main Content Body */}
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-8 w-full">
+      <main className="flex-1 flex flex-col lg:block overflow-hidden lg:overflow-visible w-full max-w-7xl mx-auto px-0 sm:px-6 lg:px-6 py-0 sm:py-6 lg:py-8">
         {/* Breadcrumb / Title */}
-        <div className="mb-6 flex flex-wrap items-center gap-2 text-xs sm:text-sm text-muted-foreground pl-0.5">
+        <div className="hidden sm:flex mb-6 flex-wrap items-center gap-2 text-xs sm:text-sm text-muted-foreground pl-0.5 mt-2 lg:mt-0">
           <span className="cursor-pointer hover:text-primary transition-colors" onClick={onBack}>
             Home
           </span>
@@ -1391,29 +1499,30 @@ export default function CategoryDetailPage({
           <span className="font-bold text-primary">{activeSubcategory}</span>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex-1 flex lg:flex-row overflow-hidden lg:overflow-visible w-full gap-0 lg:gap-8">
           {/* Left Panel: Subcategories Selector */}
-          <aside className="w-full lg:w-72 shrink-0">
-            <div className="sticky top-28 rounded-2xl border border-border/80 bg-card p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
-              <h3 className="font-serif text-lg font-bold mb-4 pl-1">Subcategories</h3>
-
-              {/* Search Subcategory */}
-              <div className="relative mb-4">
-                <input
-                  type="text"
-                  placeholder="Filter subcategories..."
-                  value={subcatSearch}
-                  onChange={(e) =>
-                    setSearchFilters((prev) => ({ ...prev, subcatQuery: e.target.value }))
-                  }
-                  className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-xs outline-none focus:border-accent transition-colors"
-                  aria-label="Filter subcategories"
-                />
-                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+          <aside className="w-[110px] lg:w-72 shrink-0 border-r lg:border-none border-border/80 bg-secondary/15 lg:bg-transparent flex flex-col lg:block overflow-hidden lg:overflow-visible h-full lg:h-auto">
+            <div className="lg:sticky lg:top-28 lg:rounded-2xl lg:border lg:border-border/80 lg:bg-card lg:p-5 lg:shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col overflow-hidden lg:overflow-visible h-full lg:h-auto w-full bg-transparent lg:bg-card">
+              {/* Desktop-only header/search */}
+              <div className="hidden lg:block">
+                <h3 className="font-serif text-lg font-bold mb-4 pl-1">Subcategories</h3>
+                <div className="relative mb-4">
+                  <input
+                    type="text"
+                    placeholder="Filter subcategories..."
+                    value={subcatSearch}
+                    onChange={(e) =>
+                      setSearchFilters((prev) => ({ ...prev, subcatQuery: e.target.value }))
+                    }
+                    className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-xs outline-none focus:border-accent transition-colors"
+                    aria-label="Filter subcategories"
+                  />
+                  <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                </div>
               </div>
 
               {/* Subcategories list */}
-              <div className="max-h-[380px] sm:max-h-[460px] overflow-y-auto no-scrollbar flex flex-row lg:flex-col flex-wrap lg:flex-nowrap gap-1.5">
+              <div className="flex-1 lg:flex-none lg:max-h-[380px] lg:overflow-y-auto no-scrollbar flex flex-col p-0 lg:gap-1.5">
                 {filteredSubcategories.length > 0 ? (
                   filteredSubcategories.map((subcat) => {
                     const isSelected = activeSubcategory === subcat;
@@ -1421,18 +1530,32 @@ export default function CategoryDetailPage({
                       <button
                         key={subcat}
                         onClick={() => handleSubcategorySelect(subcat)}
-                        className={`text-left text-xs sm:text-[13px] font-semibold py-2 px-3.5 rounded-xl border transition-all duration-300 shrink-0 cursor-pointer ${
+                        className={`relative transition-all duration-300 cursor-pointer border-b border-border/20 lg:border lg:rounded-xl shrink-0 flex flex-col lg:flex-row items-center lg:items-start justify-center lg:justify-start text-center lg:text-left ${
                           isSelected
-                            ? "bg-primary border-primary text-primary-foreground shadow-sm font-bold scale-102"
-                            : "bg-background border-border text-foreground/80 hover:bg-secondary hover:text-primary hover:border-primary/20"
-                        }`}
+                            ? "text-accent bg-background lg:bg-primary lg:border-primary lg:text-primary-foreground font-black lg:font-bold shadow-none lg:shadow-sm"
+                            : "text-muted-foreground lg:text-foreground/80 bg-transparent lg:bg-background border-transparent lg:border-border hover:bg-secondary/10 lg:hover:bg-secondary lg:hover:text-primary"
+                        } px-2 py-4 lg:px-4 lg:py-2.5 gap-2 lg:gap-2 text-[10px] sm:text-[11px] lg:text-[13px]`}
                       >
-                        {subcat}
+                        {/* Active vertical indicator line on mobile */}
+                        {isSelected && (
+                          <span className="absolute left-0 top-0 bottom-0 w-1 bg-accent rounded-r lg:hidden" />
+                        )}
+                        {/* Subcategory Icon (Mobile only) */}
+                        <span className="text-2xl lg:hidden shrink-0 flex items-center justify-center">
+                          {subcatIcons[subcat] ? (
+                            <img src={subcatIcons[subcat]} alt={subcat} className="h-6 w-6 object-contain rounded-md" />
+                          ) : (
+                            getSubcategoryEmoji(categoryName, subcat)
+                          )}
+                        </span>
+                        <span className="line-clamp-2 lg:line-clamp-none leading-tight lg:leading-normal">
+                          {subcat}
+                        </span>
                       </button>
                     );
                   })
                 ) : (
-                  <p className="text-xs text-muted-foreground py-2 text-center w-full">
+                  <p className="text-xs text-muted-foreground py-4 text-center w-full">
                     No matches found
                   </p>
                 )}
@@ -1441,8 +1564,8 @@ export default function CategoryDetailPage({
           </aside>
 
           {/* Right Panel: Business Listings */}
-          <section className="flex-1">
-            <div className="mb-6">
+          <section className="flex-1 overflow-y-auto lg:overflow-visible px-4 py-6 lg:p-0">
+            <div className="hidden lg:block mb-6">
               <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight">
                 Top {activeSubcategory} in Mumbai
               </h1>
@@ -1452,114 +1575,87 @@ export default function CategoryDetailPage({
             </div>
 
             {/* Listings Grid */}
-            <div key={activeSubcategory} className="flex flex-col gap-6 animate-fade-in-up">
+            <div key={activeSubcategory} className="flex flex-col gap-4 sm:gap-6 animate-fade-in-up">
               {filteredListings.length > 0 ? (
                 filteredListings.map((biz) => {
                   const isPhoneRevealed = !!revealedPhoneIds[biz.id];
                   return (
-                    <div
-                      key={biz.id}
-                      className="group flex flex-col sm:flex-row overflow-hidden rounded-2xl border border-border bg-card p-4 transition-all duration-300 hover:border-primary/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
-                    >
-                      {/* Left: Listing Image */}
-                      <div
-                        className="relative h-44 w-full sm:w-60 overflow-hidden rounded-xl bg-secondary shrink-0 cursor-pointer"
-                        onClick={() => onBusinessSelect(biz.id)}
-                      >
-                        <img
-                          src={biz.images[0]}
-                          alt={biz.name}
-                          loading="lazy"
-                          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                      </div>
-
-                      {/* Right: Info details */}
-                      <div className="flex flex-1 flex-col justify-between p-1 sm:p-2 mt-4 sm:mt-0 sm:ml-6">
-                        <div>
-                          {/* Title & Badge */}
-                          <div className="flex items-start justify-between gap-2">
-                            <h2
-                              onClick={() => onBusinessSelect(biz.id)}
-                              className="font-serif text-xl font-bold text-foreground cursor-pointer group-hover:text-primary transition-colors leading-tight"
-                            >
-                              {biz.name}
-                            </h2>
-                            {biz.isVerified ? (
-                              <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">
-                                <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" />
-                                Verified
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full shrink-0">
-                                Unverified
+                    <div key={biz.id}>
+                      {/* Mobile View Compact Card */}
+                      <div className="sm:hidden group flex flex-col overflow-hidden rounded-xl border border-border bg-card p-2.5 gap-2 transition-all duration-300">
+                        {/* Top part: Image + Info Row */}
+                        <div className="flex flex-row gap-2.5 items-start w-full">
+                          {/* Image */}
+                          <div
+                            className="relative h-20 w-20 overflow-hidden rounded-lg bg-secondary shrink-0 cursor-pointer"
+                            onClick={() => onBusinessSelect(biz.id)}
+                          >
+                            <img
+                              src={biz.images[0]}
+                              alt={biz.name}
+                              loading="lazy"
+                              className="h-full w-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                            {biz.isVerified && (
+                              <span className="absolute top-1 right-1 z-10 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
+                                <Check className="h-2.5 w-2.5 stroke-[3.5px]" />
                               </span>
                             )}
                           </div>
 
-                          {/* Ratings */}
-                          <div className="mt-2 flex items-center gap-2">
-                            <div className="flex items-center gap-1 rounded bg-amber-500 px-1.5 py-0.5 text-xs font-black text-white">
-                              <span>{biz.rating}</span>
-                              <Star className="h-3 w-3 fill-current" />
+                          {/* Info */}
+                          <div className="flex-1 min-w-0 flex flex-col justify-start">
+                            <div className="flex items-center justify-between gap-1">
+                              <h2
+                                onClick={() => onBusinessSelect(biz.id)}
+                                className="font-serif text-xs font-bold text-foreground cursor-pointer line-clamp-1 leading-tight"
+                              >
+                                {biz.name}
+                              </h2>
                             </div>
-                            <span className="text-xs font-semibold text-muted-foreground">
-                              {biz.reviewCount} Ratings
-                            </span>
-                          </div>
 
-                          {/* Address & Timings */}
-                          <div className="mt-3.5 space-y-1.5 text-[13px] text-foreground/80">
-                            <p className="flex items-center gap-1.5">
-                              <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
-                              <span className="line-clamp-1">{biz.address}</span>
-                            </p>
-                            <p className="flex items-center gap-1.5 text-muted-foreground">
-                              <Clock className="h-4 w-4 text-muted-foreground/80 shrink-0" />
-                              <span>{biz.timings}</span>
-                              <span className="ml-2 font-bold text-emerald-600 text-xs">
-                                Open Now
+                            {/* Ratings */}
+                            <div className="mt-0.5 flex items-center gap-1">
+                              <div className="flex items-center gap-0.5 rounded bg-amber-500 px-1 py-[1px] text-[8.5px] font-black text-white shrink-0">
+                                <span>{biz.rating}</span>
+                                <Star className="h-2 w-2 fill-current" />
+                              </div>
+                              <span className="text-[9px] font-semibold text-muted-foreground">
+                                {biz.reviewCount} Ratings
                               </span>
-                            </p>
-                            {categoryName === "Hotel Point" && biz.products && biz.products[0] && (
-                              <p className="flex items-center gap-1.5 text-emerald-600 font-bold text-[13px] mt-1.5">
-                                <span>
-                                  Rooms starting from:{" "}
-                                  <span className="underline">{biz.products[0].price}</span>
-                                </span>
+                            </div>
+
+                            {/* Address & Timings */}
+                            <div className="mt-1 space-y-0.5 text-[10px] text-foreground/80">
+                              <p className="flex items-start gap-1">
+                                <MapPin className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+                                <span className="line-clamp-2 leading-tight">{biz.address}</span>
                               </p>
-                            )}
-                            {(categoryName === "Health Care Point" ||
-                              categoryName === "Doctor Point") &&
-                              biz.products &&
-                              biz.products[0] && (
-                                <p className="flex items-center gap-1.5 text-emerald-600 font-bold text-[13px] mt-1.5">
-                                  <span>
-                                    OPD Consult Fee:{" "}
-                                    <span className="underline">{biz.products[0].price}</span>
-                                  </span>
-                                </p>
-                              )}
+                              <p className="flex items-center gap-1 text-muted-foreground">
+                                <Clock className="h-3 w-3 text-muted-foreground/80 shrink-0" />
+                                <span className="line-clamp-1">{biz.timings}</span>
+                              </p>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Actions buttons */}
-                        <div className="mt-6 flex flex-wrap gap-1.5 pt-4 border-t border-border/50">
-                          <button
-                            onClick={() => togglePhoneReveal(biz.id)}
-                            className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full border border-border bg-background px-2.5 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-foreground transition-all hover:bg-secondary cursor-pointer"
+                        {/* Bottom: Horizontal Buttons Row */}
+                        <div className="flex flex-row items-center gap-1 pt-1.5 border-t border-border/40 w-full">
+                          <a
+                            href={`tel:${biz.phone.replace(/[^0-9+]/g, "")}`}
+                            className="flex-1 inline-flex items-center justify-center gap-0.5 rounded-lg border border-border bg-background py-1 text-[9px] font-bold text-foreground cursor-pointer whitespace-nowrap"
                           >
-                            <Phone className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-accent" />
-                            {isPhoneRevealed ? biz.phone : "Show Number"}
-                          </button>
+                            <Phone className="h-2.5 w-2.5 text-accent" />
+                            Call
+                          </a>
 
                           <button
                             onClick={() => openEnquiryModal(biz)}
-                            className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full bg-primary px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-primary-foreground transition-all hover:bg-primary/95 cursor-pointer shadow-sm hover:scale-[1.02]"
+                            className="flex-1 inline-flex items-center justify-center gap-0.5 rounded-lg bg-primary py-1 text-[9px] font-bold text-primary-foreground cursor-pointer shadow-sm whitespace-nowrap"
                           >
-                            <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                            Enquire Now
+                            <MessageSquare className="h-2.5 w-2.5" />
+                            Enquire
                           </button>
 
                           {(() => {
@@ -1573,20 +1669,145 @@ export default function CategoryDetailPage({
                                     openBookingModal(biz);
                                   }
                                 }}
-                                className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full bg-emerald-600 px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-white transition-all hover:bg-emerald-700 cursor-pointer shadow-sm hover:scale-[1.02]"
+                                className="flex-1 inline-flex items-center justify-center gap-0.5 rounded-lg bg-emerald-600 py-1 text-[9px] font-bold text-white cursor-pointer shadow-sm whitespace-nowrap"
                               >
-                                <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                                {biz.bookingButtonLabel || "Book Now"}
+                                <Check className="h-2.5 w-2.5" />
+                                {biz.bookingButtonLabel || "Book"}
                               </button>
                             ) : null;
                           })()}
+                        </div>
+                      </div>
 
-                          <button
-                            onClick={() => onBusinessSelect(biz.id)}
-                            className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-secondary/30 hover:bg-secondary px-2.5 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-semibold text-muted-foreground hover:text-foreground transition sm:ml-auto cursor-pointer"
-                          >
-                            Details <ChevronRight className="h-3 w-3" />
-                          </button>
+                      {/* Desktop View Original Card */}
+                      <div className="hidden sm:flex group flex-row overflow-hidden rounded-2xl border border-border bg-card p-4 transition-all duration-300 hover:border-primary/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+                        {/* Left: Listing Image */}
+                        <div
+                          className="relative h-44 w-full sm:w-60 overflow-hidden rounded-xl bg-secondary shrink-0 cursor-pointer"
+                          onClick={() => onBusinessSelect(biz.id)}
+                        >
+                          <img
+                            src={biz.images[0]}
+                            alt={biz.name}
+                            loading="lazy"
+                            className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                        </div>
+
+                        {/* Right: Info details */}
+                        <div className="flex flex-1 flex-col justify-between p-1 sm:p-2 mt-4 sm:mt-0 sm:ml-6">
+                          <div>
+                            {/* Title & Badge */}
+                            <div className="flex items-start justify-between gap-2">
+                              <h2
+                                onClick={() => onBusinessSelect(biz.id)}
+                                className="font-serif text-xl font-bold text-foreground cursor-pointer group-hover:text-primary transition-colors leading-tight"
+                              >
+                                {biz.name}
+                              </h2>
+                              {biz.isVerified ? (
+                                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">
+                                  <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" />
+                                  Verified
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full shrink-0">
+                                  Unverified
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Ratings */}
+                            <div className="mt-2 flex items-center gap-2">
+                              <div className="flex items-center gap-1 rounded bg-amber-500 px-1.5 py-0.5 text-xs font-black text-white">
+                                <span>{biz.rating}</span>
+                                <Star className="h-3 w-3 fill-current" />
+                              </div>
+                              <span className="text-xs font-semibold text-muted-foreground">
+                                {biz.reviewCount} Ratings
+                              </span>
+                            </div>
+
+                            {/* Address & Timings */}
+                            <div className="mt-3.5 space-y-1.5 text-[13px] text-foreground/80">
+                              <p className="flex items-center gap-1.5">
+                                <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <span className="line-clamp-1">{biz.address}</span>
+                              </p>
+                              <p className="flex items-center gap-1.5 text-muted-foreground">
+                                <Clock className="h-4 w-4 text-muted-foreground/80 shrink-0" />
+                                <span>{biz.timings}</span>
+                                <span className="ml-2 font-bold text-emerald-600 text-xs">
+                                  Open Now
+                                </span>
+                              </p>
+                              {categoryName === "Hotel Point" && biz.products && biz.products[0] && (
+                                <p className="flex items-center gap-1.5 text-emerald-600 font-bold text-[13px] mt-1.5">
+                                  <span>
+                                    Rooms starting from:{" "}
+                                    <span className="underline">{biz.products[0].price}</span>
+                                  </span>
+                                </p>
+                              )}
+                              {(categoryName === "Health Care Point" ||
+                                categoryName === "Doctor Point") &&
+                                biz.products &&
+                                biz.products[0] && (
+                                  <p className="flex items-center gap-1.5 text-emerald-600 font-bold text-[13px] mt-1.5">
+                                    <span>
+                                      OPD Consult Fee:{" "}
+                                      <span className="underline">{biz.products[0].price}</span>
+                                    </span>
+                                  </p>
+                                )}
+                            </div>
+                          </div>
+
+                          {/* Actions buttons */}
+                          <div className="mt-6 flex flex-wrap gap-1.5 pt-4 border-t border-border/50">
+                            <a
+                              href={`tel:${biz.phone.replace(/[^0-9+]/g, "")}`}
+                              className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full border border-border bg-background px-2.5 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-foreground transition-all hover:bg-secondary cursor-pointer"
+                            >
+                              <Phone className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-accent" />
+                              Call
+                            </a>
+
+                            <button
+                              onClick={() => openEnquiryModal(biz)}
+                              className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full bg-primary px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-primary-foreground transition-all hover:bg-primary/95 cursor-pointer shadow-sm hover:scale-[1.02]"
+                            >
+                              <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                              Enquire Now
+                            </button>
+
+                            {(() => {
+                              const bookNowEnabled = !biz.isBookingDisabled;
+                              return bookNowEnabled ? (
+                                <button
+                                  onClick={() => {
+                                    if (onBookNow) {
+                                      onBookNow(biz.id);
+                                    } else {
+                                      openBookingModal(biz);
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full bg-emerald-600 px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-white transition-all hover:bg-emerald-700 cursor-pointer shadow-sm hover:scale-[1.02]"
+                                >
+                                  <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                  {biz.bookingButtonLabel || "Book Now"}
+                                </button>
+                              ) : null;
+                            })()}
+
+                            <button
+                              onClick={() => onBusinessSelect(biz.id)}
+                              className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-secondary/30 hover:bg-secondary px-2.5 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-semibold text-muted-foreground hover:text-foreground transition sm:ml-auto cursor-pointer"
+                            >
+                              Details <ChevronRight className="h-3 w-3" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

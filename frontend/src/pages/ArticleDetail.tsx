@@ -110,7 +110,7 @@ export default function ArticleDetailPage({
               e.preventDefault();
               onBack();
             }}
-            className="flex items-center shrink-0"
+            className="hidden md:flex items-center shrink-0"
           >
             <img
               src={logoImg}
@@ -129,7 +129,7 @@ export default function ArticleDetailPage({
             />
           </div>
 
-          <div className="flex items-center gap-2.5 ml-auto md:ml-0 shrink-0">
+          <div className="hidden md:flex items-center gap-2.5 ml-auto md:ml-0 shrink-0">
             <button
               onClick={() => onBack()}
               className="hidden sm:inline-block px-4 py-2 text-xs font-bold text-muted-foreground transition hover:text-foreground cursor-pointer"
@@ -145,7 +145,7 @@ export default function ArticleDetailPage({
           </div>
         </div>
 
-        <div className="border-t border-border bg-card/60 overflow-x-auto no-scrollbar">
+        <div className="hidden md:block border-t border-border bg-card/60 overflow-x-auto no-scrollbar">
           <div className="mx-auto max-w-7xl flex items-center gap-6 px-6 py-2.5 whitespace-nowrap text-xs font-bold text-muted-foreground w-full">
             {categoryBar.map((cat, idx) => (
               <span
@@ -161,7 +161,7 @@ export default function ArticleDetailPage({
 
       <main className="mx-auto max-w-7xl px-6 py-8 w-full">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-6">
+        <nav className="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-6">
           <a
             href="#"
             onClick={(e) => {
@@ -260,7 +260,7 @@ export default function ArticleDetailPage({
             </div>
 
             {/* List of Businesses details */}
-            <div className="flex flex-col gap-12 mt-4">
+            <div className="hidden sm:flex flex-col gap-12 mt-4">
               {currentArticle.businesses.map((biz) => (
                 <section
                   key={biz.id}
@@ -422,7 +422,7 @@ export default function ArticleDetailPage({
             </div>
 
             {/* Also Read Widget */}
-            <div className="border-t border-border/60 pt-10 mt-6">
+            <div className="hidden sm:block border-t border-border/60 pt-10 mt-6">
               <h4 className="text-[15px] font-black text-foreground mb-4">Also Read</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 {currentArticle.recommendations.map((rec, rIdx) => (
@@ -444,7 +444,7 @@ export default function ArticleDetailPage({
           </div>
 
           {/* RIGHT COLUMN: Sticky Sidebar */}
-          <div className="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-28">
+          <div className="hidden lg:flex lg:col-span-4 flex-col gap-6 lg:sticky lg:top-28">
             {/* Author Profile Card */}
             <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="flex items-center gap-4">

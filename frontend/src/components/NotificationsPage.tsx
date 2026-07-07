@@ -58,7 +58,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="hidden md:flex justify-between items-center">
         <div>
           <h3 className="font-serif text-lg font-black text-foreground">Alert Hub</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -84,10 +84,8 @@ export default function NotificationsPage() {
           {notifications.map((notif) => (
             <div
               key={notif.id}
-              className={`p-4 rounded-2xl border text-left flex items-start justify-between gap-4 transition relative ${
-                notif.read
-                  ? "bg-card border-border/80 opacity-75"
-                  : "bg-primary/5 border-primary/20 shadow-sm"
+              className={`py-3.5 border-b border-border/60 text-left flex items-start justify-between gap-4 transition relative ${
+                notif.read ? "opacity-60" : ""
               }`}
             >
               <div className="flex items-start gap-3">
@@ -102,7 +100,7 @@ export default function NotificationsPage() {
                 />
                 <div>
                   <h4 className="text-xs font-black text-foreground">{notif.title}</h4>
-                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed pr-8">
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
                     {notif.text}
                   </p>
                   <span className="text-[9px] text-slate-400 font-bold block mt-2">
@@ -110,12 +108,6 @@ export default function NotificationsPage() {
                   </span>
                 </div>
               </div>
-              <button
-                onClick={() => deleteNotification(notif.id)}
-                className="text-slate-400 hover:text-rose-500 transition p-1 hover:bg-secondary/40 rounded-lg cursor-pointer shrink-0"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
             </div>
           ))}
         </div>

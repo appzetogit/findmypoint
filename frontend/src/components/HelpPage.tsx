@@ -74,7 +74,7 @@ export default function HelpPage() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left max-w-6xl mx-auto py-2 items-start">
       {/* Left Column: Support Form */}
-      <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-6 shadow-sm space-y-4">
+      <div className="lg:col-span-5 bg-transparent lg:bg-white lg:dark:bg-slate-900 lg:border lg:border-slate-200/60 lg:dark:border-slate-800/60 lg:rounded-3xl p-0 lg:p-6 lg:shadow-sm space-y-4">
         <div>
           <h3 className="font-serif text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
             <Mail className="h-4.5 w-4.5 text-indigo-500" />
@@ -196,7 +196,7 @@ export default function HelpPage() {
       </div>
 
       {/* Right Column: FAQ Search & Accordion */}
-      <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-6 shadow-sm space-y-5">
+      <div className="lg:col-span-7 bg-transparent lg:bg-white lg:dark:bg-slate-900 lg:border lg:border-slate-200/60 lg:dark:border-slate-800/60 lg:rounded-3xl p-0 lg:p-6 lg:shadow-sm space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-850">
           <div>
             <h3 className="font-serif text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
@@ -207,18 +207,6 @@ export default function HelpPage() {
               Explore standard answers or search specific queries.
             </p>
           </div>
-        </div>
-
-        {/* Search */}
-        <div className="relative">
-          <input
-            type="text"
-            value={faqSearch}
-            onChange={(e) => setFaqSearch(e.target.value)}
-            placeholder="Search FAQ keywords: 'hotel', 'refund', 'booking'..."
-            className="w-full bg-slate-50 dark:bg-slate-950 text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-semibold"
-          />
-          <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
         </div>
 
         {/* Accordions */}

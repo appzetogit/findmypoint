@@ -11,13 +11,17 @@ import {
   HelpCircle,
 } from "lucide-react";
 
-export default function PolicyPage() {
-  const [activeTab, setActiveTab] = useState<"privacy" | "terms" | "refunds">("privacy");
+interface PolicyPageProps {
+  initialTab?: "privacy" | "terms" | "refunds";
+}
+
+export default function PolicyPage({ initialTab = "privacy" }: PolicyPageProps) {
+  const [activeTab, setActiveTab] = useState<"privacy" | "terms" | "refunds">(initialTab);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start text-left max-w-6xl mx-auto py-4">
       {/* Left Column: Navigation Sidebar */}
-      <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-5 md:p-6 shadow-sm space-y-4">
+      <div className="hidden lg:block lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-5 md:p-6 shadow-sm space-y-4">
         <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
           Legal Agreement Index
         </h3>
@@ -81,7 +85,7 @@ export default function PolicyPage() {
       </div>
 
       {/* Right Column: Policy Content Reading Area */}
-      <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-6 md:p-8 shadow-sm">
+      <div className="lg:col-span-8 lg:bg-white lg:dark:bg-slate-900 lg:border lg:border-slate-200/60 lg:dark:border-slate-800/60 lg:rounded-3xl p-0 md:p-8 lg:shadow-sm">
         {activeTab === "privacy" && (
           <div className="space-y-6">
             <div className="border-b border-slate-100 dark:border-slate-855 pb-4">

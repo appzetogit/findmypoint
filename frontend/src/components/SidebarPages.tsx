@@ -7,6 +7,7 @@ import CustomerServicePage from "./CustomerServicePage";
 import PolicyPage from "./PolicyPage";
 import FeedbackPage from "./FeedbackPage";
 import HelpPage from "./HelpPage";
+import MyReviewsPage from "./MyReviewsPage";
 
 interface SidebarPagesProps {
   activePage: string;
@@ -26,8 +27,8 @@ export default function SidebarPages({
   onNavigateToBusiness,
 }: SidebarPagesProps) {
   // Setup Visual Config per page
-  let pageIcon = "✨";
-  let pageSubtitle = "Manage your configurations.";
+  let pageIcon = "";
+  let pageSubtitle = "";
 
   if (activePage === "Favorites") {
     pageIcon = "❤️";
@@ -38,18 +39,15 @@ export default function SidebarPages({
   } else if (activePage === "My Transaction") {
     pageIcon = "🧾";
     pageSubtitle = "Invoice receipts, booking deposits, and payment details";
-  } else if (activePage === "Notifications") {
-    pageIcon = "🔔";
-    pageSubtitle = "Alert updates, security warnings, and booking highlights";
   } else if (activePage === "Customer Service") {
     pageIcon = "🎧";
     pageSubtitle = "Help hotline, email ticket desk, and interactive assistant";
-  } else if (activePage === "Policy") {
+  } else if (activePage === "Policy" || activePage === "Privacy Policy" || activePage === "Terms & Conditions") {
     pageIcon = "🛡️";
     pageSubtitle = "Privacy policy, cancellation terms, and user agreements";
-  } else if (activePage === "Feedback") {
-    pageIcon = "✍️";
-    pageSubtitle = "Share reviews and assist us in refining your experience";
+  } else if (activePage === "Feedback" || activePage === "My Reviews") {
+    pageIcon = "⭐";
+    pageSubtitle = "Share reviews and view your posted feedbacks";
   } else if (activePage === "Help") {
     pageIcon = "🤝";
     pageSubtitle = "Search FAQs, user guidelines, and cancellation issues";
@@ -67,12 +65,12 @@ export default function SidebarPages({
         </button>
 
         <div className="flex items-center gap-3.5">
-          <span className="text-3xl filter drop-shadow">{pageIcon}</span>
+          <span className="text-3xl filter drop-shadow hidden md:inline">{pageIcon}</span>
           <div>
             <h2 className="text-xl font-bold font-serif text-slate-900 uppercase tracking-tight">
               {activePage}
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">{pageSubtitle}</p>
+            <p className="text-xs text-slate-500 mt-0.5 hidden md:block">{pageSubtitle}</p>
           </div>
         </div>
       </div>
@@ -82,12 +80,17 @@ export default function SidebarPages({
         {activePage === "Favorites" && (
           <FavoritesPage onNavigateToBusiness={onNavigateToBusiness} />
         )}
-        {activePage === "Saved" && <SavedPage onNavigateToBusiness={onNavigateToBusiness} />}
+        {(activePage === "Saved" || activePage === "Saved Businesses") && (
+          <SavedPage onNavigateToBusiness={onNavigateToBusiness} />
+        )}
         {activePage === "My Transaction" && <MyTransactionPage />}
         {activePage === "Notifications" && <NotificationsPage />}
         {activePage === "Customer Service" && <CustomerServicePage />}
-        {activePage === "Policy" && <PolicyPage />}
+        {(activePage === "Policy" || activePage === "Privacy Policy" || activePage === "Terms & Conditions") && (
+          <PolicyPage initialTab={activePage === "Terms & Conditions" ? "terms" : "privacy"} />
+        )}
         {activePage === "Feedback" && <FeedbackPage />}
+        {activePage === "My Reviews" && <MyReviewsPage />}
         {activePage === "Help" && <HelpPage />}
       </div>
     </div>

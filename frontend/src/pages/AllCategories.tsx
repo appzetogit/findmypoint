@@ -6,6 +6,7 @@ import { subcategoriesData } from "./CategoryDetail";
 interface AllCategoriesPageProps {
   onBack: () => void;
   onCategoryClick?: (categoryName: string, subcategoryName?: string) => void;
+  initialCategory?: string | null;
 }
 
 const getSubcategoryEmoji = (category: string, subcatName: string): string => {
@@ -92,23 +93,60 @@ const getSubcategoryEmoji = (category: string, subcatName: string): string => {
   return "🏷️";
 };
 
-const categoryGroups = categories.map((cat) => {
-  const id = cat.label.toLowerCase().replace(/\s+/g, "-");
-  const subcatList = subcategoriesData[cat.label] || [];
-  return {
-    id,
-    label: cat.label,
-    subcategories: subcatList.map((subName) => ({
-      label: subName,
-      icon: getSubcategoryEmoji(cat.label, subName),
-      category: cat.label,
-      subcat: subName,
-    })),
-  };
-});
+export default function AllCategoriesPage({ onBack, onCategoryClick, initialCategory }: AllCategoriesPageProps) {
+  const [customIcons, setCustomIcons] = useState<Record<string, string>>({});
+  
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("fmp_subcategory_icons");
+      if (saved) {
+        setCustomIcons(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
-export default function AllCategoriesPage({ onBack, onCategoryClick }: AllCategoriesPageProps) {
-  const [activeTab, setActiveTab] = useState(categoryGroups[0].id);
+  const categoryGroups = useMemo(() => {
+    return categories.map((cat) => {
+      const id = cat.label.toLowerCase().replace(/\s+/g, "-");
+      const subcatList = subcategoriesData[cat.label] || [];
+      return {
+        id,
+        label: cat.label,
+        icon: cat.img,
+        subcategories: subcatList.map((subName) => ({
+          label: subName,
+          icon: customIcons[subName] || getSubcategoryEmoji(cat.label, subName),
+          category: cat.label,
+          subcat: subName,
+        })),
+      };
+    });
+  }, [customIcons]);
+
+  const initialTabId = useMemo(() => {
+    if (initialCategory) {
+      const match = categoryGroups.find(
+        (g) => g.label.toLowerCase() === initialCategory.toLowerCase()
+      );
+      if (match) return match.id;
+    }
+    return categoryGroups[0]?.id || "";
+  }, [initialCategory, categoryGroups]);
+
+  const [activeTab, setActiveTab] = useState(initialTabId);
+
+  useEffect(() => {
+    if (initialCategory) {
+      const match = categoryGroups.find(
+        (g) => g.label.toLowerCase() === initialCategory.toLowerCase()
+      );
+      if (match) {
+        setActiveTab(match.id);
+      }
+    }
+  }, [initialCategory, categoryGroups]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showScrollTop, setShowScrollTop] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -132,7 +170,7 @@ export default function AllCategoriesPage({ onBack, onCategoryClick }: AllCatego
         groupLabel: group.label,
       })),
     );
-  }, []);
+  }, [categoryGroups]);
 
   const filteredSubcategories = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -152,22 +190,6 @@ export default function AllCategoriesPage({ onBack, onCategoryClick }: AllCatego
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const container = e.currentTarget;
     setShowScrollTop(container.scrollTop > 200);
-
-    if (searchQuery.trim() !== "") return;
-
-    const sectionIds = categoryGroups.map((g) => g.id);
-    let currentActive = sectionIds[0];
-
-    for (const id of sectionIds) {
-      const el = document.getElementById(`overlay-${id}`);
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        if (rect.top <= 140) {
-          currentActive = id;
-        }
-      }
-    }
-    setActiveTab(currentActive);
   };
 
   const scrollToTop = () => {
@@ -179,7 +201,7 @@ export default function AllCategoriesPage({ onBack, onCategoryClick }: AllCatego
   return (
     <div className="h-screen w-full bg-background flex flex-col overflow-hidden animate-in fade-in duration-300">
       {/* Search Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border/50 bg-background sticky top-0 z-10 shrink-0 w-full max-w-3xl mx-auto">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border/80 bg-background sticky top-0 z-10 shrink-0 w-full max-w-3xl mx-auto">
         <button
           onClick={onBack}
           className="p-1 rounded-full hover:bg-secondary transition-colors cursor-pointer"
@@ -198,99 +220,130 @@ export default function AllCategoriesPage({ onBack, onCategoryClick }: AllCatego
         </div>
       </div>
 
-      {/* Tabs Bar */}
-      {searchQuery.trim() === "" && (
-        <div className="w-full border-b border-border/40 bg-background sticky top-[57px] z-10 shrink-0">
+      {/* Main Split Layout */}
+      <div className="flex-1 flex overflow-hidden w-full max-w-3xl mx-auto bg-background">
+        {/* Left Sidebar Menu */}
+        {searchQuery.trim() === "" && (
           <div
             ref={tabsContainerRef}
-            className="flex gap-6 px-4 py-2.5 overflow-x-auto no-scrollbar max-w-3xl mx-auto scroll-smooth"
+            className="w-[110px] border-r border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 flex flex-col py-2 overflow-y-auto no-scrollbar shrink-0"
           >
-            {categoryGroups.map((group) => (
-              <button
-                key={group.id}
-                data-tab-id={group.id}
-                onClick={() => scrollToSection(group.id)}
-                className={`whitespace-nowrap pb-1.5 text-xs font-bold transition-all duration-300 border-b-2 cursor-pointer ${
-                  activeTab === group.id
-                    ? "text-primary border-primary"
-                    : "text-muted-foreground border-transparent"
-                }`}
-              >
-                {group.label}
-              </button>
-            ))}
+            {categoryGroups.map((group) => {
+              const isActive = activeTab === group.id;
+              return (
+                <button
+                  key={group.id}
+                  data-tab-id={group.id}
+                  onClick={() => {
+                    setActiveTab(group.id);
+                    if (containerRef.current) {
+                      containerRef.current.scrollTop = 0;
+                    }
+                  }}
+                  className={`relative mx-2 my-1 px-1 py-3 text-[10px] sm:text-[11px] font-bold leading-tight text-center transition-all duration-200 cursor-pointer flex flex-col items-center gap-1.5 justify-center rounded-xl ${
+                    isActive
+                      ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/30"
+                  }`}
+                >
+                  {/* Vertical left border highlight */}
+                  {isActive && (
+                    <span className="absolute left-1 top-2.5 bottom-2.5 w-[3.5px] bg-blue-600 dark:bg-blue-400 rounded-full" />
+                  )}
+                  {/* Category Icon */}
+                  {group.icon && (
+                    <img
+                      src={group.icon}
+                      alt={group.label}
+                      className={`h-9 w-9 object-contain shrink-0 transition-all duration-200 ${isActive ? "scale-110 drop-shadow-md" : "scale-100 hover:scale-105"}`}
+                    />
+                  )}
+                  <span>{group.label}</span>
+                </button>
+              );
+            })}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Categories Content List */}
-      <div
-        ref={containerRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 py-3 bg-background w-full max-w-3xl mx-auto"
-      >
-        {searchQuery.trim() !== "" ? (
-          // Search Results View
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-              Search Results
-            </h3>
-            {filteredSubcategories.length > 0 ? (
-              <div className="flex flex-wrap gap-2.5">
-                {filteredSubcategories.map((sub, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      onCategoryClick?.(sub.category, sub.subcat);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/80 bg-card hover:bg-secondary text-[11px] font-semibold text-foreground/90 shadow-sm cursor-pointer transition-all duration-200"
-                  >
-                    <span className="text-[14px]">{sub.icon}</span>
-                    <span>{sub.label}</span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-xs text-muted-foreground">
-                No matching categories found for "{searchQuery}"
-              </div>
-            )}
-          </div>
-        ) : (
-          // Default Grouped List View
-          <div className="space-y-6 pb-20">
-            {categoryGroups.map((group) => (
-              <div key={group.id} id={`overlay-${group.id}`} className="scroll-mt-28">
-                <h3 className="text-[13px] font-bold text-foreground mb-3">{group.label}</h3>
-                <div className="flex flex-wrap gap-2.5">
-                  {group.subcategories.map((sub, idx) => (
+        {/* Right Details Panel */}
+        <div
+          ref={containerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto px-4 py-4 bg-background"
+        >
+          {searchQuery.trim() !== "" ? (
+            // Search Results View
+            <div className="space-y-4">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 text-left">
+                Search Results
+              </h3>
+              {filteredSubcategories.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2.5">
+                  {filteredSubcategories.map((sub, idx) => (
                     <button
                       key={idx}
                       onClick={() => {
                         onCategoryClick?.(sub.category, sub.subcat);
                       }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/80 bg-card hover:bg-secondary text-[11px] font-semibold text-foreground/90 shadow-sm cursor-pointer transition-all duration-200"
+                      className="flex flex-col items-center justify-center p-2 rounded-xl border border-border/70 bg-card hover:bg-secondary text-center shadow-sm cursor-pointer transition-all duration-200 aspect-square active:scale-95 gap-1"
                     >
-                      <span className="text-[14px]">{sub.icon}</span>
-                      <span>{sub.label}</span>
+                      <span className="text-2xl shrink-0 flex items-center justify-center">
+                        {sub.icon.startsWith("data:image") || sub.icon.startsWith("http") ? (
+                          <img src={sub.icon} alt={sub.label} className="h-7 w-7 object-contain rounded-md shrink-0" />
+                        ) : (
+                          sub.icon
+                        )}
+                      </span>
+                      <span className="text-[9.5px] font-bold leading-tight text-foreground/90 line-clamp-2 px-0.5">
+                        {sub.label}
+                      </span>
                     </button>
                   ))}
-                  {/* Three dots button */}
-                  {group.subcategories.length > 0 && (
-                    <button
-                      onClick={() => {
-                        onCategoryClick?.(group.label);
-                      }}
-                      className="flex items-center justify-center px-4 py-1.5 rounded-full border border-border/80 bg-card hover:bg-secondary text-[11px] font-black text-foreground/90 shadow-sm cursor-pointer transition-all duration-200"
-                    >
-                      •••
-                    </button>
-                  )}
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ) : (
+                <div className="text-center py-8 text-xs text-muted-foreground">
+                  No matching categories found for "{searchQuery}"
+                </div>
+              )}
+            </div>
+          ) : (
+            // Selected Group Content
+            <div className="space-y-4">
+              {categoryGroups.map((group) => {
+                if (group.id !== activeTab) return null;
+                return (
+                  <div key={group.id} className="animate-in fade-in slide-in-from-bottom-2 duration-200 text-left">
+                    <h3 className="text-xs font-black text-muted-foreground uppercase tracking-wider mb-3.5 border-b border-border/40 pb-2">
+                      {group.label}
+                    </h3>
+                    <div className="grid grid-cols-3 gap-2.5">
+                      {group.subcategories.map((sub, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            onCategoryClick?.(sub.category, sub.subcat);
+                          }}
+                          className="flex flex-col items-center justify-center p-2 rounded-xl border border-border/70 bg-card hover:bg-secondary text-center shadow-sm cursor-pointer transition-all duration-200 aspect-square active:scale-95 gap-1"
+                        >
+                          <span className="text-2xl shrink-0 flex items-center justify-center">
+                            {sub.icon.startsWith("data:image") || sub.icon.startsWith("http") ? (
+                              <img src={sub.icon} alt={sub.label} className="h-7 w-7 object-contain rounded-md shrink-0" />
+                            ) : (
+                              sub.icon
+                            )}
+                          </span>
+                          <span className="text-[9.5px] font-bold leading-tight text-foreground/90 line-clamp-2 px-0.5">
+                            {sub.label}
+                          </span>
+                        </button>
+                      ))}
+                      </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Floating Scroll to Top Button */}

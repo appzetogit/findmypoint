@@ -9,25 +9,210 @@ interface AddSubcategoryFormProps {
   onSuccess: () => void;
 }
 
+const getSubcategoryEmoji = (category: string, subcatName: string): string => {
+  const name = subcatName.toLowerCase();
+  const cat = category.toLowerCase();
+
+  if (name.includes("massage")) return "💆";
+  if (name.includes("salon")) return "💇";
+  if (name.includes("parlour")) return "💄";
+
+  if (name.includes("india")) return "🇮🇳";
+  if (name.includes("nepal")) return "🇳🇵";
+  if (name.includes("sri lanka")) return "🇱🇰";
+  if (name.includes("bangladesh")) return "🇧🇩";
+  if (name.includes("indonesia")) return "🇮🇩";
+  if (name.includes("dubai")) return "🇦🇪";
+  if (name.includes("uk")) return "🇬🇧";
+  if (name.includes("usa")) return "🇺🇸";
+  if (name.includes("australia")) return "🇦🇺";
+  if (name.includes("japan")) return "🇯🇵";
+  if (name.includes("china")) return "🇨🇳";
+  if (name.includes("russia")) return "🇷🇺";
+  if (name.includes("thailand")) return "🇹🇭";
+  if (name.includes("france")) return "🇫🇷";
+  if (name.includes("germany")) return "🇩🇪";
+  if (name.includes("switzerland")) return "🇨🇭";
+
+  if (name.includes("accounting") || name.includes("bank")) return "💰";
+  if (name.includes("fresher") || name.includes("student")) return "👶";
+  if (name.includes("government")) return "🏛️";
+  if (name.includes("it") || name.includes("computer")) return "💻";
+  if (name.includes("marketing") || name.includes("sales")) return "📈";
+  if (name.includes("delivery")) return "🛵";
+
+  if (name.includes("ac repair") || name.includes("ac service")) return "❄️";
+  if (name.includes("carpenter")) return "🪚";
+  if (name.includes("plumber")) return "🪠";
+  if (name.includes("electrician")) return "⚡";
+  if (name.includes("cleaner") || name.includes("cleaning")) return "🧹";
+
+  if (name.includes("school") || name.includes("college") || name.includes("university"))
+    return "🏫";
+  if (name.includes("coaching") || name.includes("institute")) return "📚";
+
+  if (name.includes("medicine") || name.includes("pharmacy")) return "💊";
+  if (name.includes("clinic") || name.includes("hospital") || name.includes("nursing")) return "🏥";
+  if (name.includes("doctor")) return "🩺";
+
+  if (name.includes("resort")) return "🏖️";
+  if (name.includes("banquet")) return "🏰";
+
+  if (name.includes("women")) return "👚";
+  if (name.includes("men")) return "👕";
+  if (name.includes("kids")) return "🧒";
+
+  if (
+    name.includes("vedic") ||
+    name.includes("palm") ||
+    name.includes("horoscope") ||
+    name.includes("tarot")
+  )
+    return "🔮";
+
+  if (name.includes("restaurant") || name.includes("cafe")) return "🍲";
+  if (name.includes("sweet") || name.includes("bakery")) return "🍰";
+
+  if (name.includes("courier") || name.includes("parcel")) return "📦";
+
+  if (cat.includes("spa")) return "💆";
+  if (cat.includes("tour")) return "✈️";
+  if (cat.includes("job")) return "💼";
+  if (cat.includes("service")) return "🛠️";
+  if (cat.includes("education")) return "🎓";
+  if (cat.includes("health")) return "🏥";
+  if (cat.includes("hotel")) return "🏨";
+  if (cat.includes("doctor")) return "🩺";
+  if (cat.includes("garment")) return "👗";
+  if (cat.includes("astrologer")) return "🔮";
+  if (cat.includes("product")) return "🛒";
+  if (cat.includes("food")) return "🍲";
+  if (cat.includes("courier")) return "📦";
+  if (cat.includes("car")) return "🚗";
+
+  return "🏷️";
+};
+
 export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcategoryFormProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(categories[0]?.label || "");
   const [subcategoryName, setSubcategoryName] = useState("");
+  const [iconImage, setIconImage] = useState<string | null>(null);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setIconImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
   const [searchQuery, setSearchQuery] = useState("");
+  const [subcatIcons, setSubcatIcons] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const savedIcons = localStorage.getItem("fmp_subcategory_icons");
+    if (savedIcons) {
+      try {
+        setSubcatIcons(JSON.parse(savedIcons));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [isModalOpen]);
+
+  // Edit subcategory states
+  const [editingSub, setEditingSub] = useState<{ category: string; name: string } | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editIcon, setEditIcon] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (editingSub) {
+      setEditName(editingSub.name);
+      setEditIcon(subcatIcons[editingSub.name] || null);
+    } else {
+      setEditName("");
+      setEditIcon(null);
+    }
+  }, [editingSub, subcatIcons]);
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSub) return;
+    if (!editName.trim()) {
+      alert("Subcategory name is required.");
+      return;
+    }
+
+    const cleanOldName = editingSub.name.trim();
+    const cleanNewName = editName.trim();
+    const catLabel = editingSub.category;
+
+    try {
+      // 1. Update custom subcategories list
+      const savedList = localStorage.getItem("fmp_custom_subcategories");
+      if (savedList) {
+        const parsedList = JSON.parse(savedList);
+        if (parsedList[catLabel]) {
+          parsedList[catLabel] = parsedList[catLabel].map((s: string) =>
+            s === cleanOldName ? cleanNewName : s
+          );
+          localStorage.setItem("fmp_custom_subcategories", JSON.stringify(parsedList));
+          setCustomSubcategories(parsedList);
+        }
+      }
+
+      // 2. Update in-memory subcategoriesData
+      if (subcategoriesData[catLabel]) {
+        subcategoriesData[catLabel] = subcategoriesData[catLabel].map((s) =>
+          s === cleanOldName ? cleanNewName : s
+        );
+      }
+      setLocalSubcategories({ ...subcategoriesData });
+
+      // 3. Update icon image
+      const savedIcons = localStorage.getItem("fmp_subcategory_icons");
+      const parsedIcons = savedIcons ? JSON.parse(savedIcons) : {};
+      
+      // delete old icon entry
+      if (parsedIcons[cleanOldName]) {
+        delete parsedIcons[cleanOldName];
+      }
+      
+      // save new icon entry
+      if (editIcon) {
+        parsedIcons[cleanNewName] = editIcon;
+      }
+      
+      localStorage.setItem("fmp_subcategory_icons", JSON.stringify(parsedIcons));
+      
+      // Reload state
+      setSubcatIcons(parsedIcons);
+
+      alert("Subcategory updated successfully!");
+      setEditingSub(null);
+      onSuccess();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update subcategory.");
+    }
+  };
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [localSubcategories, setLocalSubcategories] = useState<Record<string, string[]>>({});
   const [customSubcategories, setCustomSubcategories] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
-    setLocalSubcategories({ ...subcategoriesData });
-    const saved = localStorage.getItem("fmp_custom_subcategories");
-    if (saved) {
-      try {
-        setCustomSubcategories(JSON.parse(saved));
-      } catch (e) {
-        console.error(e);
-      }
+    let savedAll = localStorage.getItem("fmp_all_subcategories");
+    if (!savedAll) {
+      localStorage.setItem("fmp_all_subcategories", JSON.stringify(subcategoriesData));
+    } else {
+      const parsed = JSON.parse(savedAll);
+      Object.keys(subcategoriesData).forEach((k) => delete subcategoriesData[k]);
+      Object.assign(subcategoriesData, parsed);
     }
+    setLocalSubcategories({ ...subcategoriesData });
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -44,22 +229,32 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
     const cleanSubName = subcategoryName.trim();
 
     try {
-      const saved = localStorage.getItem("fmp_custom_subcategories");
-      let customMap = saved ? JSON.parse(saved) : {};
-
       const existingSubcategories = subcategoriesData[selectedCategory] || [];
       if (existingSubcategories.some((s) => s.toLowerCase() === cleanSubName.toLowerCase())) {
         alert("This subcategory already exists under the selected category!");
         return;
       }
 
-      // Add to customMap
-      if (!customMap[selectedCategory]) {
-        customMap[selectedCategory] = [];
+      // Save to fmp_all_subcategories
+      const savedAll = localStorage.getItem("fmp_all_subcategories");
+      const subcatMap = savedAll ? JSON.parse(savedAll) : { ...subcategoriesData };
+      if (!subcatMap[selectedCategory]) {
+        subcatMap[selectedCategory] = [];
       }
-      customMap[selectedCategory].push(cleanSubName);
-      localStorage.setItem("fmp_custom_subcategories", JSON.stringify(customMap));
-      setCustomSubcategories(customMap);
+      subcatMap[selectedCategory].push(cleanSubName);
+      localStorage.setItem("fmp_all_subcategories", JSON.stringify(subcatMap));
+
+      // Save custom subcategory icon if uploaded
+      if (iconImage) {
+        try {
+          const savedIcons = localStorage.getItem("fmp_subcategory_icons");
+          const customIcons = savedIcons ? JSON.parse(savedIcons) : {};
+          customIcons[cleanSubName] = iconImage;
+          localStorage.setItem("fmp_subcategory_icons", JSON.stringify(customIcons));
+        } catch (err) {
+          console.error("Error saving custom subcategory icon:", err);
+        }
+      }
 
       // Append to the active in-memory dictionary
       if (!subcategoriesData[selectedCategory]) {
@@ -70,6 +265,7 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
 
       alert("Subcategory added successfully!");
       setSubcategoryName("");
+      setIconImage(null);
       setIsModalOpen(false);
       onSuccess();
     } catch (error) {
@@ -81,14 +277,27 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
   const handleDeleteSubcategory = (catLabel: string, subcatName: string) => {
     if (confirm(`Are you sure you want to delete "${subcatName}" from "${catLabel}"?`)) {
       try {
-        const saved = localStorage.getItem("fmp_custom_subcategories");
-        if (saved) {
-          const parsed = JSON.parse(saved);
+        const savedAll = localStorage.getItem("fmp_all_subcategories");
+        if (savedAll) {
+          const parsed = JSON.parse(savedAll);
           if (parsed[catLabel]) {
             parsed[catLabel] = parsed[catLabel].filter((s: string) => s !== subcatName);
-            localStorage.setItem("fmp_custom_subcategories", JSON.stringify(parsed));
-            setCustomSubcategories(parsed);
+            localStorage.setItem("fmp_all_subcategories", JSON.stringify(parsed));
           }
+        }
+
+        // Delete custom subcategory icon if it exists
+        try {
+          const savedIcons = localStorage.getItem("fmp_subcategory_icons");
+          if (savedIcons) {
+            const parsedIcons = JSON.parse(savedIcons);
+            if (parsedIcons[subcatName]) {
+              delete parsedIcons[subcatName];
+              localStorage.setItem("fmp_subcategory_icons", JSON.stringify(parsedIcons));
+            }
+          }
+        } catch (err) {
+          console.error("Error deleting subcategory icon:", err);
         }
 
         // Remove from in-memory subcategoriesData
@@ -235,32 +444,49 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
                           No subcategories to show.
                         </p>
                       ) : (
-                        <div className="flex flex-wrap gap-2.5">
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
                           {filteredSubs.map((sub, sIdx) => {
-                            const isCustom = isCustomSub(cat.label, sub);
+                            const icon = subcatIcons[sub] || getSubcategoryEmoji(cat.label, sub);
+                            const isImg = icon.startsWith("data:image") || icon.startsWith("http");
+
                             return (
                               <div
                                 key={`${sub}-${sIdx}`}
-                                className={`group flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
-                                  isCustom
-                                    ? "bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 border-indigo-200/50 dark:border-indigo-900/30 hover:border-indigo-400"
-                                    : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-slate-800/80 hover:border-slate-350 dark:hover:border-slate-700"
-                                }`}
+                                className="flex items-center justify-between py-2.5 hover:bg-slate-55/15 dark:hover:bg-slate-900/10 px-2 rounded-xl transition-colors"
                               >
-                                <span>{sub}</span>
-                                {isCustom && (
+                                {/* Left: Icon & Name */}
+                                <div className="flex items-center gap-3">
+                                  <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200/50 dark:border-slate-800/80 text-xl overflow-hidden shrink-0">
+                                    {isImg ? (
+                                      <img src={icon} alt={sub} className="h-full w-full object-contain" />
+                                    ) : (
+                                      icon
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col text-left">
+                                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                                      {sub}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Right: Edit / Delete Actions */}
+                                <div className="flex items-center gap-2">
                                   <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteSubcategory(cat.label, sub);
-                                    }}
                                     type="button"
-                                    className="p-0.5 rounded text-indigo-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer border-none"
-                                    title="Delete custom subcategory"
+                                    onClick={() => setEditingSub({ category: cat.label, name: sub })}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 transition cursor-pointer border-none"
                                   >
-                                    <X className="h-3 w-3" />
+                                    Edit
                                   </button>
-                                )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteSubcategory(cat.label, sub)}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-450 transition cursor-pointer border-none"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
                               </div>
                             );
                           })}
@@ -341,6 +567,41 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
                   />
                 </div>
 
+                {/* Custom Subcategory Icon Upload */}
+                <div className="space-y-1.5 text-left">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Subcategory Icon / Image (Optional)
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <label className="flex flex-col items-center justify-center h-16 w-16 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 cursor-pointer overflow-hidden transition-all shrink-0">
+                      {iconImage ? (
+                        <img src={iconImage} alt="Icon Preview" className="h-full w-full object-contain" />
+                      ) : (
+                        <Plus className="h-5 w-5 text-slate-400" />
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
+                    </label>
+                    <div className="text-xs text-slate-450 dark:text-slate-500">
+                      {iconImage ? (
+                        <button
+                          type="button"
+                          onClick={() => setIconImage(null)}
+                          className="text-rose-500 font-bold hover:underline cursor-pointer border-none bg-transparent"
+                        >
+                          Remove Uploaded Image
+                        </button>
+                      ) : (
+                        <span>Select an image or PNG to use as the icon.</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Action Buttons */}
                 <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                   <button
@@ -362,6 +623,121 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
             </div>
           </div>,
           document.body,
+        )}
+
+      {/* Edit Subcategory Modal Dialog */}
+      {editingSub &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop Overlay */}
+            <div
+              onClick={() => setEditingSub(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-200 cursor-pointer animate-fade-in"
+            />
+
+            {/* Modal Content Card */}
+            <div className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-6 md:p-8 shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-200 text-left">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-indigo-500" />
+                  <h2 className="font-serif text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                    Edit Subcategory
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setEditingSub(null)}
+                  className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-650 transition cursor-pointer border-none outline-none"
+                >
+                  <X className="h-4.5 w-4.5" />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
+                Update the name and icon image of this subcategory under <strong>{editingSub.category}</strong>.
+              </p>
+
+              {/* Modal Form */}
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div className="space-y-1.5 text-left">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Subcategory Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                  />
+                </div>
+
+                {/* Subcategory Icon Upload */}
+                <div className="space-y-1.5 text-left">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Subcategory Icon / Image (Optional)
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <label className="flex flex-col items-center justify-center h-16 w-16 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 cursor-pointer overflow-hidden transition-all shrink-0">
+                      {editIcon ? (
+                        <img src={editIcon} alt="Icon Preview" className="h-full w-full object-contain" />
+                      ) : (
+                        <Plus className="h-5 w-5 text-slate-400" />
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setEditIcon(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                    <div className="text-xs text-slate-450 dark:text-slate-500">
+                      {editIcon ? (
+                        <button
+                          type="button"
+                          onClick={() => setEditIcon(null)}
+                          className="text-rose-500 font-bold hover:underline cursor-pointer border-none bg-transparent"
+                        >
+                          Remove Uploaded Image
+                        </button>
+                      ) : (
+                        <span>Select an image or PNG to use as the icon.</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setEditingSub(null)}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer border-none outline-none bg-transparent"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md flex items-center gap-1.5 hover:shadow-lg transition cursor-pointer text-xs border-none"
+                  >
+                    <Save className="h-4 w-4" />
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body
         )}
     </div>
   );

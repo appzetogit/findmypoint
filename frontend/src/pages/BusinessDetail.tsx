@@ -23,6 +23,7 @@ import {
   Sparkles,
   User,
   Plus,
+  Compass,
   Camera,
   ShoppingCart,
 } from "lucide-react";
@@ -603,8 +604,8 @@ export default function BusinessDetailPage({
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 md:h-20 max-w-7xl items-center gap-3 md:gap-8 px-4 md:px-6 w-full">
+      <header className="relative sm:sticky top-0 left-0 right-0 z-40 border-0 sm:border-b sm:border-border bg-secondary/40 sm:bg-background/85 sm:backdrop-blur-xl">
+        <div className="mx-auto flex h-12 sm:h-16 md:h-20 max-w-7xl items-center gap-3 md:gap-8 px-4 md:px-6 w-full">
           <button
             onClick={onBack}
             className="flex items-center gap-2 group cursor-pointer shrink-0"
@@ -623,7 +624,7 @@ export default function BusinessDetailPage({
               e.preventDefault();
               onBack();
             }}
-            className="flex items-center shrink-0"
+            className="hidden md:flex items-center shrink-0"
           >
             <img
               src={logoImg}
@@ -641,7 +642,7 @@ export default function BusinessDetailPage({
             />
           </div>
 
-          <div className="flex items-center gap-2.5 ml-auto md:ml-0 shrink-0">
+          <div className="hidden md:flex items-center gap-2.5 ml-auto md:ml-0 shrink-0">
             <button
               onClick={() => onBack()}
               className="hidden sm:inline-block px-4 py-2 text-xs font-bold text-muted-foreground transition hover:text-foreground cursor-pointer"
@@ -673,9 +674,9 @@ export default function BusinessDetailPage({
       </header>
 
       {/* Hero Gallery Collage Section */}
-      <div className="bg-secondary/40 border-b border-border py-4">
+      <div className="bg-secondary/40 border-b border-border pt-1 pb-4 sm:py-4">
         <div className="mx-auto max-w-7xl px-6 w-full">
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 h-[240px] sm:h-[320px] overflow-hidden rounded-3xl border border-border/80 shadow-md">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 h-[180px] sm:h-[320px] overflow-hidden rounded-3xl border border-border/80 shadow-md">
             {/* Main large image */}
             <div className="col-span-1 sm:col-span-6 h-full relative group overflow-hidden">
               <img
@@ -712,7 +713,7 @@ export default function BusinessDetailPage({
       <main className="mx-auto max-w-7xl px-6 py-8 w-full">
         {/* Breadcrumb & Ratings summary row */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <nav className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+          <nav className="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             <a
               href="#"
               onClick={(e) => {
@@ -795,95 +796,118 @@ export default function BusinessDetailPage({
           </div>
 
           {/* Quick Actions Panel */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => {
-                setEnquiryForm({ name: "", mobile: "", email: "", message: "Hi, I am interested in your services. Please contact me." });
-                setUiState((prev) => ({ ...prev, enquiryModalOpen: true, enquirySubmitted: false }));
-              }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-primary px-4 sm:px-6 py-2.5 sm:py-3 text-xs font-bold text-primary-foreground hover:bg-primary/95 transition shadow-md cursor-pointer"
-            >
-              Enquire Now
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
+            {/* Buttons Row: Call, Enquire, Book */}
+            <div className="flex flex-row items-center gap-1.5 w-full sm:w-auto">
+              <a
+                href={`tel:${currentBiz.phone.replace(/[^0-9+]/g, "")}`}
+                className="flex-1 inline-flex items-center justify-center gap-1 rounded-full border border-slate-200 dark:border-slate-800 bg-card py-2.5 px-2 text-[10px] sm:text-xs font-bold text-foreground hover:bg-secondary transition shadow-sm cursor-pointer whitespace-nowrap"
+              >
+                <Phone className="h-3 w-3 text-accent shrink-0" />
+                Call
+              </a>
 
-            {!currentBiz.isBookingDisabled && (
               <button
                 onClick={() => {
-                  setCartCheckoutTotal(null);
-                  const tomorrow = new Date();
-                  tomorrow.setDate(tomorrow.getDate() + 1);
-                  const tomorrowStr = tomorrow.toISOString().split("T")[0];
-                  dispatchBooking({ type: "RESET", username: username || "" });
-                  dispatchBooking({
-                    type: "UPDATE_FORM",
-                    fields: {
-                      name: username || "",
-                      phone: "",
-                      date: new Date().toISOString().split("T")[0],
-                      guests: currentBiz.category.includes("Hotel Point")
-                        ? "Deluxe AC Room (₹1,999/night)"
-                        : "2",
-                      time: currentBiz.category.includes("Hotel Point")
-                        ? tomorrowStr
-                        : currentBiz.category.includes("Health Care Point") ||
-                            currentBiz.category.includes("Doctor Point")
-                          ? "Morning Slot Consultation (09:00 AM - 01:00 PM) (Fee: ₹300)"
-                          : "Dinner (07:00 PM - 11:00 PM)",
-                    },
-                  });
-                  dispatchBooking({ type: "SET_MODAL", open: true });
-                  dispatchPayment({ type: "RESET" });
+                  setEnquiryForm({ name: "", mobile: "", email: "", message: "Hi, I am interested in your services. Please contact me." });
+                  setUiState((prev) => ({ ...prev, enquiryModalOpen: true, enquirySubmitted: false }));
                 }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-4 sm:px-6 py-2.5 sm:py-3 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-md cursor-pointer"
+                className="flex-1 inline-flex items-center justify-center gap-1 rounded-full bg-[#0f172a] dark:bg-slate-800 py-2.5 px-2 text-[10px] sm:text-xs font-bold text-white transition shadow-sm hover:scale-[1.02] cursor-pointer whitespace-nowrap"
               >
-                <Check className="h-3.5 w-3.5" />
-                {currentBiz.bookingButtonLabel
-                  ? currentBiz.bookingButtonLabel
-                  : (customFormConfig
-                      ? (customFormConfig.formTitle || "Book Now")
-                      : (currentBiz.category.includes("Hotel Point")
-                          ? "Book Room"
+                Enquire Now
+              </button>
+
+              {!currentBiz.isBookingDisabled && (
+                <button
+                  onClick={() => {
+                    setCartCheckoutTotal(null);
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+                    dispatchBooking({ type: "RESET", username: username || "" });
+                    dispatchBooking({
+                      type: "UPDATE_FORM",
+                      fields: {
+                        name: username || "",
+                        phone: "",
+                        date: new Date().toISOString().split("T")[0],
+                        guests: currentBiz.category.includes("Hotel Point")
+                          ? "Deluxe AC Room (₹1,999/night)"
+                          : "2",
+                        time: currentBiz.category.includes("Hotel Point")
+                          ? tomorrowStr
                           : currentBiz.category.includes("Health Care Point") ||
                               currentBiz.category.includes("Doctor Point")
-                            ? "Book Appointment"
-                            : "Book Table"))}
-              </button>
-            )}
-            <button
-              onClick={() => setUiState((prev) => ({ ...prev, revealPhone: !prev.revealPhone }))}
-              className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3.5 sm:px-5 py-2.5 sm:py-3 text-xs font-bold text-foreground hover:bg-secondary transition shadow-sm cursor-pointer"
-            >
-              <Phone className="h-3.5 w-3.5 text-accent" />
-              {revealPhone ? currentBiz.phone : "Show Number"}
-            </button>
-            <a
-              href={`https://wa.me/${currentBiz.phone.replace(/[^0-9]/g, "")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-[#25d366]/30 bg-[#25d366]/5 hover:bg-[#25d366] hover:text-white transition-all shadow-sm cursor-pointer text-[#25d366]"
-            >
-              <svg
-                className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 fill-current"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
+                            ? "Morning Slot Consultation (09:00 AM - 01:00 PM) (Fee: ₹300)"
+                            : "Dinner (07:00 PM - 11:00 PM)",
+                      },
+                    });
+                    dispatchBooking({ type: "SET_MODAL", open: true });
+                    dispatchPayment({ type: "RESET" });
+                  }}
+                  className="flex-1 inline-flex items-center justify-center gap-1 rounded-full bg-emerald-600 py-2.5 px-2 text-[10px] sm:text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm hover:scale-[1.02] cursor-pointer whitespace-nowrap"
+                >
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">
+                    {currentBiz.bookingButtonLabel
+                      ? currentBiz.bookingButtonLabel
+                      : (customFormConfig
+                          ? (customFormConfig.formTitle || "Book Now")
+                          : (currentBiz.category.includes("Hotel Point")
+                              ? "Book Room"
+                              : currentBiz.category.includes("Health Care Point") ||
+                                  currentBiz.category.includes("Doctor Point")
+                                ? "Book Appointment"
+                                : "Book Table"))}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Circular Social/Bookmark/Direction Row */}
+            <div className="flex flex-row items-center gap-2 mt-1 sm:mt-0">
+              <a
+                href={`https://wa.me/${currentBiz.phone.replace(/[^0-9]/g, "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-[#25d366]/30 bg-[#25d366]/5 hover:bg-[#25d366] hover:text-white transition-all shadow-sm cursor-pointer text-[#25d366]"
+                title="Chat on WhatsApp"
               >
-                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.717-1.456L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.97C16.379 1.968 13.91 .94 11.997.94c-5.442 0-9.867 4.371-9.871 9.8.001 1.83.483 3.61 1.398 5.183L2.5 21.082l5.147-1.33c-.007.005-.007.005 0 0zm9.967-6.758c-.31-.154-1.834-.894-2.115-.995-.28-.102-.485-.153-.687.154-.202.307-.783.995-.96 1.198-.177.205-.355.23-.665.077-1.127-.565-1.953-.972-2.73-1.637-.777-.665-1.28-1.488-1.433-1.753-.153-.307-.016-.473.138-.626.14-.138.31-.36.467-.538.153-.18.204-.307.307-.512.102-.205.05-.384-.025-.538-.077-.154-.687-1.637-.94-2.253-.247-.6-.5-.518-.688-.528-.178-.01-.383-.01-.588-.01-.205 0-.538.077-.82.384-.282.307-1.077 1.05-1.077 2.561 0 1.51 1.1 2.97 1.253 3.176.154.205 2.164 3.266 5.244 4.581.733.313 1.306.499 1.75.64.737.234 1.408.201 1.94.122.592-.088 1.834-.74 2.09-1.455.257-.717.257-1.332.18-1.456-.076-.124-.282-.201-.592-.356z" />
-              </svg>
-            </a>
-            <button
-              onClick={handleShare}
-              className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-border bg-card hover:bg-secondary transition shadow-sm text-muted-foreground cursor-pointer"
-            >
-              <Share2 className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5" />
-            </button>
-            <button
-              onClick={() => setUiState((prev) => ({ ...prev, bookmarked: !prev.bookmarked }))}
-              className={`flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border transition shadow-sm cursor-pointer ${bookmarked ? "text-amber-500 border-amber-200 bg-amber-50/20" : "text-muted-foreground border-border bg-card hover:bg-secondary"}`}
-            >
-              <Bookmark
-                className={`h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 ${bookmarked ? "fill-amber-500" : ""}`}
-              />
-            </button>
+                <svg
+                  className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 fill-current"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.717-1.456L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.97C16.379 1.968 13.91 .94 11.997.94c-5.442 0-9.867 4.371-9.871 9.8.001 1.83.483 3.61 1.398 5.183L2.5 21.082l5.147-1.33c-.007.005-.007.005 0 0zm9.967-6.758c-.31-.154-1.834-.894-2.115-.995-.28-.102-.485-.153-.687.154-.202.307-.783.995-.96 1.198-.177.205-.355.23-.665.077-1.127-.565-1.953-.972-2.73-1.637-.777-.665-1.28-1.488-1.433-1.753-.153-.307-.016-.473.138-.626.14-.138.31-.36.467-.538.153-.18.204-.307.307-.512.102-.205.05-.384-.025-.538-.077-.154-.687-1.637-.94-2.253-.247-.6-.5-.518-.688-.528-.178-.01-.383-.01-.588-.01-.205 0-.538.077-.82.384-.282.307-1.077 1.05-1.077 2.561 0 1.51 1.1 2.97 1.253 3.176.154.205 2.164 3.266 5.244 4.581.733.313 1.306.499 1.75.64.737.234 1.408.201 1.94.122.592-.088 1.834-.74 2.09-1.455.257-.717.257-1.332.18-1.456-.076-.124-.282-.201-.592-.356z" />
+                </svg>
+              </a>
+              <button
+                onClick={handleShare}
+                className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-border bg-card hover:bg-secondary transition shadow-sm text-muted-foreground cursor-pointer"
+                title="Share"
+              >
+                <Share2 className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5" />
+              </button>
+              <button
+                onClick={() => setUiState((prev) => ({ ...prev, bookmarked: !prev.bookmarked }))}
+                className={`flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border transition shadow-sm cursor-pointer ${bookmarked ? "text-amber-500 border-amber-200 bg-amber-50/20" : "text-muted-foreground border-border bg-card hover:bg-secondary"}`}
+                title="Save"
+              >
+                <Bookmark
+                  className={`h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 ${bookmarked ? "fill-amber-500" : ""}`}
+                />
+              </button>
+              {/* Direction Button */}
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(currentBiz.name + ", " + currentBiz.address)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-border bg-card hover:bg-secondary transition shadow-sm text-muted-foreground hover:text-primary cursor-pointer"
+                title="Directions"
+              >
+                <Compass className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 text-blue-600 dark:text-blue-400" />
+              </a>
+            </div>
           </div>
         </div>
 
@@ -949,7 +973,7 @@ export default function BusinessDetailPage({
                   {currentBiz.officers.map((off, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center gap-3.5 bg-card border border-border p-3.5 rounded-2xl shadow-sm"
+                      className="flex items-center gap-3.5 bg-transparent sm:bg-card border-none sm:border sm:border-border p-2 sm:p-3.5 rounded-none sm:rounded-2xl shadow-none sm:shadow-sm"
                     >
                       <div className="h-10 w-10 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-black text-xs uppercase flex items-center justify-center border border-indigo-100 dark:border-indigo-900 shrink-0">
                         {off.name.charAt(0)}
@@ -978,7 +1002,7 @@ export default function BusinessDetailPage({
                   {currentBiz.branches.map((branch, idx) => (
                     <div
                       key={idx}
-                      className="flex items-start gap-2.5 bg-secondary/25 border border-border/60 p-3.5 rounded-2xl"
+                      className="flex items-start gap-2.5 bg-transparent sm:bg-secondary/25 border-none sm:border sm:border-border/60 p-2 sm:p-3.5 rounded-none sm:rounded-2xl"
                     >
                       <span className="text-rose-500 mt-0.5 text-sm">📍</span>
                       <div className="text-left">
@@ -1067,7 +1091,7 @@ export default function BusinessDetailPage({
                       return (
                         <div
                           key={idx}
-                          className="flex items-center gap-4 bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)] hover:shadow-md hover:border-primary/10 transition duration-300"
+                          className="flex items-center gap-4 bg-transparent sm:bg-card rounded-none sm:rounded-2xl border-none sm:border sm:border-border p-2 sm:p-4 shadow-none sm:shadow-[var(--shadow-card)] hover:shadow-none sm:hover:shadow-md sm:hover:border-primary/10 transition duration-300"
                         >
                           {/* Left: Food Image */}
                           <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl overflow-hidden bg-secondary shrink-0">
@@ -1080,21 +1104,19 @@ export default function BusinessDetailPage({
 
                           {/* Middle: Details */}
                           <div className="flex-1 min-w-0 text-left">
-                            <div className="flex items-start justify-between gap-2">
-                              <h4 className="text-sm sm:text-base font-black text-foreground line-clamp-1">
-                                {prod.name}
-                              </h4>
-                              <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md shrink-0">
-                                {prod.price}
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground/80 mt-1 sm:mt-1.5 leading-relaxed line-clamp-2">
+                            <h4 className="text-sm sm:text-base font-black text-foreground line-clamp-2 leading-tight">
+                              {prod.name}
+                            </h4>
+                            <p className="text-xs text-muted-foreground/80 mt-1.5 leading-relaxed line-clamp-2">
                               {prod.desc}
                             </p>
                           </div>
 
                           {/* Right: Add / Quantity Controls */}
-                          <div className="shrink-0 pl-2">
+                          <div className="shrink-0 pl-2 flex flex-col items-end gap-1.5 justify-center">
+                            <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md shrink-0">
+                              {prod.price}
+                            </span>
                             {qty === 0 ? (
                               <button
                                 type="button"
@@ -1135,7 +1157,7 @@ export default function BusinessDetailPage({
                       return (
                         <div
                           key={idx}
-                          className="flex items-center gap-4 bg-card rounded-2xl border border-border p-4 shadow-[var(--shadow-card)] hover:shadow-md hover:border-primary/10 transition duration-300"
+                          className="flex items-center gap-4 bg-transparent sm:bg-card rounded-none sm:rounded-2xl border-none sm:border sm:border-border p-2 sm:p-4 shadow-none sm:shadow-[var(--shadow-card)] hover:shadow-none sm:hover:shadow-md sm:hover:border-primary/10 transition duration-300"
                         >
                           {/* Left: Product Image */}
                           <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl overflow-hidden bg-secondary shrink-0">
@@ -1148,21 +1170,19 @@ export default function BusinessDetailPage({
 
                           {/* Middle: Details */}
                           <div className="flex-1 min-w-0 text-left">
-                            <div className="flex items-start justify-between gap-2">
-                              <h4 className="text-sm sm:text-base font-black text-foreground line-clamp-1">
-                                {prod.name}
-                              </h4>
-                              <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md shrink-0">
-                                {prod.price}
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground/80 mt-1 sm:mt-1.5 leading-relaxed line-clamp-2">
+                            <h4 className="text-sm sm:text-base font-black text-foreground line-clamp-2 leading-tight">
+                              {prod.name}
+                            </h4>
+                            <p className="text-xs text-muted-foreground/80 mt-1.5 leading-relaxed line-clamp-2">
                               {prod.desc}
                             </p>
                           </div>
 
                           {/* Right: Add to Cart Button / Quantity Selector */}
-                          <div className="shrink-0 pl-2">
+                          <div className="shrink-0 pl-2 flex flex-col items-end gap-1.5 justify-center">
+                            <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md shrink-0">
+                              {prod.price}
+                            </span>
                             {qty === 0 ? (
                               <button
                                 type="button"
@@ -1170,9 +1190,9 @@ export default function BusinessDetailPage({
                                   addToCart(prod.name);
                                   setCartOpen(true);
                                 }}
-                                className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer shadow-sm active:scale-95 whitespace-nowrap border-none"
+                                className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-2.5 py-1.5 text-[10.5px] font-bold transition cursor-pointer shadow-sm active:scale-95 whitespace-nowrap border-none"
                               >
-                                <ShoppingCart className="h-3.5 w-3.5" />
+                                <ShoppingCart className="h-3 w-3" />
                                 Add to Cart
                               </button>
                             ) : (
@@ -1213,7 +1233,7 @@ export default function BusinessDetailPage({
                 Ratings & Reviews
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center bg-secondary/25 border border-border/60 rounded-3xl p-6 mb-8 shadow-sm">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center bg-transparent sm:bg-secondary/25 border-none sm:border sm:border-border/60 rounded-none sm:rounded-3xl p-2 sm:p-6 mb-8 shadow-none sm:shadow-sm">
                 {/* Visual average card */}
                 <div className="md:col-span-4 flex flex-col items-center justify-center text-center md:border-r border-border/60 py-4 pr-4">
                   <span className="text-5xl font-black text-foreground leading-none">
@@ -1262,7 +1282,7 @@ export default function BusinessDetailPage({
                 {allReviews.map((rev, idx) => (
                   <div
                     key={idx}
-                    className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]"
+                    className="bg-transparent sm:bg-card rounded-none sm:rounded-2xl border-none border-b border-border/40 sm:border sm:border-border p-2 sm:p-5 shadow-none sm:shadow-[var(--shadow-card)] pb-4"
                   >
                     <div className="flex items-center justify-between gap-4">
                       {/* Reviewer Row */}
@@ -1327,7 +1347,7 @@ export default function BusinessDetailPage({
               currentBiz.website ||
               currentBiz.whatsapp ||
               (currentBiz.extraNumbers && currentBiz.extraNumbers.length > 0)) && (
-              <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)] text-left">
+              <div className="bg-transparent sm:bg-card rounded-none sm:rounded-2xl border-none sm:border sm:border-border p-2 sm:p-6 shadow-none sm:shadow-[var(--shadow-card)] text-left">
                 <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-4">
                   <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">
                     Contact Information
@@ -1428,7 +1448,7 @@ export default function BusinessDetailPage({
 
             {/* People Also Viewed Widget */}
             {currentBiz.similarListings.length > 0 && (
-              <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+              <div className="bg-transparent sm:bg-card rounded-none sm:rounded-2xl border-none sm:border sm:border-border p-2 sm:p-6 shadow-none sm:shadow-[var(--shadow-card)]">
                 <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-4">
                   <h4 className="text-xs font-black text-foreground uppercase tracking-widest">
                     People Also Viewed
@@ -1470,7 +1490,7 @@ export default function BusinessDetailPage({
             )}
 
             {/* Write a Review Widget */}
-            <div id="write-review-form" className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)] text-left scroll-mt-28 mt-6">
+            <div id="write-review-form" className="bg-transparent sm:bg-card rounded-none sm:rounded-2xl border-none sm:border sm:border-border p-2 sm:p-6 shadow-none sm:shadow-[var(--shadow-card)] text-left scroll-mt-28 mt-6">
               <div className="border-b border-border/30 pb-3 mb-4">
                 <h4 className="text-xs font-black text-foreground uppercase tracking-widest flex items-center gap-1.5">
                   <Star className="h-4 w-4 text-amber-500 fill-amber-500/10" /> Write a Review
@@ -1597,7 +1617,7 @@ export default function BusinessDetailPage({
 
             {/* Expandable FAQs Section */}
             {currentBiz.faqs.length > 0 && (
-              <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)] text-left mt-6">
+              <div className="bg-transparent sm:bg-card rounded-none sm:rounded-2xl border-none sm:border sm:border-border p-2 sm:p-6 shadow-none sm:shadow-[var(--shadow-card)] text-left mt-6">
                 <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-4">
                   <h4 className="text-xs font-black text-foreground uppercase tracking-widest">
                     Frequently Asked Questions
@@ -1610,7 +1630,7 @@ export default function BusinessDetailPage({
                     return (
                       <div
                         key={idx}
-                        className="rounded-xl border border-border bg-card overflow-hidden shadow-sm"
+                        className="bg-transparent sm:bg-card rounded-none sm:rounded-xl border-none border-b border-border/40 sm:border sm:border-border overflow-hidden shadow-none sm:shadow-sm"
                       >
                         <button
                           onClick={() =>

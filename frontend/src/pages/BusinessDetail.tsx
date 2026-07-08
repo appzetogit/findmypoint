@@ -796,7 +796,7 @@ export default function BusinessDetailPage({
           </div>
 
           {/* Quick Actions Panel */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto md:shrink-0">
             {/* Buttons Row: Call, Enquire, Book */}
             <div className="flex flex-row items-center gap-1.5 w-full sm:w-auto">
               <a

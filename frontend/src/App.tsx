@@ -145,30 +145,30 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
 }
 
 // ---------------------------------------------------------------------------
-// Hash-based URL helpers
+// Path-based URL helpers (Clean URLs without Hash)
 // ---------------------------------------------------------------------------
 
-function buildHash(state: AppViewState, mobileTab: string): string {
-  if (state.showAdminPanel) return "#/admin";
-  if (state.showClientPanel) return "#/client";
-  if (state.selectedBusinessId) return `#/business/${encodeURIComponent(state.selectedBusinessId)}`;
-  if (state.selectedArticleId !== null) return `#/article/${state.selectedArticleId}`;
-  if (state.selectedPlaceName) return `#/place/${encodeURIComponent(state.selectedPlaceName)}`;
+function buildPath(state: AppViewState, mobileTab: string): string {
+  if (state.showAdminPanel) return "/admin";
+  if (state.showClientPanel) return "/client";
+  if (state.selectedBusinessId) return `/business/${encodeURIComponent(state.selectedBusinessId)}`;
+  if (state.selectedArticleId !== null) return `/article/${state.selectedArticleId}`;
+  if (state.selectedPlaceName) return `/place/${encodeURIComponent(state.selectedPlaceName)}`;
   if (state.selectedCategoryName && state.selectedSubcategoryName)
-    return `#/category/${encodeURIComponent(state.selectedCategoryName)}/${encodeURIComponent(state.selectedSubcategoryName)}`;
+    return `/category/${encodeURIComponent(state.selectedCategoryName)}/${encodeURIComponent(state.selectedSubcategoryName)}`;
   if (state.selectedCategoryName)
-    return `#/category/${encodeURIComponent(state.selectedCategoryName)}`;
-  if (state.showAllCategoriesPage) return "#/categories";
-  if (mobileTab !== "home") return `#/tab/${mobileTab}`;
-  return "#/";
+    return `/category/${encodeURIComponent(state.selectedCategoryName)}`;
+  if (state.showAllCategoriesPage) return "/categories";
+  if (mobileTab !== "home") return `/tab/${mobileTab}`;
+  return "/";
 }
 
-function parseHash(): {
+function parsePath(): {
   page: string;
   params: Record<string, string>;
 } {
-  const hash = window.location.hash.replace(/^#/, "") || "/";
-  const segments = hash.split("/").filter(Boolean);
+  const path = window.location.pathname || "/";
+  const segments = path.split("/").filter(Boolean);
   const page = segments[0] || "";
   const params: Record<string, string> = {};
 
@@ -218,24 +218,13 @@ export default function App() {
     setIsNavVisible(true);
   }, [mobileTab]);
 
-  // Build initial state from current URL path and hash on first render
+  // Build initial state from current URL path on first render
   const buildInitialState = (): AppViewState => {
-    const pathname = window.location.pathname.toLowerCase().replace(/^\/|\/$/g, "");
-    const { page, params } = parseHash();
+    const { page, params } = parsePath();
     const base = { ...initialAppState };
 
-    if (pathname === "admin" || page === "admin") {
-      if (window.location.pathname !== "/") {
-        window.history.replaceState(null, "", "/#/admin");
-      }
-      return { ...base, showAdminPanel: true };
-    }
-    if (pathname === "client" || page === "client") {
-      if (window.location.pathname !== "/") {
-        window.history.replaceState(null, "", "/#/client");
-      }
-      return { ...base, showClientPanel: true };
-    }
+    if (page === "admin") return { ...base, showAdminPanel: true };
+    if (page === "client") return { ...base, showClientPanel: true };
     if (page === "business" && params.businessId) return { ...base, selectedBusinessId: params.businessId };
     if (page === "article" && params.articleId) return { ...base, selectedArticleId: Number(params.articleId) };
     if (page === "place" && params.placeName) return { ...base, selectedPlaceName: params.placeName };
@@ -252,9 +241,9 @@ export default function App() {
 
   const [state, dispatch] = useReducer(appReducer, undefined, buildInitialState);
 
-  // Restore mobileTab from hash on first load
+  // Restore mobileTab from path on first load
   useEffect(() => {
-    const { page, params } = parseHash();
+    const { page, params } = parsePath();
     if (page === "tab" && ["booking", "transactions", "profile"].includes(params.tab)) {
       setMobileTab(params.tab as "booking" | "transactions" | "profile");
     }
@@ -268,17 +257,17 @@ export default function App() {
     return () => window.removeEventListener("resize", checkIsMobile);
   }, []);
 
-  // Sync URL hash whenever state or mobileTab changes
+  // Sync URL path whenever state or mobileTab changes
   useEffect(() => {
-    const newHash = buildHash(state, mobileTab);
-    if (window.location.hash !== newHash) {
-      window.history.pushState(null, "", newHash);
+    const newPath = buildPath(state, mobileTab);
+    if (window.location.pathname !== newPath) {
+      window.history.pushState(null, "", newPath);
     }
   }, [state, mobileTab]);
 
-  // Handle browser back/forward (popstate fires on hash changes too)
+  // Handle browser back/forward (popstate fires on path changes too)
   const handlePopState = useCallback(() => {
-    const { page, params } = parseHash();
+    const { page, params } = parsePath();
 
     if (page === "admin") { dispatch({ type: "SET_SHOW_ADMIN", show: true }); return; }
     if (page === "client") { dispatch({ type: "SET_SHOW_CLIENT", show: true }); return; }
@@ -488,7 +477,7 @@ export default function App() {
       <AdminShell
         onClose={() => {
           dispatch({ type: "SET_SHOW_ADMIN", show: false });
-          window.history.pushState(null, "", "#/");
+          window.history.pushState(null, "", "/");
         }}
         username={username}
       />
@@ -500,7 +489,7 @@ export default function App() {
       <ClientShell
         onClose={() => {
           dispatch({ type: "SET_SHOW_CLIENT", show: false });
-          window.history.pushState(null, "", "#/");
+          window.history.pushState(null, "", "/");
         }}
         username={username}
       />

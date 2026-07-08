@@ -1,4 +1,4 @@
-import { useState, useEffect, useReducer, useCallback } from "react";
+import { useState, useEffect, useReducer, useCallback, useRef } from "react";
 import HomePage from "./pages/Home";
 import ArticleDetailPage from "./pages/ArticleDetail";
 import BusinessDetailPage from "./pages/BusinessDetail";
@@ -188,14 +188,54 @@ export default function App() {
   const [username, setUsername] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileTab, setMobileTab] = useState<"home" | "booking" | "transactions" | "profile">("home");
+  const [isNavVisible, setIsNavVisible] = useState(true);
+  const lastScrollY = useRef(0);
 
-  // Build initial state from current URL hash on first render
+  // Scroll listener to hide/show bottom navigation in mobile view with animation
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY <= 10) {
+        setIsNavVisible(true);
+      } else if (currentScrollY > lastScrollY.current) {
+        setIsNavVisible(false);
+      } else {
+        setIsNavVisible(true);
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isMobile]);
+
+  // Reset visibility on tab change
+  useEffect(() => {
+    setIsNavVisible(true);
+  }, [mobileTab]);
+
+  // Build initial state from current URL path and hash on first render
   const buildInitialState = (): AppViewState => {
+    const pathname = window.location.pathname.toLowerCase().replace(/^\/|\/$/g, "");
     const { page, params } = parseHash();
     const base = { ...initialAppState };
 
-    if (page === "admin") return { ...base, showAdminPanel: true };
-    if (page === "client") return { ...base, showClientPanel: true };
+    if (pathname === "admin" || page === "admin") {
+      if (window.location.pathname !== "/") {
+        window.history.replaceState(null, "", "/#/admin");
+      }
+      return { ...base, showAdminPanel: true };
+    }
+    if (pathname === "client" || page === "client") {
+      if (window.location.pathname !== "/") {
+        window.history.replaceState(null, "", "/#/client");
+      }
+      return { ...base, showClientPanel: true };
+    }
     if (page === "business" && params.businessId) return { ...base, selectedBusinessId: params.businessId };
     if (page === "article" && params.articleId) return { ...base, selectedArticleId: Number(params.articleId) };
     if (page === "place" && params.placeName) return { ...base, selectedPlaceName: params.placeName };
@@ -480,7 +520,7 @@ export default function App() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden w-full pb-16 sm:pb-0">
+    <div className="relative min-h-screen overflow-x-hidden w-full pb-4 sm:pb-0">
       {content}
 
       {/* Sidebar Overlay */}
@@ -531,7 +571,9 @@ export default function App() {
 
       {/* Mobile Bottom Navigation */}
       {isMobile && !state.showAdminPanel && !state.showClientPanel && !state.showSignIn && !state.showProfileWizard && (
-        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border">
+        <nav className={`sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border transition-transform duration-300 ease-in-out ${
+          isNavVisible ? "translate-y-0" : "translate-y-full"
+        }`}>
           <div className="flex items-stretch justify-around h-16 w-full max-w-3xl mx-auto">
             {([
               { icon: Home,         label: "Home",         key: "home" },

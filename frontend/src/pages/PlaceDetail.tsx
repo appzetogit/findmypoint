@@ -303,7 +303,7 @@ export default function PlaceDetailPage({
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-6 pt-6 pb-20 w-full">
+      <main className="mx-auto max-w-7xl px-6 pt-6 pb-0 w-full">
         {/* Collage Collage Section */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[190px] md:h-[380px] overflow-hidden rounded-3xl border border-border/80 shadow-md">
           {/* Main Large Image */}

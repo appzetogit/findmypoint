@@ -1583,13 +1583,13 @@ export default function CategoryDetailPage({
                     <div key={biz.id}>
                       {/* Mobile View Compact Card */}
                       <div className="sm:hidden group flex flex-col overflow-hidden rounded-xl border border-border bg-card p-2.5 gap-2 transition-all duration-300">
-                        {/* Top part: Image + Info Row */}
-                        <div className="flex flex-row gap-2.5 items-start w-full">
+                        {/* Top part: Image + Info Row (Entire row clickable to open details) */}
+                        <div
+                          onClick={() => onBusinessSelect(biz.id)}
+                          className="flex flex-row gap-2.5 items-start w-full cursor-pointer"
+                        >
                           {/* Image */}
-                          <div
-                            className="relative h-20 w-20 overflow-hidden rounded-lg bg-secondary shrink-0 cursor-pointer"
-                            onClick={() => onBusinessSelect(biz.id)}
-                          >
+                          <div className="relative h-20 w-20 overflow-hidden rounded-lg bg-secondary shrink-0">
                             <img
                               src={biz.images[0]}
                               alt={biz.name}
@@ -1607,10 +1607,7 @@ export default function CategoryDetailPage({
                           {/* Info */}
                           <div className="flex-1 min-w-0 flex flex-col justify-start">
                             <div className="flex items-center justify-between gap-1">
-                              <h2
-                                onClick={() => onBusinessSelect(biz.id)}
-                                className="font-serif text-xs font-bold text-foreground cursor-pointer line-clamp-1 leading-tight"
-                              >
+                              <h2 className="font-serif text-xs font-bold text-foreground line-clamp-1 leading-tight group-hover:text-primary transition-colors">
                                 {biz.name}
                               </h2>
                             </div>

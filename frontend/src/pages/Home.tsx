@@ -1018,7 +1018,7 @@ export default function HomePage({
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 pt-3 sm:pt-10 w-full pb-20 sm:pb-0">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 pt-3 sm:pt-10 w-full pb-0 sm:pb-0">
         {/* Hero */}
         <section className="hidden sm:grid grid-cols-12 gap-5 items-stretch">
           <div className="group relative col-span-12 overflow-hidden rounded-3xl lg:col-span-7 min-h-[300px] lg:min-h-0 lg:h-auto">
@@ -1614,7 +1614,7 @@ export default function HomePage({
         </section>
 
         {/* Related Articles Section */}
-        <section className="mt-2 sm:mt-4 md:mt-6 mb-6 sm:mb-20">
+        <section className="mt-2 sm:mt-4 md:mt-6 mb-0 sm:mb-20">
           <div className="flex items-center justify-between mb-2 sm:mb-4">
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-2xl font-extrabold text-foreground tracking-tight font-serif">
@@ -1622,13 +1622,6 @@ export default function HomePage({
               </h2>
               <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
             </div>
-            <a
-              href="#"
-              className="group inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-primary hover:text-accent transition-all duration-300"
-            >
-              Explore more
-              <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
-            </a>
           </div>
 
           <div className="relative overflow-hidden -mx-4 sm:mx-0">

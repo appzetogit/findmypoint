@@ -147,7 +147,7 @@ export default function MobileTransactionPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-20">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-0">
         {/* Transaction list */}
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">

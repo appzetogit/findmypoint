@@ -539,6 +539,7 @@ export default function BusinessDetailPage({
   // payload, so any field the client adds to their booking form in future is
   // stored automatically without a schema change.
   const saveBookingToDb = (opts: {
+    id?: string;
     amount: number;
     paymentId: string;
     bookingType?: "service" | "product" | "appointment" | "room";
@@ -563,6 +564,7 @@ export default function BusinessDetailPage({
         Authorization: `Bearer ${userToken}`,
       },
       body: JSON.stringify({
+        id: opts.id,
         businessId: currentBiz.id,
         businessName: currentBiz.name,
         category: currentBiz.category,
@@ -1181,35 +1183,10 @@ export default function BusinessDetailPage({
               {!currentBiz.isBookingDisabled && (
                 <button
                   onClick={() => {
-                    if (!username) {
-                      alert("Please sign in to book. You need an account to make a booking.");
-                      onSignInClick?.();
-                      return;
+                    const element = document.getElementById("menu-section");
+                    if (element) {
+                      element.scrollIntoView({ behavior: "smooth", block: "start" });
                     }
-                    setCartCheckoutTotal(null);
-                    const tomorrow = new Date();
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    const tomorrowStr = tomorrow.toISOString().split("T")[0];
-                    dispatchBooking({ type: "RESET", username: username || "" });
-                    dispatchBooking({
-                      type: "UPDATE_FORM",
-                      fields: {
-                        name: username || "",
-                        phone: "",
-                        date: new Date().toISOString().split("T")[0],
-                        guests: currentBiz.category.includes("Hotel Point")
-                          ? "Deluxe AC Room (₹1,999/night)"
-                          : "2",
-                        time: currentBiz.category.includes("Hotel Point")
-                          ? tomorrowStr
-                          : currentBiz.category.includes("Health Care Point") ||
-                              currentBiz.category.includes("Doctor Point")
-                            ? "Morning Slot Consultation (09:00 AM - 01:00 PM) (Fee: ₹300)"
-                            : "Dinner (07:00 PM - 11:00 PM)",
-                      },
-                    });
-                    dispatchBooking({ type: "SET_MODAL", open: true });
-                    dispatchPayment({ type: "RESET" });
                   }}
                   className="flex-1 inline-flex items-center justify-center gap-1 rounded-full bg-emerald-600 py-2.5 px-2 text-[10px] sm:text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm hover:scale-[1.02] cursor-pointer whitespace-nowrap"
                 >
@@ -1426,7 +1403,7 @@ export default function BusinessDetailPage({
             </div>
 
             {/* Popular Products & Services Catalog */}
-            <div id="menu-section" className="flex flex-col">
+            <div id="menu-section" className="flex flex-col scroll-mt-28">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-3 mb-6">
                 <h3 className="text-lg font-black text-foreground uppercase tracking-wider text-left">
                   {currentBiz.category.includes("Food Point") ||
@@ -2100,8 +2077,11 @@ export default function BusinessDetailPage({
                       }
                     } catch (_) {}
 
+                    const bookingId = `BK${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
+                    setConfirmedOrderId(bookingId);
+
                     const newSub = {
-                      id: `sub-${Date.now()}`,
+                      id: bookingId,
                       timestamp: formatDateTimeDMY(new Date()),
                       data: dataToSave
                     };
@@ -2110,6 +2090,7 @@ export default function BusinessDetailPage({
                       method: "POST",
                       headers: getAuthHeaders(),
                       body: JSON.stringify({
+                        id: bookingId,
                         businessName: currentBiz.name,
                         data: dataToSave
                       })
@@ -2137,7 +2118,7 @@ export default function BusinessDetailPage({
                         description: details,
                         businessName: currentBiz.name,
                         businessId: currentBiz.id,
-                        bookingId: newSub.id,
+                        bookingId: bookingId,
                         customerName: customerNameField,
                         details,
                         amount,
@@ -2154,6 +2135,7 @@ export default function BusinessDetailPage({
 
                     // Persist to the Booking DB model (shows in customer's My Bookings)
                     saveBookingToDb({
+                      id: bookingId,
                       amount,
                       paymentId,
                       bookingType: currentBiz.category.includes("Hotel Point")
@@ -2164,8 +2146,8 @@ export default function BusinessDetailPage({
                       serviceName: customFormConfig?.formTitle || details,
                       formData: dataToSave,
                       customerName: customerNameField,
-                      customerPhone: customFormValues["Phone Number"] || customFormValues["Phone"] || customFormValues["Mobile"] || customFormValues["Mobile Number"] || bookingForm.phone || "",
-                      customerEmail: customFormValues["Email"] || customFormValues["Email Address"] || "",
+                      customerPhone: dataToSave["Phone Number"] || customFormValues["Phone Number"] || customFormValues["Phone"] || customFormValues["Mobile"] || customFormValues["Mobile Number"] || bookingForm.phone || "",
+                      customerEmail: dataToSave["Email"] || customFormValues["Email"] || customFormValues["Email Address"] || "",
                       date: customFormValues["Date"] || bookingForm.date || "",
                       time: bookingForm.time || customFormValues["Time/Check-out/Slot"] || customFormValues["Time"] || "",
                     });
@@ -2779,8 +2761,11 @@ export default function BusinessDetailPage({
                             }
                           } catch (_) {}
 
+                          const bookingId = `BK${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
+                          setConfirmedOrderId(bookingId);
+
                           const newSub = {
-                            id: `sub-${Date.now()}`,
+                            id: bookingId,
                             timestamp: formatDateTimeDMY(new Date()),
                             data: dataToSave
                           };
@@ -2790,6 +2775,7 @@ export default function BusinessDetailPage({
                             method: "POST",
                             headers: getAuthHeaders(),
                             body: JSON.stringify({
+                              id: bookingId,
                               businessName: currentBiz.name,
                               data: dataToSave
                             })
@@ -2799,8 +2785,6 @@ export default function BusinessDetailPage({
                                 window.dispatchEvent(new Event("storage"));
                               }
                             }).catch(err => console.error("API submission failed:", err));
-
-
 
                           const customerNameVal = dataToSave["Full Name"] || customFormValues["Full Name"] || customFormValues["Your Name"] || bookingForm.name || username || "Guest";
                           const details = currentBiz.category.includes("Hotel Point")
@@ -2817,7 +2801,7 @@ export default function BusinessDetailPage({
                               description: details,
                               businessName: currentBiz.name,
                               businessId: currentBiz.id,
-                              bookingId: newSub.id,
+                              bookingId: bookingId,
                               customerName: customerNameVal,
                               details,
                               amount,
@@ -2834,6 +2818,7 @@ export default function BusinessDetailPage({
 
                           // Persist to the Booking DB model (shows in customer's My Bookings)
                           saveBookingToDb({
+                            id: bookingId,
                             amount,
                             paymentId,
                             bookingType: currentBiz.category.includes("Hotel Point")
@@ -2844,8 +2829,8 @@ export default function BusinessDetailPage({
                             serviceName: customFormConfig?.formTitle || details,
                             formData: dataToSave,
                             customerName: customerNameVal,
-                            customerPhone: customFormValues["Phone Number"] || customFormValues["Phone"] || customFormValues["Mobile"] || customFormValues["Mobile Number"] || bookingForm.phone || "",
-                            customerEmail: customFormValues["Email"] || customFormValues["Email Address"] || "",
+                            customerPhone: dataToSave["Phone Number"] || customFormValues["Phone Number"] || customFormValues["Phone"] || customFormValues["Mobile"] || customFormValues["Mobile Number"] || bookingForm.phone || "",
+                            customerEmail: dataToSave["Email"] || customFormValues["Email"] || customFormValues["Email Address"] || "",
                             date: customFormValues["Date"] || bookingForm.date || "",
                             time: bookingForm.time || customFormValues["Time/Check-out/Slot"] || customFormValues["Time"] || "",
                           });
@@ -2873,28 +2858,33 @@ export default function BusinessDetailPage({
                       ? "Appointment Confirmed!"
                       : "Table Reserved!"}
                 </h3>
-                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                <div className="text-xs text-muted-foreground max-w-xs mx-auto space-y-2 text-center">
                   {currentBiz.category.includes("Hotel Point") ? (
-                    <span>
+                    <p>
                       Your room stay reservation at{" "}
                       <span className="font-semibold text-primary">{currentBiz.name}</span> (
                       {bookingForm.guests}) for check-in on {bookingForm.date} is confirmed!
-                    </span>
+                    </p>
                   ) : currentBiz.category.includes("Health Care Point") ||
                     currentBiz.category.includes("Doctor Point") ? (
-                    <span>
+                    <p>
                       Your consultation appointment at{" "}
                       <span className="font-semibold text-primary">{currentBiz.name}</span> on{" "}
                       {bookingForm.date} has been scheduled!
-                    </span>
+                    </p>
                   ) : (
-                    <span>
+                    <p>
                       Your table reservation at{" "}
                       <span className="font-semibold text-primary">{currentBiz.name}</span> for{" "}
                       {bookingForm.guests} guests on {bookingForm.date} is confirmed!
-                    </span>
+                    </p>
                   )}
-                </p>
+                  {confirmedOrderId && (
+                    <p className="mt-2 text-xs">
+                      Booking ID: <span className="font-bold text-foreground">#{confirmedOrderId}</span>
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -2952,9 +2942,6 @@ export default function BusinessDetailPage({
                     const itemNames = Object.entries(cart).map(([name, qty]) => `${name} (x${qty})`).join(", ");
                     const details = itemNames || "Product Order Checkout";
 
-                    // Preserve every field the business's custom form collected
-                    // (not just the 4 we look up above) so it shows up in the
-                    // client dashboard and customer's My Bookings.
                     const dataToSave: Record<string, any> = customFormConfig
                       ? {
                           ...customFormValues,
@@ -2971,23 +2958,31 @@ export default function BusinessDetailPage({
                         };
 
                     // Always inject logged-in customer details from backend
+                    let finalCustomerName = customerName;
+                    let finalCustomerPhone = customerPhone;
+                    let finalCustomerAddress = customerAddress;
+                    let finalCustomerEmail = "";
+
                     try {
                       const profRes = await fetch("http://localhost:5000/api/auth/profile", { headers: getAuthHeaders() });
                       const profData = await profRes.json();
                       if (profData.success && profData.user) {
                         const prof = profData.user;
                         const fullName = [prof.firstName, prof.lastName].filter(Boolean).join(" ");
+                        if (fullName) {
+                          finalCustomerName = fullName;
+                        }
+                        if (prof.mobile1) {
+                          finalCustomerPhone = prof.mobile1;
+                        }
+                        if (prof.email) {
+                          finalCustomerEmail = prof.email;
+                        }
                         if (!dataToSave["Full Name"] && !dataToSave["Customer Name"] && !dataToSave["Your Name"] && !dataToSave["Name"] && fullName) dataToSave["Full Name"] = fullName;
                         if (!dataToSave["Phone Number"] && !dataToSave["Phone"] && !dataToSave["Mobile"] && !dataToSave["Mobile Number"] && prof.mobile1) dataToSave["Phone Number"] = prof.mobile1;
                         if (!dataToSave["Email"] && !dataToSave["Email Address"] && prof.email) dataToSave["Email"] = prof.email;
                       }
                     } catch (_) {}
-
-                    const newSub = {
-                      id: `sub-${Date.now()}`,
-                      timestamp: formatDateTimeDMY(new Date()),
-                      data: dataToSave
-                    };
 
                     const formattedOrderItems = Object.entries(cart).map(([name, qty]) => ({ name, quantity: qty }));
                     fetch(`http://localhost:5000/api/product-orders/${currentBiz.id}`, {
@@ -2995,9 +2990,9 @@ export default function BusinessDetailPage({
                       headers: getAuthHeaders(),
                       body: JSON.stringify({
                         businessName: currentBiz.name,
-                        customerName,
-                        customerPhone,
-                        customerAddress,
+                        customerName: finalCustomerName,
+                        customerPhone: finalCustomerPhone,
+                        customerAddress: finalCustomerAddress,
                         orderItems: formattedOrderItems,
                         totalAmount: amount,
                         notes: customerNotes
@@ -3005,68 +3000,72 @@ export default function BusinessDetailPage({
                     }).then(res => res.json())
                       .then(data => {
                         if (data.success && data.data) {
-                          setConfirmedOrderId(data.data.id);
+                          const orderId = data.data.id;
+                          setConfirmedOrderId(orderId);
                           window.dispatchEvent(new Event("storage"));
+
+                          // Also persist the full dynamic form payload so the client
+                          // dashboard can display every field the business's custom
+                          // form collected (previously this only ever hit localStorage).
+                          fetch(`http://localhost:5000/api/service-forms/${currentBiz.id}/submissions`, {
+                            method: "POST",
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify({
+                              id: orderId,
+                              businessName: currentBiz.name,
+                              data: dataToSave
+                            })
+                          }).then(res => res.json())
+                            .then(subData => {
+                              if (subData.success) {
+                                window.dispatchEvent(new Event("storage"));
+                              }
+                            }).catch(err => console.error("API submission failed:", err));
+
+                          // API Transaction Log POST call
+                          fetch("http://localhost:5000/api/transactions", {
+                            method: "POST",
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify({
+                              description: details,
+                              businessName: currentBiz.name,
+                              businessId: currentBiz.id,
+                              bookingId: orderId,
+                              customerName: finalCustomerName,
+                              details,
+                              amount,
+                              type: "credit",
+                              paymentMethod: "Razorpay Gateway",
+                              status: "Completed"
+                            })
+                          }).then(res => res.json())
+                            .then(txData => {
+                              if (txData.success) {
+                                window.dispatchEvent(new Event("storage"));
+                              }
+                            }).catch(err => console.error("API transaction failed:", err));
+
+                          // Persist to the Booking DB model (shows in customer's My Bookings)
+                          saveBookingToDb({
+                            id: orderId,
+                            amount,
+                            paymentId,
+                            bookingType: "product",
+                            serviceName: itemNames || "Product Order",
+                            formData: dataToSave,
+                            items: Object.entries(cart).map(([name, qty]) => {
+                              const item = (currentBiz.products || []).find((p) => p.name === name);
+                              const price = item ? parseInt(item.price.replace(/[^0-9]/g, "")) || 0 : 0;
+                              return { name, quantity: qty, price };
+                            }),
+                            customerName: finalCustomerName,
+                            customerPhone: finalCustomerPhone,
+                            customerEmail: finalCustomerEmail,
+                            customerAddress: finalCustomerAddress,
+                            date: new Date().toISOString().split("T")[0],
+                          });
                         }
                       }).catch(err => console.error("API product order failed:", err));
-
-                    // Also persist the full dynamic form payload so the client
-                    // dashboard can display every field the business's custom
-                    // form collected (previously this only ever hit localStorage).
-                    fetch(`http://localhost:5000/api/service-forms/${currentBiz.id}/submissions`, {
-                      method: "POST",
-                      headers: getAuthHeaders(),
-                      body: JSON.stringify({
-                        businessName: currentBiz.name,
-                        data: dataToSave
-                      })
-                    }).then(res => res.json())
-                      .then(data => {
-                        if (data.success) {
-                          window.dispatchEvent(new Event("storage"));
-                        }
-                      }).catch(err => console.error("API submission failed:", err));
-
-                    // API Transaction Log POST call
-                    fetch("http://localhost:5000/api/transactions", {
-                      method: "POST",
-                      headers: getAuthHeaders(),
-                      body: JSON.stringify({
-                        description: details,
-                        businessName: currentBiz.name,
-                        businessId: currentBiz.id,
-                        bookingId: newSub.id,
-                        customerName: dataToSave["Full Name"] || customerName || "Guest",
-                        details,
-                        amount,
-                        type: "credit",
-                        paymentMethod: "Razorpay Gateway",
-                        status: "Completed"
-                      })
-                    }).then(res => res.json())
-                      .then(data => {
-                        if (data.success) {
-                          window.dispatchEvent(new Event("storage"));
-                        }
-                      }).catch(err => console.error("API transaction failed:", err));
-
-                    // Persist to the Booking DB model (shows in customer's My Bookings)
-                    saveBookingToDb({
-                      amount,
-                      paymentId,
-                      bookingType: "product",
-                      serviceName: itemNames || "Product Order",
-                      formData: dataToSave,
-                      items: Object.entries(cart).map(([name, qty]) => {
-                        const item = (currentBiz.products || []).find((p) => p.name === name);
-                        const price = item ? parseInt(item.price.replace(/[^0-9]/g, "")) || 0 : 0;
-                        return { name, quantity: qty, price };
-                      }),
-                      customerName,
-                      customerPhone,
-                      customerAddress,
-                      date: new Date().toISOString().split("T")[0],
-                    });
 
                     setCart({});
                   });
@@ -3567,23 +3566,31 @@ export default function BusinessDetailPage({
                               };
 
                           // Always inject logged-in customer details from backend
+                          let finalCustomerName = customerName;
+                          let finalCustomerPhone = customerPhone;
+                          let finalCustomerAddress = customerAddress;
+                          let finalCustomerEmail = "";
+
                           try {
                             const profRes = await fetch("http://localhost:5000/api/auth/profile", { headers: getAuthHeaders() });
                             const profData = await profRes.json();
                             if (profData.success && profData.user) {
                               const prof = profData.user;
                               const fullName = [prof.firstName, prof.lastName].filter(Boolean).join(" ");
+                              if (fullName) {
+                                finalCustomerName = fullName;
+                              }
+                              if (prof.mobile1) {
+                                finalCustomerPhone = prof.mobile1;
+                              }
+                              if (prof.email) {
+                                finalCustomerEmail = prof.email;
+                              }
                               if (!dataToSave["Full Name"] && !dataToSave["Customer Name"] && !dataToSave["Your Name"] && !dataToSave["Name"] && fullName) dataToSave["Full Name"] = fullName;
                               if (!dataToSave["Phone Number"] && !dataToSave["Phone"] && !dataToSave["Mobile"] && !dataToSave["Mobile Number"] && prof.mobile1) dataToSave["Phone Number"] = prof.mobile1;
                               if (!dataToSave["Email"] && !dataToSave["Email Address"] && prof.email) dataToSave["Email"] = prof.email;
                             }
                           } catch (_) {}
-
-                          const newSub = {
-                            id: `sub-${Date.now()}`,
-                            timestamp: formatDateTimeDMY(new Date()),
-                            data: dataToSave
-                          };
 
                           // API Product Order POST call
                           const formattedOrderItems = Object.entries(cart).map(([name, qty]) => ({ name, quantity: qty }));
@@ -3592,9 +3599,9 @@ export default function BusinessDetailPage({
                             headers: getAuthHeaders(),
                             body: JSON.stringify({
                               businessName: currentBiz.name,
-                              customerName,
-                              customerPhone,
-                              customerAddress,
+                              customerName: finalCustomerName,
+                              customerPhone: finalCustomerPhone,
+                              customerAddress: finalCustomerAddress,
                               orderItems: formattedOrderItems,
                               totalAmount: amount,
                               notes: customerNotes
@@ -3602,52 +3609,70 @@ export default function BusinessDetailPage({
                           }).then(res => res.json())
                             .then(data => {
                               if (data.success && data.data) {
-                                setConfirmedOrderId(data.data.id);
+                                const orderId = data.data.id;
+                                setConfirmedOrderId(orderId);
                                 window.dispatchEvent(new Event("storage"));
+
+                                // Also persist the submission with the correct order ID
+                                fetch(`http://localhost:5000/api/service-forms/${currentBiz.id}/submissions`, {
+                                  method: "POST",
+                                  headers: getAuthHeaders(),
+                                  body: JSON.stringify({
+                                    id: orderId,
+                                    businessName: currentBiz.name,
+                                    data: dataToSave
+                                  })
+                                }).then(res => res.json())
+                                  .then(subData => {
+                                    if (subData.success) {
+                                      window.dispatchEvent(new Event("storage"));
+                                    }
+                                  }).catch(err => console.error("API submission failed:", err));
+
+                                // API Transaction Log POST call
+                                fetch("http://localhost:5000/api/transactions", {
+                                  method: "POST",
+                                  headers: getAuthHeaders(),
+                                  body: JSON.stringify({
+                                    description: details,
+                                    businessName: currentBiz.name,
+                                    businessId: currentBiz.id,
+                                    bookingId: orderId,
+                                    customerName: finalCustomerName,
+                                    details,
+                                    amount,
+                                    type: "credit",
+                                    paymentMethod: "Razorpay Gateway",
+                                    status: "Completed"
+                                  })
+                                }).then(res => res.json())
+                                  .then(txData => {
+                                    if (txData.success) {
+                                      window.dispatchEvent(new Event("storage"));
+                                    }
+                                  }).catch(err => console.error("API transaction failed:", err));
+
+                                // Persist to the Booking DB model (shows in My Bookings)
+                                saveBookingToDb({
+                                  id: orderId,
+                                  amount,
+                                  paymentId,
+                                  bookingType: "product",
+                                  serviceName: itemNames || "Product Order",
+                                  formData: dataToSave,
+                                  items: Object.entries(cart).map(([name, qty]) => {
+                                    const item = (currentBiz.products || []).find((p) => p.name === name);
+                                    const price = item ? parseInt(item.price.replace(/[^0-9]/g, "")) || 0 : 0;
+                                    return { name, quantity: qty, price };
+                                  }),
+                                  customerName: finalCustomerName,
+                                  customerPhone: finalCustomerPhone,
+                                  customerEmail: finalCustomerEmail,
+                                  customerAddress: finalCustomerAddress,
+                                  date: new Date().toISOString().split("T")[0],
+                                });
                               }
                             }).catch(err => console.error("API product order failed:", err));
-
-
-                          // API Transaction Log POST call
-                          fetch("http://localhost:5000/api/transactions", {
-                            method: "POST",
-                            headers: getAuthHeaders(),
-                            body: JSON.stringify({
-                              description: details,
-                              businessName: currentBiz.name,
-                              businessId: currentBiz.id,
-                              bookingId: newSub.id,
-                              customerName: dataToSave["Full Name"] || customerName || "Guest",
-                              details,
-                              amount,
-                              type: "credit",
-                              paymentMethod: "Razorpay Gateway",
-                              status: "Completed"
-                            })
-                          }).then(res => res.json())
-                            .then(data => {
-                              if (data.success) {
-                                window.dispatchEvent(new Event("storage"));
-                              }
-                            }).catch(err => console.error("API transaction failed:", err));
-
-                          // Persist to the Booking DB model (shows in customer's My Bookings)
-                          saveBookingToDb({
-                            amount,
-                            paymentId,
-                            bookingType: "product",
-                            serviceName: itemNames || "Product Order",
-                            formData: dataToSave,
-                            items: Object.entries(cart).map(([name, qty]) => {
-                              const item = (currentBiz.products || []).find((p) => p.name === name);
-                              const price = item ? parseInt(item.price.replace(/[^0-9]/g, "")) || 0 : 0;
-                              return { name, quantity: qty, price };
-                            }),
-                            customerName,
-                            customerPhone,
-                            customerAddress,
-                            date: new Date().toISOString().split("T")[0],
-                          });
 
                           setCart({});
                         });

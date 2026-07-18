@@ -7,7 +7,11 @@ const getBookings = async (req, res) => {
   try {
     let query = {};
     if (!req.user.isAdmin) {
-      query = { userId: req.user._id };
+      if (req.user.isBusiness) {
+        query = { businessId: req.user.businessId };
+      } else {
+        query = { userId: req.user._id };
+      }
     }
 
     const bookings = await Booking.find(query).sort({ date: -1 });
@@ -22,6 +26,7 @@ const getBookings = async (req, res) => {
 // @access  Private
 const createBooking = async (req, res) => {
   const {
+    id,
     businessId, businessName, category, service, date, time, amount, location,
     customerName, customerPhone, customerEmail, customerAddress,
     items, formData, bookingType, paymentId, paymentMethod, paymentStatus
@@ -34,8 +39,8 @@ const createBooking = async (req, res) => {
   }
 
   try {
-    // Generate a collision-resistant ID BKxxxxxx
-    const bookingId = `BK${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
+    // Generate a collision-resistant ID BKxxxxxx if not passed in req.body
+    const bookingId = id || `BK${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
 
     const booking = await Booking.create({
       id: bookingId,
@@ -84,8 +89,11 @@ const updateBookingStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    // Check authorization (Must be booking owner or Admin)
-    if (!req.user.isAdmin && booking.userId.toString() !== req.user._id.toString()) {
+    // Check authorization (Must be booking owner, Admin, or the Business itself)
+    const isAuthorizedOwner = booking.userId.toString() === req.user._id.toString();
+    const isAuthorizedBusiness = req.user.isBusiness && booking.businessId === req.user.businessId;
+
+    if (!req.user.isAdmin && !isAuthorizedOwner && !isAuthorizedBusiness) {
       return res.status(403).json({ success: false, message: 'Not authorized to change this booking status' });
     }
 
@@ -109,8 +117,11 @@ const deleteBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    // Must be admin or booking owner
-    if (!req.user.isAdmin && booking.userId.toString() !== req.user._id.toString()) {
+    // Must be admin, booking owner, or the Business itself
+    const isAuthorizedOwner = booking.userId.toString() === req.user._id.toString();
+    const isAuthorizedBusiness = req.user.isBusiness && booking.businessId === req.user.businessId;
+
+    if (!req.user.isAdmin && !isAuthorizedOwner && !isAuthorizedBusiness) {
       return res.status(403).json({ success: false, message: 'Not authorized to delete this booking' });
     }
 

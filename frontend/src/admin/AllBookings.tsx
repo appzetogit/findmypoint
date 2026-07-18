@@ -36,6 +36,7 @@ export default function AllBookings() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedStatus, setSelectedStatus] = useState("All");
+  const [selectedBusiness, setSelectedBusiness] = useState("");
   const [selectedBooking, setSelectedBooking] = useState<BookingRecord | null>(null);
 
   // Load all bookings across all static and custom businesses
@@ -87,14 +88,26 @@ export default function AllBookings() {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
+  // Filter unique businesses
+  const businessesList = useMemo(() => {
+    const businesses = new Set<string>();
+    bookings.forEach((b) => {
+      if (b.businessName) businesses.add(b.businessName);
+    });
+    return Array.from(businesses).sort();
+  }, [bookings]);
+
   // Filter categories
   const categoriesList = useMemo(() => {
     const categories = new Set<string>();
-    bookings.forEach((b) => {
+    const filteredByBiz = selectedBusiness
+      ? bookings.filter((b) => b.businessName === selectedBusiness)
+      : bookings;
+    filteredByBiz.forEach((b) => {
       if (b.categoryName) categories.add(b.categoryName);
     });
     return ["All", ...Array.from(categories)];
-  }, [bookings]);
+  }, [bookings, selectedBusiness]);
 
   // Statistics
   const stats = useMemo(() => {
@@ -103,7 +116,11 @@ export default function AllBookings() {
     let pendingCount = 0;
     let cancelledCount = 0;
 
-    bookings.forEach((b) => {
+    const businessBookings = selectedBusiness
+      ? bookings.filter((b) => b.businessName === selectedBusiness)
+      : [];
+
+    businessBookings.forEach((b) => {
       if (b.status === "Completed") {
         totalRevenue += b.amount;
         completedCount++;
@@ -115,13 +132,13 @@ export default function AllBookings() {
     });
 
     return {
-      totalBookings: bookings.length,
+      totalBookings: businessBookings.length,
       totalRevenue,
       completedCount,
       pendingCount,
       cancelledCount,
     };
-  }, [bookings]);
+  }, [bookings, selectedBusiness]);
 
   // Handle Cancel Booking (Change status to Cancelled)
   const handleCancelBooking = async (booking: BookingRecord) => {
@@ -171,7 +188,9 @@ export default function AllBookings() {
 
   // Filtered Booking List
   const filteredBookings = useMemo(() => {
+    if (!selectedBusiness) return [];
     return bookings.filter((b) => {
+      const matchesBusiness = b.businessName === selectedBusiness;
       const matchesSearch = 
         b.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         b.phone.includes(searchQuery) ||
@@ -181,9 +200,9 @@ export default function AllBookings() {
       const matchesCategory = selectedCategory === "All" || b.categoryName === selectedCategory;
       const matchesStatus = selectedStatus === "All" || b.status === selectedStatus;
 
-      return matchesSearch && matchesCategory && matchesStatus;
+      return matchesBusiness && matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [bookings, searchQuery, selectedCategory, selectedStatus]);
+  }, [bookings, searchQuery, selectedCategory, selectedStatus, selectedBusiness]);
 
   const getStatusBadge = (status: BookingRecord["status"]) => {
     switch (status) {
@@ -212,7 +231,8 @@ export default function AllBookings() {
   };
 
   return (
-    <div className="space-y-6 w-full animate-fade-in-up text-left">
+    <>
+      <div className="space-y-6 w-full animate-fade-in-up text-left">
       {/* Header Row */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -291,8 +311,27 @@ export default function AllBookings() {
           />
         </div>
 
-        {/* Category & Status Dropdowns */}
+        {/* Business, Category & Status Dropdowns */}
         <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Business:</span>
+            <select
+              value={selectedBusiness}
+              onChange={(e) => {
+                setSelectedBusiness(e.target.value);
+                setSelectedCategory("All"); // Reset category when business changes
+              }}
+              className="bg-slate-50 dark:bg-slate-955 text-xs px-3 py-2 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-bold max-w-[200px]"
+            >
+              <option value="">Select Business...</option>
+              {businessesList.map((biz) => (
+                <option key={biz} value={biz}>
+                  {biz}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Category:</span>
             <select
@@ -326,10 +365,14 @@ export default function AllBookings() {
 
       {/* Bookings Table Container */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl overflow-hidden shadow-sm">
-        {filteredBookings.length > 0 ? (
+        {!selectedBusiness ? (
+          <div className="py-16 px-6 text-center text-slate-500 font-bold text-sm bg-slate-50/20">
+            Please select a business from the dropdown to view its bookings.
+          </div>
+        ) : filteredBookings.length > 0 ? (
           <div className="overflow-x-auto w-full">
             <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800 text-left border-collapse">
-              <thead className="bg-slate-50/55 dark:bg-slate-950/40">
+              <thead className="bg-slate-50/55 dark:bg-slate-955/40">
                 <tr>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-400">Booking ID / Date</th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-400">Business / Category</th>
@@ -341,7 +384,7 @@ export default function AllBookings() {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
                 {filteredBookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-950/10 transition-colors">
+                  <tr key={b.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-955/10 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-bold text-slate-900 dark:text-white">{b.id}</div>
                       <div className="text-[10px] text-slate-400 font-medium mt-0.5">{b.timestamp}</div>
@@ -388,7 +431,7 @@ export default function AllBookings() {
                         <button
                           type="button"
                           onClick={() => handleCancelBooking(b)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 hover:bg-rose-600 hover:text-white transition shadow-sm border border-rose-100 dark:border-rose-900/30 cursor-pointer"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-450 hover:bg-rose-600 hover:text-white transition shadow-sm border border-rose-100 dark:border-rose-900/30 cursor-pointer"
                           title="Cancel Booking"
                         >
                           <X className="h-4 w-4" />
@@ -415,9 +458,12 @@ export default function AllBookings() {
         )}
       </div>
 
+      {/* Close transform wrapper to avoid modal z-index container isolation */}
+      </div>
+
       {/* View Details Dialog/Modal */}
       {selectedBooking && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
@@ -529,6 +575,6 @@ export default function AllBookings() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

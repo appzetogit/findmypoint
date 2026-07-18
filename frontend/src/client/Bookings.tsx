@@ -9,7 +9,9 @@ import {
   FileSpreadsheet,
   AlertCircle,
   Eye,
-  X
+  X,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
 
@@ -20,6 +22,7 @@ interface BookingsProps {
 interface Submission {
   id: string;
   timestamp: string;
+  status?: string;
   data: Record<string, any>;
 }
 
@@ -30,6 +33,9 @@ export default function Bookings({ clientListings }: BookingsProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSubForModal, setSelectedSubForModal] = useState<Submission | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [reloadCount, setReloadCount] = useState(0);
+  const [confirmCancelBookingId, setConfirmCancelBookingId] = useState<string | null>(null);
+  const [confirmCancelCustomerName, setConfirmCancelCustomerName] = useState<string>("");
 
   // Sync selectedBizId when clientListings load
   useEffect(() => {
@@ -54,8 +60,17 @@ export default function Bookings({ clientListings }: BookingsProps) {
         (headers as any)["Authorization"] = `Bearer ${token}`;
       }
 
-      // form config no longer drives column headers; skip storing it
-
+      // 1. Fetch raw bookings to get status
+      let rawBookings: any[] = [];
+      try {
+        const res = await fetch(`http://localhost:5000/api/bookings`, { headers });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          rawBookings = data.data;
+        }
+      } catch (err) {
+        console.error("Error loading bookings:", err);
+      }
 
       // 2. Load submissions and product orders
       let mergedSubmissions: Submission[] = [];
@@ -91,6 +106,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
           const amountNum = parseInt(amountStr.replace(/[^0-9]/g, "")) || 0;
 
           const match = rawOrders.find((order: any) => {
+            if (order.id === sub.id) return true;
             const orderNameMatch = order.customerName === name || name.includes(order.customerName) || order.customerName.includes(name);
             const orderPhoneMatch = order.customerPhone === phone;
             const orderAmountMatch = order.totalAmount === amountNum;
@@ -98,9 +114,11 @@ export default function Bookings({ clientListings }: BookingsProps) {
           });
 
           if (match) {
+            const bookingMatch = rawBookings.find((b) => b.id === match.id);
             mergedSubmissions.push({
               id: match.id, // Use FMP-XXXX
               timestamp: sub.timestamp,
+              status: match.status || (bookingMatch ? bookingMatch.status : "pending"),
               data: {
                 ...sub.data,
                 "Order Type": "Product Order"
@@ -111,18 +129,22 @@ export default function Bookings({ clientListings }: BookingsProps) {
           }
         }
 
+        const bookingMatch = rawBookings.find((b) => b.id === sub.id);
         mergedSubmissions.push({
           id: sub.id,
           timestamp: sub.timestamp,
+          status: bookingMatch ? bookingMatch.status : "pending",
           data: sub.data
         });
       });
 
       // Append remaining orders
       rawOrders.forEach((order: any) => {
+        const bookingMatch = rawBookings.find((b) => b.id === order.id);
         mergedSubmissions.push({
           id: order.id,
           timestamp: order.timestamp,
+          status: order.status || (bookingMatch ? bookingMatch.status : "pending"),
           data: {
             "Full Name": order.customerName,
             "Phone Number": order.customerPhone,
@@ -155,7 +177,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
     };
 
     loadData();
-  }, [selectedBizId]);
+  }, [selectedBizId, reloadCount]);
 
   const selectedBiz = useMemo(() => {
     return clientListings.find((b) => b.id === selectedBizId);
@@ -196,6 +218,32 @@ export default function Bookings({ clientListings }: BookingsProps) {
     const keys = ["Total Amount", "Amount", "Price", "Total", "Fee"];
     for (const k of keys) if (data[k]) return String(data[k]);
     return "-";
+  };
+
+  const getStatusBadge = (status: string) => {
+    const s = status === "confirmed" || status === "completed" || status === "Completed" ? "Completed" : status === "cancelled" || status === "Cancelled" ? "Cancelled" : "Pending";
+    switch (s) {
+      case "Completed":
+        return (
+          <span className="inline-flex items-center gap-1 bg-emerald-55/70 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <CheckCircle className="h-3 w-3" /> Completed
+          </span>
+        );
+      case "Pending":
+        return (
+          <span className="inline-flex items-center gap-1 bg-amber-55/70 dark:bg-amber-955/20 text-amber-700 dark:text-amber-450 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <AlertCircle className="h-3 w-3" /> Pending
+          </span>
+        );
+      case "Cancelled":
+        return (
+          <span className="inline-flex items-center gap-1 bg-rose-55/70 dark:bg-rose-955/20 text-rose-700 dark:text-rose-455 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <XCircle className="h-3 w-3" /> Cancelled
+          </span>
+        );
+      default:
+        return null;
+    }
   };
 
 
@@ -255,6 +303,38 @@ export default function Bookings({ clientListings }: BookingsProps) {
       } catch (err) {
         alert("Something went wrong while deleting");
       }
+    }
+  };
+
+  // Handle Cancel Booking (Trigger custom confirmation modal)
+  const handleCancel = (bookingId: string, customerName: string) => {
+    setConfirmCancelBookingId(bookingId);
+    setConfirmCancelCustomerName(customerName);
+  };
+
+  // Perform actual cancellation API call
+  const executeCancel = async (bookingId: string) => {
+    const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}/status`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ status: "cancelled" })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setReloadCount(prev => prev + 1);
+        window.dispatchEvent(new Event("storage"));
+      } else {
+        alert(data.message || "Failed to cancel booking");
+      }
+    } catch (err) {
+      alert("Something went wrong while cancelling the booking");
     }
   };
 
@@ -367,6 +447,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
                     <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] min-w-[120px]">Phone</th>
                     <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] min-w-[180px]">Order Items</th>
                     <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] min-w-[110px]">Total Amount</th>
+                    <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] text-center min-w-[100px]">Status</th>
                     <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] text-right">Actions</th>
                   </tr>
                 </thead>
@@ -422,6 +503,11 @@ export default function Bookings({ clientListings }: BookingsProps) {
                           {getTotalAmount(sub.data)}
                         </td>
 
+                        {/* Status */}
+                        <td className="p-4 whitespace-nowrap text-center">
+                          {getStatusBadge(sub.status || "pending")}
+                        </td>
+
                         {/* Actions */}
                         <td className="p-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
@@ -432,6 +518,15 @@ export default function Bookings({ clientListings }: BookingsProps) {
                             >
                               <Eye className="h-4 w-4" />
                             </button>
+                            {sub.status !== "cancelled" && sub.status !== "Cancelled" && (
+                              <button
+                                onClick={() => handleCancel(sub.id, getCustomerName(sub.data))}
+                                className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-55/70 dark:hover:bg-amber-950/20 transition cursor-pointer"
+                                title="Cancel booking"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            )}
                             <button
                               onClick={() => handleDelete(sub.id)}
                               className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition cursor-pointer"
@@ -565,6 +660,46 @@ export default function Bookings({ clientListings }: BookingsProps) {
               className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-350 hover:bg-slate-200 dark:hover:bg-slate-750 transition cursor-pointer"
             >
               Close
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    {confirmCancelBookingId && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        {/* Backdrop */}
+        <div
+          onClick={() => setConfirmCancelBookingId(null)}
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in cursor-pointer z-[100]"
+        />
+
+        {/* Modal Card */}
+        <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-6 shadow-2xl z-[110] animate-in fade-in zoom-in-95 duration-200 text-center">
+          <div className="h-12 w-12 rounded-full bg-amber-50 dark:bg-amber-955/20 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-100 dark:border-amber-900/30">
+            <AlertCircle className="h-6 w-6 stroke-[2.5]" />
+          </div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">
+            Cancel Booking
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+            Are you sure you want to cancel the booking for <span className="font-bold text-slate-800 dark:text-slate-200">{confirmCancelCustomerName}</span>? This action will set the booking status to cancelled.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setConfirmCancelBookingId(null)}
+              className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-805 text-slate-600 dark:text-slate-350 hover:bg-slate-200 dark:hover:bg-slate-750 transition cursor-pointer"
+            >
+              No, Keep it
+            </button>
+            <button
+              onClick={async () => {
+                const bId = confirmCancelBookingId;
+                setConfirmCancelBookingId(null);
+                await executeCancel(bId);
+              }}
+              className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition cursor-pointer border-none shadow-sm"
+            >
+              Yes, Cancel Booking
             </button>
           </div>
         </div>

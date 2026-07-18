@@ -65,7 +65,7 @@ const getSubmissions = async (req, res) => {
 // @access  Public
 const createSubmission = async (req, res) => {
   try {
-    const { businessName, data } = req.body;
+    const { id, businessName, data } = req.body;
     const businessId = req.params.businessId;
 
     if (!data) {
@@ -83,7 +83,7 @@ const createSubmission = async (req, res) => {
     };
 
     const submission = await ServiceBookingSubmission.create({
-      id: `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: id || `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       businessId,
       businessName: businessName || '',
       data,

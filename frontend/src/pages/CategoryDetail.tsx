@@ -295,6 +295,7 @@ export default function CategoryDetailPage({
 
   const [prevCategory, setPrevCategory] = useState(categoryName);
   const [prevInitialSubcat, setPrevInitialSubcat] = useState(initialSubcategory);
+  const [confirmedOrderId, setConfirmedOrderId] = useState<string>("");
   // Set the first subcategory as active initially
   const [activeSubcategory, setActiveSubcategory] = useState<string>(
     initialSubcategory && subcategories.includes(initialSubcategory)
@@ -561,6 +562,62 @@ export default function CategoryDetailPage({
     return token
       ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
       : { "Content-Type": "application/json" };
+  };
+
+  // Persist a booking/order into the Booking DB model so it shows up in customer's My Bookings
+  const saveBookingToDb = (opts: {
+    id?: string;
+    amount: number;
+    paymentId: string;
+    bookingType?: "service" | "product" | "appointment" | "room";
+    serviceName?: string;
+    formData?: Record<string, any>;
+    items?: Array<{ name: string; quantity: number; price?: number }>;
+    customerName?: string;
+    customerPhone?: string;
+    customerEmail?: string;
+    customerAddress?: string;
+    date?: string;
+    time?: string;
+  }) => {
+    const userToken = localStorage.getItem("fmp_user_token") || localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
+    if (!userToken || !selectedBizForBooking) return;
+
+    fetch(`${API_BASE_URL}/bookings`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${userToken}`,
+      },
+      body: JSON.stringify({
+        id: opts.id,
+        businessId: selectedBizForBooking.id,
+        businessName: selectedBizForBooking.name,
+        category: selectedBizForBooking.category,
+        service: opts.serviceName || "",
+        date: opts.date || "",
+        time: opts.time || "",
+        amount: opts.amount,
+        location: selectedBizForBooking.location || selectedBizForBooking.address || "",
+        customerName: opts.customerName || "",
+        customerPhone: opts.customerPhone || "",
+        customerEmail: opts.customerEmail || "",
+        customerAddress: opts.customerAddress || "",
+        items: opts.items || [],
+        formData: opts.formData || {},
+        bookingType: opts.bookingType || "service",
+        paymentId: opts.paymentId,
+        paymentMethod: "Razorpay Gateway",
+        paymentStatus: "paid",
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.success) {
+          console.error("Booking save failed:", data.message);
+        }
+      })
+      .catch((err) => console.error("Booking save request failed:", err));
   };
 
   // Handle opening booking modal
@@ -2202,8 +2259,11 @@ export default function CategoryDetailPage({
                               return `${d}/${m}/${y} ${hrs}:${mins}`;
                             };
 
+                            const bookingId = `BK${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
+                            setConfirmedOrderId(bookingId);
+
                             const newSub = {
-                              id: `sub-${Date.now()}`,
+                              id: bookingId,
                               timestamp: formatDateTimeDMY(new Date()),
                               data: dataToSave
                             };
@@ -2213,6 +2273,7 @@ export default function CategoryDetailPage({
                               method: "POST",
                               headers: getAuthHeaders(),
                               body: JSON.stringify({
+                                id: bookingId,
                                 businessName: selectedBizForBooking.name,
                                 data: dataToSave
                               })
@@ -2232,7 +2293,7 @@ export default function CategoryDetailPage({
                                     description: details,
                                     businessName: selectedBizForBooking.name,
                                     businessId: selectedBizForBooking.id,
-                                    bookingId: newSub.id,
+                                    bookingId: bookingId,
                                     customerName: dataToSave["Full Name"] || bookingForm.name || "Guest",
                                     details,
                                     amount,
@@ -2241,11 +2302,34 @@ export default function CategoryDetailPage({
                                     status: "Completed"
                                   })
                                 }).then(res => res.json())
-                                  .then(data => {
-                                    if (data.success) {
+                                  .then(txData => {
+                                    if (txData.success) {
                                       window.dispatchEvent(new Event("storage"));
                                     }
                                   }).catch(err => console.error("API transaction failed:", err));
+
+                                // Persist to the Booking DB model
+                                saveBookingToDb({
+                                  id: bookingId,
+                                  amount,
+                                  paymentId,
+                                  bookingType: selectedBizForBooking.category.includes("Hotel Point")
+                                    ? "room"
+                                    : selectedBizForBooking.category.includes("Health Care Point") || selectedBizForBooking.category.includes("Doctor Point")
+                                      ? "appointment"
+                                      : "service",
+                                  serviceName: selectedBizForBooking.category.includes("Hotel Point")
+                                    ? "Room Stay Reservation"
+                                    : selectedBizForBooking.category.includes("Health Care Point") || selectedBizForBooking.category.includes("Doctor Point")
+                                      ? "Appointment Consultation"
+                                      : "Table Booking",
+                                  formData: dataToSave,
+                                  customerName: dataToSave["Full Name"] || bookingForm.name || "Guest",
+                                  customerPhone: dataToSave["Phone Number"] || bookingForm.phone || "",
+                                  customerEmail: dataToSave["Email"] || "",
+                                  date: bookingForm.date || "",
+                                  time: bookingForm.time || "",
+                                });
                               }).catch(err => console.error("API booking submission failed:", err));
                           }
                         });
@@ -2267,11 +2351,18 @@ export default function CategoryDetailPage({
                 <h3 className="font-serif text-lg font-bold text-foreground mb-1">
                   Booking Confirmed!
                 </h3>
-                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                  Your booking details have been sent successfully to{" "}
-                  <span className="font-semibold text-primary">{selectedBizForBooking.name}</span>.
-                  You will receive a verification call shortly.
-                </p>
+                <div className="text-xs text-muted-foreground max-w-xs mx-auto space-y-2 text-center">
+                  <p>
+                    Your booking details have been sent successfully to{" "}
+                    <span className="font-semibold text-primary">{selectedBizForBooking.name}</span>.
+                    You will receive a verification call shortly.
+                  </p>
+                  {confirmedOrderId && (
+                    <p className="mt-2 text-xs">
+                      Booking ID: <span className="font-bold text-foreground">#{confirmedOrderId}</span>
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>

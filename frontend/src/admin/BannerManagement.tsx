@@ -1,17 +1,7 @@
 import { useState, useEffect } from "react";
 import { Image as ImageIcon, Save, Eye, CheckCircle, Upload, ChevronRight, Sliders } from "lucide-react";
-import { categories as defaultCategories } from "../pages/Home";
-
-// Imports for side banners defaults
-import catRepairs from "../assets/cat-repairs.jpg";
-import catRealestate from "../assets/cat-realestate.jpg";
-import catDoctors from "../assets/cat-doctors.jpg";
-
-// Imports for slider banners defaults
-import heroFeatured from "../assets/hero-featured.jpg";
-import catWedding from "../assets/cat-wedding.jpg";
-import catDining from "../assets/cat-dining.jpg";
-import touristUdaipur from "../assets/tourist_udaipur.png";
+import { useCategories } from "../context/CategoryContext";
+import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
 
 interface BannerItem {
   title: string;
@@ -30,63 +20,32 @@ interface SliderItem {
   categoryName: string | null;
 }
 
-const defaultSideBanners: BannerItem[] = [
-  {
-    title: "REPAIRS &\nSERVICES",
-    subtitle: "Get Nearest Vendor",
-    img: catRepairs,
-    gradient: "from-[#1e3d75] to-[#12274d]",
-    themeColor: "group-hover:text-[#1e3d75]",
-    categoryName: "Service Point",
-  },
-  {
-    title: "Hotel\npoint",
-    subtitle: "Finest Agents",
-    img: catRealestate,
-    gradient: "from-[#635bff] to-[#483fd3]",
-    themeColor: "group-hover:text-[#635bff]",
-    categoryName: "Hotel Point",
-  },
-  {
-    title: "DOCTORS",
-    subtitle: "Book Now",
-    img: catDoctors,
-    gradient: "from-[#008f5d] to-[#006b44]",
-    themeColor: "group-hover:text-[#008f5d]",
-    categoryName: "Doctor Point",
-  },
-];
+const createBlankSlide = (): SliderItem => ({
+  tag: "",
+  title: "",
+  description: "",
+  img: "",
+  categoryName: null
+});
 
-const defaultSliderBanners: SliderItem[] = [
-  {
-    tag: "# FEATURED SPOTLIGHT",
-    title: "Discover the city's\nfinest establishments.",
-    description: "Search across 5.3 crore+ verified businesses, professionals and services — curated for quality.",
-    img: heroFeatured,
-    categoryName: null,
-  },
-  {
-    tag: "# WEDDING REQUISITES",
-    title: "Plan your dream\nwedding day with us.",
-    description: "Find top-rated banquet halls, caterers, decorators, and bridal makeup services.",
-    img: catWedding,
-    categoryName: "Spa Point",
-  },
-  {
-    tag: "# FOOD & DINING",
-    title: "Satisfy your cravings\nwith delicious food.",
-    description: "Explore the best local restaurants, cafés, fast food joints, and cloud kitchens.",
-    img: catDining,
-    categoryName: "Food Point",
-  },
-  {
-    tag: "# TRAVEL & TOURS",
-    title: "Explore premium\ntravel destinations.",
-    description: "Book custom holiday packages, car rentals, and luxury stays effortlessly.",
-    img: touristUdaipur,
-    categoryName: "Tour Point",
-  },
-];
+const blankSlides: SliderItem[] = [createBlankSlide()];
+
+const blankCards: BannerItem[] = Array.from({ length: 3 }, (_, idx) => {
+  const presets = [
+    { gradient: "from-[#1e3d75] to-[#12274d]", themeColor: "group-hover:text-[#1e3d75]" },
+    { gradient: "from-[#635bff] to-[#483fd3]", themeColor: "group-hover:text-[#635bff]" },
+    { gradient: "from-[#008f5d] to-[#006b44]", themeColor: "group-hover:text-[#008f5d]" }
+  ];
+  const p = presets[idx] || presets[0];
+  return {
+    title: "",
+    subtitle: "",
+    img: "",
+    gradient: p.gradient,
+    themeColor: p.themeColor,
+    categoryName: ""
+  };
+});
 
 const GRADIENT_PRESETS = [
   { name: "Deep Blue", gradient: "from-[#1e3d75] to-[#12274d]", themeColor: "group-hover:text-[#1e3d75]" },
@@ -109,63 +68,42 @@ export default function BannerManagement() {
   const [activeSliderTab, setActiveSliderTab] = useState<number>(0);
 
   const [isSavedAlert, setIsSavedAlert] = useState(false);
+  const { categories } = useCategories();
   const [categoriesList, setCategoriesList] = useState<string[]>([]);
+
+  const getImageUrl = (img: string) => {
+    if (!img) return "";
+    if (img.startsWith("data:") || img.startsWith("http")) return img;
+    return `${BACKEND_ORIGIN}${img}`;
+  };
 
   // Load banners and categories list
   useEffect(() => {
-    // 1. Load side banners
-    try {
-      const savedSide = localStorage.getItem("fmp_hero_cards");
-      if (savedSide) {
-        const parsed = JSON.parse(savedSide);
-        if (Array.isArray(parsed) && parsed.length === 3) {
-          setSideBanners(parsed);
-        } else {
-          setSideBanners(defaultSideBanners);
+    fetch(`${API_BASE_URL}/banners`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          const fetchedSlides = data.slides && data.slides.length > 0 ? data.slides : blankSlides;
+          const fetchedCards = data.cards && data.cards.length > 0
+            ? [...data.cards.slice(0, 3), ...blankCards.slice(Math.min(3, data.cards.length))]
+            : blankCards;
+          setSliderBanners(fetchedSlides);
+          setSideBanners(fetchedCards);
         }
-      } else {
-        setSideBanners(defaultSideBanners);
-      }
-    } catch (e) {
-      setSideBanners(defaultSideBanners);
-    }
-
-    // 2. Load slider banners
-    try {
-      const savedSlider = localStorage.getItem("fmp_hero_slides");
-      if (savedSlider) {
-        const parsed = JSON.parse(savedSlider);
-        if (Array.isArray(parsed) && parsed.length === 4) {
-          setSliderBanners(parsed);
-        } else {
-          setSliderBanners(defaultSliderBanners);
-        }
-      } else {
-        setSliderBanners(defaultSliderBanners);
-      }
-    } catch (e) {
-      setSliderBanners(defaultSliderBanners);
-    }
-
-    // 3. Load custom + default categories for the linking dropdown
-    const catLabels = defaultCategories.map((c) => c.label);
-    try {
-      const savedCats = localStorage.getItem("fmp_custom_categories");
-      if (savedCats) {
-        const parsed = JSON.parse(savedCats);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((cat: any) => {
-            if (!catLabels.includes(cat.label)) {
-              catLabels.push(cat.label);
-            }
-          });
-        }
-      }
-    } catch (e) {
-      console.error("Failed to load custom categories", e);
-    }
-    setCategoriesList(catLabels);
+      })
+      .catch((err) => {
+        console.error("Error loading banners:", err);
+        setSliderBanners(blankSlides);
+        setSideBanners(blankCards);
+      });
   }, []);
+
+  // Update categoriesList when categories from context change
+  useEffect(() => {
+    if (categories.length > 0) {
+      setCategoriesList(categories.map((c) => c.label));
+    }
+  }, [categories]);
 
   const handleSideFieldChange = (field: keyof BannerItem, value: string) => {
     setSideBanners((prev) =>
@@ -207,31 +145,69 @@ export default function BannerManagement() {
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    const token = localStorage.getItem("fmp_admin_token");
+    const payloadType = managementMode === "side" ? "card" : "slide";
+    const payloadBanners = managementMode === "side" ? sideBanners : sliderBanners;
+
+    // Clean up local mock paths before saving to DB
+    const normalizedBanners = payloadBanners.map(b => {
+      const isBase64 = b.img.startsWith('data:');
+      const isUploaded = b.img.includes('/uploads/');
+      return {
+        ...b,
+        img: (isBase64 || isUploaded) ? b.img : ''
+      };
+    });
+
     try {
-      if (managementMode === "side") {
-        localStorage.setItem("fmp_hero_cards", JSON.stringify(sideBanners));
+      const res = await fetch(`${API_BASE_URL}/banners/save`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          type: payloadType,
+          banners: normalizedBanners
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsSavedAlert(true);
+        setTimeout(() => {
+          setIsSavedAlert(false);
+        }, 4000);
+        
+        // Update state with saved details
+        let mapped = data.banners && data.banners.length > 0 ? data.banners : (managementMode === "side" ? blankCards : blankSlides);
+        if (managementMode === "side") {
+          if (mapped.length > 0 && mapped.length < 3) {
+            mapped = [...mapped.slice(0, 3), ...blankCards.slice(Math.min(3, mapped.length))];
+          }
+          setSideBanners(mapped);
+        } else {
+          setSliderBanners(mapped);
+        }
+        
+        // Trigger a custom event to notify components like Home.tsx
+        window.dispatchEvent(new Event("fmp_banners_changed"));
       } else {
-        localStorage.setItem("fmp_hero_slides", JSON.stringify(sliderBanners));
+        alert("Failed to save banners: " + (data.message || "Unknown error"));
       }
-      setIsSavedAlert(true);
-      setTimeout(() => {
-        setIsSavedAlert(false);
-      }, 4000);
-      // Notify Home page of changes via Storage event
-      window.dispatchEvent(new Event("storage"));
     } catch (err) {
-      alert("Error saving banners: " + err);
+      console.error("Error saving banners:", err);
+      alert("Network error occurred while saving banners.");
     }
   };
 
   const handleReset = () => {
-    if (window.confirm(`Are you sure you want to reset all ${managementMode === "side" ? "side" : "slider"} banners to default?`)) {
+    if (window.confirm(`Are you sure you want to reset all ${managementMode === "side" ? "side" : "slider"} banners to blank?`)) {
       if (managementMode === "side") {
-        setSideBanners(defaultSideBanners);
+        setSideBanners(blankCards);
       } else {
-        setSliderBanners(defaultSliderBanners);
+        setSliderBanners(blankSlides);
       }
     }
   };
@@ -240,8 +216,8 @@ export default function BannerManagement() {
     return <div className="p-8 text-center text-slate-500 font-bold">Loading banners...</div>;
   }
 
-  const currentSideBanner = sideBanners[activeSideTab];
-  const currentSliderBanner = sliderBanners[activeSliderTab];
+  const currentSideBanner = sideBanners[activeSideTab] || blankCards[0];
+  const currentSliderBanner = sliderBanners[activeSliderTab] || blankSlides[0];
 
   return (
     <div className="space-y-6 w-full animate-fade-in-up">
@@ -305,22 +281,99 @@ export default function BannerManagement() {
                MAIN SLIDER BANNER FORM
                ======================================================== */
             <>
-              {/* Slider selector tabs */}
-              <div className="flex border-b border-slate-100 dark:border-slate-800 pb-2">
-                {[0, 1, 2, 3].map((idx) => (
+              {/* Slider list and action buttons */}
+              <div className="space-y-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-450">
+                    Existing Slides ({sliderBanners.length})
+                  </h3>
                   <button
-                    key={idx}
                     type="button"
-                    onClick={() => setActiveSliderTab(idx)}
-                    className={`px-5 py-2.5 text-xs font-black transition-all cursor-pointer border-b-2 -mb-2.5 ${
-                      activeSliderTab === idx
-                        ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
-                        : "border-transparent text-slate-450 hover:text-slate-700 dark:hover:text-slate-350"
-                    }`}
+                    onClick={() => {
+                      setSliderBanners(prev => [...prev, createBlankSlide()]);
+                      setActiveSliderTab(sliderBanners.length);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-indigo-600 hover:text-white hover:bg-indigo-600 rounded-xl border border-indigo-250 dark:border-indigo-900/40 transition cursor-pointer"
                   >
-                    Slide {idx + 1}
+                    + Add Slide
                   </button>
-                ))}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {sliderBanners.map((slide, idx) => {
+                    const isActive = activeSliderTab === idx;
+                    return (
+                      <div
+                        key={idx}
+                        className={`relative p-3.5 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                          isActive
+                            ? "border-indigo-600 bg-indigo-50/15 dark:bg-indigo-950/10 ring-1 ring-indigo-600"
+                            : "border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 hover:bg-slate-50"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Thumbnail */}
+                          <div className="h-10 w-14 rounded-lg bg-slate-200 dark:bg-slate-850 overflow-hidden shrink-0 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400">
+                            {slide.img ? (
+                              <img
+                                src={getImageUrl(slide.img)}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <ImageIcon className="h-4 w-4" />
+                            )}
+                          </div>
+                          {/* Info */}
+                          <div className="min-w-0 text-left">
+                            <span className="text-[8px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block truncate">
+                              {slide.tag || "No Tag"}
+                            </span>
+                            <h4 className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate mt-0.5">
+                              {slide.title.replace(/\\n/g, ' ') || "Untitled Slide"}
+                            </h4>
+                          </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-1.5 border-t border-slate-100 dark:border-slate-800/60 pt-2.5">
+                          <button
+                            type="button"
+                            onClick={() => setActiveSliderTab(idx)}
+                            className={`flex-1 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer text-center ${
+                              isActive
+                                ? "bg-indigo-600 text-white shadow-sm"
+                                : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                            }`}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to delete Slide ${idx + 1}?`)) {
+                                setSliderBanners(prev => {
+                                  const updated = prev.filter((_, i) => i !== idx);
+                                  return updated.length > 0 ? updated : [createBlankSlide()];
+                                });
+                                setActiveSliderTab(prev => {
+                                  if (prev >= sliderBanners.length - 1) {
+                                    return Math.max(0, sliderBanners.length - 2);
+                                  }
+                                  return prev;
+                                });
+                              }
+                            }}
+                            className="px-2 py-1 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white dark:bg-rose-950/20 dark:hover:bg-rose-600 rounded-lg text-[10px] font-bold transition cursor-pointer border border-rose-250 dark:border-rose-900/40"
+                            title="Delete Slide"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white pt-2">
@@ -587,11 +640,13 @@ export default function BannerManagement() {
             {managementMode === "slider" ? (
               /* Slider Preview: wide horizontal format */
               <div className="relative overflow-hidden rounded-2xl w-full max-w-[280px] h-[180px] select-none">
-                <img
-                  src={currentSliderBanner.img}
-                  alt={currentSliderBanner.tag}
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
+                {currentSliderBanner.img && (
+                  <img
+                    src={getImageUrl(currentSliderBanner.img)}
+                    alt={currentSliderBanner.tag}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/95 via-slate-900/45 to-transparent" />
                 <div className="absolute inset-0 flex flex-col justify-end p-4 text-white text-left">
                   <div className="mb-2 inline-flex w-fit items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[7px] font-semibold uppercase tracking-[0.18em] text-amber-500">
@@ -649,18 +704,20 @@ export default function BannerManagement() {
                 </div>
 
                 {/* Character/Object Cutout Image */}
-                <div className="absolute bottom-[-16px] right-0 w-[92%] h-[85%] pointer-events-none transition-transform duration-500 group-hover:scale-105 group-hover:translate-x-1">
-                  <img
-                    src={currentSideBanner.img}
-                    alt={currentSideBanner.title}
-                    className="h-full w-full object-cover object-top mix-blend-normal opacity-95"
-                    style={{
-                      maskImage: "linear-gradient(to left, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)",
-                      WebkitMaskImage:
-                        "linear-gradient(to left, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)",
-                    }}
-                  />
-                </div>
+                {currentSideBanner.img && (
+                  <div className="absolute bottom-[-16px] right-0 w-[92%] h-[85%] pointer-events-none transition-transform duration-500 group-hover:scale-105 group-hover:translate-x-1">
+                    <img
+                      src={getImageUrl(currentSideBanner.img)}
+                      alt={currentSideBanner.title}
+                      className="h-full w-full object-cover object-top mix-blend-normal opacity-95"
+                      style={{
+                        maskImage: "linear-gradient(to left, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)",
+                        WebkitMaskImage:
+                          "linear-gradient(to left, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)",
+                      }}
+                    />
+                  </div>
+                )}
               </button>
             )}
           </div>

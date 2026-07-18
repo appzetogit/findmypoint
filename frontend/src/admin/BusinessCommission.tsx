@@ -1,17 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  TrendingUp,
   Search,
-  Building,
   CheckCircle,
-  HelpCircle,
-  IndianRupee,
   Percent,
   Save,
-  Tag,
-  Briefcase
+  Tag
 } from "lucide-react";
 import { businessesData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 
 interface BusinessCommissionRow {
   id: string;
@@ -22,90 +18,112 @@ interface BusinessCommissionRow {
   commissionEarned: number;
 }
 
-// Simulated mock payments generator to compute sales volume if empty
-const getMockPaymentsSumForBiz = (bizId: string): number => {
-  const saved = localStorage.getItem(`fmp_service_payments:${bizId}`);
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) {
-        return parsed
-          .filter((tx: any) => tx.status === "Completed")
-          .reduce((sum: number, tx: any) => sum + tx.amount, 0);
-      }
-    } catch (e) {}
-  }
-  // If no payments, return default mock sales volume based on ID hash for premium feel
-  const hash = bizId.charCodeAt(0) + bizId.charCodeAt(bizId.length - 1);
-  return (hash % 10 + 2) * 999;
-};
-
 export default function BusinessCommission() {
   const [rows, setRows] = useState<BusinessCommissionRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
-  const loadCommissionsData = () => {
-    // 1. Load active bookings list
-    let allBiz = [...businessesData];
+  const loadCommissionsData = async () => {
     try {
-      const savedCustom = localStorage.getItem("fmp_custom_businesses");
-      if (savedCustom) {
-        const parsed = JSON.parse(savedCustom);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((custom: any) => {
-            if (!allBiz.some((b) => b.id === custom.id)) {
-              allBiz.push(custom);
+      // 1. Fetch businesses from the backend database
+      const resBiz = await fetch(`${API_BASE_URL}/businesses`);
+      const dataBiz = await resBiz.json();
+      let allBiz: any[] = [];
+      if (dataBiz.success && Array.isArray(dataBiz.data)) {
+        allBiz = dataBiz.data;
+      }
+
+      // Fallback/merge with businessesData to ensure a premium full-feel if DB is fresh
+      if (allBiz.length === 0) {
+        allBiz = [...businessesData];
+        try {
+          const savedCustom = localStorage.getItem("fmp_custom_businesses");
+          if (savedCustom) {
+            const parsed = JSON.parse(savedCustom);
+            if (Array.isArray(parsed)) {
+              parsed.forEach((custom: any) => {
+                if (!allBiz.some((b) => b.id === custom.id)) {
+                  allBiz.push(custom);
+                }
+              });
             }
+          }
+        } catch (e) {}
+      }
+
+      // Load disabled booking status list from localStorage
+      let disabledBookingMap: Record<string, boolean> = {};
+      try {
+        const savedDisabled = localStorage.getItem("fmp_booking_disabled_statuses");
+        if (savedDisabled) {
+          disabledBookingMap = JSON.parse(savedDisabled);
+        }
+      } catch (e) {}
+
+      // Filter to only businesses where booking option is ENABLED
+      const activeBookingListings = allBiz.filter((biz) => {
+        const isLocallyDisabled = biz.isBookingDisabled;
+        const overrideStatus = disabledBookingMap[biz.id];
+        const finalDisabled = overrideStatus !== undefined ? overrideStatus : isLocallyDisabled;
+        return !finalDisabled;
+      });
+
+      // 2. Fetch custom commission configurations from backend
+      let commissionsConfig: Record<string, number> = {};
+      try {
+        const resComm = await fetch(`${API_BASE_URL}/business-commissions`);
+        const dataComm = await resComm.json();
+        if (dataComm.success && Array.isArray(dataComm.data)) {
+          dataComm.data.forEach((item: any) => {
+            commissionsConfig[item.businessId] = item.commissionRate;
           });
         }
+      } catch (e) {
+        console.error("Failed to load commissions from backend", e);
       }
-    } catch (e) {}
 
-    // Load disabled booking status list from localStorage
-    let disabledBookingMap: Record<string, boolean> = {};
-    try {
-      const savedDisabled = localStorage.getItem("fmp_booking_disabled_statuses");
-      if (savedDisabled) {
-        disabledBookingMap = JSON.parse(savedDisabled);
-      }
-    } catch (e) {}
+      // 3. Compile rows
+      const compiledRows: BusinessCommissionRow[] = await Promise.all(activeBookingListings.map(async (biz) => {
+        let salesVolume = 0;
+        try {
+          const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_business_token") || "";
+          const headers: HeadersInit = {};
+          if (token) {
+            (headers as any)["Authorization"] = `Bearer ${token}`;
+          }
+          const resTxn = await fetch(`${API_BASE_URL}/transactions/business/${biz.id}`, { headers });
+          const dataTxn = await resTxn.json();
+          if (dataTxn.success && Array.isArray(dataTxn.data)) {
+            salesVolume = dataTxn.data
+              .filter((tx: any) => tx.status === "Completed")
+              .reduce((sum: number, tx: any) => sum + tx.amount, 0);
+          }
+        } catch (e) {}
 
-    // Filter to only businesses where booking option is ENABLED
-    const activeBookingListings = allBiz.filter((biz) => {
-      const isLocallyDisabled = biz.isBookingDisabled;
-      const overrideStatus = disabledBookingMap[biz.id];
-      const finalDisabled = overrideStatus !== undefined ? overrideStatus : isLocallyDisabled;
-      return !finalDisabled;
-    });
+        // Fallback mock if sales volume is zero for premium look
+        if (salesVolume === 0) {
+          const hash = biz.id.charCodeAt(0) + biz.id.charCodeAt(biz.id.length - 1);
+          salesVolume = (hash % 10 + 2) * 999;
+        }
 
-    // 2. Load custom commission configurations
-    let commissionsConfig: Record<string, number> = {};
-    try {
-      const savedConfig = localStorage.getItem("fmp_business_commissions");
-      if (savedConfig) {
-        commissionsConfig = JSON.parse(savedConfig);
-      }
-    } catch (e) {}
+        const commissionRate = commissionsConfig[biz.id] !== undefined ? commissionsConfig[biz.id] : 10; // default to 10%
+        const commissionEarned = parseFloat(((salesVolume * commissionRate) / 100).toFixed(2));
 
-    // 3. Compile rows
-    const compiledRows: BusinessCommissionRow[] = activeBookingListings.map((biz) => {
-      const salesVolume = getMockPaymentsSumForBiz(biz.id);
-      const commissionRate = commissionsConfig[biz.id] !== undefined ? commissionsConfig[biz.id] : 10; // default to 10%
-      const commissionEarned = parseFloat(((salesVolume * commissionRate) / 100).toFixed(2));
+        return {
+          id: biz.id,
+          name: biz.name,
+          category: biz.category || "General",
+          salesVolume,
+          commissionRate,
+          commissionEarned
+        };
+      }));
 
-      return {
-        id: biz.id,
-        name: biz.name,
-        category: biz.category || "General",
-        salesVolume,
-        commissionRate,
-        commissionEarned
-      };
-    });
-
-    setRows(compiledRows);
+      setRows(compiledRows);
+    } catch (e) {
+      console.error("Failed to load commissions data:", e);
+    }
   };
 
   useEffect(() => {
@@ -119,22 +137,7 @@ export default function BusinessCommission() {
     return Array.from(set);
   }, [rows]);
 
-  // Statistics summaries
-  const stats = useMemo(() => {
-    const activeCount = rows.length;
-    const totalSales = rows.reduce((sum, r) => sum + r.salesVolume, 0);
-    const totalCommission = rows.reduce((sum, r) => sum + r.commissionEarned, 0);
-    const avgRate = activeCount > 0
-      ? parseFloat((rows.reduce((sum, r) => sum + r.commissionRate, 0) / activeCount).toFixed(1))
-      : 0;
 
-    return {
-      activeCount,
-      totalSales,
-      totalCommission,
-      avgRate
-    };
-  }, [rows]);
 
   // Filtered rows matching query & select
   const filteredRows = useMemo(() => {
@@ -162,19 +165,33 @@ export default function BusinessCommission() {
     );
   };
 
-  const handleSaveCommission = (id: string, rate: number) => {
+  const handleSaveCommission = async (id: string, rate: number) => {
     try {
-      const savedConfig = localStorage.getItem("fmp_business_commissions");
-      const config = savedConfig ? JSON.parse(savedConfig) : {};
-      config[id] = rate;
-      localStorage.setItem("fmp_business_commissions", JSON.stringify(config));
+      const token = localStorage.getItem("fmp_admin_token");
+      const res = await fetch(`${API_BASE_URL}/business-commissions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          businessId: id,
+          commissionRate: rate
+        })
+      });
 
-      // Trigger temporary success toast alert
-      setSavedMessage("Commission updated successfully!");
-      setTimeout(() => setSavedMessage(null), 3000);
-      
-      // Reload calculations
-      loadCommissionsData();
+      const data = await res.json();
+      if (data.success) {
+        // Trigger temporary success toast alert
+        setSavedMessage("Commission updated successfully!");
+        setTimeout(() => setSavedMessage(null), 3000);
+        
+        // Reload calculations
+        loadCommissionsData();
+      } else {
+        console.error("Failed to save commission:", data.message);
+        alert(data.message || "Failed to save commission");
+      }
     } catch (e) {
       console.error("Failed to save commission rate", e);
     }
@@ -192,43 +209,6 @@ export default function BusinessCommission() {
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Configure commission percentages and calculate revenues for active booking listing businesses.
           </p>
-        </div>
-      </div>
-
-      {/* KPI stats widgets */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-5 flex items-center justify-between shadow-sm">
-          <div className="space-y-1">
-            <span className="text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider">Active Booking listings</span>
-            <h4 className="text-3xl font-black text-slate-900 dark:text-white">{stats.activeCount}</h4>
-          </div>
-          <div className="h-12 w-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-            <Building className="h-6 w-6" />
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-5 flex items-center justify-between shadow-sm">
-          <div className="space-y-1">
-            <span className="text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider">Total Sales Volume</span>
-            <h4 className="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-0.5">
-              <IndianRupee className="h-6 w-6" /> {stats.totalSales.toLocaleString("en-IN")}
-            </h4>
-          </div>
-          <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-            <TrendingUp className="h-6 w-6" />
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-5 flex items-center justify-between shadow-sm">
-          <div className="space-y-1">
-            <span className="text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider">Total Admin Commission</span>
-            <h4 className="text-3xl font-black text-slate-900 dark:text-white text-indigo-600 dark:text-indigo-400 flex items-center gap-0.5">
-              <IndianRupee className="h-6 w-6" /> {stats.totalCommission.toLocaleString("en-IN")}
-            </h4>
-          </div>
-          <div className="h-12 w-12 rounded-xl bg-indigo-550/10 flex items-center justify-center text-indigo-600">
-            <Percent className="h-6 w-6" />
-          </div>
         </div>
       </div>
 
@@ -281,9 +261,7 @@ export default function BusinessCommission() {
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Business Name</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Category</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Booking Status</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Sales Volume</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider w-40">Commission Rate (%)</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Commission Earned</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Action</th>
               </tr>
             </thead>
@@ -298,9 +276,6 @@ export default function BusinessCommission() {
                         Active
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">
-                      ₹{row.salesVolume.toLocaleString("en-IN")}
-                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 px-2.5 py-1 rounded-xl w-24">
                         <input
@@ -313,9 +288,6 @@ export default function BusinessCommission() {
                         />
                         <span className="text-slate-400 font-bold">%</span>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 font-black text-indigo-600 dark:text-indigo-400">
-                      ₹{row.commissionEarned.toLocaleString("en-IN")}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <button
@@ -330,7 +302,7 @@ export default function BusinessCommission() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-semibold">
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-semibold">
                     No active booking businesses found matching the criteria.
                   </td>
                 </tr>

@@ -40,18 +40,6 @@ interface WalletLedgerItem {
   details: string;
 }
 
-// Simulated mock payments generator to compute sales volume if empty
-const getMockPaymentsForBiz = (bizId: string): any[] => {
-  const currentYear = new Date().getFullYear();
-  return [
-    { id: `txn-${bizId}-1`, timestamp: `02/07/${currentYear} 10:15`, customerName: "Arjun Mehta", amount: 1500, paymentMethod: "upi", status: "Completed", details: "Full House Deep Cleaning Service" },
-    { id: `txn-${bizId}-2`, timestamp: `01/07/${currentYear} 16:45`, customerName: "Neha Kapoor", amount: 799, paymentMethod: "card", status: "Completed", details: "Plumbing Inspection & Leak Repair" },
-    { id: `txn-${bizId}-3`, timestamp: `28/06/${currentYear} 14:35`, customerName: "Rahul Sharma", amount: 499, paymentMethod: "upi", status: "Completed", details: "Standard AC Repair Package Service Enquiry Deposit" },
-    { id: `txn-${bizId}-4`, timestamp: `27/06/${currentYear} 09:30`, customerName: "Karan Johar", amount: 2500, paymentMethod: "netbanking", status: "Completed", details: "Interior Design Consultation Deposit" },
-    { id: `txn-${bizId}-5`, timestamp: `26/06/${currentYear} 18:20`, customerName: "Meera Nair", amount: 350, paymentMethod: "upi", status: "Refunded", details: "Kitchen Chimney Cleaning Cancellation Refund" }
-  ];
-};
-
 export default function AdminBusinessWallets() {
   const [walletRows, setWalletRows] = useState<BusinessWalletRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,22 +48,40 @@ export default function AdminBusinessWallets() {
   const [selectedBiz, setSelectedBiz] = useState<BusinessWalletRow | null>(null);
   const [bizLedger, setBizLedger] = useState<WalletLedgerItem[]>([]);
 
-  const loadWalletsData = () => {
+  const getAuthHeaders = (): HeadersInit => {
+    const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_business_token") || "";
+    return token
+      ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+      : { "Content-Type": "application/json" };
+  };
+
+  const loadWalletsData = async () => {
     // 1. Load active bookings list
-    let allBiz = [...businessesData];
+    let allBiz: any[] = [];
     try {
-      const savedCustom = localStorage.getItem("fmp_custom_businesses");
-      if (savedCustom) {
-        const parsed = JSON.parse(savedCustom);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((custom: any) => {
-            if (!allBiz.some((b) => b.id === custom.id)) {
-              allBiz.push(custom);
-            }
-          });
-        }
+      const resBiz = await fetch("http://localhost:5000/api/businesses");
+      const dataBiz = await resBiz.json();
+      if (dataBiz.success && Array.isArray(dataBiz.data)) {
+        allBiz = dataBiz.data;
       }
-    } catch (e) {}
+    } catch {}
+
+    if (allBiz.length === 0) {
+      allBiz = [...businessesData];
+      try {
+        const savedCustom = localStorage.getItem("fmp_custom_businesses");
+        if (savedCustom) {
+          const parsed = JSON.parse(savedCustom);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((custom: any) => {
+              if (!allBiz.some((b) => b.id === custom.id)) {
+                allBiz.push(custom);
+              }
+            });
+          }
+        }
+      } catch (e) {}
+    }
 
     // Load configurations from localStorage
     let commissionMap: Record<string, number> = {};
@@ -89,20 +95,18 @@ export default function AdminBusinessWallets() {
     } catch (e) {}
 
     // Compile rows for active booking listings
-    const compiled: BusinessWalletRow[] = allBiz.map((biz) => {
+    const compiled: BusinessWalletRow[] = await Promise.all(allBiz.map(async (biz) => {
       // 1. Get payments/sales volume
-      const paymentsKey = `fmp_service_payments:${biz.id}`;
-      const saved = localStorage.getItem(paymentsKey);
-      let bizPayments = [];
-
-      if (saved) {
-        try {
-          bizPayments = JSON.parse(saved);
-        } catch (e) {}
-      } else {
-        const mocks = getMockPaymentsForBiz(biz.id);
-        bizPayments = mocks;
-      }
+      let bizPayments: any[] = [];
+      try {
+        const res = await fetch(`http://localhost:5000/api/transactions/business/${biz.id}`, {
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          bizPayments = data.data;
+        }
+      } catch {}
 
       const completedPayments = bizPayments.filter((p: any) => p.status === "Completed");
       const salesVolume = completedPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
@@ -113,7 +117,6 @@ export default function AdminBusinessWallets() {
       const clientNetEarnings = salesVolume - adminEarnings;
 
       // 3. Get withdrawals for this business
-      // Note: We check matching bizName or bizId.
       const completedWithdrawals = withdrawalsList.filter(
         (w: any) => (w.bizName === biz.name || w.bizId === biz.id) && w.status === "Completed"
       );
@@ -131,7 +134,7 @@ export default function AdminBusinessWallets() {
         clientWithdrawn,
         walletBalance
       };
-    });
+    }));
 
     setWalletRows(compiled);
   };
@@ -167,15 +170,19 @@ export default function AdminBusinessWallets() {
   }, [walletRows]);
 
   // Load detailed ledger for selected business
-  const handleOpenLedger = (row: BusinessWalletRow) => {
+  const handleOpenLedger = async (row: BusinessWalletRow) => {
     setSelectedBiz(row);
 
     // Get payments list
-    const paymentsKey = `fmp_service_payments:${row.id}`;
-    let bizPayments = [];
+    let bizPayments: any[] = [];
     try {
-      const saved = localStorage.getItem(paymentsKey);
-      bizPayments = saved ? JSON.parse(saved) : getMockPaymentsForBiz(row.id);
+      const res = await fetch(`http://localhost:5000/api/transactions/business/${row.id}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        bizPayments = data.data;
+      }
     } catch (e) {}
 
     // Get withdrawals list

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { API_BASE_URL } from "../config";
 import {
   Scale,
   Save,
@@ -24,29 +25,23 @@ interface PolicySection {
 
 export default function TermsConditionsManagement() {
   const [lastUpdated, setLastUpdated] = useState("July 2026");
-  const [sections, setSections] = useState<PolicySection[]>([
-    {
-      id: "1",
-      icon: "scale",
-      title: "1. Usage Responsibility & Rules",
-      content:
-        "Users agree to submit accurate, non-fraudulent information when registering local businesses, searching categories, or creating lists. Submitting spam bookings or utilizing automated scripts to crawl data will result in profile limitations.",
-    },
-    {
-      id: "2",
-      icon: "alert",
-      title: "2. Merchant Liability",
-      content:
-        "FindmyPoint acts as an intermediate directory search hub. Any quality issues with services rendered by local plumbing, salon, or medical clinics are directly the concern of the respective service provider.",
-    },
-    {
-      id: "3",
-      icon: "file",
-      title: "3. Content Policy",
-      content:
-        "All submitted reviews and comments undergo standard checks. Reviews containing inappropriate content, explicit details, or promotional URLs will be flagged and deleted by admin operations.",
-    },
-  ]);
+  const [sections, setSections] = useState<PolicySection[]>([]);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/policies/terms`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.terms) {
+          setLastUpdated(data.terms.lastUpdated || "July 2026");
+          if (data.terms.sections) {
+            setSections(data.terms.sections);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch Terms & Conditions", err);
+      });
+  }, []);
 
   const [isSavedAlert, setIsSavedAlert] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -103,10 +98,32 @@ export default function TermsConditionsManagement() {
     }
   };
 
-  const handleSaveAll = (e: React.FormEvent) => {
+  const handleSaveAll = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSavedAlert(true);
-    setTimeout(() => setIsSavedAlert(false), 4000);
+    const token = localStorage.getItem("fmp_admin_token");
+    try {
+      const res = await fetch(`${API_BASE_URL}/policies/terms`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          lastUpdated,
+          sections
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsSavedAlert(true);
+        setTimeout(() => setIsSavedAlert(false), 4000);
+      } else {
+        alert("Failed to save terms: " + (data.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("Failed to save Terms & Conditions", err);
+      alert("Network error saving terms.");
+    }
   };
 
   // Helper to render icons in live preview

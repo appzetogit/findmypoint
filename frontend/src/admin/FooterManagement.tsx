@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Sliders, Save, Eye, CheckCircle, HelpCircle, ToggleLeft, ToggleRight } from "lucide-react";
 import { loadFooterData, saveFooterData, FooterData, SocialLinkItem } from "../data/footerData";
+import { API_BASE_URL } from "../config";
 import logoImg from "../assets/logo.png";
 
 export default function FooterManagement() {
@@ -15,7 +16,19 @@ export default function FooterManagement() {
   const [isSavedAlert, setIsSavedAlert] = useState(false);
 
   useEffect(() => {
-    setFooterData(loadFooterData());
+    fetch(`${API_BASE_URL}/footer`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.footer) {
+          setFooterData(data.footer);
+        } else {
+          setFooterData(loadFooterData());
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading footer settings from backend:", err);
+        setFooterData(loadFooterData());
+      });
   }, []);
 
   const handleChangeField = (field: keyof Omit<FooterData, "socials">, value: string) => {
@@ -39,15 +52,36 @@ export default function FooterManagement() {
     }));
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveFooterData(footerData);
-    setIsSavedAlert(true);
-    setTimeout(() => {
-      setIsSavedAlert(false);
-    }, 4000);
-    // Dispatch storage event to alert other pages (Home page)
-    window.dispatchEvent(new Event("storage"));
+    const token = localStorage.getItem("fmp_admin_token");
+    try {
+      const res = await fetch(`${API_BASE_URL}/footer/save`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(footerData)
+      });
+      const data = await res.json();
+      if (data.success && data.footer) {
+        setFooterData(data.footer);
+        saveFooterData(data.footer); // Update local backup
+        setIsSavedAlert(true);
+        setTimeout(() => {
+          setIsSavedAlert(false);
+        }, 4000);
+        // Dispatch storage/custom event to notify other components (Home & Footer page)
+        window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("fmp_footer_changed"));
+      } else {
+        alert("Failed to save footer: " + (data.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("Error saving footer data:", err);
+      alert("Network error occurred while saving footer details.");
+    }
   };
 
   // Helper to render social SVGs for live preview

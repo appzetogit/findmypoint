@@ -48,66 +48,6 @@ interface EnquiryRecord {
   read?: boolean;
 }
 
-function getMockEnquiries(bizId: string): EnquiryRecord[] {
-  const names = [
-    "Aarav Sharma", "Isha Patel", "Kabir Mehta", "Riya Sen", "Dev Dixit",
-    "Aditya Rao", "Ananya Verma", "Rohan Malhotra", "Sneha Kapoor", "Rahul Joshi",
-    "Priya Nair", "Vikram Rathore", "Neha Gupta", "Amit Trivedi", "Siddharth Roy",
-    "Kriti Sanon", "Varun Dhawan", "Alia Bhatt"
-  ];
-  const mobiles = [
-    "9876543210", "9123456789", "9988776655", "9456781230", "9871234560",
-    "9345678901", "9012345678", "9234567890", "9567890123", "9678901234",
-    "9789012345", "9890123456", "9901234567", "9012345679", "9123456780",
-    "9234567891", "9345678902", "9456789012"
-  ];
-  const messages = [
-    "I want to enquire about bulk orders and discount pricing.",
-    "Is home delivery available for orders above ₹500 in Vijay Nagar?",
-    "Are you open on Sunday evenings? Need to visit with family.",
-    "Do you have fresh organic vegetables in stock currently?",
-    "Can I pre-book slots or schedule a visit? Let me know.",
-    "What are the standard consultation charges and slot availability?",
-    "Is parking facility available for customers at the venue?",
-    "I need to cancel my booking slot. Can you help me with that?",
-    "Are there any special festival offers running this week?",
-    "Do you support online payment options like UPI and Card?",
-    "I tried calling your support number but it was busy. Please call back.",
-    "Can you share the menu or catalog details for catering services?",
-    "What is the average response time for booking confirmation?",
-    "Are there any wheelchair-accessible entrances available?",
-    "Is there a loyalty program or membership for regular clients?",
-    "Hi, I want to book an urgent slot for tomorrow morning if possible.",
-    "Can we book the venue for a private event of 25 people?",
-    "What guidelines or safety protocols are currently followed?"
-  ];
-
-  return Array.from({ length: 18 }, (_, i) => {
-    const hoursAgo = i * 2 + 1;
-    const date = new Date(Date.now() - hoursAgo * 60 * 60 * 1000);
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-    let hours = date.getHours();
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    const strHours = String(hours).padStart(2, "0");
-    const timestamp = `${day}/${month}/${year} ${strHours}:${minutes} ${ampm}`;
-
-    return {
-      id: `enq-mock-${bizId}-${i}`,
-      timestamp,
-      name: names[i % names.length],
-      mobile: mobiles[i % mobiles.length],
-      email: `${names[i % names.length].toLowerCase().replace(" ", ".")}@example.com`,
-      message: messages[i % messages.length],
-      read: i >= 5 // first 5 are unread
-    };
-  });
-}
-
 export default function Enquiries({ clientListings }: EnquiriesProps) {
   const [selectedBizId, setSelectedBizId] = useState<string>("");
   const [enquiries, setEnquiries] = useState<EnquiryRecord[]>([]);
@@ -134,22 +74,41 @@ export default function Enquiries({ clientListings }: EnquiriesProps) {
     }
   }, [clientListings, selectedBizId]);
 
+  const getAuthHeaders = (): HeadersInit => {
+    const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
+    return token
+      ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+      : { "Content-Type": "application/json" };
+  };
+
   // Load enquiries for selected business
   useEffect(() => {
     if (selectedBizId) {
-      const saved = localStorage.getItem(`fmp_service_enquiries:${selectedBizId}`);
-      if (saved) {
+      const loadEnquiries = async () => {
         try {
-          setEnquiries(JSON.parse(saved));
+          const res = await fetch(`http://localhost:5000/api/businesses/${selectedBizId}/enquiries`, {
+            headers: getAuthHeaders()
+          });
+          const data = await res.json();
+          if (data.success && Array.isArray(data.data)) {
+            const mapped = data.data.map((item: any) => ({
+              id: item._id,
+              timestamp: item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-GB') + ' ' + new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '',
+              name: item.name,
+              mobile: item.phone,
+              email: item.email || "N/A",
+              message: item.message,
+              read: item.read || false
+            }));
+            setEnquiries(mapped);
+          } else {
+            setEnquiries([]);
+          }
         } catch (e) {
           setEnquiries([]);
         }
-      } else {
-        // Populate with mock data if empty
-        const mocks = getMockEnquiries(selectedBizId);
-        setEnquiries(mocks);
-        localStorage.setItem(`fmp_service_enquiries:${selectedBizId}`, JSON.stringify(mocks));
-      }
+      };
+      loadEnquiries();
       setCurrentPage(1); // Reset page on business change
       setSelectedEnquiryIds([]); // Reset selection on business change
     }
@@ -187,30 +146,62 @@ export default function Enquiries({ clientListings }: EnquiriesProps) {
   }, [filteredEnquiries, currentPage]);
 
   // Handle single deletion
-  const handleDelete = (enqId: string) => {
+  const handleDelete = async (enqId: string) => {
     if (window.confirm("Are you sure you want to delete this enquiry?")) {
-      const updated = enquiries.filter((e) => e.id !== enqId);
-      setEnquiries(updated);
-      localStorage.setItem(`fmp_service_enquiries:${selectedBizId}`, JSON.stringify(updated));
+      try {
+        const res = await fetch(`http://localhost:5000/api/businesses/${selectedBizId}/enquiries/${enqId}`, {
+          method: "DELETE",
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (data.success) {
+          setEnquiries((prev) => prev.filter((e) => e.id !== enqId));
+        } else {
+          alert(data.message || "Failed to delete enquiry");
+        }
+      } catch (err) {
+        alert("Failed to delete enquiry from database");
+      }
     }
   };
 
   // Handle toggle read status
-  const toggleReadStatus = (enqId: string) => {
-    const updated = enquiries.map((e) =>
-      e.id === enqId ? { ...e, read: !e.read } : e
-    );
-    setEnquiries(updated);
-    localStorage.setItem(`fmp_service_enquiries:${selectedBizId}`, JSON.stringify(updated));
+  const toggleReadStatus = async (enqId: string) => {
+    const target = enquiries.find((e) => e.id === enqId);
+    if (!target) return;
+    
+    try {
+      const res = await fetch(`http://localhost:5000/api/businesses/${selectedBizId}/enquiries/${enqId}`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ read: !target.read })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEnquiries((prev) =>
+          prev.map((e) => (e.id === enqId ? { ...e, read: !e.read } : e))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to update read status:", err);
+    }
   };
 
   // Handle delete selected
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (window.confirm(`Are you sure you want to delete the ${selectedEnquiryIds.length} selected enquiries?`)) {
-      const updated = enquiries.filter((e) => !selectedEnquiryIds.includes(e.id));
-      setEnquiries(updated);
-      localStorage.setItem(`fmp_service_enquiries:${selectedBizId}`, JSON.stringify(updated));
-      setSelectedEnquiryIds([]);
+      try {
+        for (const id of selectedEnquiryIds) {
+          await fetch(`http://localhost:5000/api/businesses/${selectedBizId}/enquiries/${id}`, {
+            method: "DELETE",
+            headers: getAuthHeaders()
+          });
+        }
+        setEnquiries((prev) => prev.filter((e) => !selectedEnquiryIds.includes(e.id)));
+        setSelectedEnquiryIds([]);
+      } catch (err) {
+        alert("Error deleting some enquiries");
+      }
     }
   };
 

@@ -1,7 +1,23 @@
 import { useState, useEffect } from "react";
 import logoImg from "@/assets/logo.png";
 import { loadFooterData, FooterData } from "../data/footerData";
+import { API_BASE_URL } from "../config";
 import { Briefcase, Phone, MapPin, Calendar, Heart, ShieldCheck, X, Search, CheckCircle2, User, Image as ImageIcon } from "lucide-react";
+import { useCategories } from "../context/CategoryContext";
+
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if ((window as any).Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
 
 interface Employee {
   id: string;
@@ -19,6 +35,22 @@ interface Employee {
 
 export default function Footer() {
   const [footerData, setFooterData] = useState<FooterData>(loadFooterData);
+
+  const loadFooter = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/footer`);
+      const data = await res.json();
+      if (data.success && data.footer) {
+        setFooterData(data.footer);
+      } else {
+        setFooterData(loadFooterData());
+      }
+    } catch (err) {
+      console.error("Failed to load footer from backend:", err);
+      setFooterData(loadFooterData());
+    }
+  };
+
   const [showIdInput, setShowIdInput] = useState(false);
   const [searchId, setSearchId] = useState("");
   const [searchError, setSearchError] = useState("");
@@ -67,8 +99,15 @@ export default function Footer() {
   const [employees, setEmployees] = useState<any[]>([]);
 
   // Form Fields
+  const { categories } = useCategories();
   const [businessName, setBusinessName] = useState("");
   const [category, setCategory] = useState("Restaurant");
+
+  useEffect(() => {
+    if (categories && categories.length > 0) {
+      setCategory(categories[0].label);
+    }
+  }, [categories]);
   const [ownerName, setOwnerName] = useState("");
   const [contactCode, setContactCode] = useState("+91");
   const [contactNo, setContactNo] = useState("");
@@ -79,7 +118,23 @@ export default function Footer() {
   const [photos, setPhotos] = useState<string[]>(["", "", "", ""]);
   const [openTime, setOpenTime] = useState("");
   const [closeTime, setCloseTime] = useState("");
+  const [openHour, setOpenHour] = useState("09");
+  const [openMinute, setOpenMinute] = useState("00");
+  const [openPeriod, setOpenPeriod] = useState("AM");
+  const [closeHour, setCloseHour] = useState("09");
+  const [closeMinute, setCloseMinute] = useState("00");
+  const [closePeriod, setClosePeriod] = useState("PM");
   const [isTimeMandatory, setIsTimeMandatory] = useState(true);
+
+  useEffect(() => {
+    if (isTimeMandatory) {
+      setOpenTime(`${openHour}:${openMinute} ${openPeriod}`);
+      setCloseTime(`${closeHour}:${closeMinute} ${closePeriod}`);
+    } else {
+      setOpenTime("");
+      setCloseTime("");
+    }
+  }, [openHour, openMinute, openPeriod, closeHour, closeMinute, closePeriod, isTimeMandatory]);
 
   const [country, setCountry] = useState("India");
   const [state, setState] = useState("");
@@ -92,27 +147,46 @@ export default function Footer() {
 
   // Payment states
   const [isPaymentStep, setIsPaymentStep] = useState(false);
-  const [cardName, setCardName] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   const [listingRequestFee, setListingRequestFee] = useState("500");
+  const [currentRequestId, setCurrentRequestId] = useState("");
+  const [currentOrder, setCurrentOrder] = useState<any>(null);
 
   // Load employees from database for dropdown selection
   useEffect(() => {
     if (showLeadForm) {
-      const saved = localStorage.getItem("fmp_employees_data:v1");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setEmployees(parsed);
-        } catch (e) {}
-      }
-      const savedFee = localStorage.getItem("fmp_listing_request_fee:v1");
-      if (savedFee) {
-        setListingRequestFee(savedFee);
-      }
+      loadRazorpayScript();
+      fetch(`${API_BASE_URL}/employees/public`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.employees) {
+            const mapped = data.employees.map((emp: any) => ({
+              ...emp,
+              id: emp._id
+            }));
+            setEmployees(mapped);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load employees for selection:", err);
+        });
+
+      fetch(`${API_BASE_URL}/business-requests/fee`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.amount !== undefined) {
+            setListingRequestFee(data.amount.toString());
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load listing fee from backend:", err);
+          const savedFee = localStorage.getItem("fmp_listing_request_fee:v1");
+          if (savedFee) {
+            setListingRequestFee(savedFee);
+          }
+        });
+
       const states = Object.keys(GEOGRAPHY_DATA["India"] || {});
       setState(states[0] || "");
       const districts = GEOGRAPHY_DATA["India"]?.[states[0] || ""] || [];
@@ -154,29 +228,104 @@ export default function Footer() {
     reader.readAsDataURL(file);
   };
 
-  const handleLeadFormSubmit = (e: React.FormEvent) => {
+  const triggerRazorpayCheckout = (requestId: string, order: any) => {
+    if (!order) return;
+    setIsProcessingPayment(true);
+    const userToken = localStorage.getItem("fmp_user_token");
+
+    const options = {
+      key: "rzp_test_S3IcSS1NbymL6D", // Matching env Key ID
+      amount: order.amount, // in paise
+      currency: order.currency,
+      name: "FindmyPoint",
+      description: `Listing fee for ${businessName}`,
+      order_id: order.id,
+      handler: async (response: any) => {
+        try {
+          const resSubmit = await fetch(`${API_BASE_URL}/business-requests/verify-payment`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${userToken}`
+            },
+            body: JSON.stringify({
+              requestId,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature
+            })
+          });
+
+          const submitData = await resSubmit.json();
+          if (submitData.success) {
+            alert(`Payment of ₹${listingRequestFee} verified successfully! Business request submitted.`);
+            setIsPaymentStep(false);
+            setShowLeadForm(false);
+
+            // Reset form states
+            setBusinessName("");
+            setCategory("Restaurant");
+            setOwnerName("");
+            setContactNo("");
+            setWhatsappNo("");
+            setEmail("");
+            setAddressDetails("");
+            setPhotos(["", "", "", ""]);
+            setOpenHour("09");
+            setOpenMinute("00");
+            setOpenPeriod("AM");
+            setCloseHour("09");
+            setCloseMinute("00");
+            setClosePeriod("PM");
+            setIsTimeMandatory(true);
+            setCountry("India");
+            setArea("");
+            setTown("");
+            setCity("");
+            setPinCode("");
+            setEmployeeName("None");
+            setCurrentRequestId("");
+            setCurrentOrder(null);
+          } else {
+            alert(submitData.message || "Payment verification failed.");
+          }
+        } catch (verifyErr) {
+          console.error("Verification error:", verifyErr);
+          alert("Payment signature verification failed.");
+        } finally {
+          setIsProcessingPayment(false);
+        }
+      },
+      prefill: {
+        name: ownerName,
+        email: email,
+        contact: contactNo
+      },
+      theme: {
+        color: "#4f46e5"
+      },
+      modal: {
+        ondismiss: () => {
+          setIsProcessingPayment(false);
+        }
+      }
+    };
+
+    const rzp = new (window as any).Razorpay(options);
+    rzp.open();
+  };
+
+  const handleLeadFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (photos.some((p) => !p)) {
       alert("Please upload exactly 4 business photos.");
       return;
     }
-    // Validation passed, transition to payment step!
-    setIsPaymentStep(true);
-  };
+    setIsSubmittingForm(true);
 
-  const handleFinalPaymentSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!cardName.trim() || !cardNumber.trim() || !cardExpiry.trim() || !cardCvv.trim()) {
-      alert("Please fill in all payment details.");
-      return;
-    }
-
-    setIsProcessingPayment(true);
-
-    // Simulate payment processing loader (1.2s)
-    setTimeout(() => {
-      const newRequest = {
-        id: "req-" + Date.now(),
+    try {
+      const userToken = localStorage.getItem("fmp_user_token");
+      const requestData = {
         businessName,
         category,
         ownerName,
@@ -195,81 +344,82 @@ export default function Footer() {
         town,
         city,
         pinCode,
-        employeeName,
-        amountPaid: listingRequestFee, // Save amount set by admin
-        submittedAt: new Date().toLocaleString()
+        employeeName
       };
 
-      const saved = localStorage.getItem("fmp_business_requests:v1");
-      let currentList = [];
-      if (saved) {
-        try {
-          currentList = JSON.parse(saved);
-        } catch (e) {}
+      const res = await fetch(`${API_BASE_URL}/business-requests`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userToken}`
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setCurrentRequestId(data.request._id);
+        setCurrentOrder(data.order);
+        setIsPaymentStep(true);
+        setIsSubmittingForm(false);
+        
+        // Auto trigger popup
+        triggerRazorpayCheckout(data.request._id, data.order);
+      } else {
+        alert(data.message || "Failed to submit request.");
+        setIsSubmittingForm(false);
       }
-      currentList.push(newRequest);
-      localStorage.setItem("fmp_business_requests:v1", JSON.stringify(currentList));
-
-      setIsProcessingPayment(false);
-      setIsPaymentStep(false);
-      setShowLeadForm(false);
-      alert(`Payment of ₹${listingRequestFee} processed successfully! Business request submitted.`);
-
-      // Reset form states
-      setBusinessName("");
-      setCategory("Restaurant");
-      setOwnerName("");
-      setContactNo("");
-      setWhatsappNo("");
-      setEmail("");
-      setAddressDetails("");
-      setPhotos(["", "", "", ""]);
-      setOpenTime("");
-      setCloseTime("");
-      setIsTimeMandatory(true);
-      setCountry("India");
-      setArea("");
-      setTown("");
-      setCity("");
-      setPinCode("");
-      setEmployeeName("None");
-      setCardName("");
-      setCardNumber("");
-      setCardExpiry("");
-      setCardCvv("");
-    }, 1200);
+    } catch (err) {
+      console.error("Error submitting form:", err);
+      alert("Network error submitting business request.");
+      setIsSubmittingForm(false);
+    }
   };
 
-  const handleSearchEmployee = () => {
-    const id = searchId.trim().toUpperCase();
+  const handleFinalPaymentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    triggerRazorpayCheckout(currentRequestId, currentOrder);
+  };
+
+  const handleSearchEmployee = async () => {
+    const id = searchId.trim();
     if (!id) {
       setSearchError("Please enter an ID");
       return;
     }
-    const saved = localStorage.getItem("fmp_employees_data:v1");
-    let list: Employee[] = [];
-    if (saved) {
-      try {
-        list = JSON.parse(saved);
-      } catch (e) {}
-    }
-    const emp = list.find((e) => e.empIdNumber.toUpperCase() === id);
-    if (emp) {
-      setFoundEmployee(emp);
-      setShowIdInput(false);
-      setSearchId("");
-      setSearchError("");
-    } else {
-      setSearchError(`Employee not found with ID: ${id}`);
+    try {
+      const res = await fetch(`${API_BASE_URL}/employees/verify/${encodeURIComponent(id)}`);
+      const data = await res.json();
+      if (data.success && data.employee) {
+        setFoundEmployee({
+          ...data.employee,
+          id: data.employee._id
+        });
+        setShowIdInput(false);
+        setSearchId("");
+        setSearchError("");
+      } else {
+        setSearchError(`Employee not found with ID: ${id}`);
+      }
+    } catch (err) {
+      console.error("Error searching employee:", err);
+      setSearchError("Network error checking employee ID.");
     }
   };
 
   useEffect(() => {
-    const handleStorage = () => {
-      setFooterData(loadFooterData());
+    loadFooter();
+
+    const handleSync = () => {
+      loadFooter();
     };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener("storage", handleSync);
+    window.addEventListener("fmp_footer_changed", handleSync);
+
+    return () => {
+      window.removeEventListener("storage", handleSync);
+      window.removeEventListener("fmp_footer_changed", handleSync);
+    };
   }, []);
 
   return (
@@ -437,8 +587,8 @@ export default function Footer() {
           {/* Static link segments remain unchanged */}
           {[
             ["Company", ["About", "Search Employee"]],
-            ["Business", ["Free Listing", "Advertise", "Lead Generator"]],
-            ["Support", ["Help Centre", "Contact", "Privacy Policy", "Terms & Conditions"]],
+            ["Business", ["Advertise", "Lead Generator"]],
+            ["Support", ["Help Centre", "Privacy Policy", "Terms & Conditions"]],
           ].map(([h, items]) => (
             <div key={h as string}>
               <h5 className="text-sm font-semibold">{h as string}</h5>
@@ -449,6 +599,11 @@ export default function Footer() {
                       <button
                         onClick={(e) => {
                           e.preventDefault();
+                          const userToken = localStorage.getItem("fmp_user_token");
+                          if (!userToken) {
+                            window.dispatchEvent(new CustomEvent("fmp-open-signin"));
+                            return;
+                          }
                           setShowLeadForm(true);
                         }}
                         className="transition hover:text-foreground text-left cursor-pointer bg-transparent border-none p-0 text-sm text-muted-foreground font-normal"
@@ -653,7 +808,7 @@ export default function Footer() {
 
             {/* Details List */}
             <div className="px-6 py-4.5 space-y-3.5 flex-1">
-              
+
               {/* ID Number */}
               <div className="flex items-center gap-3">
                 <div className="h-6.5 w-6.5 rounded-full bg-indigo-50 dark:bg-slate-950 text-indigo-650 dark:text-slate-450 flex items-center justify-center shrink-0 border border-indigo-100/50 dark:border-slate-800">
@@ -748,525 +903,539 @@ export default function Footer() {
             {/* Form Fields Container */}
             {!isPaymentStep ? (
               <form onSubmit={handleLeadFormSubmit} className="flex-1 overflow-y-auto p-6 space-y-5 no-scrollbar">
-              
-              {/* Part 1: Core Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                {/* Business Name */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                    Business Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Vishal Mega Mart"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
-                  />
-                </div>
 
-                {/* Category of Business */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                    Category of Business *
-                  </label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
-                  >
-                    {BUSINESS_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Part 1: Core Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                {/* Owner Name */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                    Owner Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Ramesh Kumar"
-                    value={ownerName}
-                    onChange={(e) => setOwnerName(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
-                  />
-                </div>
-
-                {/* E-mail */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                    E-mail *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. owner@gmail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
-                  />
-                </div>
-
-                {/* Contact Number */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                    Contact Number *
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={contactCode}
-                      onChange={(e) => setContactCode(e.target.value)}
-                      className="bg-slate-50 dark:bg-slate-955 text-xs px-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
-                    >
-                      {CALLING_CODES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="9876543210"
-                      value={contactNo}
-                      onChange={(e) => setContactNo(e.target.value)}
-                      className="flex-1 bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
-                    />
-                  </div>
-                </div>
-
-                {/* WhatsApp Number */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                    WhatsApp Number *
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={whatsappCode}
-                      onChange={(e) => setWhatsappCode(e.target.value)}
-                      className="bg-slate-50 dark:bg-slate-955 text-xs px-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
-                    >
-                      {CALLING_CODES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="Same as contact or WhatsApp no"
-                      value={whatsappNo}
-                      onChange={(e) => setWhatsappNo(e.target.value)}
-                      className="flex-1 bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
-                    />
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Part 2: Address Geography */}
-              <div className="bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-4.5 space-y-4">
-                <span className="text-[11px] font-bold text-indigo-650 dark:text-indigo-400 tracking-wider block">
-                  Location & Address Details
-                </span>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {/* Country Selection */}
+                  {/* Business Name */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                      Country *
-                    </label>
-                    <select
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
-                    >
-                      {Object.keys(GEOGRAPHY_DATA).map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* State Selection */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                      State *
-                    </label>
-                    <select
-                      value={state}
-                      onChange={(e) => setState(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
-                    >
-                      {Object.keys(GEOGRAPHY_DATA[country] || {}).map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* District Selection */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                      District *
-                    </label>
-                    <select
-                      value={district}
-                      onChange={(e) => setDistrict(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-805 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
-                    >
-                      {(GEOGRAPHY_DATA[country]?.[state] || []).map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {/* Area */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                      Area *
+                      Business Name *
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Saket"
-                      value={area}
-                      onChange={(e) => setArea(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                      placeholder="e.g. Vishal Mega Mart"
+                      value={businessName}
+                      onChange={(e) => setBusinessName(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
                     />
                   </div>
 
-                  {/* Town */}
+                  {/* Category of Business */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                      Town *
+                      Category of Business *
                     </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Anand town"
-                      value={town}
-                      onChange={(e) => setTown(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
-                    />
-                  </div>
-
-                  {/* City */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                      City *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Indore"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
-                    />
-                  </div>
-
-                  {/* Pin number */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                      Pin Code *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 452001"
-                      value={pinCode}
-                      onChange={(e) => setPinCode(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono font-semibold"
-                    />
-                  </div>
-                </div>
-
-                {/* Specific Location Address Details */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                    Specific Location Address Details *
-                  </label>
-                  <textarea
-                    required
-                    rows={2}
-                    placeholder="Enter precise street address, landmarks, etc."
-                    value={addressDetails}
-                    onChange={(e) => setAddressDetails(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold resize-none"
-                  />
-                </div>
-              </div>
-
-              {/* Part 3: Hours (With mandatory/not mandatory toggle) */}
-              <div className="bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-4.5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-indigo-650 dark:text-indigo-400 tracking-wider">
-                    Business Hours (Open & Close Time)
-                  </span>
-                  
-                  {/* Mandatory Toggle Switch */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-wide">
-                      {isTimeMandatory ? "Mandatory" : "Not Mandatory"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsTimeMandatory(!isTimeMandatory)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
-                        isTimeMandatory ? "bg-indigo-600" : "bg-slate-200 dark:bg-slate-800"
-                      }`}
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
                     >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-205 ease-in-out ${
-                          isTimeMandatory ? "translate-x-4" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Open Time */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                      Open Time {isTimeMandatory ? "*" : ""}
-                    </label>
-                    <input
-                      type="time"
-                      required={isTimeMandatory}
-                      value={openTime}
-                      onChange={(e) => setOpenTime(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 transition-all font-semibold"
-                    />
-                  </div>
-
-                  {/* Close Time */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                      Close Time {isTimeMandatory ? "*" : ""}
-                    </label>
-                    <input
-                      type="time"
-                      required={isTimeMandatory}
-                      value={closeTime}
-                      onChange={(e) => setCloseTime(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 transition-all font-semibold"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Part 4: Upload exactly 4 photos */}
-              <div className="bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-4.5 space-y-4">
-                <span className="text-[11px] font-bold text-indigo-650 dark:text-indigo-400 tracking-wider block">
-                  Business Photos (Upload exactly 4 clicks) *
-                </span>
-                
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {Array.from({ length: 4 }).map((_, idx) => (
-                    <div
-                      key={idx}
-                      className="relative aspect-square rounded-xl bg-white dark:bg-slate-950 border border-dashed border-slate-250 dark:border-slate-800 hover:border-indigo-500 transition-all flex flex-col items-center justify-center overflow-hidden"
-                    >
-                      {photos[idx] ? (
-                        <>
-                          <img
-                            src={photos[idx]}
-                            alt={`Upload ${idx + 1}`}
-                            className="h-full w-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handlePhotoUpload(idx, null)}
-                            className="absolute top-1 right-1 h-5 w-5 bg-rose-500/80 hover:bg-rose-600 rounded-full flex items-center justify-center text-white text-[10px] font-bold cursor-pointer"
-                          >
-                            ×
-                          </button>
-                        </>
+                      {categories.length > 0 ? (
+                        categories.map((cat) => (
+                          <option key={cat._id} value={cat.label}>
+                            {cat.label}
+                          </option>
+                        ))
                       ) : (
-                        <label className="w-full h-full flex flex-col items-center justify-center p-2 cursor-pointer">
-                          <ImageIcon className="h-5 w-5 text-slate-400" />
-                          <span className="text-[9px] text-slate-400 font-bold mt-1">Photo {idx + 1}</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handlePhotoUpload(idx, e.target.files?.[0] || null)}
-                            className="hidden"
-                          />
-                        </label>
+                        BUSINESS_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))
                       )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+                    </select>
+                  </div>
 
-              {/* Part 5: Employee Selection */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  Submitted By (Employee) *
-                </label>
-                <select
-                  value={employeeName}
-                  onChange={(e) => setEmployeeName(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
-                >
-                  <option value="None">None</option>
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={emp.name}>
-                      {emp.name} ({emp.empIdNumber})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Footer Form Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800/80 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowLeadForm(false)}
-                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-xs font-bold rounded-xl transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-indigo-600/10"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  Submit Request
-                </button>
-              </div>
-
-            </form>
-          ) : (
-            <form onSubmit={handleFinalPaymentSubmit} className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar text-center">
-              <div className="space-y-6">
-                <div className="bg-slate-50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-5 text-center space-y-2">
-                  <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">
-                    Secure Listing Payment
-                  </span>
-                  <h4 className="text-xl font-black text-slate-900 dark:text-white">
-                    ₹{listingRequestFee}
-                  </h4>
-                  <p className="text-[11px] text-slate-450 dark:text-slate-400 font-semibold leading-relaxed">
-                    Verify and pay the listing request fee to submit the business request for admin review.
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Cardholder Name */}
-                  <div className="space-y-1.5 text-left">
+                  {/* Owner Name */}
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                      Cardholder Name *
+                      Owner Name *
                     </label>
                     <input
                       type="text"
                       required
                       placeholder="e.g. Ramesh Kumar"
-                      value={cardName}
-                      onChange={(e) => setCardName(e.target.value)}
+                      value={ownerName}
+                      onChange={(e) => setOwnerName(e.target.value)}
                       className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
                     />
                   </div>
 
-                  {/* Card Number */}
-                  <div className="space-y-1.5 text-left">
+                  {/* E-mail */}
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                      Card Number *
+                      E-mail *
                     </label>
                     <input
-                      type="text"
+                      type="email"
                       required
-                      placeholder="•••• •••• •••• ••••"
-                      maxLength={19}
-                      value={cardNumber}
-                      onChange={(e) => setCardNumber(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono font-semibold"
+                      placeholder="e.g. owner@gmail.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Expiry Date */}
-                    <div className="space-y-1.5 text-left">
+                  {/* Contact Number */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                      Contact Number *
+                    </label>
+                    <div className="flex gap-2">
+                      <select
+                        value={contactCode}
+                        onChange={(e) => setContactCode(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-955 text-xs px-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                      >
+                        {CALLING_CODES.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="9876543210"
+                        value={contactNo}
+                        onChange={(e) => setContactNo(e.target.value)}
+                        className="flex-1 bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* WhatsApp Number */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                      WhatsApp Number *
+                    </label>
+                    <div className="flex gap-2">
+                      <select
+                        value={whatsappCode}
+                        onChange={(e) => setWhatsappCode(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-955 text-xs px-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                      >
+                        {CALLING_CODES.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="Same as contact or WhatsApp no"
+                        value={whatsappNo}
+                        onChange={(e) => setWhatsappNo(e.target.value)}
+                        className="flex-1 bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Part 2: Address Geography */}
+                <div className="bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-4.5 space-y-4">
+                  <span className="text-[11px] font-bold text-indigo-650 dark:text-indigo-400 tracking-wider block">
+                    Location & Address Details
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Country Selection */}
+                    <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                        Expiry Date *
+                        Country *
+                      </label>
+                      <select
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                      >
+                        {Object.keys(GEOGRAPHY_DATA).map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* State Selection */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                        State *
+                      </label>
+                      <select
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                      >
+                        {Object.keys(GEOGRAPHY_DATA[country] || {}).map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* District Selection */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                        District *
+                      </label>
+                      <select
+                        value={district}
+                        onChange={(e) => setDistrict(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-805 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                      >
+                        {(GEOGRAPHY_DATA[country]?.[state] || []).map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Area */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                        Area *
                       </label>
                       <input
                         type="text"
                         required
-                        placeholder="MM/YY"
-                        maxLength={5}
-                        value={cardExpiry}
-                        onChange={(e) => setCardExpiry(e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono font-semibold"
+                        placeholder="e.g. Saket"
+                        value={area}
+                        onChange={(e) => setArea(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
                       />
                     </div>
 
-                    {/* CVV */}
-                    <div className="space-y-1.5 text-left">
+                    {/* Town */}
+                    <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                        CVV *
+                        Town *
                       </label>
                       <input
-                        type="password"
+                        type="text"
                         required
-                        placeholder="•••"
-                        maxLength={3}
-                        value={cardCvv}
-                        onChange={(e) => setCardCvv(e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono font-semibold"
+                        placeholder="e.g. Anand town"
+                        value={town}
+                        onChange={(e) => setTown(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                      />
+                    </div>
+
+                    {/* Pin number */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                        Pin Code *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. 452001"
+                        value={pinCode}
+                        onChange={(e) => setPinCode(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono font-semibold"
                       />
                     </div>
                   </div>
+
+                  {/* Specific Location Address Details */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                      Specific Location Address Details *
+                    </label>
+                    <textarea
+                      required
+                      rows={2}
+                      placeholder="Enter precise street address, landmarks, etc."
+                      value={addressDetails}
+                      onChange={(e) => setAddressDetails(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold resize-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Part 3: Hours (With mandatory/not mandatory toggle) */}
+                <div className="bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-4.5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-indigo-650 dark:text-indigo-400 tracking-wider">
+                      Business Hours (Open & Close Time)
+                    </span>
+
+                    {/* Mandatory Toggle Switch */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-wide">
+                        {isTimeMandatory ? "Mandatory" : "Not Mandatory"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsTimeMandatory(!isTimeMandatory)}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${isTimeMandatory ? "bg-indigo-600" : "bg-slate-200 dark:bg-slate-800"
+                          }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-205 ease-in-out ${isTimeMandatory ? "translate-x-4" : "translate-x-0"
+                            }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Open Time */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                        Open Time {isTimeMandatory ? "*" : ""}
+                      </label>
+                      <div className="flex gap-1.5 items-center">
+                        {/* Hour */}
+                        <select
+                          disabled={!isTimeMandatory}
+                          value={openHour}
+                          onChange={(e) => setOpenHour(e.target.value)}
+                          className="flex-1 bg-white dark:bg-slate-955 text-xs px-2.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 transition-all font-semibold disabled:opacity-50"
+                        >
+                          {Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, "0")).map((h) => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                        <span className="text-slate-400 font-bold">:</span>
+                        {/* Minute */}
+                        <select
+                          disabled={!isTimeMandatory}
+                          value={openMinute}
+                          onChange={(e) => setOpenMinute(e.target.value)}
+                          className="flex-1 bg-white dark:bg-slate-955 text-xs px-2.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 transition-all font-semibold disabled:opacity-50"
+                        >
+                          {Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, "0")).map((m) => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </select>
+                        {/* AM/PM */}
+                        <select
+                          disabled={!isTimeMandatory}
+                          value={openPeriod}
+                          onChange={(e) => setOpenPeriod(e.target.value)}
+                          className="bg-white dark:bg-slate-955 text-xs px-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 transition-all font-semibold disabled:opacity-50"
+                        >
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Close Time */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                        Close Time {isTimeMandatory ? "*" : ""}
+                      </label>
+                      <div className="flex gap-1.5 items-center">
+                        {/* Hour */}
+                        <select
+                          disabled={!isTimeMandatory}
+                          value={closeHour}
+                          onChange={(e) => setCloseHour(e.target.value)}
+                          className="flex-1 bg-white dark:bg-slate-955 text-xs px-2.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 transition-all font-semibold disabled:opacity-50"
+                        >
+                          {Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, "0")).map((h) => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                        <span className="text-slate-400 font-bold">:</span>
+                        {/* Minute */}
+                        <select
+                          disabled={!isTimeMandatory}
+                          value={closeMinute}
+                          onChange={(e) => setCloseMinute(e.target.value)}
+                          className="flex-1 bg-white dark:bg-slate-955 text-xs px-2.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 transition-all font-semibold disabled:opacity-50"
+                        >
+                          {Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, "0")).map((m) => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </select>
+                        {/* AM/PM */}
+                        <select
+                          disabled={!isTimeMandatory}
+                          value={closePeriod}
+                          onChange={(e) => setClosePeriod(e.target.value)}
+                          className="bg-white dark:bg-slate-955 text-xs px-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 transition-all font-semibold disabled:opacity-50"
+                        >
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Part 4: Upload exactly 4 photos */}
+                <div className="bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-4.5 space-y-4">
+                  <span className="text-[11px] font-bold text-indigo-650 dark:text-indigo-400 tracking-wider block">
+                    Business Photos (Upload exactly 4 clicks) *
+                  </span>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {Array.from({ length: 4 }).map((_, idx) => (
+                      <div
+                        key={idx}
+                        className="relative aspect-square rounded-xl bg-white dark:bg-slate-950 border border-dashed border-slate-250 dark:border-slate-800 hover:border-indigo-500 transition-all flex flex-col items-center justify-center overflow-hidden"
+                      >
+                        {photos[idx] ? (
+                          <>
+                            <img
+                              src={photos[idx]}
+                              alt={`Upload ${idx + 1}`}
+                              className="h-full w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handlePhotoUpload(idx, null)}
+                              className="absolute top-1 right-1 h-5 w-5 bg-rose-500/80 hover:bg-rose-600 rounded-full flex items-center justify-center text-white text-[10px] font-bold cursor-pointer"
+                            >
+                              ×
+                            </button>
+                          </>
+                        ) : (
+                          <label className="w-full h-full flex flex-col items-center justify-center p-2 cursor-pointer">
+                            <ImageIcon className="h-5 w-5 text-slate-400" />
+                            <span className="text-[9px] text-slate-400 font-bold mt-1">Photo {idx + 1}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handlePhotoUpload(idx, e.target.files?.[0] || null)}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Part 5: Employee Selection */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                    Submitted By (Employee) *
+                  </label>
+                  <select
+                    value={employeeName}
+                    onChange={(e) => setEmployeeName(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                  >
+                    <option value="None">None</option>
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.name}>
+                        {emp.name} ({emp.empIdNumber})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Footer Form Actions */}
                 <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800/80 shrink-0">
                   <button
                     type="button"
-                    disabled={isProcessingPayment}
-                    onClick={() => setIsPaymentStep(false)}
-                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-xs font-bold rounded-xl transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => setShowLeadForm(false)}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-xs font-bold rounded-xl transition cursor-pointer"
                   >
-                    Back to Edit
+                    Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={isProcessingPayment}
-                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-600/60 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-emerald-600/10 disabled:cursor-not-allowed"
+                    disabled={isSubmittingForm}
+                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-650/60 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-indigo-600/10 disabled:cursor-not-allowed"
                   >
-                    {isProcessingPayment ? (
+                    {isSubmittingForm ? (
                       <>
                         <span className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Processing...
+                        Submitting...
                       </>
                     ) : (
                       <>
                         <CheckCircle2 className="h-4 w-4" />
-                        Pay & Submit
+                        Submit Request
                       </>
                     )}
                   </button>
                 </div>
-              </div>
-            </form>
-          )}
+
+              </form>
+            ) : (
+              <form onSubmit={handleFinalPaymentSubmit} className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar text-center">
+                <div className="space-y-6">
+                  <div className="bg-slate-50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-5 text-center space-y-2">
+                    <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">
+                      Secure Listing Payment
+                    </span>
+                    <h4 className="text-xl font-black text-slate-900 dark:text-white">
+                      ₹{listingRequestFee}
+                    </h4>
+                    <p className="text-[11px] text-slate-450 dark:text-slate-400 font-semibold leading-relaxed">
+                      Pay the listing request fee to submit the business request for admin review.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-4.5 space-y-3.5 text-left text-xs font-semibold">
+                    <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-550 tracking-wider block">
+                      Request Summary
+                    </span>
+                    <div className="space-y-2 text-slate-700 dark:text-slate-350">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400 font-bold">Business Name</span>
+                        <span className="font-extrabold text-slate-900 dark:text-white">{businessName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400 font-bold">Owner Name</span>
+                        <span className="font-extrabold text-slate-900 dark:text-white">{ownerName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400 font-bold">Category</span>
+                        <span className="font-extrabold text-slate-900 dark:text-white">{category}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400 font-bold">Location</span>
+                        <span className="font-extrabold text-slate-900 dark:text-white">{district}, {state}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer Form Actions */}
+                  <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800/80 shrink-0">
+                    <button
+                      type="button"
+                      disabled={isProcessingPayment}
+                      onClick={() => setIsPaymentStep(false)}
+                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-xs font-bold rounded-xl transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Back to Edit
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isProcessingPayment}
+                      className="px-4 py-2.5 bg-indigo-650 hover:bg-indigo-700 disabled:bg-indigo-650/60 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-indigo-600/10 disabled:cursor-not-allowed animate-pulse"
+                    >
+                      {isProcessingPayment ? (
+                        <>
+                          <span className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4" />
+                          Pay with Razorpay
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

@@ -1,10 +1,12 @@
 import { useRef, useEffect, useReducer } from "react";
 import { Check, ShieldCheck, X } from "lucide-react";
 import logoImg from "@/assets/logo.png";
+import { API_BASE_URL } from "../config";
 
 interface SignInPageProps {
   onBack: () => void;
   onSuccess?: (username: string) => void;
+  isMandatory?: boolean;
 }
 
 interface SignInState {
@@ -35,19 +37,32 @@ type SignInAction =
   | { type: "SET_SUCCESS"; value: string }
   | { type: "RESET" };
 
-const initialSignInState: SignInState = {
-  phoneNumber: "",
-  otpSent: false,
-  showNameInput: false,
-  fullName: "",
-  whatsappNumber: "",
-  email: "",
-  otpValues: ["", "", "", "", "", ""],
-  agreeToTerms: true,
-  loading: false,
-  error: "",
-  success: "",
-};
+const initialSignInState: SignInState = (() => {
+  const base = {
+    phoneNumber: "",
+    otpSent: false,
+    showNameInput: false,
+    fullName: "",
+    whatsappNumber: "",
+    email: "",
+    otpValues: ["", "", "", "", "", ""],
+    agreeToTerms: true,
+    loading: false,
+    error: "",
+    success: "",
+  };
+  if (typeof window !== "undefined") {
+    const pendingPhone = sessionStorage.getItem("fmp_pending_reg_phone");
+    const otpSent = sessionStorage.getItem("fmp_pending_reg_otp_sent") === "true";
+    const showNameInput = sessionStorage.getItem("fmp_pending_reg_show_name") === "true";
+    if (pendingPhone) {
+      base.phoneNumber = pendingPhone;
+      base.otpSent = otpSent;
+      base.showNameInput = showNameInput;
+    }
+  }
+  return base;
+})();
 
 function signInReducer(state: SignInState, action: SignInAction): SignInState {
   switch (action.type) {
@@ -80,7 +95,7 @@ function signInReducer(state: SignInState, action: SignInAction): SignInState {
   }
 }
 
-export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
+export default function SignInPage({ onBack, onSuccess, isMandatory }: SignInPageProps) {
   const [state, dispatch] = useReducer(signInReducer, initialSignInState);
   const {
     phoneNumber, otpSent, showNameInput, fullName,
@@ -97,7 +112,7 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
     }
   }, [otpSent, showNameInput]);
 
-  const handlePhoneSubmit = (e: React.FormEvent) => {
+  const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     dispatch({ type: "SET_ERROR", value: "" });
     dispatch({ type: "SET_SUCCESS", value: "" });
@@ -111,12 +126,29 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
       return;
     }
     dispatch({ type: "SET_LOADING", value: true });
-    setTimeout(() => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: cleanedPhone })
+      });
+      const data = await res.json();
+      
       dispatch({ type: "SET_LOADING", value: false });
-      dispatch({ type: "SET_OTP_SENT", value: true });
-      dispatch({ type: "SET_SUCCESS", value: "OTP code sent successfully!" });
-      setTimeout(() => dispatch({ type: "SET_SUCCESS", value: "" }), 3000);
-    }, 1000);
+      if (data.success) {
+        sessionStorage.setItem("fmp_pending_reg_phone", cleanedPhone);
+        sessionStorage.setItem("fmp_pending_reg_otp_sent", "true");
+        dispatch({ type: "SET_OTP_SENT", value: true });
+        dispatch({ type: "SET_SUCCESS", value: data.message || "OTP code sent successfully!" });
+        setTimeout(() => dispatch({ type: "SET_SUCCESS", value: "" }), 3000);
+      } else {
+        dispatch({ type: "SET_ERROR", value: data.message || "Failed to send OTP." });
+      }
+    } catch (err) {
+      console.error(err);
+      dispatch({ type: "SET_LOADING", value: false });
+      dispatch({ type: "SET_ERROR", value: "Failed to connect to backend server." });
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -136,7 +168,7 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
     }
   };
 
-  const handleOtpSubmit = (e: React.FormEvent) => {
+  const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     dispatch({ type: "SET_ERROR", value: "" });
     dispatch({ type: "SET_SUCCESS", value: "" });
@@ -146,34 +178,61 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
       return;
     }
     dispatch({ type: "SET_LOADING", value: true });
-    setTimeout(() => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phoneNumber, otp: fullOtp })
+      });
+      const data = await res.json();
+
       dispatch({ type: "SET_LOADING", value: false });
-      const existingUserMap: Record<string, string> = {
-        "9876543210": "Tarun Pratap",
-        "9999988888": "Raj Kalwani",
-      };
-      if (phoneNumber in existingUserMap) {
-        dispatch({ type: "SET_SUCCESS", value: "Welcome back, " + existingUserMap[phoneNumber] + "!" });
-        const personalData = {
-          title: "Mr", firstName: existingUserMap[phoneNumber], middleName: "",
-          lastName: "", dobDD: "", dobMM: "", dobYYYY: "",
-          maritalStatus: "Single", occupation: "Employed",
-          mobile1: phoneNumber, mobile2: phoneNumber, email: "", avatar: "",
-        };
-        localStorage.setItem("fmp_profile_personal:v1", JSON.stringify(personalData));
-        setTimeout(() => { onSuccess?.(existingUserMap[phoneNumber]); }, 1200);
+      if (data.success) {
+        if (data.isNewUser) {
+          sessionStorage.setItem("fmp_pending_reg_show_name", "true");
+          dispatch({ type: "SET_SUCCESS", value: "OTP verified! Welcome new user." });
+          setTimeout(() => {
+            dispatch({ type: "SET_SUCCESS", value: "" });
+            dispatch({ type: "SET_WHATSAPP_NUMBER", value: "" });
+            dispatch({ type: "SET_SHOW_NAME_INPUT", value: true });
+          }, 1000);
+        } else {
+          const user = data.user;
+          dispatch({ type: "SET_SUCCESS", value: `Welcome back, ${user.firstName || "User"}!` });
+          
+          sessionStorage.removeItem("fmp_pending_reg_phone");
+          sessionStorage.removeItem("fmp_pending_reg_otp_sent");
+          sessionStorage.removeItem("fmp_pending_reg_show_name");
+          localStorage.setItem("fmp_user_token", data.token);
+          const personalData = {
+            title: user.title || "Mr",
+            firstName: user.firstName,
+            middleName: user.middleName || "",
+            lastName: user.lastName || "",
+            dobDD: user.dobDD || "",
+            dobMM: user.dobMM || "",
+            dobYYYY: user.dobYYYY || "",
+            maritalStatus: user.maritalStatus || "Single",
+            occupation: user.occupation || "Employed",
+            mobile1: user.mobile1,
+            mobile2: user.mobile2 || user.mobile1,
+            email: user.email || "",
+            avatar: user.avatar || "",
+          };
+          localStorage.setItem("fmp_profile_personal:v1", JSON.stringify(personalData));
+          setTimeout(() => { onSuccess?.(user.firstName); }, 1200);
+        }
       } else {
-        dispatch({ type: "SET_SUCCESS", value: "OTP verified! Welcome new user." });
-        setTimeout(() => {
-          dispatch({ type: "SET_SUCCESS", value: "" });
-          dispatch({ type: "SET_WHATSAPP_NUMBER", value: phoneNumber });
-          dispatch({ type: "SET_SHOW_NAME_INPUT", value: true });
-        }, 1000);
+        dispatch({ type: "SET_ERROR", value: data.message || "Invalid OTP code." });
       }
-    }, 1200);
+    } catch (err) {
+      console.error(err);
+      dispatch({ type: "SET_LOADING", value: false });
+      dispatch({ type: "SET_ERROR", value: "Failed to connect to backend server." });
+    }
   };
 
-  const handleNameSubmit = (e: React.FormEvent) => {
+  const handleNameSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     dispatch({ type: "SET_ERROR", value: "" });
     dispatch({ type: "SET_SUCCESS", value: "" });
@@ -181,41 +240,81 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
       dispatch({ type: "SET_ERROR", value: "Please enter a valid name." });
       return;
     }
-    if (whatsappNumber.trim().length !== 10) {
+    if (whatsappNumber.trim() && whatsappNumber.trim().length !== 10) {
       dispatch({ type: "SET_ERROR", value: "Please enter a valid 10-digit WhatsApp number." });
       return;
     }
-    if (email.trim() && !/\S+@\S+\.\S+/.test(email)) {
+    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
       dispatch({ type: "SET_ERROR", value: "Please enter a valid email address." });
       return;
     }
     dispatch({ type: "SET_LOADING", value: true });
-    const personalData = {
-      title: "Mr", firstName: fullName.trim(), middleName: "",
-      lastName: "", dobDD: "", dobMM: "", dobYYYY: "",
-      maritalStatus: "Single", occupation: "Employed",
-      mobile1: phoneNumber, mobile2: whatsappNumber, email: email.trim(), avatar: "",
-    };
-    localStorage.setItem("fmp_profile_personal:v1", JSON.stringify(personalData));
-    setTimeout(() => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "Mr.",
+          firstName: fullName.trim(),
+          middleName: "",
+          lastName: "",
+          mobile1: phoneNumber,
+          mobile2: whatsappNumber,
+          email: email.trim()
+        })
+      });
+      const data = await res.json();
+
       dispatch({ type: "SET_LOADING", value: false });
-      dispatch({ type: "SET_SUCCESS", value: "Account created successfully!" });
-      setTimeout(() => { onSuccess?.(fullName.trim()); }, 1200);
-    }, 1000);
+      if (data.success) {
+        const user = data.user;
+        dispatch({ type: "SET_SUCCESS", value: "Account created successfully!" });
+        
+        sessionStorage.removeItem("fmp_pending_reg_phone");
+        sessionStorage.removeItem("fmp_pending_reg_otp_sent");
+        sessionStorage.removeItem("fmp_pending_reg_show_name");
+        localStorage.setItem("fmp_user_token", data.token);
+        const personalData = {
+          title: user.title || "Mr",
+          firstName: user.firstName,
+          middleName: user.middleName || "",
+          lastName: user.lastName || "",
+          dobDD: user.dobDD || "",
+          dobMM: user.dobMM || "",
+          dobYYYY: user.dobYYYY || "",
+          maritalStatus: user.maritalStatus || "Single",
+          occupation: user.occupation || "Employed",
+          mobile1: user.mobile1,
+          mobile2: user.mobile2 || user.mobile1,
+          email: user.email || "",
+          avatar: user.avatar || "",
+        };
+        localStorage.setItem("fmp_profile_personal:v1", JSON.stringify(personalData));
+        setTimeout(() => { onSuccess?.(user.firstName); }, 1200);
+      } else {
+        dispatch({ type: "SET_ERROR", value: data.message || "Failed to create account." });
+      }
+    } catch (err) {
+      console.error(err);
+      dispatch({ type: "SET_LOADING", value: false });
+      dispatch({ type: "SET_ERROR", value: "Failed to connect to backend server." });
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-0 md:p-6 overflow-y-auto animate-in fade-in duration-300">
       <div className="relative w-full h-full md:h-auto md:max-h-[90vh] md:max-w-[420px] md:rounded-[36px] md:shadow-[0_20px_50px_rgba(0,0,0,0.15)] md:border md:border-slate-100/80 flex flex-col bg-white overflow-hidden animate-in zoom-in-95 duration-300">
 
-        {/* Close button - visible only on desktop */}
-        <button
-          onClick={onBack}
-          className="hidden md:flex absolute top-4 right-4 z-30 p-1.5 rounded-full bg-black/10 hover:bg-black/20 text-white transition cursor-pointer"
-          aria-label="Close"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        {/* Close button - visible only on desktop and when not mandatory */}
+        {!isMandatory && (
+          <button
+            onClick={onBack}
+            className="hidden md:flex absolute top-4 right-4 z-30 p-1.5 rounded-full bg-black/10 hover:bg-black/20 text-white transition cursor-pointer"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
 
       {/* ── CORAL PINK DECORATIVE HERO ── */}
       <div
@@ -381,7 +480,12 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
             </button>
 
             <div className="flex justify-between items-center text-[11px] font-bold px-1 -mt-2">
-              <button type="button" onClick={() => dispatch({ type: "SET_OTP_SENT", value: false })}
+              <button type="button" onClick={() => {
+                sessionStorage.removeItem("fmp_pending_reg_phone");
+                sessionStorage.removeItem("fmp_pending_reg_otp_sent");
+                sessionStorage.removeItem("fmp_pending_reg_show_name");
+                dispatch({ type: "SET_OTP_SENT", value: false });
+              }}
                 className="text-slate-400 hover:text-slate-700 transition cursor-pointer">
                 Change Number
               </button>
@@ -420,24 +524,24 @@ export default function SignInPage({ onBack, onSuccess }: SignInPageProps) {
 
             {/* WhatsApp */}
             <div className="flex flex-col gap-1">
-              <label htmlFor="signInWhatsapp" className="text-xs font-bold text-slate-400 uppercase tracking-widest">WhatsApp Number</label>
+              <label htmlFor="signInWhatsapp" className="text-xs font-bold text-slate-400 uppercase tracking-widest">WhatsApp Number (Optional)</label>
               <div className="flex items-center gap-3 pb-2.5 border-b-2 border-slate-200 focus-within:border-[#f4626a] transition-colors duration-200">
                 <span className="text-sm font-black text-slate-700 select-none shrink-0">+91</span>
                 <div className="w-px h-4 bg-slate-200 shrink-0" />
                 <input id="signInWhatsapp" type="tel" maxLength={10} placeholder="WhatsApp number" value={whatsappNumber}
                   onChange={(e) => dispatch({ type: "SET_WHATSAPP_NUMBER", value: e.target.value.replace(/\D/g, "").slice(0, 10) })}
-                  className="w-full bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-300"
-                  required />
+                  className="w-full bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-300" />
               </div>
             </div>
 
             {/* Email */}
             <div className="flex flex-col gap-1">
-              <label htmlFor="signInEmail" className="text-xs font-bold text-slate-400 uppercase tracking-widest">Email (Optional)</label>
+              <label htmlFor="signInEmail" className="text-xs font-bold text-slate-400 uppercase tracking-widest">Email Address</label>
               <div className="pb-2.5 border-b-2 border-slate-200 focus-within:border-[#f4626a] transition-colors duration-200">
                 <input id="signInEmail" type="email" placeholder="Enter email address" value={email}
                   onChange={(e) => dispatch({ type: "SET_EMAIL", value: e.target.value })}
-                  className="w-full bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-300" />
+                  className="w-full bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-300"
+                  required />
               </div>
             </div>
 

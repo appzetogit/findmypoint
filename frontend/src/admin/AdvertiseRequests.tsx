@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Search,
   Trash2,
@@ -12,7 +13,9 @@ import {
   Clock,
   Check,
   RefreshCw,
+  Settings,
 } from "lucide-react";
+import { BACKEND_ORIGIN } from "../config";
 
 interface AdvertiseRequestsProps {
   onCancel: () => void;
@@ -20,9 +23,11 @@ interface AdvertiseRequestsProps {
 
 interface AdvertiseRequest {
   id: string;
+  _id?: string;
   businessName: string;
   category: string;
   city: string;
+  email?: string;
   mobile: string;
   createdAt: string;
   status?: "Pending" | "Contacted" | "Approved";
@@ -63,43 +68,170 @@ export default function AdvertiseRequests({ onCancel }: AdvertiseRequestsProps) 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
 
-  // Load requests on mount
-  useEffect(() => {
-    const saved = localStorage.getItem("fmp_advertise_requests:v1");
-    if (saved) {
-      try {
-        setRequests(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse advertise requests", e);
-        setRequests(DEMO_REQUESTS);
-      }
-    } else {
-      // Seed with demo data if empty
-      localStorage.setItem("fmp_advertise_requests:v1", JSON.stringify(DEMO_REQUESTS));
-      setRequests(DEMO_REQUESTS);
-    }
-  }, []);
+  // Design modal configurations
+  const [showDesignModal, setShowDesignModal] = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [pageConfig, setPageConfig] = useState({
+    heroTitle: "",
+    heroSubtitle: "",
+    formTitle: "",
+    formSubtitle: "",
+    benefit1: "",
+    benefit2: "",
+    benefit3: "",
+    benefit4: "",
+    section2Title: "",
+    section2Subtitle: "",
+    stat1Value: "",
+    stat1Label: "",
+    stat2Value: "",
+    stat2Label: "",
+    stat3Value: "",
+    stat3Label: "",
+    ctaTitle: "",
+    ctaDesc: "",
+    ctaBtnText: "",
+    badge1Value: "",
+    badge1Label: "",
+    badge2Value: "",
+    badge2Label: "",
+  });
 
-  const saveRequests = (updated: AdvertiseRequest[]) => {
-    setRequests(updated);
-    localStorage.setItem("fmp_advertise_requests:v1", JSON.stringify(updated));
+  // Load config from backend on modal show
+  useEffect(() => {
+    if (showDesignModal) {
+      fetch(`${BACKEND_ORIGIN}/api/advertise-config`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.config) {
+            setPageConfig({
+              heroTitle: data.config.heroTitle || "",
+              heroSubtitle: data.config.heroSubtitle || "",
+              formTitle: data.config.formTitle || "",
+              formSubtitle: data.config.formSubtitle || "",
+              benefit1: data.config.benefit1 || "",
+              benefit2: data.config.benefit2 || "",
+              benefit3: data.config.benefit3 || "",
+              benefit4: data.config.benefit4 || "",
+              section2Title: data.config.section2Title || "",
+              section2Subtitle: data.config.section2Subtitle || "",
+              stat1Value: data.config.stat1Value || "",
+              stat1Label: data.config.stat1Label || "",
+              stat2Value: data.config.stat2Value || "",
+              stat2Label: data.config.stat2Label || "",
+              stat3Value: data.config.stat3Value || "",
+              stat3Label: data.config.stat3Label || "",
+              ctaTitle: data.config.ctaTitle || "",
+              ctaDesc: data.config.ctaDesc || "",
+              ctaBtnText: data.config.ctaBtnText || "",
+              badge1Value: data.config.badge1Value || "",
+              badge1Label: data.config.badge1Label || "",
+              badge2Value: data.config.badge2Value || "",
+              badge2Label: data.config.badge2Label || "",
+            });
+          }
+        })
+        .catch((err) => console.error("Error loading advertise config in admin", err));
+    }
+  }, [showDesignModal]);
+
+  const handleSaveConfig = () => {
+    setSavingConfig(true);
+    const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_user_token");
+    fetch(`${BACKEND_ORIGIN}/api/advertise-config/save`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(pageConfig),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          alert("Advertise page design configurations saved successfully!");
+          setShowDesignModal(false);
+        } else {
+          alert(data.message || "Failed to save configurations.");
+        }
+      })
+      .catch((err) => {
+        console.error("Error saving advertise config", err);
+        alert("An error occurred while saving configurations.");
+      })
+      .finally(() => setSavingConfig(false));
   };
 
+  // Load requests on mount from backend database
+  const loadRequests = () => {
+    const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_user_token");
+    fetch(`${BACKEND_ORIGIN}/api/advertise-requests`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.requests)) {
+          const transformed = data.requests.map((r: any) => ({
+            ...r,
+            id: r._id || r.id,
+          }));
+          setRequests(transformed);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch advertise requests", err));
+  };
+
+  useEffect(() => {
+    loadRequests();
+  }, []);
+
   const handleUpdateStatus = (id: string, newStatus: "Pending" | "Contacted" | "Approved") => {
-    const updated = requests.map((req) => (req.id === id ? { ...req, status: newStatus } : req));
-    saveRequests(updated);
+    const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_user_token");
+    fetch(`${BACKEND_ORIGIN}/api/advertise-requests/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status: newStatus }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          loadRequests();
+        } else {
+          alert(data.message || "Failed to update status.");
+        }
+      })
+      .catch((err) => {
+        console.error("Error updating request status", err);
+        alert("An error occurred. Please try again.");
+      });
   };
 
   const handleDelete = (id: string) => {
     if (confirm("Are you sure you want to delete this advertise request?")) {
-      const updated = requests.filter((req) => req.id !== id);
-      saveRequests(updated);
-    }
-  };
-
-  const handleResetDemo = () => {
-    if (confirm("Reset advertise requests database to default demo data?")) {
-      saveRequests(DEMO_REQUESTS);
+      const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_user_token");
+      fetch(`${BACKEND_ORIGIN}/api/advertise-requests/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            loadRequests();
+          } else {
+            alert(data.message || "Failed to delete request.");
+          }
+        })
+        .catch((err) => {
+          console.error("Error deleting request", err);
+          alert("An error occurred. Please try again.");
+        });
     }
   };
 
@@ -162,6 +294,12 @@ export default function AdvertiseRequests({ onCancel }: AdvertiseRequestsProps) 
             </p>
           </div>
         </div>
+        <button
+          onClick={() => setShowDesignModal(true)}
+          className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer shrink-0"
+        >
+          <Settings className="h-4 w-4" /> Page
+        </button>
       </div>
 
       {/* Unified Search & Filters Row (No card background wrapper) */}
@@ -224,7 +362,7 @@ export default function AdvertiseRequests({ onCancel }: AdvertiseRequestsProps) 
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 bg-transparent text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 <th className="py-4 px-6">Business Details</th>
-                <th className="py-4 px-4">Category & City</th>
+                <th className="py-4 px-4">Category</th>
                 <th className="py-4 px-4">Contact Info</th>
                 <th className="py-4 px-4">Submitted At</th>
                 <th className="py-4 px-4">Status</th>
@@ -249,36 +387,36 @@ export default function AdvertiseRequests({ onCancel }: AdvertiseRequestsProps) 
                           <span className="font-bold text-slate-900 dark:text-white text-[13.5px] block">
                             {req.businessName}
                           </span>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-wider">
-                            ID: {req.id}
-                          </span>
                         </div>
                       </div>
                     </td>
 
-                    {/* Category & City */}
+                    {/* Category */}
                     <td className="py-4.5 px-4">
                       <div className="space-y-1">
                         <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-800 dark:text-slate-200">
                           <Layers className="h-3 w-3 text-slate-400" />
                           {req.category}
                         </span>
-                        <span className="flex items-center gap-1 text-[11px] font-bold text-slate-400 dark:text-slate-500">
-                          <MapPin className="h-3 w-3 text-slate-400" />
-                          {req.city}
-                        </span>
                       </div>
                     </td>
 
-                    {/* Phone */}
+                    {/* Contact Info (Phone & Email) */}
                     <td className="py-4.5 px-4">
-                      <a
-                        href={`tel:+91${req.mobile}`}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-950 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 border border-slate-200/50 dark:border-slate-800/50 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs font-bold transition"
-                      >
-                        <Phone className="h-3.5 w-3.5" />
-                        <span>+91 {req.mobile}</span>
-                      </a>
+                      <div className="flex flex-col gap-1 text-left">
+                        <a
+                          href={`tel:+91${req.mobile}`}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-950 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 border border-slate-200/50 dark:border-slate-800/50 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs font-bold transition w-fit"
+                        >
+                          <Phone className="h-3.5 w-3.5" />
+                          <span>+91 {req.mobile}</span>
+                        </a>
+                        {req.email && (
+                          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 pl-3">
+                            {req.email}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Created At */}
@@ -356,6 +494,342 @@ export default function AdvertiseRequests({ onCancel }: AdvertiseRequestsProps) 
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Portal Modal */}
+      {showDesignModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-scale-up text-left">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-6 py-4">
+              <div>
+                <h3 className="font-serif text-lg font-bold text-slate-900 dark:text-white uppercase">
+                  Customize Advertise Page Design
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Update any text dynamically on the Advertise page (except the main form fields)
+                </p>
+              </div>
+              <button
+                onClick={() => setShowDesignModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm font-bold cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Modal Body (Scrollable form fields) */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Hero Banner Section */}
+              <div>
+                <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-3 border-b pb-1">
+                  1. Hero Banner
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                      Hero Title
+                    </label>
+                    <input
+                      type="text"
+                      value={pageConfig.heroTitle}
+                      onChange={(e) => setPageConfig({ ...pageConfig, heroTitle: e.target.value })}
+                      placeholder="e.g. GROW YOUR BUSINESS"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                      Hero Subtitle
+                    </label>
+                    <input
+                      type="text"
+                      value={pageConfig.heroSubtitle}
+                      onChange={(e) => setPageConfig({ ...pageConfig, heroSubtitle: e.target.value })}
+                      placeholder="e.g. Advertise on India's #1 Premium Local Search Engine."
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Title Section */}
+              <div>
+                <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-3 border-b pb-1">
+                  2. Lead Form Branding
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                      Form Header
+                    </label>
+                    <input
+                      type="text"
+                      value={pageConfig.formTitle}
+                      onChange={(e) => setPageConfig({ ...pageConfig, formTitle: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                      Form Subtitle
+                    </label>
+                    <input
+                      type="text"
+                      value={pageConfig.formSubtitle}
+                      onChange={(e) => setPageConfig({ ...pageConfig, formSubtitle: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Value Propositions / Benefits Section */}
+              <div>
+                <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-3 border-b pb-1">
+                  3. Key Benefits (Ticklist)
+                </h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                      Benefit 1
+                    </label>
+                    <input
+                      type="text"
+                      value={pageConfig.benefit1}
+                      onChange={(e) => setPageConfig({ ...pageConfig, benefit1: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                      Benefit 2
+                    </label>
+                    <input
+                      type="text"
+                      value={pageConfig.benefit2}
+                      onChange={(e) => setPageConfig({ ...pageConfig, benefit2: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                      Benefit 3
+                    </label>
+                    <input
+                      type="text"
+                      value={pageConfig.benefit3}
+                      onChange={(e) => setPageConfig({ ...pageConfig, benefit3: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                      Benefit 4
+                    </label>
+                    <input
+                      type="text"
+                      value={pageConfig.benefit4}
+                      onChange={(e) => setPageConfig({ ...pageConfig, benefit4: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats & Growth Engine Section */}
+              <div>
+                <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-3 border-b pb-1">
+                  4. Trust & Stats Section
+                </h4>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                        Section Header
+                      </label>
+                      <input
+                        type="text"
+                        value={pageConfig.section2Title}
+                        onChange={(e) => setPageConfig({ ...pageConfig, section2Title: e.target.value })}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                        Section Description
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={pageConfig.section2Subtitle}
+                        onChange={(e) => setPageConfig({ ...pageConfig, section2Subtitle: e.target.value })}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Stat boxes values */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="border border-slate-100 dark:border-slate-800 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-850">
+                      <span className="text-[10px] font-black text-slate-400 block mb-1">STAT 1</span>
+                      <input
+                        type="text"
+                        value={pageConfig.stat1Value}
+                        onChange={(e) => setPageConfig({ ...pageConfig, stat1Value: e.target.value })}
+                        placeholder="Value (e.g. 10x)"
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs font-bold outline-none focus:border-indigo-500 mb-2"
+                      />
+                      <input
+                        type="text"
+                        value={pageConfig.stat1Label}
+                        onChange={(e) => setPageConfig({ ...pageConfig, stat1Label: e.target.value })}
+                        placeholder="Label"
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs font-bold outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <div className="border border-slate-100 dark:border-slate-800 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-850">
+                      <span className="text-[10px] font-black text-slate-400 block mb-1">STAT 2</span>
+                      <input
+                        type="text"
+                        value={pageConfig.stat2Value}
+                        onChange={(e) => setPageConfig({ ...pageConfig, stat2Value: e.target.value })}
+                        placeholder="Value (e.g. 48 Hrs)"
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs font-bold outline-none focus:border-indigo-500 mb-2"
+                      />
+                      <input
+                        type="text"
+                        value={pageConfig.stat2Label}
+                        onChange={(e) => setPageConfig({ ...pageConfig, stat2Label: e.target.value })}
+                        placeholder="Label"
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs font-bold outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <div className="border border-slate-100 dark:border-slate-800 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-850">
+                      <span className="text-[10px] font-black text-slate-400 block mb-1">STAT 3</span>
+                      <input
+                        type="text"
+                        value={pageConfig.stat3Value}
+                        onChange={(e) => setPageConfig({ ...pageConfig, stat3Value: e.target.value })}
+                        placeholder="Value (e.g. 24/7)"
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs font-bold outline-none focus:border-indigo-500 mb-2"
+                      />
+                      <input
+                        type="text"
+                        value={pageConfig.stat3Label}
+                        onChange={(e) => setPageConfig({ ...pageConfig, stat3Label: e.target.value })}
+                        placeholder="Label"
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs font-bold outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Call-to-action Section */}
+              <div>
+                <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-3 border-b pb-1">
+                  5. Enterprise Custom Campaign (CTA Card)
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                      CTA Title
+                    </label>
+                    <input
+                      type="text"
+                      value={pageConfig.ctaTitle}
+                      onChange={(e) => setPageConfig({ ...pageConfig, ctaTitle: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                      CTA Description
+                    </label>
+                    <input
+                      type="text"
+                      value={pageConfig.ctaDesc}
+                      onChange={(e) => setPageConfig({ ...pageConfig, ctaDesc: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                      CTA Button Text / Phone Contact
+                    </label>
+                    <input
+                      type="text"
+                      value={pageConfig.ctaBtnText}
+                      onChange={(e) => setPageConfig({ ...pageConfig, ctaBtnText: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Floating Badges Section */}
+              <div>
+                <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-3 border-b pb-1">
+                  6. Floating Smartphone Badges
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="border border-slate-100 dark:border-slate-800 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-850">
+                    <span className="text-[10px] font-black text-slate-400 block mb-1">BADGE 1 (Right Badge - Active Customers)</span>
+                    <input
+                      type="text"
+                      value={pageConfig.badge1Value}
+                      onChange={(e) => setPageConfig({ ...pageConfig, badge1Value: e.target.value })}
+                      placeholder="Value (e.g. 1.5 Crore+)"
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs font-bold outline-none focus:border-indigo-500 mb-2"
+                    />
+                    <input
+                      type="text"
+                      value={pageConfig.badge1Label}
+                      onChange={(e) => setPageConfig({ ...pageConfig, badge1Label: e.target.value })}
+                      placeholder="Label (e.g. Active Customers)"
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs font-bold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="border border-slate-100 dark:border-slate-800 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-850">
+                    <span className="text-[10px] font-black text-slate-400 block mb-1">BADGE 2 (Left Badge - Verified Partners)</span>
+                    <input
+                      type="text"
+                      value={pageConfig.badge2Value}
+                      onChange={(e) => setPageConfig({ ...pageConfig, badge2Value: e.target.value })}
+                      placeholder="Value (e.g. 50 Lakh+)"
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs font-bold outline-none focus:border-indigo-500 mb-2"
+                    />
+                    <input
+                      type="text"
+                      value={pageConfig.badge2Label}
+                      onChange={(e) => setPageConfig({ ...pageConfig, badge2Label: e.target.value })}
+                      placeholder="Label (e.g. Verified Partners)"
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs font-bold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-slate-100 dark:border-slate-800 px-6 py-4 flex justify-end gap-3 bg-slate-50 dark:bg-slate-900/50">
+              <button
+                onClick={() => setShowDesignModal(false)}
+                className="px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-850 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveConfig}
+                disabled={savingConfig}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow disabled:opacity-70 cursor-pointer"
+              >
+                {savingConfig ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Receipt,
   ArrowDownLeft,
@@ -12,6 +12,7 @@ import {
   Smartphone,
   Landmark,
 } from "lucide-react";
+import { API_BASE_URL } from "../config";
 
 export interface Transaction {
   id: string;
@@ -23,71 +24,7 @@ export interface Transaction {
   paymentMethod: "upi" | "card" | "netbanking";
   status: "Completed" | "Refunded" | "Failed";
 }
-
-const MOCK_TRANSACTIONS: Transaction[] = [
-  {
-    id: "TXN-20260702-001",
-    timestamp: "02 Jul 2026, 10:15 AM",
-    description: "Banquet Hall Booking – Royal Banquet Hall",
-    businessName: "Royal Banquet Hall",
-    amount: 25000,
-    type: "debit",
-    paymentMethod: "netbanking",
-    status: "Completed",
-  },
-  {
-    id: "TXN-20260701-002",
-    timestamp: "01 Jul 2026, 04:45 PM",
-    description: "AC Repair & Gas Refill",
-    businessName: "Sharma AC Service",
-    amount: 1200,
-    type: "debit",
-    paymentMethod: "upi",
-    status: "Completed",
-  },
-  {
-    id: "TXN-20260628-003",
-    timestamp: "28 Jun 2026, 02:30 PM",
-    description: "Refund – Cancelled Consultation",
-    businessName: "Dr. Priya Mehta Clinic",
-    amount: 500,
-    type: "credit",
-    paymentMethod: "upi",
-    status: "Refunded",
-  },
-  {
-    id: "TXN-20260625-004",
-    timestamp: "25 Jun 2026, 09:00 AM",
-    description: "Interior Design Consultation Deposit",
-    businessName: "Kapoor Interior Studio",
-    amount: 5000,
-    type: "debit",
-    paymentMethod: "card",
-    status: "Completed",
-  },
-  {
-    id: "TXN-20260620-005",
-    timestamp: "20 Jun 2026, 06:20 PM",
-    description: "Full Body Massage – Luxe Spa",
-    businessName: "Luxe Spa & Wellness",
-    amount: 1800,
-    type: "debit",
-    paymentMethod: "upi",
-    status: "Failed",
-  },
-  {
-    id: "TXN-20260615-006",
-    timestamp: "15 Jun 2026, 11:00 AM",
-    description: "Wedding Catering Advance",
-    businessName: "Grand Caterers",
-    amount: 10000,
-    type: "debit",
-    paymentMethod: "netbanking",
-    status: "Completed",
-  },
-];
-
-const STATUS_CONFIG = {
+const STATUS_CONFIG: any = {
   Completed: {
     icon: CheckCircle2,
     classes: "text-emerald-600",
@@ -105,22 +42,54 @@ const STATUS_CONFIG = {
   },
 };
 
-const PAYMENT_ICONS = {
+const PAYMENT_ICONS: any = {
   upi: Smartphone,
   card: CreditCard,
   netbanking: Landmark,
 };
 
-const PAYMENT_LABELS = {
+const PAYMENT_LABELS: any = {
   upi: "UPI",
   card: "Card",
   netbanking: "Net Banking",
 };
 
 export default function MobileTransactionPage() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [search, setSearch] = useState("");
 
-  const filtered = MOCK_TRANSACTIONS.filter((t) => {
+  useEffect(() => {
+    const loadUserTransactions = async () => {
+      try {
+        const userToken = localStorage.getItem("fmp_user_token");
+        if (!userToken) return;
+        const res = await fetch(`${API_BASE_URL}/transactions`, {
+          headers: {
+            "Authorization": `Bearer ${userToken}`
+          }
+        });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          const mapped: Transaction[] = data.data.map((txn: any) => ({
+            id: txn.id,
+            timestamp: txn.timestamp || new Date(txn.createdAt).toLocaleString(),
+            description: txn.description || "Listing Fee Payment",
+            businessName: txn.businessName || "FindmyPoint",
+            amount: txn.amount,
+            type: txn.type || "debit",
+            paymentMethod: txn.paymentMethod || "card",
+            status: txn.status || "Completed"
+          }));
+          setTransactions(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to load user transactions:", err);
+      }
+    };
+    loadUserTransactions();
+  }, []);
+
+  const filtered = transactions.filter((t) => {
     const matchSearch =
       t.description.toLowerCase().includes(search.toLowerCase()) ||
       t.businessName.toLowerCase().includes(search.toLowerCase()) ||

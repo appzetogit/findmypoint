@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Save, Tag, Trash2, Upload, Search, Image as ImageIcon } from "lucide-react";
-import { categories } from "../pages/Home";
-import { subcategoriesData } from "../pages/CategoryDetail";
+import { useCategories } from "../context/CategoryContext";
+import { getCategoryImage } from "../utils/categoryImages";
+import { API_BASE_URL } from "../config";
 
 interface AddCategoryFormProps {
   onCancel: () => void;
@@ -9,20 +10,18 @@ interface AddCategoryFormProps {
 }
 
 export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryFormProps) {
+  const { categories, refreshCategories } = useCategories();
   const [label, setLabel] = useState("");
   const [imgUrl, setImgUrl] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Track local categories to re-render component on delete/add
-  const [localCats, setLocalCats] = useState<any[]>([]);
-
-  useEffect(() => {
-    setLocalCats([...categories]);
-  }, []);
-
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert("Image size should be less than 10MB.");
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setImgUrl(reader.result as string);
@@ -31,7 +30,7 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!label.trim()) {
       alert("Category name is required.");
@@ -42,76 +41,128 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
       imgUrl.trim() ||
       "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=300&q=80";
 
-    const newCategory = {
-      img: finalImg,
-      label: label.trim(),
-    };
-
     try {
-      const saved = localStorage.getItem("fmp_custom_categories");
-      let customList = saved ? JSON.parse(saved) : [];
+      const token = localStorage.getItem("fmp_admin_token");
+      const res = await fetch(`${API_BASE_URL}/categories`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          label: label.trim(),
+          img: finalImg
+        })
+      });
 
-      if (
-        customList.some((c: any) => c.label.toLowerCase() === label.trim().toLowerCase()) ||
-        categories.some((c: any) => c.label.toLowerCase() === label.trim().toLowerCase())
-      ) {
-        alert("This category already exists!");
-        return;
+      const data = await res.json();
+      if (data.success) {
+        alert("Category added successfully!");
+        setLabel("");
+        setImgUrl("");
+        await refreshCategories();
+      } else {
+        alert(data.message || "Failed to add category.");
       }
-
-      customList.push(newCategory);
-      localStorage.setItem("fmp_custom_categories", JSON.stringify(customList));
-
-      // Append to the active in-memory array
-      categories.push(newCategory);
-      setLocalCats([...categories]);
-
-      alert("Category added successfully!");
-      setLabel("");
-      setImgUrl("");
     } catch (error) {
       console.error(error);
-      alert("Failed to save category.");
+      alert("Failed to connect to server.");
     }
   };
 
-  const handleDeleteCategory = (catLabel: string) => {
+  const handleDeleteCategory = async (catLabel: string) => {
+    const catObj = categories.find((c) => c.label === catLabel);
+    if (!catObj) return;
+
     if (confirm(`Are you sure you want to delete the category "${catLabel}"?`)) {
       try {
-        const saved = localStorage.getItem("fmp_custom_categories");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          const updated = parsed.filter((c: any) => c.label !== catLabel);
-          localStorage.setItem("fmp_custom_categories", JSON.stringify(updated));
-        }
+        const token = localStorage.getItem("fmp_admin_token");
+        const res = await fetch(`${API_BASE_URL}/categories/${catObj._id}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
 
-        // Remove from the in-memory array
-        const idx = categories.findIndex((c) => c.label === catLabel);
-        if (idx > -1) {
-          categories.splice(idx, 1);
+        const data = await res.json();
+        if (data.success) {
+          alert("Category deleted successfully!");
+          await refreshCategories();
+        } else {
+          alert(data.message || "Failed to delete category.");
         }
-
-        setLocalCats([...categories]);
-        alert("Category deleted successfully!");
       } catch (err) {
         console.error(err);
+        alert("Failed to connect to server.");
       }
     }
   };
 
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+
   // Filter categories based on search query
-  const filteredCats = localCats.filter((cat) =>
-    cat.label.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredCats = categories.filter((cat) =>
+    cat.label.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Check if category is custom/user-added (for deleting)
-  const isCustomCategory = (catLabel: string) => {
-    const saved = localStorage.getItem("fmp_custom_categories");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return parsed.some((c: any) => c.label === catLabel);
+  const handleToggleSelect = (id: string) => {
+    setSelectedCategoryIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    const allFilteredIds = filteredCats.map((cat) => cat._id);
+    const areAllSelected =
+      allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedCategoryIds.includes(id));
+
+    if (areAllSelected) {
+      setSelectedCategoryIds((prev) => prev.filter((id) => !allFilteredIds.includes(id)));
+    } else {
+      setSelectedCategoryIds((prev) => {
+        const next = [...prev];
+        allFilteredIds.forEach((id) => {
+          if (!next.includes(id)) {
+            next.push(id);
+          }
+        });
+        return next;
+      });
     }
-    return false;
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedCategoryIds.length === 0) return;
+
+    if (
+      confirm(
+        `Are you sure you want to delete the ${selectedCategoryIds.length} selected categories? This will also delete all of their subcategories.`
+      )
+    ) {
+      try {
+        const token = localStorage.getItem("fmp_admin_token");
+        const res = await fetch(`${API_BASE_URL}/categories/delete-bulk`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ ids: selectedCategoryIds })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          alert("Categories deleted successfully!");
+          setSelectedCategoryIds([]);
+          await refreshCategories();
+        } else {
+          alert(data.message || "Failed to delete categories.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to connect to server.");
+      }
+    }
   };
 
   return (
@@ -136,9 +187,35 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
         <div className="lg:col-span-2 space-y-3">
           <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl p-5 shadow-lg">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white text-left">
-                Existing Categories ({localCats.length})
-              </h2>
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  disabled={filteredCats.length === 0}
+                  checked={filteredCats.length > 0 && filteredCats.every((cat) => selectedCategoryIds.includes(cat._id))}
+                  onChange={handleToggleSelectAll}
+                  className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Select / Deselect all visible categories"
+                />
+                {selectedCategoryIds.length > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      {selectedCategoryIds.length} Selected
+                    </span>
+                    <button
+                      onClick={handleDeleteSelected}
+                      type="button"
+                      className="flex items-center gap-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 text-rose-600 hover:text-rose-700 dark:text-rose-450 border border-rose-200/50 dark:border-rose-800/40 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer shrink-0"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Delete
+                    </button>
+                  </div>
+                ) : (
+                  <h2 className="text-sm font-bold text-slate-900 dark:text-white text-left">
+                    Existing Categories ({categories.length})
+                  </h2>
+                )}
+              </div>
               {/* Search Bar */}
               <div className="relative max-w-xs w-full">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -163,17 +240,29 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {filteredCats.map((cat, idx) => {
-                  const subcount = subcategoriesData[cat.label]?.length || 0;
-                  const custom = isCustomCategory(cat.label);
+                  const subcount = cat.subcategories?.length || 0;
+                  const isSelected = selectedCategoryIds.includes(cat._id);
                   return (
                     <div
                       key={`${cat.label}-${idx}`}
-                      className="group relative flex items-center gap-3.5 p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-slate-50/40 dark:bg-slate-950/20 hover:bg-white dark:hover:bg-slate-900 hover:shadow-md transition-all duration-300 text-left"
+                      className={`group relative flex items-center gap-3 p-3 rounded-2xl border transition-all duration-300 text-left ${
+                        isSelected
+                          ? "border-indigo-500/70 dark:border-indigo-500/70 bg-indigo-500/5 dark:bg-indigo-500/5 shadow-sm"
+                          : "border-slate-200/60 dark:border-slate-800/60 bg-slate-50/40 dark:bg-slate-950/20 hover:bg-white dark:hover:bg-slate-900 hover:shadow-md"
+                      }`}
                     >
+                      {/* Selection Checkbox */}
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleToggleSelect(cat._id)}
+                        className="h-3.5 w-3.5 rounded border-slate-300 dark:border-slate-700 text-indigo-650 focus:ring-indigo-500 cursor-pointer accent-indigo-600 shrink-0"
+                      />
+
                       {/* Icon */}
                       <div className="h-10 w-10 rounded-xl bg-white dark:bg-slate-850 p-1 flex items-center justify-center border border-slate-100 dark:border-slate-800 shadow-sm shrink-0">
                         <img
-                          src={cat.img}
+                          src={getCategoryImage(cat.label, cat.img)}
                           alt={cat.label}
                           className="h-full w-full object-contain"
                           onError={(e) => {
@@ -193,17 +282,15 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
                         </p>
                       </div>
 
-                      {/* Delete Action for Custom Categories */}
-                      {custom && (
-                        <button
-                          onClick={() => handleDeleteCategory(cat.label)}
-                          type="button"
-                          className="absolute top-2 right-2 p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer"
-                          title="Delete Category"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
+                      {/* Delete Action */}
+                      <button
+                        onClick={() => handleDeleteCategory(cat.label)}
+                        type="button"
+                        className="absolute top-2 right-2 p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer"
+                        title="Delete Category"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   );
                 })}
@@ -254,7 +341,7 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
                 <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">
                   Click to upload icon
                 </span>
-                <span className="text-[9px] text-slate-400">PNG, JPG, SVG up to 1MB</span>
+                <span className="text-[9px] text-slate-400">PNG, JPG, SVG up to 10MB</span>
               </div>
             </div>
 

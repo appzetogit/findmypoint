@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { ArrowLeft, ArrowUp, X } from "lucide-react";
-import { categories } from "./Home";
-import { subcategoriesData } from "./CategoryDetail";
+import { ArrowLeft, ArrowUp } from "lucide-react";
+import { useCategories } from "../context/CategoryContext";
+import { getCategoryImage } from "../utils/categoryImages";
 
 interface AllCategoriesPageProps {
   onBack: () => void;
@@ -94,36 +94,24 @@ const getSubcategoryEmoji = (category: string, subcatName: string): string => {
 };
 
 export default function AllCategoriesPage({ onBack, onCategoryClick, initialCategory }: AllCategoriesPageProps) {
-  const [customIcons, setCustomIcons] = useState<Record<string, string>>({});
-  
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("fmp_subcategory_icons");
-      if (saved) {
-        setCustomIcons(JSON.parse(saved));
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
+  const { categories } = useCategories();
 
   const categoryGroups = useMemo(() => {
     return categories.map((cat) => {
       const id = cat.label.toLowerCase().replace(/\s+/g, "-");
-      const subcatList = subcategoriesData[cat.label] || [];
       return {
         id,
         label: cat.label,
         icon: cat.img,
-        subcategories: subcatList.map((subName) => ({
-          label: subName,
-          icon: customIcons[subName] || getSubcategoryEmoji(cat.label, subName),
+        subcategories: cat.subcategories.map((sub) => ({
+          label: sub.label,
+          icon: sub.icon || getSubcategoryEmoji(cat.label, sub.label),
           category: cat.label,
-          subcat: subName,
+          subcat: sub.label,
         })),
       };
     });
-  }, [customIcons]);
+  }, [categories]);
 
   const initialTabId = useMemo(() => {
     if (initialCategory) {
@@ -253,7 +241,7 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
                   {/* Category Icon */}
                   {group.icon && (
                     <img
-                      src={group.icon}
+                      src={getCategoryImage(group.label, group.icon)}
                       alt={group.label}
                       className={`h-9 w-9 object-contain shrink-0 transition-all duration-200 ${isActive ? "scale-110 drop-shadow-md" : "scale-100 hover:scale-105"}`}
                     />
@@ -285,11 +273,11 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
                       onClick={() => {
                         onCategoryClick?.(sub.category, sub.subcat);
                       }}
-                      className="flex flex-col items-center justify-center p-2 rounded-xl border border-border/70 bg-card hover:bg-secondary text-center shadow-sm cursor-pointer transition-all duration-200 aspect-square active:scale-95 gap-1"
+                      className="flex flex-col items-center justify-center p-2 bg-transparent text-center cursor-pointer transition-all duration-200 aspect-square active:scale-95 gap-1"
                     >
-                      <span className="text-2xl shrink-0 flex items-center justify-center">
+                      <span className="text-4xl shrink-0 flex items-center justify-center">
                         {sub.icon.startsWith("data:image") || sub.icon.startsWith("http") ? (
-                          <img src={sub.icon} alt={sub.label} className="h-7 w-7 object-contain rounded-md shrink-0" />
+                          <img src={sub.icon} alt={sub.label} className="h-12 w-12 object-contain rounded-md shrink-0" />
                         ) : (
                           sub.icon
                         )}
@@ -323,11 +311,11 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
                           onClick={() => {
                             onCategoryClick?.(sub.category, sub.subcat);
                           }}
-                          className="flex flex-col items-center justify-center p-2 rounded-xl border border-border/70 bg-card hover:bg-secondary text-center shadow-sm cursor-pointer transition-all duration-200 aspect-square active:scale-95 gap-1"
+                          className="flex flex-col items-center justify-center p-2 bg-transparent text-center cursor-pointer transition-all duration-200 aspect-square active:scale-95 gap-1"
                         >
-                          <span className="text-2xl shrink-0 flex items-center justify-center">
+                          <span className="text-4xl shrink-0 flex items-center justify-center">
                             {sub.icon.startsWith("data:image") || sub.icon.startsWith("http") ? (
-                              <img src={sub.icon} alt={sub.label} className="h-7 w-7 object-contain rounded-md shrink-0" />
+                              <img src={sub.icon} alt={sub.label} className="h-12 w-12 object-contain rounded-md shrink-0" />
                             ) : (
                               sub.icon
                             )}

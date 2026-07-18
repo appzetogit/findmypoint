@@ -13,6 +13,7 @@ import Advertise from "./pages/Advertise";
 import AdminShell from "./admin";
 import ClientShell from "./client";
 import MobileBookingPage from "./pages/MobileBookingPage";
+import PopularServiceDetailPage from "./pages/PopularServiceDetail";
 import MobileTransactionPage from "./pages/MobileTransactionPage";
 import MobileProfilePage from "./pages/MobileProfilePage";
 import { Home, CalendarDays, Receipt, User } from "lucide-react";
@@ -34,6 +35,7 @@ interface AppViewState {
   showAllCategoriesPage: boolean;
   showAdminPanel: boolean;
   showClientPanel: boolean;
+  selectedPopularServiceId: string | null;
 }
 
 const initialAppState: AppViewState = {
@@ -52,6 +54,7 @@ const initialAppState: AppViewState = {
   showAllCategoriesPage: false,
   showAdminPanel: false,
   showClientPanel: false,
+  selectedPopularServiceId: null,
 };
 
 type AppAction =
@@ -67,6 +70,7 @@ type AppAction =
   | { type: "SET_SHOW_ALL_CATEGORIES"; show: boolean }
   | { type: "SET_SHOW_ADMIN"; show: boolean }
   | { type: "SET_SHOW_CLIENT"; show: boolean }
+  | { type: "SELECT_POPULAR_SERVICE"; id: string | null }
   | { type: "LOGOUT" };
 
 function appReducer(state: AppViewState, action: AppAction): AppViewState {
@@ -91,6 +95,7 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
         selectedPlaceName: null,
         selectedCategoryName: null,
         selectedSubcategoryName: null,
+        selectedPopularServiceId: null,
         scrollToReview: false,
       };
     case "SELECT_BUSINESS":
@@ -101,6 +106,7 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
         selectedPlaceName: null,
         selectedCategoryName: null,
         selectedSubcategoryName: null,
+        selectedPopularServiceId: null,
         scrollToReview: !!action.scrollToReview,
         scrollToMenu: !!action.scrollToMenu,
       };
@@ -112,6 +118,7 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
         selectedPlaceName: action.name,
         selectedCategoryName: null,
         selectedSubcategoryName: null,
+        selectedPopularServiceId: null,
         scrollToReview: false,
       };
     case "SELECT_CATEGORY":
@@ -122,6 +129,18 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
         selectedPlaceName: null,
         selectedCategoryName: action.name,
         selectedSubcategoryName: action.subcategoryName || null,
+        selectedPopularServiceId: null,
+        scrollToReview: false,
+      };
+    case "SELECT_POPULAR_SERVICE":
+      return {
+        ...state,
+        selectedArticleId: null,
+        selectedBusinessId: null,
+        selectedPlaceName: null,
+        selectedCategoryName: null,
+        selectedSubcategoryName: null,
+        selectedPopularServiceId: action.id,
         scrollToReview: false,
       };
     case "LOGOUT":
@@ -151,9 +170,12 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
 function buildPath(state: AppViewState, mobileTab: string): string {
   if (state.showAdminPanel) return "/admin";
   if (state.showClientPanel) return "/client";
+  if (state.showAdvertise) return "/advertise";
+  if (state.activeSidebarPage) return `/sidebar/${encodeURIComponent(state.activeSidebarPage)}`;
   if (state.selectedBusinessId) return `/business/${encodeURIComponent(state.selectedBusinessId)}`;
   if (state.selectedArticleId !== null) return `/article/${state.selectedArticleId}`;
   if (state.selectedPlaceName) return `/place/${encodeURIComponent(state.selectedPlaceName)}`;
+  if (state.selectedPopularServiceId) return `/service/${encodeURIComponent(state.selectedPopularServiceId)}`;
   if (state.selectedCategoryName && state.selectedSubcategoryName)
     return `/category/${encodeURIComponent(state.selectedCategoryName)}/${encodeURIComponent(state.selectedSubcategoryName)}`;
   if (state.selectedCategoryName)
@@ -175,21 +197,72 @@ function parsePath(): {
   if (page === "business" && segments[1]) params.businessId = decodeURIComponent(segments[1]);
   if (page === "article" && segments[1]) params.articleId = segments[1];
   if (page === "place" && segments[1]) params.placeName = decodeURIComponent(segments[1]);
+  if (page === "service" && segments[1]) params.popularServiceId = decodeURIComponent(segments[1]);
   if (page === "category") {
     if (segments[1]) params.categoryName = decodeURIComponent(segments[1]);
     if (segments[2]) params.subcategoryName = decodeURIComponent(segments[2]);
   }
   if (page === "tab" && segments[1]) params.tab = segments[1];
+  if (page === "sidebar" && segments[1]) params.sidebarPage = decodeURIComponent(segments[1]);
 
   return { page, params };
 }
 
 export default function App() {
-  const [username, setUsername] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const [username, setUsername] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const savedProfile = localStorage.getItem("fmp_profile_personal:v1");
+      const token = localStorage.getItem("fmp_user_token");
+      if (token && savedProfile) {
+        try {
+          const parsed = JSON.parse(savedProfile);
+          return parsed.firstName || null;
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
+  const [userProfile, setUserProfile] = useState<{
+    title?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    mobile1?: string;
+    dobYYYY?: string;
+  } | null>(() => {
+    if (typeof window !== "undefined") {
+      const savedProfile = localStorage.getItem("fmp_profile_personal:v1");
+      const token = localStorage.getItem("fmp_user_token");
+      if (token && savedProfile) {
+        try {
+          return JSON.parse(savedProfile);
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth < 768;
+    }
+    return false;
+  });
   const [mobileTab, setMobileTab] = useState<"home" | "booking" | "transactions" | "profile">("home");
   const [isNavVisible, setIsNavVisible] = useState(true);
   const lastScrollY = useRef(0);
+
+  const handleProfileClick = () => {
+    if (isMobile) {
+      setMobileTab("profile");
+    } else {
+      dispatch({ type: "SET_SHOW_SIDEBAR", show: true });
+    }
+  };
+
 
   // Scroll listener to hide/show bottom navigation in mobile view with animation
   useEffect(() => {
@@ -225,9 +298,12 @@ export default function App() {
 
     if (page === "admin") return { ...base, showAdminPanel: true };
     if (page === "client") return { ...base, showClientPanel: true };
+    if (page === "advertise") return { ...base, showAdvertise: true };
+    if (page === "sidebar" && params.sidebarPage) return { ...base, activeSidebarPage: params.sidebarPage };
     if (page === "business" && params.businessId) return { ...base, selectedBusinessId: params.businessId };
     if (page === "article" && params.articleId) return { ...base, selectedArticleId: Number(params.articleId) };
     if (page === "place" && params.placeName) return { ...base, selectedPlaceName: params.placeName };
+    if (page === "service" && params.popularServiceId) return { ...base, selectedPopularServiceId: params.popularServiceId };
     if (page === "category") {
       return {
         ...base,
@@ -271,9 +347,12 @@ export default function App() {
 
     if (page === "admin") { dispatch({ type: "SET_SHOW_ADMIN", show: true }); return; }
     if (page === "client") { dispatch({ type: "SET_SHOW_CLIENT", show: true }); return; }
+    if (page === "advertise") { dispatch({ type: "SET_SHOW_ADVERTISE", show: true }); return; }
+    if (page === "sidebar" && params.sidebarPage) { dispatch({ type: "SET_ACTIVE_SIDEBAR_PAGE", page: params.sidebarPage }); return; }
     if (page === "business" && params.businessId) { dispatch({ type: "SELECT_BUSINESS", id: params.businessId }); return; }
     if (page === "article" && params.articleId) { dispatch({ type: "SELECT_ARTICLE", id: Number(params.articleId) }); return; }
     if (page === "place" && params.placeName) { dispatch({ type: "SELECT_PLACE", name: params.placeName }); return; }
+    if (page === "service" && params.popularServiceId) { dispatch({ type: "SELECT_POPULAR_SERVICE", id: params.popularServiceId }); return; }
     if (page === "category") {
       dispatch({ type: "SELECT_CATEGORY", name: params.categoryName || null, subcategoryName: params.subcategoryName });
       return;
@@ -289,7 +368,9 @@ export default function App() {
     dispatch({ type: "SELECT_ARTICLE", id: null });
     dispatch({ type: "SELECT_PLACE", name: null });
     dispatch({ type: "SELECT_CATEGORY", name: null });
+    dispatch({ type: "SELECT_POPULAR_SERVICE", id: null });
     dispatch({ type: "SET_SHOW_ALL_CATEGORIES", show: false });
+    dispatch({ type: "SET_SHOW_ADVERTISE", show: false });
     dispatch({ type: "SET_SHOW_ADMIN", show: false });
     dispatch({ type: "SET_SHOW_CLIENT", show: false });
     setMobileTab("home");
@@ -303,6 +384,7 @@ export default function App() {
   // Custom event listeners
   useEffect(() => {
     const handleAdvertiseOpen = () => dispatch({ type: "SET_SHOW_ADVERTISE", show: true });
+    const handleSignInOpen = () => dispatch({ type: "SET_SHOW_SIGN_IN", show: true });
     const handleOpenPage = (e: Event) => {
       const page = (e as CustomEvent).detail;
       dispatch({ type: "SET_ACTIVE_SIDEBAR_PAGE", page });
@@ -312,10 +394,12 @@ export default function App() {
       dispatch({ type: "SELECT_BUSINESS", id: customEvent.detail });
     };
     window.addEventListener("fmp-open-advertise", handleAdvertiseOpen);
+    window.addEventListener("fmp-open-signin", handleSignInOpen);
     window.addEventListener("fmp-open-page", handleOpenPage);
     window.addEventListener("fmp-select-business", handleSelectBusiness);
     return () => {
       window.removeEventListener("fmp-open-advertise", handleAdvertiseOpen);
+      window.removeEventListener("fmp-open-signin", handleSignInOpen);
       window.removeEventListener("fmp-open-page", handleOpenPage);
       window.removeEventListener("fmp-select-business", handleSelectBusiness);
     };
@@ -332,9 +416,13 @@ export default function App() {
       content = (
         <MobileProfilePage
           username={username}
+          userProfile={userProfile}
           onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
           onLogout={() => {
+            localStorage.removeItem("fmp_user_token");
+            localStorage.removeItem("fmp_profile_personal:v1");
             setUsername(null);
+            setUserProfile(null);
             dispatch({ type: "LOGOUT" });
             alert("Logged out successfully!");
           }}
@@ -380,7 +468,7 @@ export default function App() {
         scrollToReview={state.scrollToReview}
         scrollToMenu={state.scrollToMenu}
         onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
-        onProfileClick={() => dispatch({ type: "SET_SHOW_SIDEBAR", show: true })}
+        onProfileClick={handleProfileClick}
         username={username}
       />
     );
@@ -393,12 +481,12 @@ export default function App() {
           dispatch({ type: "SELECT_BUSINESS", id });
         }}
         onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
-        onProfileClick={() => dispatch({ type: "SET_SHOW_SIDEBAR", show: true })}
+        onProfileClick={handleProfileClick}
         username={username}
       />
     );
   } else if (state.selectedCategoryName !== null) {
-    if (state.selectedSubcategoryName === null) {
+    if (isMobile && state.selectedSubcategoryName === null) {
       content = (
         <AllCategoriesPage
           onBack={() => dispatch({ type: "SELECT_CATEGORY", name: null })}
@@ -413,7 +501,13 @@ export default function App() {
         <CategoryDetailPage
           categoryName={state.selectedCategoryName}
           initialSubcategory={state.selectedSubcategoryName}
-          onBack={() => dispatch({ type: "SELECT_CATEGORY", name: state.selectedCategoryName, subcategoryName: null })}
+          onBack={() => {
+            if (isMobile) {
+              dispatch({ type: "SELECT_CATEGORY", name: state.selectedCategoryName, subcategoryName: null });
+            } else {
+              dispatch({ type: "SELECT_CATEGORY", name: null });
+            }
+          }}
           onBusinessSelect={(id) => {
             dispatch({ type: "SELECT_BUSINESS", id });
           }}
@@ -421,11 +515,23 @@ export default function App() {
             dispatch({ type: "SELECT_BUSINESS", id, scrollToMenu: true });
           }}
           onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
-          onProfileClick={() => dispatch({ type: "SET_SHOW_SIDEBAR", show: true })}
+          onProfileClick={handleProfileClick}
           username={username}
         />
       );
     }
+  } else if (state.selectedPopularServiceId !== null) {
+    content = (
+      <PopularServiceDetailPage
+        popularServiceId={state.selectedPopularServiceId}
+        onBack={() => dispatch({ type: "SELECT_POPULAR_SERVICE", id: null })}
+        onBusinessSelect={(id) => dispatch({ type: "SELECT_BUSINESS", id })}
+        onBookNow={(id) => dispatch({ type: "SELECT_BUSINESS", id, scrollToMenu: true })}
+        onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
+        onProfileClick={handleProfileClick}
+        username={username}
+      />
+    );
   } else if (state.showAllCategoriesPage) {
     content = (
       <AllCategoriesPage
@@ -452,12 +558,16 @@ export default function App() {
           dispatch({ type: "SELECT_CATEGORY", name: categoryName, subcategoryName });
         }}
         onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
-        onProfileClick={() => dispatch({ type: "SET_SHOW_SIDEBAR", show: true })}
+        onProfileClick={handleProfileClick}
         onAdvertiseClick={() => dispatch({ type: "SET_SHOW_ADVERTISE", show: true })}
         username={username}
         onShowAllCategories={() => dispatch({ type: "SET_SHOW_ALL_CATEGORIES", show: true })}
+        onPopularServiceClick={(id) => dispatch({ type: "SELECT_POPULAR_SERVICE", id })}
         onLogout={() => {
+          localStorage.removeItem("fmp_user_token");
+          localStorage.removeItem("fmp_profile_personal:v1");
           setUsername(null);
+          setUserProfile(null);
           dispatch({ type: "LOGOUT" });
           alert("Logged out successfully!");
         }}
@@ -468,6 +578,24 @@ export default function App() {
         onSavedBusinessesClick={() => dispatch({ type: "SET_ACTIVE_SIDEBAR_PAGE", page: "Saved" })}
         onPrivacyPolicyClick={() => dispatch({ type: "SET_ACTIVE_SIDEBAR_PAGE", page: "Privacy Policy" })}
         onTermsConditionsClick={() => dispatch({ type: "SET_ACTIVE_SIDEBAR_PAGE", page: "Terms & Conditions" })}
+      />
+    );
+  }
+
+  if (isMobile && !username && !state.showAdminPanel && !state.showClientPanel) {
+    return (
+      <SignInPage
+        onBack={() => {}}
+        onSuccess={(name) => {
+          setUsername(name);
+          const savedProfile = localStorage.getItem("fmp_profile_personal:v1");
+          if (savedProfile) {
+            try {
+              setUserProfile(JSON.parse(savedProfile));
+            } catch (e) {}
+          }
+        }}
+        isMandatory={true}
       />
     );
   }
@@ -502,6 +630,12 @@ export default function App() {
         onBack={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: false })}
         onSuccess={(name) => {
           setUsername(name);
+          const savedProfile = localStorage.getItem("fmp_profile_personal:v1");
+          if (savedProfile) {
+            try {
+              setUserProfile(JSON.parse(savedProfile));
+            } catch (e) {}
+          }
           dispatch({ type: "SET_SHOW_SIGN_IN", show: false });
         }}
       />
@@ -513,12 +647,15 @@ export default function App() {
       {content}
 
       {/* Sidebar Overlay */}
-      {state.showSidebar && (
+      {state.showSidebar && !isMobile && (
         <Sidebar
           onClose={() => dispatch({ type: "SET_SHOW_SIDEBAR", show: false })}
           username={username}
           onLogout={() => {
+            localStorage.removeItem("fmp_user_token");
+            localStorage.removeItem("fmp_profile_personal:v1");
             setUsername(null);
+            setUserProfile(null);
             dispatch({ type: "LOGOUT" });
             alert("Logged out successfully!");
           }}
@@ -540,7 +677,17 @@ export default function App() {
       {/* Profile Wizard Overlay */}
       {state.showProfileWizard && (
         <ProfileWizard
-          onClose={() => dispatch({ type: "SET_SHOW_PROFILE_WIZARD", show: false })}
+          onClose={() => {
+            dispatch({ type: "SET_SHOW_PROFILE_WIZARD", show: false });
+            const savedProfile = localStorage.getItem("fmp_profile_personal:v1");
+            if (savedProfile) {
+              try {
+                const parsed = JSON.parse(savedProfile);
+                setUserProfile(parsed);
+                setUsername(parsed.firstName || null);
+              } catch (e) {}
+            }
+          }}
           username={username}
         />
       )}

@@ -39,68 +39,47 @@ export default function AllBookings() {
   const [selectedBooking, setSelectedBooking] = useState<BookingRecord | null>(null);
 
   // Load all bookings across all static and custom businesses
-  const loadBookings = () => {
-    let allBiz = [...businessesData];
+  const getAuthHeaders = (): HeadersInit => {
+    const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_business_token") || "";
+    return token
+      ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+      : { "Content-Type": "application/json" };
+  };
+
+  const loadBookings = async () => {
     try {
-      const savedCustom = localStorage.getItem("fmp_custom_businesses");
-      if (savedCustom) {
-        const parsed = JSON.parse(savedCustom);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((custom: any) => {
-            if (!allBiz.some((b) => b.id === custom.id)) {
-              allBiz.push(custom);
-            }
-          });
-        }
+      const res = await fetch("http://localhost:5000/api/bookings", {
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        const list = data.data.map((b: any) => ({
+          id: b.id,
+          timestamp: b.createdAt ? new Date(b.createdAt).toLocaleDateString('en-GB') + ' ' + new Date(b.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '',
+          businessId: b.businessId,
+          businessName: b.businessName,
+          categoryName: b.category,
+          customerName: b.customerName || "Guest",
+          phone: b.customerPhone || "",
+          details: b.formData || {},
+          amount: b.amount || 0,
+          paymentMethod: b.paymentMethod || "N/A",
+          status: b.status === "confirmed" || b.status === "completed" ? "Completed" : b.status === "cancelled" ? "Cancelled" : "Pending",
+        }));
+        setBookings(list);
+      } else {
+        setBookings([]);
       }
     } catch (e) {
-      console.error("Failed to load custom businesses", e);
+      console.error("Failed to load bookings from database", e);
+      setBookings([]);
     }
-
-    const list: BookingRecord[] = [];
-    allBiz.forEach((biz) => {
-      const submissionsKey = `fmp_service_submissions:${biz.id}`;
-      const paymentsKey = `fmp_service_payments:${biz.id}`;
-      
-      try {
-        const submissions = JSON.parse(localStorage.getItem(submissionsKey) || "[]");
-        const payments = JSON.parse(localStorage.getItem(paymentsKey) || "[]");
-        
-        submissions.forEach((sub: any) => {
-          const pay = payments.find((p: any) => p.bookingId === sub.id);
-          list.push({
-            id: sub.id,
-            timestamp: sub.timestamp,
-            businessId: biz.id,
-            businessName: biz.name,
-            categoryName: biz.category,
-            customerName: sub.data["Full Name"] || sub.data["Your Name"] || (pay ? pay.customerName : "Guest"),
-            phone: sub.data["Phone Number"] || sub.data["Mobile Number"] || sub.data["Phone"] || (pay ? pay.phone : ""),
-            details: sub.data,
-            amount: pay ? pay.amount : 0,
-            paymentMethod: pay ? pay.paymentMethod : "N/A",
-            status: pay ? pay.status : "Pending",
-          });
-        });
-      } catch (e) {
-        console.error("Error reading bookings for " + biz.name, e);
-      }
-    });
-
-    // Sort newest first based on sub-{timestamp}
-    list.sort((a, b) => {
-      const idA = parseInt(a.id.split("-")[1]) || 0;
-      const idB = parseInt(b.id.split("-")[1]) || 0;
-      return idB - idA;
-    });
-
-    setBookings(list);
   };
 
   useEffect(() => {
     loadBookings();
     
-    // Sync if storage changes (e.g. from client side tab or drawer)
+    // Sync if storage changes
     const handleStorage = () => {
       loadBookings();
     };
@@ -145,48 +124,47 @@ export default function AllBookings() {
   }, [bookings]);
 
   // Handle Cancel Booking (Change status to Cancelled)
-  const handleCancelBooking = (booking: BookingRecord) => {
+  const handleCancelBooking = async (booking: BookingRecord) => {
     if (window.confirm(`Are you sure you want to cancel booking for ${booking.customerName}?`)) {
-      const paymentsKey = `fmp_service_payments:${booking.businessId}`;
       try {
-        const payments = JSON.parse(localStorage.getItem(paymentsKey) || "[]");
-        const updatedPayments = payments.map((p: any) => 
-          p.bookingId === booking.id ? { ...p, status: "Cancelled" } : p
-        );
-        localStorage.setItem(paymentsKey, JSON.stringify(updatedPayments));
-        
-        loadBookings(); // reload data
-        // Dispatch storage event to keep views synced
-        window.dispatchEvent(new Event("storage"));
+        const res = await fetch(`http://localhost:5000/api/bookings/${booking.id}/status`, {
+          method: "PUT",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ status: "cancelled" })
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadBookings();
+          window.dispatchEvent(new Event("storage"));
+        } else {
+          alert(data.message || "Failed to cancel booking");
+        }
       } catch (err) {
-        alert("Error cancelling booking: " + err);
+        alert("Error cancelling booking in database: " + err);
       }
     }
   };
 
-  // Handle Delete Booking (Remove entirely from storage)
-  const handleDeleteBooking = (booking: BookingRecord) => {
+  // Handle Delete Booking (Remove entirely from database)
+  const handleDeleteBooking = async (booking: BookingRecord) => {
     if (window.confirm(`Delete booking for ${booking.customerName} permanently? This cannot be undone.`)) {
-      const submissionsKey = `fmp_service_submissions:${booking.businessId}`;
-      const paymentsKey = `fmp_service_payments:${booking.businessId}`;
       try {
-        // Delete submission
-        const subs = JSON.parse(localStorage.getItem(submissionsKey) || "[]");
-        const updatedSubs = subs.filter((s: any) => s.id !== booking.id);
-        localStorage.setItem(submissionsKey, JSON.stringify(updatedSubs));
-
-        // Delete payment
-        const payments = JSON.parse(localStorage.getItem(paymentsKey) || "[]");
-        const updatedPayments = payments.filter((p: any) => p.bookingId !== booking.id);
-        localStorage.setItem(paymentsKey, JSON.stringify(updatedPayments));
-
-        loadBookings(); // reload
-        if (selectedBooking?.id === booking.id) {
-          setSelectedBooking(null);
+        const res = await fetch(`http://localhost:5000/api/bookings/${booking.id}`, {
+          method: "DELETE",
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadBookings();
+          if (selectedBooking?.id === booking.id) {
+            setSelectedBooking(null);
+          }
+          window.dispatchEvent(new Event("storage"));
+        } else {
+          alert(data.message || "Failed to delete booking");
         }
-        window.dispatchEvent(new Event("storage"));
       } catch (err) {
-        alert("Error deleting booking: " + err);
+        alert("Error deleting booking from database: " + err);
       }
     }
   };

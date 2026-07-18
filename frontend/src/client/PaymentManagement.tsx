@@ -32,193 +32,6 @@ export interface PaymentTransaction {
   details: string;
 }
 
-// Generate some premium default mock payments if none are stored in localStorage
-const generateMockPayments = (bizId: string): PaymentTransaction[] => {
-  const currentYear = new Date().getFullYear();
-  return [
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 1}`,
-      timestamp: `02/07/${currentYear} 10:15`,
-      customerName: "Arjun Mehta",
-      amount: 1500,
-      paymentMethod: "upi",
-      status: "Completed",
-      details: "Full House Deep Cleaning Service"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 2}`,
-      timestamp: `01/07/${currentYear} 16:45`,
-      customerName: "Neha Kapoor",
-      amount: 799,
-      paymentMethod: "card",
-      status: "Completed",
-      details: "Plumbing Inspection & Leak Repair"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 3}`,
-      timestamp: `28/06/${currentYear} 14:35`,
-      customerName: "Rahul Sharma",
-      amount: 499,
-      paymentMethod: "upi",
-      status: "Completed",
-      details: "Standard AC Repair Package Service Enquiry Deposit"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 4}`,
-      timestamp: `27/06/${currentYear} 09:30`,
-      customerName: "Karan Johar",
-      amount: 2500,
-      paymentMethod: "netbanking",
-      status: "Completed",
-      details: "Interior Design Consultation Deposit"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 5}`,
-      timestamp: `26/06/${currentYear} 18:20`,
-      customerName: "Meera Nair",
-      amount: 350,
-      paymentMethod: "upi",
-      status: "Refunded",
-      details: "Kitchen Chimney Cleaning Cancellation Refund"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 65 * 24 * 6}`,
-      timestamp: `25/06/${currentYear} 11:20`,
-      customerName: "Priyanka Verma",
-      amount: 999,
-      paymentMethod: "card",
-      status: "Completed",
-      details: "Premium Consulting & Accounting Package"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 7}`,
-      timestamp: `24/06/${currentYear} 12:10`,
-      customerName: "Rohan Das",
-      amount: 1200,
-      paymentMethod: "upi",
-      status: "Completed",
-      details: "Sofa Dry Cleaning & Sanitization"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 8}`,
-      timestamp: `23/06/${currentYear} 15:40`,
-      customerName: "Ananya Sen",
-      amount: 180,
-      paymentMethod: "upi",
-      status: "Completed",
-      details: "Bathroom Tap Replacement Service"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 9}`,
-      timestamp: `22/06/${currentYear} 08:50`,
-      customerName: "Kabir Singh",
-      amount: 3000,
-      paymentMethod: "card",
-      status: "Completed",
-      details: "Wooden Wardrobe Repair & Polish"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 70 * 24 * 10}`,
-      timestamp: `21/06/${currentYear} 19:40`,
-      customerName: "Aman Gupta",
-      amount: 349,
-      paymentMethod: "upi",
-      status: "Completed",
-      details: "Product Order: Paneer Tikka Butter Masala x1"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 11}`,
-      timestamp: `20/06/${currentYear} 11:00`,
-      customerName: "Divya Teja",
-      amount: 650,
-      paymentMethod: "upi",
-      status: "Completed",
-      details: "Washing Machine Installation"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 80 * 24 * 12}`,
-      timestamp: `19/06/${currentYear} 09:15`,
-      customerName: "Sneha Patel",
-      amount: 1999,
-      paymentMethod: "netbanking",
-      status: "Refunded",
-      details: "Room Stay Reservation Deposit (Deluxe AC Room)"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 13}`,
-      timestamp: `18/06/${currentYear} 17:30`,
-      customerName: "Yash Birla",
-      amount: 450,
-      paymentMethod: "upi",
-      status: "Completed",
-      details: "Ceiling Fan Repair & Capacitor Change"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 14}`,
-      timestamp: `17/06/${currentYear} 14:20`,
-      customerName: "Ritu Singhal",
-      amount: 850,
-      paymentMethod: "card",
-      status: "Completed",
-      details: "Pest Control - Cockroach Gel Treatment"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 90 * 24 * 15}`,
-      timestamp: `16/06/${currentYear} 13:10`,
-      customerName: "Vikram Rathore",
-      amount: 289,
-      paymentMethod: "upi",
-      status: "Completed",
-      details: "Product Order: Butter Naan & Dal Makhani Combo x1"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 16}`,
-      timestamp: `15/06/${currentYear} 10:45`,
-      customerName: "Sanjay Dutt",
-      amount: 2200,
-      paymentMethod: "netbanking",
-      status: "Completed",
-      details: "Water Purifier RO Filter Service & Repair"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 17}`,
-      timestamp: `14/06/${currentYear} 16:15`,
-      customerName: "Nisha Rao",
-      amount: 600,
-      paymentMethod: "upi",
-      status: "Completed",
-      details: "Door Lock Installation & Repair"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 95 * 24 * 18}`,
-      timestamp: `13/06/${currentYear} 10:00`,
-      customerName: "Aditi Rao",
-      amount: 300,
-      paymentMethod: "card",
-      status: "Completed",
-      details: "Doctor Consultation Fee Slot Booking"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 19}`,
-      timestamp: `12/06/${currentYear} 15:30`,
-      customerName: "Varun Dhawan",
-      amount: 1100,
-      paymentMethod: "upi",
-      status: "Completed",
-      details: "Geyser Installation & Safety Inspection"
-    },
-    {
-      id: `txn-${Date.now() - 1000 * 60 * 60 * 24 * 20}`,
-      timestamp: `11/06/${currentYear} 09:00`,
-      customerName: "Isha Ambani",
-      amount: 5000,
-      paymentMethod: "card",
-      status: "Completed",
-      details: "Full House Painting Consultative Inspection"
-    }
-  ];
-};
-
 export default function PaymentManagement({ clientListings }: PaymentManagementProps) {
   const [selectedBizId, setSelectedBizId] = useState<string>("");
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
@@ -237,30 +50,42 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
     }
   }, [clientListings, selectedBizId]);
 
-  // Load transactions from localStorage or fallback to Mock data
+  const getAuthHeaders = (): HeadersInit => {
+    const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
+    return token
+      ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+      : { "Content-Type": "application/json" };
+  };
+
+  // Load transactions from backend API
   useEffect(() => {
     if (selectedBizId) {
-      const storageKey = `fmp_service_payments:${selectedBizId}`;
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
+      const loadTransactions = async () => {
         try {
-          const parsed = JSON.parse(saved);
-          // Overwrite with the new expanded mock data if it was using the old, shorter mock data
-          if (parsed.length <= 6) {
-            const mockData = generateMockPayments(selectedBizId);
-            localStorage.setItem(storageKey, JSON.stringify(mockData));
-            setTransactions(mockData);
+          const res = await fetch(`http://localhost:5000/api/transactions/business/${selectedBizId}`, {
+            headers: getAuthHeaders()
+          });
+          const data = await res.json();
+          if (data.success && Array.isArray(data.data)) {
+            const mapped = data.data.map((txn: any) => ({
+              id: txn.id,
+              bookingId: txn.bookingId || "",
+              timestamp: txn.timestamp,
+              customerName: txn.customerName || "Guest",
+              amount: txn.amount,
+              paymentMethod: txn.paymentMethod || "upi",
+              status: txn.status || "Completed",
+              details: txn.details || txn.description || "Booking Payment"
+            }));
+            setTransactions(mapped);
           } else {
-            setTransactions(parsed);
+            setTransactions([]);
           }
         } catch (e) {
           setTransactions([]);
         }
-      } else {
-        const mockData = generateMockPayments(selectedBizId);
-        localStorage.setItem(storageKey, JSON.stringify(mockData));
-        setTransactions(mockData);
-      }
+      };
+      loadTransactions();
     }
   }, [selectedBizId]);
 
@@ -352,19 +177,26 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
   }, [transactions]);
 
   // Handle simulate refund
-  const handleRefund = (txnId: string) => {
+  const handleRefund = async (txnId: string) => {
     if (window.confirm("Are you sure you want to issue a full refund for this transaction?")) {
-      const updated = transactions.map((t) => {
-        if (t.id === txnId) {
-          return { ...t, status: "Refunded" as const };
+      try {
+        const res = await fetch(`http://localhost:5000/api/transactions/${txnId}/refund`, {
+          method: "PUT",
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (data.success) {
+          setTransactions((prev) =>
+            prev.map((t) => (t.id === txnId ? { ...t, status: "Refunded" as const } : t))
+          );
+          setSuccessMsg("Refund issued successfully!");
+          setTimeout(() => setSuccessMsg(""), 3000);
+        } else {
+          alert(data.message || "Failed to issue refund");
         }
-        return t;
-      });
-      setTransactions(updated);
-      localStorage.setItem(`fmp_service_payments:${selectedBizId}`, JSON.stringify(updated));
-
-      setSuccessMsg("Refund issued successfully!");
-      setTimeout(() => setSuccessMsg(""), 3000);
+      } catch (err) {
+        alert("Failed to issue refund in database");
+      }
     }
   };
 
@@ -413,6 +245,13 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
         <div>
           <h3 className="font-serif text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Payment Management</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Track payouts, customer transaction history, and detailed revenue metrics.</p>
+          {selectedBiz && (
+            <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>Business: <strong>{selectedBiz.name}</strong></span>
+              <span className="text-slate-350 dark:text-slate-650 hidden sm:inline">|</span>
+              <span>Subcategory: <strong>{selectedBiz.category ? selectedBiz.category.split(">")[1]?.trim() || selectedBiz.category : "-"}</strong></span>
+            </p>
+          )}
         </div>
 
         {/* Business Selector Dropdown - only show if there are multiple listings */}
@@ -534,6 +373,8 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
                   <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-850">
                     <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Transaction ID</th>
                     <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Date & Time</th>
+                    <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Business</th>
+                    <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Subcategory</th>
                     <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Customer Name</th>
                     <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Details</th>
                     <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Method</th>
@@ -552,10 +393,16 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
                         {txn.timestamp}
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-900 dark:text-white font-extrabold">
+                        {selectedBiz?.name || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-405 font-semibold">
+                        {selectedBiz?.category ? selectedBiz.category.split(">")[1]?.trim() || selectedBiz.category : "-"}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-900 dark:text-white font-extrabold">
                         {txn.customerName}
                       </td>
-                      <td className="px-4 py-3 text-xs text-slate-550 dark:text-slate-400 font-semibold max-w-[200px] truncate" title={txn.details}>
-                        {txn.details}
+                      <td className="px-4 py-3 text-xs text-slate-550 dark:text-slate-400 font-semibold max-w-[200px] truncate" title={txn.details.replace(/^Product Order:\s*/i, "")}>
+                        {txn.details.replace(/^Product Order:\s*/i, "")}
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-550 dark:text-slate-400 font-black uppercase">
                         {txn.paymentMethod}

@@ -16,6 +16,7 @@ import {
 import logoImg from "@/assets/logo.png";
 import { touristPlacesData, TouristPlaceDetailData } from "../data/touristPlacesData";
 import { businessesData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 import Footer from "./Footer";
 
 interface PlaceDetailPageProps {
@@ -35,27 +36,9 @@ export default function PlaceDetailPage({
   onProfileClick,
   username,
 }: PlaceDetailPageProps) {
-  // Get data for selected place or default to Ujjain
-  let placeData: TouristPlaceDetailData = touristPlacesData[placeName];
-
-  if (!placeData) {
-    try {
-      const saved = localStorage.getItem("fmp_custom_tourist_places");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          const found = parsed.find((p) => p.name.toLowerCase() === placeName.toLowerCase());
-          if (found) placeData = found;
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  if (!placeData) {
-    placeData = touristPlacesData.Ujjain;
-  }
+  const [placeData, setPlaceData] = useState<TouristPlaceDetailData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reviewsModal, setReviewsModal] = useState(false);
 
   // UI toggle states grouped to reduce useState hook count
   const [uiState, setUiState] = useState({
@@ -66,24 +49,7 @@ export default function PlaceDetailPage({
   const { bookmarked, activeFaqIndex, reviewSubmitted } = uiState;
 
   // Custom reviews state
-  const [reviewsList, setReviewsList] = useState([
-    {
-      userName: "Rahul Sharma",
-      userInitial: "R",
-      userColor: "from-blue-500 to-indigo-600",
-      rating: 5,
-      date: "2 days ago",
-      reviewText: `Our trip to ${placeData.name} was absolutely incredible. The temples are beautiful and the city has a magical spiritual vibe. Must visit for everyone!`,
-    },
-    {
-      userName: "Priya Patel",
-      userInitial: "P",
-      userColor: "from-rose-500 to-pink-600",
-      rating: 4,
-      date: "1 week ago",
-      reviewText: `Loved exploring the local markets and the heritage sites. Street food was exceptionally delicious! Highly recommend visiting during the winters.`,
-    },
-  ]);
+  const [reviewsList, setReviewsList] = useState<any[]>([]);
 
   const [newReview, setNewReview] = useState({
     name: "",
@@ -125,6 +91,40 @@ export default function PlaceDetailPage({
 
   useEffect(() => {
     window.scrollTo(0, 0);
+
+    const fetchPlace = async () => {
+      setLoading(true);
+      try {
+        const [placeRes, reviewsRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/tourist-places/${encodeURIComponent(placeName)}`),
+          fetch(`${API_BASE_URL}/place-reviews/${encodeURIComponent(placeName)}`),
+        ]);
+        const placeJson = await placeRes.json();
+        const reviewsJson = await reviewsRes.json();
+        if (placeJson.success && placeJson.data) {
+          setPlaceData(placeJson.data);
+        } else {
+          setPlaceData(null);
+        }
+        if (reviewsJson.success && Array.isArray(reviewsJson.data)) {
+          setReviewsList(reviewsJson.data.map((r: any) => ({
+            userName: r.userName,
+            userInitial: r.userInitial,
+            userColor: r.userColor,
+            rating: r.rating,
+            date: new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+            reviewText: r.reviewText,
+          })));
+        }
+      } catch (err) {
+        console.error("Failed to load place details:", err);
+        setPlaceData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPlace();
   }, [placeName]);
 
   useEffect(() => {
@@ -164,6 +164,7 @@ export default function PlaceDetailPage({
   };
 
   const handleShare = () => {
+    if (!placeData) return;
     if (navigator.share) {
       navigator
         .share({
@@ -178,7 +179,7 @@ export default function PlaceDetailPage({
     }
   };
 
-  const handleReviewSubmit = (e: React.FormEvent) => {
+  const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newReview.name || !newReview.text) {
       alert("Please enter both your name and review details.");
@@ -195,24 +196,43 @@ export default function PlaceDetailPage({
     ];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
-    setReviewsList([
-      {
-        userName: newReview.name,
-        userInitial: firstLetter || "U",
-        userColor: randomColor,
-        rating: newReview.rating,
-        date: "Just now",
-        reviewText: newReview.text,
-      },
-      ...reviewsList,
-    ]);
+    const payload = {
+      userName: newReview.name,
+      userInitial: firstLetter || "U",
+      userColor: randomColor,
+      rating: newReview.rating,
+      reviewText: newReview.text,
+    };
 
-    setUiState((prev) => ({ ...prev, reviewSubmitted: true }));
-    setNewReview({ name: "", rating: 5, text: "" });
-
-    setTimeout(() => {
-      setUiState((prev) => ({ ...prev, reviewSubmitted: false }));
-    }, 4000);
+    try {
+      const res = await fetch(`${API_BASE_URL}/place-reviews/${encodeURIComponent(placeData!.name)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const saved = data.data;
+        setReviewsList(prev => [{
+          userName: saved.userName,
+          userInitial: saved.userInitial,
+          userColor: saved.userColor,
+          rating: saved.rating,
+          date: "Just now",
+          reviewText: saved.reviewText,
+        }, ...prev]);
+        setUiState((prev) => ({ ...prev, reviewSubmitted: true }));
+        setNewReview({ name: "", rating: 5, text: "" });
+        setTimeout(() => {
+          setUiState((prev) => ({ ...prev, reviewSubmitted: false }));
+        }, 4000);
+      } else {
+        alert("Failed to submit review. Please try again.");
+      }
+    } catch (err) {
+      console.error("Review submit error:", err);
+      alert("Failed to submit review. Please try again.");
+    }
   };
 
   const scrollToCategory = (categoryName: string) => {
@@ -231,6 +251,29 @@ export default function PlaceDetailPage({
       }
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-xs font-semibold text-slate-500">Loading destination details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!placeData) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 p-6 text-center">
+        <h2 className="font-serif text-2xl font-bold text-slate-900 dark:text-white mb-2">Destination Not Found</h2>
+        <p className="text-xs text-slate-500 mb-6">The requested tourist guide destination could not be loaded.</p>
+        <button onClick={onBack} className="bg-indigo-600 text-white text-xs font-bold px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition">
+          Go Back
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans antialiased">
@@ -357,7 +400,7 @@ export default function PlaceDetailPage({
                     <span>{placeData.rating}</span>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2 mt-3">
+                <div className="flex flex-wrap items-center gap-2 mt-3">
                   {placeData.tags.map((tag) => (
                     <span
                       key={tag}
@@ -366,6 +409,14 @@ export default function PlaceDetailPage({
                       {tag}
                     </span>
                   ))}
+                  {placeData.reviewsCount > 0 && (
+                    <button
+                      onClick={() => setReviewsModal(true)}
+                      className="text-xs font-bold text-primary underline underline-offset-2 hover:text-primary/80 transition cursor-pointer ml-1"
+                    >
+                      ({reviewsList.length > 0 ? reviewsList.length : placeData.reviewsCount} reviews)
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -431,25 +482,25 @@ export default function PlaceDetailPage({
               <div className="flex justify-between items-start gap-4">
                 <span className="text-xs font-bold text-muted-foreground">Best Time:</span>
                 <span className="text-xs font-semibold text-foreground text-right">
-                  {placeData.bestTime || "October to March (Winter)"}
+                  {placeData.bestTime || ""}
                 </span>
               </div>
               <div className="flex justify-between items-start gap-4 border-t border-border/40 pt-3">
                 <span className="text-xs font-bold text-muted-foreground">Ideal Duration:</span>
                 <span className="text-xs font-semibold text-foreground text-right">
-                  {placeData.idealDuration || "2 - 3 Days"}
+                  {placeData.idealDuration || ""}
                 </span>
               </div>
               <div className="flex justify-between items-start gap-4 border-t border-border/40 pt-3">
                 <span className="text-xs font-bold text-muted-foreground">Nearest Airport:</span>
                 <span className="text-xs font-semibold text-foreground text-right">
-                  {placeData.nearestAirport || "Indore (IDR) for Ujjain, Jaipur (JAI) for Jaipur"}
+                  {placeData.nearestAirport || ""}
                 </span>
               </div>
               <div className="flex justify-between items-start gap-4 border-t border-border/40 pt-3">
                 <span className="text-xs font-bold text-muted-foreground">Local Transport:</span>
                 <span className="text-xs font-semibold text-foreground text-right">
-                  {placeData.localTransport || "Auto Rickshaw, E-Rickshaw, Cabs"}
+                  {placeData.localTransport || ""}
                 </span>
               </div>
             </div>
@@ -873,45 +924,46 @@ export default function PlaceDetailPage({
           </section>
         )}
 
-        {/* FAQs Section */}
-        <section className="mt-6 sm:mt-20 border-t border-border/50 pt-6 sm:pt-16">
-          <div className="max-w-3xl">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
-              FAQs
-            </span>
-            <h2 className="text-2xl font-serif font-black text-foreground mt-1 mb-8">
-              Frequently Asked Questions
-            </h2>
-            <div className="space-y-4">
-              {placeData.faqs.map((faq, index) => (
-                <div
-                  key={index}
-                  className="bg-transparent sm:bg-card rounded-none sm:rounded-xl border-none border-b border-border/40 sm:border sm:border-border/60 p-2 sm:p-4.5 cursor-pointer shadow-none sm:shadow-[0_1px_4px_rgba(0,0,0,0.02)] transition hover:border-border/80"
-                  onClick={() =>
-                    setUiState((prev) => ({
-                      ...prev,
-                      activeFaqIndex: activeFaqIndex === index ? null : index,
-                    }))
-                  }
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-sm font-bold text-foreground">{faq.question}</span>
-                    {activeFaqIndex === index ? (
-                      <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+        {placeData.faqs && placeData.faqs.length > 0 && (
+          <section className="mt-6 sm:mt-20 border-t border-border/50 pt-6 sm:pt-16">
+            <div className="max-w-3xl">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
+                FAQs
+              </span>
+              <h2 className="text-2xl font-serif font-black text-foreground mt-1 mb-8">
+                Frequently Asked Questions
+              </h2>
+              <div className="space-y-4">
+                {placeData.faqs.map((faq, index) => (
+                  <div
+                    key={index}
+                    className="bg-transparent sm:bg-card rounded-none sm:rounded-xl border-none border-b border-border/40 sm:border sm:border-border/60 p-2 sm:p-4.5 cursor-pointer shadow-none sm:shadow-[0_1px_4px_rgba(0,0,0,0.02)] transition hover:border-border/80"
+                    onClick={() =>
+                      setUiState((prev) => ({
+                        ...prev,
+                        activeFaqIndex: activeFaqIndex === index ? null : index,
+                      }))
+                    }
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-sm font-bold text-foreground">{faq.question}</span>
+                      {activeFaqIndex === index ? (
+                        <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                      )}
+                    </div>
+                    {activeFaqIndex === index && (
+                      <p className="mt-3 text-xs leading-relaxed text-muted-foreground border-t border-border/40 pt-3">
+                        {faq.answer}
+                      </p>
                     )}
                   </div>
-                  {activeFaqIndex === index && (
-                    <p className="mt-3 text-xs leading-relaxed text-muted-foreground border-t border-border/40 pt-3">
-                      {faq.answer}
-                    </p>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Reviews Section */}
         <section id="reviews-section" className="mt-6 sm:mt-20 border-t border-border/50 pt-6 sm:pt-16">
@@ -1053,6 +1105,85 @@ export default function PlaceDetailPage({
       </main>
 
       <Footer />
+
+      {/* Reviews Modal */}
+      {reviewsModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setReviewsModal(false); }}
+        >
+          <div className="bg-background w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl border border-border/60 flex flex-col max-h-[85vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 shrink-0">
+              <div>
+                <h3 className="text-base font-extrabold text-foreground">User Reviews</h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {reviewsList.length > 0 ? `${reviewsList.length} review${reviewsList.length > 1 ? 's' : ''}` : 'No reviews yet'} for {placeData?.name}
+                </p>
+              </div>
+              <button
+                onClick={() => setReviewsModal(false)}
+                className="h-8 w-8 flex items-center justify-center rounded-full bg-secondary hover:bg-border transition cursor-pointer"
+              >
+                <span className="text-lg font-bold leading-none text-muted-foreground">×</span>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+              {reviewsList.length === 0 ? (
+                <div className="text-center py-16">
+                  <MessageSquare className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+                  <p className="text-sm font-semibold text-muted-foreground">No reviews yet</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">Be the first to share your experience!</p>
+                </div>
+              ) : (
+                reviewsList.map((rev, index) => (
+                  <div
+                    key={index}
+                    className="bg-card border border-border/50 rounded-xl p-4 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`h-9 w-9 rounded-full flex items-center justify-center text-xs font-black text-white bg-gradient-to-tr ${rev.userColor} shadow-inner shrink-0`}
+                        >
+                          {rev.userInitial}
+                        </div>
+                        <div>
+                          <span className="text-[13px] font-bold text-foreground block">{rev.userName}</span>
+                          <span className="text-[10px] text-muted-foreground">{rev.date}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-0.5">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`h-3 w-3 ${i < rev.rating ? "text-amber-500 fill-amber-500" : "text-border"}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <p className="mt-3 text-xs text-muted-foreground/90 leading-relaxed italic">
+                      "{rev.reviewText}"
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-3 border-t border-border/60 shrink-0">
+              <button
+                onClick={() => { setReviewsModal(false); document.getElementById('reviews-section')?.scrollIntoView({ behavior: 'smooth' }); }}
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer"
+              >
+                Write a Review
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

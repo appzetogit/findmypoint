@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Building, Star, Eye, Edit2 } from "lucide-react";
+import { Search, Building, Star, Edit2 } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
 
 interface MyBusinessesProps {
@@ -91,13 +91,6 @@ export default function MyBusinesses({
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => onViewListing(listing.id)}
-                          className="p-2 rounded-lg bg-slate-50 hover:bg-indigo-50 dark:bg-slate-850 dark:hover:bg-indigo-950/40 text-slate-600 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 border border-slate-200 dark:border-slate-800 transition cursor-pointer"
-                          title="View on site"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </button>
                         <button
                           onClick={() => onEditListing(listing.id)}
                           className="p-2 rounded-lg bg-slate-50 hover:bg-amber-50 dark:bg-slate-850 dark:hover:bg-amber-950/40 text-slate-600 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 border border-slate-200 dark:border-slate-800 transition cursor-pointer"

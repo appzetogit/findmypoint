@@ -21,6 +21,14 @@ import {
 
 interface MobileProfilePageProps {
   username?: string | null;
+  userProfile?: {
+    title?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    mobile1?: string;
+    dobYYYY?: string;
+  } | null;
   onSignInClick?: () => void;
   onLogout?: () => void;
   onEditProfileClick?: () => void;
@@ -70,6 +78,7 @@ const MENU_SECTIONS = [
 
 export default function MobileProfilePage({
   username,
+  userProfile,
   onSignInClick,
   onLogout,
   onEditProfileClick,
@@ -81,7 +90,9 @@ export default function MobileProfilePage({
   onTermsConditionsClick,
 }: MobileProfilePageProps) {
   const isLoggedIn = !!username;
-  const displayName = username || MOCK_USER.name;
+  const displayName = userProfile
+    ? `${userProfile.firstName} ${userProfile.lastName || ""}`.trim()
+    : (username || MOCK_USER.name);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   return (
@@ -106,10 +117,14 @@ export default function MobileProfilePage({
                 <BadgeCheck className="h-4 w-4 text-primary shrink-0" />
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">{MOCK_USER.email}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+              {userProfile?.email || (isLoggedIn ? "No email address" : MOCK_USER.email)}
+            </p>
             <div className="flex items-center gap-1 mt-1">
               <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-              <span className="text-[11px] text-muted-foreground truncate">{MOCK_USER.city}</span>
+              <span className="text-[11px] text-muted-foreground truncate">
+                {isLoggedIn ? "Madhya Pradesh, India" : MOCK_USER.city}
+              </span>
             </div>
           </div>
         </div>
@@ -122,7 +137,9 @@ export default function MobileProfilePage({
             </div>
             <div>
               <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">Phone</p>
-              <p className="text-xs font-semibold text-foreground">{MOCK_USER.phone}</p>
+              <p className="text-xs font-semibold text-foreground">
+                {userProfile?.mobile1 ? "+91 " + userProfile.mobile1 : (isLoggedIn ? "No phone number" : MOCK_USER.phone)}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -131,7 +148,9 @@ export default function MobileProfilePage({
             </div>
             <div>
               <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">Member Since</p>
-              <p className="text-xs font-semibold text-foreground">{MOCK_USER.memberSince}</p>
+              <p className="text-xs font-semibold text-foreground">
+                {isLoggedIn ? "July 2026" : MOCK_USER.memberSince}
+              </p>
             </div>
           </div>
         </div>

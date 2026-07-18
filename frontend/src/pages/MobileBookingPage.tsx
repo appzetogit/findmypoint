@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   CalendarDays,
   Clock,
@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Inbox,
 } from "lucide-react";
+import { API_BASE_URL } from "../config";
 
 interface Booking {
   id: string;
@@ -22,66 +23,7 @@ interface Booking {
   amount: number;
   location: string;
 }
-
-const MOCK_BOOKINGS: Booking[] = [
-  {
-    id: "BK001",
-    businessName: "Royal Banquet Hall",
-    category: "Hotel Point",
-    service: "Banquet Hall Booking",
-    date: "2026-07-20",
-    time: "07:00 PM",
-    status: "confirmed",
-    amount: 25000,
-    location: "Ujjain, MP",
-  },
-  {
-    id: "BK002",
-    businessName: "Sharma AC Service",
-    category: "Service Point",
-    service: "AC Repair & Gas Refill",
-    date: "2026-07-10",
-    time: "11:00 AM",
-    status: "completed",
-    amount: 1200,
-    location: "Indore, MP",
-  },
-  {
-    id: "BK003",
-    businessName: "Luxe Spa & Wellness",
-    category: "Spa Point",
-    service: "Full Body Massage",
-    date: "2026-07-08",
-    time: "03:00 PM",
-    status: "pending",
-    amount: 1800,
-    location: "Bhopal, MP",
-  },
-  {
-    id: "BK004",
-    businessName: "Dr. Priya Mehta Clinic",
-    category: "Doctor Point",
-    service: "General Consultation",
-    date: "2026-06-28",
-    time: "10:30 AM",
-    status: "cancelled",
-    amount: 500,
-    location: "Ujjain, MP",
-  },
-  {
-    id: "BK005",
-    businessName: "Kapoor Interior Studio",
-    category: "Service Point",
-    service: "Home Interior Design",
-    date: "2026-07-15",
-    time: "01:00 PM",
-    status: "confirmed",
-    amount: 5000,
-    location: "Indore, MP",
-  },
-];
-
-const STATUS_CONFIG = {
+const STATUS_CONFIG: any = {
   confirmed: {
     label: "Confirmed",
     icon: CheckCircle2,
@@ -109,10 +51,69 @@ const STATUS_CONFIG = {
 };
 
 export default function MobileBookingPage() {
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const filtered = MOCK_BOOKINGS.filter((b) => {
+  const loadUserBookings = async () => {
+    try {
+      const userToken = localStorage.getItem("fmp_user_token");
+      if (!userToken) return;
+      const res = await fetch(`${API_BASE_URL}/bookings`, {
+        headers: {
+          "Authorization": `Bearer ${userToken}`
+        }
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        const mapped: Booking[] = data.data.map((bk: any) => ({
+          id: bk.id,
+          businessName: bk.businessName,
+          category: bk.category || "General",
+          service: bk.service,
+          date: bk.date,
+          time: bk.time,
+          status: bk.status,
+          amount: bk.amount,
+          location: bk.location || "N/A"
+        }));
+        setBookings(mapped);
+      }
+    } catch (err) {
+      console.error("Failed to load user bookings:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadUserBookings();
+  }, []);
+
+  const handleCancelBooking = async (bookingId: string) => {
+    if (!window.confirm("Are you sure you want to cancel this booking?")) return;
+    try {
+      const userToken = localStorage.getItem("fmp_user_token");
+      const res = await fetch(`${API_BASE_URL}/bookings/${bookingId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userToken}`
+        },
+        body: JSON.stringify({ status: "cancelled" })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Booking cancelled successfully!");
+        loadUserBookings();
+      } else {
+        alert(data.message || "Failed to cancel booking.");
+      }
+    } catch (err) {
+      console.error("Failed to cancel booking:", err);
+      alert("Network error cancelling booking.");
+    }
+  };
+
+  const filtered = bookings.filter((b) => {
     return (
       b.businessName.toLowerCase().includes(search.toLowerCase()) ||
       b.service.toLowerCase().includes(search.toLowerCase())
@@ -223,7 +224,10 @@ export default function MobileBookingPage() {
 
                     {(b.status === "confirmed" || b.status === "pending") && (
                       <div className="flex gap-2 pt-2">
-                        <button className="flex-1 py-2 rounded-xl border border-rose-300 text-rose-600 text-xs font-bold hover:bg-rose-50 transition cursor-pointer">
+                        <button
+                          onClick={() => handleCancelBooking(b.id)}
+                          className="flex-1 py-2 rounded-xl border border-rose-300 text-rose-600 text-xs font-bold hover:bg-rose-50 transition cursor-pointer"
+                        >
                           Cancel Booking
                         </button>
                         <button className="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition cursor-pointer">

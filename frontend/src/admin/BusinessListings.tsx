@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { Search, Plus, Eye, Edit2, Trash2, MapPin, Tag, Phone, ShieldCheck, Calendar, QrCode, Download, X } from "lucide-react";
-import { businessesData, BusinessListingData } from "../data/businessesData";
+import { Search, Plus, Eye, EyeOff, Edit2, Trash2, MapPin, Tag, Phone, ShieldCheck, Calendar, QrCode, Download, X, Lock } from "lucide-react";
+import { BusinessListingData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 
 interface BusinessListingsProps {
   onAddNew: () => void;
@@ -16,20 +17,27 @@ export default function BusinessListings({
   const [listings, setListings] = useState<BusinessListingData[]>([]);
   const [viewingBusiness, setViewingBusiness] = useState<BusinessListingData | null>(null);
   const [qrBusiness, setQrBusiness] = useState<BusinessListingData | null>(null);
+  const [showClientPassword, setShowClientPassword] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
-  const loadListings = () => {
-    setListings([...businessesData]);
+  const loadListings = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/businesses`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setListings(data.data);
+      } else {
+        setListings([]);
+      }
+    } catch (e) {
+      console.error("Failed to load listings:", e);
+      setListings([]);
+    }
   };
 
   useEffect(() => {
     loadListings();
-    const handleStorageChange = () => {
-      loadListings();
-    };
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const categoriesList = useMemo(() => {
@@ -51,27 +59,22 @@ export default function BusinessListings({
     });
   }, [listings, searchTerm, selectedCategory]);
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this listing?")) {
+      const token = localStorage.getItem("fmp_admin_token");
       try {
-        const saved = localStorage.getItem("fmp_custom_businesses");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            const updated = parsed.filter((b: any) => b.id !== id);
-            localStorage.setItem("fmp_custom_businesses", JSON.stringify(updated));
-
-            const idx = businessesData.findIndex((b) => b.id === id);
-            if (idx > -1) {
-              businessesData.splice(idx, 1);
-            }
-
-            loadListings();
-            alert("Listing deleted successfully!");
-            window.dispatchEvent(new Event("storage"));
+        const res = await fetch(`${API_BASE_URL}/businesses/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${token}`
           }
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("Listing deleted successfully!");
+          loadListings();
         } else {
-          alert("Cannot delete preloaded static listings.");
+          alert(data.message || "Failed to delete listing.");
         }
       } catch (e) {
         console.error("Failed to delete listing", e);
@@ -80,81 +83,55 @@ export default function BusinessListings({
     }
   };
 
-  const handleToggleVerify = (id: string) => {
-    const bizIndex = businessesData.findIndex((b) => b.id === id);
-    if (bizIndex > -1) {
-      const biz = businessesData[bizIndex];
+  const handleToggleVerify = async (id: string) => {
+    const biz = listings.find((b) => b.id === id);
+    if (biz) {
+      const token = localStorage.getItem("fmp_admin_token");
       const newStatus = !biz.isVerified;
-
-      // Update in active memory
-      biz.isVerified = newStatus;
-
-      // Save override to localStorage
       try {
-        const overrides = localStorage.getItem("fmp_verified_statuses");
-        const parsed = overrides ? JSON.parse(overrides) : {};
-        parsed[id] = newStatus;
-        localStorage.setItem("fmp_verified_statuses", JSON.stringify(parsed));
-
-        // Also update in fmp_custom_businesses if it exists there
-        const savedCustom = localStorage.getItem("fmp_custom_businesses");
-        if (savedCustom) {
-          const parsedCustom = JSON.parse(savedCustom);
-          if (Array.isArray(parsedCustom)) {
-            const updatedCustom = parsedCustom.map((b: any) => {
-              if (b.id === id) {
-                return { ...b, isVerified: newStatus };
-              }
-              return b;
-            });
-            localStorage.setItem("fmp_custom_businesses", JSON.stringify(updatedCustom));
-          }
+        const res = await fetch(`${API_BASE_URL}/businesses/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ isVerified: newStatus })
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadListings();
+        } else {
+          alert(data.message || "Failed to update verify status.");
         }
       } catch (e) {
-        console.error("Failed to save verification status", e);
+        console.error("Failed to update verify status:", e);
       }
-
-      loadListings();
-      window.dispatchEvent(new Event("storage"));
     }
   };
 
-  const handleToggleBooking = (id: string) => {
-    const bizIndex = businessesData.findIndex((b) => b.id === id);
-    if (bizIndex > -1) {
-      const biz = businessesData[bizIndex];
+  const handleToggleBooking = async (id: string) => {
+    const biz = listings.find((b) => b.id === id);
+    if (biz) {
+      const token = localStorage.getItem("fmp_admin_token");
       const newStatus = !biz.isBookingDisabled;
-
-      // Update in active memory
-      biz.isBookingDisabled = newStatus;
-
-      // Save override to localStorage
       try {
-        const overrides = localStorage.getItem("fmp_booking_disabled_statuses");
-        const parsed = overrides ? JSON.parse(overrides) : {};
-        parsed[id] = newStatus;
-        localStorage.setItem("fmp_booking_disabled_statuses", JSON.stringify(parsed));
-
-        // Also update in fmp_custom_businesses if it exists there
-        const savedCustom = localStorage.getItem("fmp_custom_businesses");
-        if (savedCustom) {
-          const parsedCustom = JSON.parse(savedCustom);
-          if (Array.isArray(parsedCustom)) {
-            const updatedCustom = parsedCustom.map((b: any) => {
-              if (b.id === id) {
-                return { ...b, isBookingDisabled: newStatus };
-              }
-              return b;
-            });
-            localStorage.setItem("fmp_custom_businesses", JSON.stringify(updatedCustom));
-          }
+        const res = await fetch(`${API_BASE_URL}/businesses/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ isBookingDisabled: newStatus })
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadListings();
+        } else {
+          alert(data.message || "Failed to update booking status.");
         }
       } catch (e) {
-        console.error("Failed to save booking disable status", e);
+        console.error("Failed to update booking status:", e);
       }
-
-      loadListings();
-      window.dispatchEvent(new Event("storage"));
     }
   };
 
@@ -322,7 +299,7 @@ export default function BusinessListings({
                       <td className="py-3.5 px-6 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => setViewingBusiness(item)}
+                            onClick={() => { setViewingBusiness(item); setShowClientPassword(false); }}
                             title="View Business Details"
                             className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition cursor-pointer"
                           >
@@ -538,6 +515,30 @@ export default function BusinessListings({
                         </p>
                       </div>
                     )}
+
+                    {/* Client Login Password — Admin Only */}
+                    <div className="space-y-1 pt-1 border-t border-slate-200/60 dark:border-slate-800/60">
+                      <span className="text-slate-400 dark:text-slate-500 text-[10px] uppercase flex items-center gap-1">
+                        <Lock className="h-3 w-3" /> Client Login Password
+                      </span>
+                      {viewingBusiness.clientPassword ? (
+                        <div className="flex items-center gap-2">
+                          <p className="text-slate-800 dark:text-slate-200 font-bold tracking-wider flex-1">
+                            {showClientPassword ? viewingBusiness.clientPassword : "•".repeat(viewingBusiness.clientPassword.length)}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setShowClientPassword((v) => !v)}
+                            className="text-slate-400 hover:text-indigo-500 transition-colors shrink-0"
+                            title={showClientPassword ? "Hide password" : "Show password"}
+                          >
+                            {showClientPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-slate-400 dark:text-slate-500 italic text-[11px]">Not set</p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Facilities */}

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { User, Phone, Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Globe } from "lucide-react";
+import { User, Phone, Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
 
 interface ClientSession {
   email: string;
   name: string;
   phone: string;
-  websiteLink?: string;
+  businessId?: string;
+  token?: string;
 }
 
 interface ProfileSettingsProps {
@@ -18,7 +19,6 @@ export default function ProfileSettings({ session, onProfileUpdate }: ProfileSet
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [websiteLink, setWebsiteLink] = useState("");
 
   // Security states
   const [currentPassword, setCurrentPassword] = useState("");
@@ -30,6 +30,9 @@ export default function ProfileSettings({ session, onProfileUpdate }: ProfileSet
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
 
+  // Loading state
+  const [isLoading, setIsLoading] = useState(false);
+
   // Status states
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -40,62 +43,110 @@ export default function ProfileSettings({ session, onProfileUpdate }: ProfileSet
       setName(session.name || "");
       setEmail(session.email || "");
       setPhone(session.phone || "");
-      setWebsiteLink(session.websiteLink || "");
     }
   }, [session]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
 
     if (!session) return;
 
-    // 1. Password Verification (If changing password or modifying profile)
-    const storedPass = localStorage.getItem(`fmp_client_password:${session.email}`) || "client";
-
-    if (currentPassword !== storedPass) {
-      setErrorMsg("Incorrect current password. Profile updates require verification.");
+    // Validate: current password is always required
+    if (!currentPassword.trim()) {
+      setErrorMsg("Current password is required to verify and save changes.");
       return;
     }
 
-    // 2. New Password matching check
+    // Validate new password matching
     if (newPassword || confirmPassword) {
       if (newPassword !== confirmPassword) {
-        setErrorMsg("New password and confirm password fields do not match.");
+        setErrorMsg("New password and confirm password do not match.");
         return;
       }
       if (newPassword.length < 4) {
-        setErrorMsg("New password should be at least 4 characters long.");
+        setErrorMsg("New password must be at least 4 characters long.");
         return;
       }
     }
 
-    // 3. Save profile changes
-    const updatedSession: ClientSession = {
-      email: email.trim(),
-      name: name.trim(),
-      phone: phone.trim(),
-      websiteLink: websiteLink.trim() || undefined,
-    };
+    const token = localStorage.getItem("fmp_business_token") || session.token || "";
 
-    // Update session in LocalStorage
-    localStorage.setItem("fmp_client_session:v1", JSON.stringify(updatedSession));
-
-    // Update password in LocalStorage if new password is set
-    if (newPassword) {
-      localStorage.setItem(`fmp_client_password:${updatedSession.email}`, newPassword);
-      // Reset password inputs
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
+    if (!token) {
+      setErrorMsg("Authentication token missing. Please log in again.");
+      return;
     }
 
-    // Notify parent to sync state
-    onProfileUpdate(updatedSession);
-    
-    setSuccessMsg("Your profile and credentials have been updated successfully!");
-    setTimeout(() => setSuccessMsg(""), 4000);
+    setIsLoading(true);
+
+    try {
+      // Step 1: If new password is set, change password via backend
+      if (newPassword) {
+        const pwRes = await fetch("http://localhost:5000/api/businesses/change-password", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ currentPassword, newPassword }),
+        });
+
+        const pwData = await pwRes.json();
+
+        if (!pwRes.ok || !pwData.success) {
+          setErrorMsg(pwData.message || "Failed to update password. Check your current password.");
+          setIsLoading(false);
+          return;
+        }
+
+        // Clear password fields on success
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+
+      // Step 2: Update profile info (name, phone) via backend
+      const profileRes = await fetch(`http://localhost:5000/api/businesses/${session.businessId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim(),
+          email: email.trim(),
+        }),
+      });
+
+      const profileData = await profileRes.json();
+
+      if (!profileRes.ok || !profileData.success) {
+        // Profile update failed but password may have already changed — show partial message
+        setErrorMsg(profileData.message || "Profile info update failed. Password was updated if requested.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Step 3: Sync local session with updated data
+      const updatedSession: ClientSession = {
+        ...session,
+        name: profileData.data?.name || name.trim(),
+        email: profileData.data?.email || email.trim(),
+        phone: profileData.data?.phone || phone.trim(),
+      };
+
+      localStorage.setItem("fmp_client_session:v1", JSON.stringify(updatedSession));
+      onProfileUpdate(updatedSession);
+
+      setSuccessMsg("Profile and credentials updated successfully!");
+      setTimeout(() => setSuccessMsg(""), 4000);
+    } catch {
+      setErrorMsg("Could not connect to server. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -178,33 +229,6 @@ export default function ProfileSettings({ session, onProfileUpdate }: ProfileSet
                 />
               </div>
             </div>
-
-            <div className="space-y-1.5">
-              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                Website Link <span className="text-slate-400 dark:text-slate-650">(Optional)</span>
-              </label>
-              <div className="relative">
-                <Globe className="absolute left-3.5 top-3.5 h-4.5 w-4.5 text-slate-400 dark:text-slate-500" />
-                <input
-                  type="url"
-                  placeholder="https://www.yourwebsite.com"
-                  value={websiteLink}
-                  onChange={(e) => setWebsiteLink(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-xs pl-11 pr-4 py-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 font-semibold"
-                />
-              </div>
-              {websiteLink && (
-                <a
-                  href={websiteLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-500 hover:text-indigo-700 hover:underline transition-colors mt-0.5"
-                >
-                  <Globe className="h-3 w-3" />
-                  Open link in new tab
-                </a>
-              )}
-            </div>
           </div>
 
           {/* Card 2: Security & Password Update */}
@@ -239,7 +263,7 @@ export default function ProfileSettings({ session, onProfileUpdate }: ProfileSet
 
             <div className="space-y-1.5">
               <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                New Password <span className="text-slate-400 dark:text-slate-650">(Optional)</span>
+                New Password <span className="text-slate-400 dark:text-slate-650">(Optional — leave blank to keep current)</span>
               </label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-3.5 h-4.5 w-4.5 text-slate-400 dark:text-slate-500" />
@@ -288,9 +312,17 @@ export default function ProfileSettings({ session, onProfileUpdate }: ProfileSet
         {/* Submit Button */}
         <button
           type="submit"
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-md hover:shadow-lg active:scale-[0.99] transition duration-200 cursor-pointer text-center text-xs"
+          disabled={isLoading}
+          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-md hover:shadow-lg active:scale-[0.99] transition duration-200 cursor-pointer text-center text-xs flex items-center justify-center gap-2"
         >
-          Verify & Save Profile Settings
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Saving Changes...</span>
+            </>
+          ) : (
+            "Verify & Save Profile Settings"
+          )}
         </button>
       </form>
     </div>

@@ -19,8 +19,9 @@ import {
   Building,
   Award,
 } from "lucide-react";
-import { loadAdminUsers, saveAdminUsers, UserProfile, AddressItem } from "../data/usersData";
+import { UserProfile, AddressItem } from "../data/usersData";
 import { createPortal } from "react-dom";
+import { API_BASE_URL } from "../config";
 
 export default function UsersManagement() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -46,8 +47,53 @@ export default function UsersManagement() {
     tag: "Home",
   });
 
-  const loadUsersData = () => {
-    setUsers(loadAdminUsers());
+  const loadUsersData = async () => {
+    const token = localStorage.getItem("fmp_admin_token");
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/users`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.success && data.users) {
+        const mappedUsers: UserProfile[] = data.users.map((u: any) => ({
+          id: u._id,
+          personal: {
+            title: u.title || "",
+            firstName: u.firstName || "",
+            middleName: u.middleName || "",
+            lastName: u.lastName || "",
+            dobDD: u.dobDD || "",
+            dobMM: u.dobMM || "",
+            dobYYYY: u.dobYYYY || "",
+            maritalStatus: u.maritalStatus || "",
+            occupation: u.occupation || "",
+            mobile1: u.mobile1 || "",
+            mobile2: u.mobile2 || "",
+            avatar: u.avatar || "",
+          },
+          addresses: u.addresses ? u.addresses.map((a: any) => ({
+            id: a._id || a.id,
+            name: a.name || "",
+            phone: a.phone || "",
+            email: a.email || "",
+            address: a.address || "",
+            pincode: a.pincode || "",
+            city: a.city || "",
+            landlineStd: a.landlineStd || "",
+            landlineNum: a.landlineNum || "",
+            tag: a.tag || "Home",
+          })) : [],
+          selectedFavorites: u.selectedFavorites || [],
+        }));
+        setUsers(mappedUsers);
+      }
+    } catch (err) {
+      console.error("Failed to fetch admin users", err);
+    }
   };
 
   useEffect(() => {
@@ -94,12 +140,29 @@ export default function UsersManagement() {
     return filteredUsers.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredUsers, currentPage]);
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this user?")) {
-      const updated = users.filter((u) => u.id !== id);
-      setUsers(updated);
-      saveAdminUsers(updated);
-      alert("User deleted successfully!");
+      const token = localStorage.getItem("fmp_admin_token");
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        const data = await res.json();
+        if (data.success) {
+          setUsers(users.filter((u) => u.id !== id));
+          alert("User deleted successfully!");
+        } else {
+          alert(data.message || "Failed to delete user");
+        }
+      } catch (err) {
+        console.error("Failed to delete user", err);
+        alert("An error occurred while deleting the user.");
+      }
     }
   };
 
@@ -168,13 +231,94 @@ export default function UsersManagement() {
     });
   };
 
-  const handleSaveUserEdit = () => {
+  const handleSaveUserEdit = async () => {
     if (!editingUser) return;
-    const updated = users.map((u) => (u.id === editingUser.id ? editingUser : u));
-    setUsers(updated);
-    saveAdminUsers(updated);
-    setEditingUser(null);
-    alert("User details updated successfully!");
+
+    const token = localStorage.getItem("fmp_admin_token");
+    if (!token) return;
+
+    try {
+      const body = {
+        title: editingUser.personal.title,
+        firstName: editingUser.personal.firstName,
+        middleName: editingUser.personal.middleName,
+        lastName: editingUser.personal.lastName,
+        dobDD: editingUser.personal.dobDD,
+        dobMM: editingUser.personal.dobMM,
+        dobYYYY: editingUser.personal.dobYYYY,
+        maritalStatus: editingUser.personal.maritalStatus,
+        occupation: editingUser.personal.occupation,
+        mobile1: editingUser.personal.mobile1,
+        mobile2: editingUser.personal.mobile2,
+        avatar: editingUser.personal.avatar,
+        addresses: editingUser.addresses.map((a) => ({
+          _id: a.id.startsWith("addr-") ? undefined : a.id,
+          name: a.name,
+          phone: a.phone,
+          email: a.email,
+          address: a.address,
+          pincode: a.pincode,
+          city: a.city,
+          landlineStd: a.landlineStd,
+          landlineNum: a.landlineNum,
+          tag: a.tag
+        })),
+        selectedFavorites: editingUser.selectedFavorites
+      };
+
+      const res = await fetch(`${API_BASE_URL}/admin/users/${editingUser.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        const u = data.user;
+        const updatedUser: UserProfile = {
+          id: u._id,
+          personal: {
+            title: u.title || "",
+            firstName: u.firstName || "",
+            middleName: u.middleName || "",
+            lastName: u.lastName || "",
+            dobDD: u.dobDD || "",
+            dobMM: u.dobMM || "",
+            dobYYYY: u.dobYYYY || "",
+            maritalStatus: u.maritalStatus || "",
+            occupation: u.occupation || "",
+            mobile1: u.mobile1 || "",
+            mobile2: u.mobile2 || "",
+            avatar: u.avatar || "",
+          },
+          addresses: u.addresses ? u.addresses.map((a: any) => ({
+            id: a._id || a.id,
+            name: a.name || "",
+            phone: a.phone || "",
+            email: a.email || "",
+            address: a.address || "",
+            pincode: a.pincode || "",
+            city: a.city || "",
+            landlineStd: a.landlineStd || "",
+            landlineNum: a.landlineNum || "",
+            tag: a.tag || "Home",
+          })) : [],
+          selectedFavorites: u.selectedFavorites || []
+        };
+
+        const updatedList = users.map((item) => (item.id === updatedUser.id ? updatedUser : item));
+        setUsers(updatedList);
+        setEditingUser(null);
+        alert("User details updated successfully!");
+      } else {
+        alert(data.message || "Failed to update user");
+      }
+    } catch (err) {
+      console.error("Failed to update user", err);
+      alert("An error occurred while updating the user.");
+    }
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -266,7 +410,7 @@ export default function UsersManagement() {
                         </div>
                         <div>
                           <span className="font-bold text-slate-900 dark:text-white block leading-snug">
-                            {user.personal.title} {user.personal.firstName} {user.personal.lastName}
+                            {`${user.personal.firstName} ${user.personal.middleName || ""} ${user.personal.lastName}`.replace(/\s+/g, " ").trim()}
                           </span>
                           <span className="text-[10px] text-slate-450 dark:text-slate-500 font-semibold uppercase tracking-wider leading-none">
                             {user.personal.maritalStatus}
@@ -456,14 +600,6 @@ export default function UsersManagement() {
 
                   {/* Profile fields */}
                   <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-6 text-xs w-full">
-                    <div>
-                      <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-0.5">
-                        Title
-                      </span>
-                      <span className="font-bold text-slate-900 dark:text-white text-[13px]">
-                        {viewingUser.personal.title || "Mr."}
-                      </span>
-                    </div>
                     <div>
                       <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-0.5">
                         Full Name
@@ -746,22 +882,7 @@ export default function UsersManagement() {
 
                     {/* Fields Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Title */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-450 block">
-                          Title
-                        </label>
-                        <select
-                          value={editingUser.personal.title}
-                          onChange={(e) => handleUpdatePersonalField("title", e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition-all font-semibold shadow-sm cursor-pointer"
-                        >
-                          <option value="Mr.">Mr.</option>
-                          <option value="Ms.">Ms.</option>
-                          <option value="Mrs.">Mrs.</option>
-                          <option value="Dr.">Dr.</option>
-                        </select>
-                      </div>
+
 
                       {/* First Name */}
                       <div className="space-y-1.5">

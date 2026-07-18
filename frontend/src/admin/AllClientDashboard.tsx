@@ -53,83 +53,117 @@ export default function AllClientDashboard() {
   const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
 
-  const loadDashboardData = () => {
+  const getAuthHeaders = (): HeadersInit => {
+    const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_business_token") || "";
+    return token
+      ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+      : { "Content-Type": "application/json" };
+  };
+
+  const loadDashboardData = async () => {
     // 1. Gather all businesses
-    let allBiz = [...businessesData];
+    let allBiz: any[] = [];
     try {
-      const savedCustom = localStorage.getItem("fmp_custom_businesses");
-      if (savedCustom) {
-        const parsed = JSON.parse(savedCustom);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((custom: any) => {
-            if (!allBiz.some((b) => b.id === custom.id)) {
-              allBiz.push(custom);
-            }
-          });
-        }
+      const resBiz = await fetch("http://localhost:5000/api/businesses");
+      const dataBiz = await resBiz.json();
+      if (dataBiz.success && Array.isArray(dataBiz.data)) {
+        allBiz = dataBiz.data;
       }
-    } catch (e) {}
+    } catch {}
+
+    if (allBiz.length === 0) {
+      allBiz = [...businessesData];
+      try {
+        const savedCustom = localStorage.getItem("fmp_custom_businesses");
+        if (savedCustom) {
+          const parsed = JSON.parse(savedCustom);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((custom: any) => {
+              if (!allBiz.some((b) => b.id === custom.id)) {
+                allBiz.push(custom);
+              }
+            });
+          }
+        }
+      } catch (e) {}
+    }
 
     // 2. Loop and count
     let allBookingsList: any[] = [];
+    try {
+      const resBook = await fetch("http://localhost:5000/api/bookings", {
+        headers: getAuthHeaders()
+      });
+      const dataBook = await resBook.json();
+      if (dataBook.success && Array.isArray(dataBook.data)) {
+        allBookingsList = dataBook.data.map((b: any) => ({
+          id: b.id,
+          timestamp: b.createdAt ? new Date(b.createdAt).toLocaleDateString('en-GB') + ' ' + new Date(b.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '',
+          bizName: b.businessName,
+          bizId: b.businessId,
+          customerName: b.customerName || "Guest",
+          status: b.status || "pending",
+          desc: "Created a new booking slot"
+        }));
+      }
+    } catch (e) {
+      console.error("Failed to load bookings in dashboard", e);
+    }
+
+    // 3. Fetch enquiries from backend
     let allEnquiriesList: any[] = [];
+    try {
+      await Promise.all(allBiz.map(async (biz) => {
+        try {
+          const resEnq = await fetch(`http://localhost:5000/api/businesses/${biz.id}/enquiries`, {
+            headers: getAuthHeaders()
+          });
+          const dataEnq = await resEnq.json();
+          if (dataEnq.success && Array.isArray(dataEnq.data)) {
+            dataEnq.data.forEach((item: any) => {
+              allEnquiriesList.push({
+                id: item._id,
+                timestamp: item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-GB') + ' ' + new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '',
+                bizName: biz.name,
+                bizId: biz.id,
+                customerName: item.name || "Guest",
+                desc: `Enquired: "${item.message.substring(0, 40)}${item.message.length > 40 ? "..." : ""}"`
+              });
+            });
+          }
+        } catch {}
+      }));
+    } catch (e) {
+      console.error("Failed to load enquiries in dashboard", e);
+    }
+
     const bizStatsMap = new Map<string, { bookings: number; enquiries: number }>();
-
     allBiz.forEach((biz) => {
-      const subKey = `fmp_service_submissions:${biz.id}`;
-      const enqKey = `fmp_service_enquiries:${biz.id}`;
-
-      let subCount = 0;
-      let enqCount = 0;
-
-      try {
-        const submissions = JSON.parse(localStorage.getItem(subKey) || "[]");
-        if (Array.isArray(submissions)) {
-          subCount = submissions.length;
-          submissions.forEach((sub: any) => {
-            allBookingsList.push({
-              id: sub.id,
-              timestamp: sub.timestamp,
-              bizName: biz.name,
-              customerName: sub.data["Full Name"] || sub.data["Your Name"] || "Guest",
-              desc: "Created a new booking slot"
-            });
-          });
-        }
-      } catch (e) {}
-
-      try {
-        const enquiries = JSON.parse(localStorage.getItem(enqKey) || "[]");
-        if (Array.isArray(enquiries)) {
-          enqCount = enquiries.length;
-          enquiries.forEach((enq: any) => {
-            allEnquiriesList.push({
-              id: enq.id,
-              timestamp: enq.timestamp,
-              bizName: biz.name,
-              customerName: enq.name || "Guest",
-              desc: `Enquired: "${enq.message.substring(0, 40)}${enq.message.length > 40 ? "..." : ""}"`
-            });
-          });
-        }
-      } catch (e) {}
-
-      bizStatsMap.set(biz.id, { bookings: subCount, enquiries: enqCount });
+      bizStatsMap.set(biz.id, { bookings: 0, enquiries: 0 });
     });
 
-    // 3. Fallbacks if data is empty (to populate dashboard with gorgeous demo data)
+    allBookingsList.forEach((b) => {
+      const stats = bizStatsMap.get(b.bizId) || { bookings: 0, enquiries: 0 };
+      bizStatsMap.set(b.bizId, { ...stats, bookings: stats.bookings + 1 });
+    });
+
+    allEnquiriesList.forEach((e) => {
+      const stats = bizStatsMap.get(e.bizId) || { bookings: 0, enquiries: 0 };
+      bizStatsMap.set(e.bizId, { ...stats, enquiries: stats.enquiries + 1 });
+    });
+
     let finalBookingsCount = allBookingsList.length;
     let finalEnquiriesCount = allEnquiriesList.length;
 
-    if (finalBookingsCount === 0) {
-      finalBookingsCount = 85;
-    }
-    if (finalEnquiriesCount === 0) {
-      finalEnquiriesCount = 142;
-    }
-
-    const accepted = Math.round(finalBookingsCount * 0.75);
-    const cancelled = Math.round(finalBookingsCount * 0.08);
+    let accepted = 0;
+    let cancelled = 0;
+    allBookingsList.forEach((bk) => {
+      if (bk.status === 'cancelled') {
+        cancelled++;
+      } else {
+        accepted++;
+      }
+    });
 
     setTotalBookings(finalBookingsCount);
     setTotalEnquiries(finalEnquiriesCount);
@@ -139,16 +173,8 @@ export default function AllClientDashboard() {
     // 4. Generate Leaderboard
     const leaderboardItems: LeaderboardItem[] = allBiz.map((biz) => {
       const counts = bizStatsMap.get(biz.id) || { bookings: 0, enquiries: 0 };
-      
-      // Fallback weights for mock data if zero
       let bCount = counts.bookings;
       let eCount = counts.enquiries;
-      if (allBookingsList.length === 0) {
-        // distribute simulated values based on business ID hash
-        const hash = biz.id.charCodeAt(0) + biz.id.charCodeAt(biz.id.length - 1);
-        bCount = (hash % 12) + 3;
-        eCount = (hash % 20) + 5;
-      }
 
       return {
         id: biz.id,
@@ -164,19 +190,37 @@ export default function AllClientDashboard() {
     leaderboardItems.sort((a, b) => b.totalActivity - a.totalActivity);
     setLeaderboard(leaderboardItems.slice(0, 5));
 
-    // 5. Generate Recharts Data
+    // 5. Generate Recharts Data dynamically from dates
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"];
-    const bChart = months.map((m, idx) => {
-      // Simulate trajectory peaking in June
-      let val = idx === 5 ? Math.round(finalBookingsCount * 0.6) : Math.round(finalBookingsCount * (0.05 + idx * 0.03));
-      if (val === 0) val = 2;
-      return { name: m, Bookings: val };
+    const monthCountsB = Array(7).fill(0);
+    const monthCountsE = Array(7).fill(0);
+
+    allBookingsList.forEach((bk) => {
+      if (bk.timestamp) {
+        const parts = bk.timestamp.split("/");
+        if (parts.length >= 2) {
+          const monthIdx = parseInt(parts[1], 10) - 1;
+          if (monthIdx >= 0 && monthIdx < 7) {
+            monthCountsB[monthIdx]++;
+          }
+        }
+      }
     });
-    const eChart = months.map((m, idx) => {
-      let val = idx === 5 ? Math.round(finalEnquiriesCount * 0.55) : Math.round(finalEnquiriesCount * (0.08 + idx * 0.04));
-      if (val === 0) val = 4;
-      return { name: m, Enquiries: val };
+
+    allEnquiriesList.forEach((enq) => {
+      if (enq.timestamp) {
+        const parts = enq.timestamp.split("/");
+        if (parts.length >= 2) {
+          const monthIdx = parseInt(parts[1], 10) - 1;
+          if (monthIdx >= 0 && monthIdx < 7) {
+            monthCountsE[monthIdx]++;
+          }
+        }
+      }
     });
+
+    const bChart = months.map((m, idx) => ({ name: m, Bookings: monthCountsB[idx] }));
+    const eChart = months.map((m, idx) => ({ name: m, Enquiries: monthCountsE[idx] }));
     setBookingsChartData(bChart);
     setEnquiriesChartData(eChart);
 
@@ -203,19 +247,10 @@ export default function AllClientDashboard() {
       });
     });
 
-    // If empty, generate standard mock feed
     if (mergedActivity.length === 0) {
-      const mockFeed: ActivityItem[] = [
-        { type: "booking", id: "1", timestamp: "03/07/2026 18:22", bizName: "Vishal Mega Mart", customerName: "Aarav Sharma", desc: "Booked inspection slot" },
-        { type: "enquiry", id: "2", timestamp: "03/07/2026 15:45", bizName: "Apollo Hospital", customerName: "Isha Patel", desc: "Enquired about general health packages" },
-        { type: "booking", id: "3", timestamp: "02/07/2026 12:10", bizName: "Spa & Salon Point", customerName: "Kabir Mehta", desc: "Scheduled hair grooming session" },
-        { type: "enquiry", id: "4", timestamp: "02/07/2026 09:30", bizName: "Pure Dining Restaurant", customerName: "Riya Sen", desc: "Enquired about catering services" },
-        { type: "booking", id: "5", timestamp: "01/07/2026 14:15", bizName: "Vishal Mega Mart", customerName: "Dev Dixit", desc: "Confirmed product delivery request" }
-      ];
-      setRecentActivities(mockFeed);
+      setRecentActivities([]);
     } else {
-      // Sort activities by ID timestamp order
-      mergedActivity.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+      mergedActivity.sort((a, b) => b.id.localeCompare(a.id));
       setRecentActivities(mergedActivity.slice(0, 5));
     }
   };

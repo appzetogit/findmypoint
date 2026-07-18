@@ -17,7 +17,7 @@ import {
   Wallet as WalletIcon
 } from "lucide-react";
 import logoImg from "../assets/logo.png";
-import { businessesData, BusinessListingData } from "../data/businessesData";
+import { BusinessListingData } from "../data/businessesData";
 import AdminEntryForm from "../admin/AdminEntryForm";
 import Dashboard from "./Dashboard";
 import MyBusinesses from "./MyBusinesses";
@@ -58,6 +58,8 @@ interface ClientSession {
   email: string;
   name: string;
   phone: string;
+  businessId?: string;
+  token?: string;
 }
 
 export default function ClientShell({ onClose }: ClientShellProps) {
@@ -65,10 +67,19 @@ export default function ClientShell({ onClose }: ClientShellProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [session, setSession] = useState<ClientSession | null>(null);
 
-  // View States
-  const [currentView, setCurrentView] = useState<ClientView>("overview");
+  // View States — persisted to localStorage so refresh keeps same page
+  const [currentView, setCurrentView] = useState<ClientView>(() => {
+    const saved = localStorage.getItem("fmp_client_view");
+    const validViews: ClientView[] = ["overview","listings","bookings","wallet","payments","enquiries","add","edit","settings","serviceform","addproduct","reviews","postmedia","faq"];
+    return (saved && validViews.includes(saved as ClientView)) ? (saved as ClientView) : "overview";
+  });
   const [editingBusinessId, setEditingBusinessId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const navigateTo = (view: ClientView) => {
+    localStorage.setItem("fmp_client_view", view);
+    setCurrentView(view);
+  };
 
 
 
@@ -111,46 +122,48 @@ export default function ClientShell({ onClose }: ClientShellProps) {
 
   const handleLogout = () => {
     localStorage.removeItem("fmp_client_session:v1");
+    localStorage.removeItem("fmp_business_token");
+    localStorage.removeItem("fmp_client_view");
     setSession(null);
     setIsAuthenticated(false);
     setCurrentView("overview");
   };
 
-  // Helper to load current businesses matching the client
-  const [allListings, setAllListings] = useState<BusinessListingData[]>(businessesData);
-  
-  const loadBusinesses = () => {
-    setAllListings([...businessesData]);
+  // Fetch businesses from backend API for this client
+  const [allListings, setAllListings] = useState<BusinessListingData[]>([]);
+
+  const loadBusinesses = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/businesses");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setAllListings(data.data);
+      }
+    } catch {
+      setAllListings([]);
+    }
   };
 
   useEffect(() => {
     loadBusinesses();
-    const handleStorage = () => {
-      loadBusinesses();
-    };
+    const handleStorage = () => { loadBusinesses(); };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
-  // Filter listings belonging to this client
+  // Filter listings belonging to this client by businessId or email
   const clientListings = useMemo(() => {
     if (!session) return [];
-    
-    const matched = allListings.filter((b) => {
-      const matchesEmail = b.email?.trim().toLowerCase() === session.email.toLowerCase();
-      const matchesPhone = b.phone?.replace(/[\s+-]/g, "").includes(session.phone.replace(/[\s+-]/g, "")) || 
-                            b.phone?.includes(session.phone);
-      return matchesEmail || matchesPhone;
-    });
 
-    if (session.email === "client@fmp.com" && matched.length === 0) {
-      const vishal = allListings.find(b => b.id === "vishal-mega-mart");
-      if (vishal) {
-        return [vishal];
-      }
+    // If session has a specific businessId, filter by that
+    if (session.businessId) {
+      return allListings.filter((b) => b.id === session.businessId);
     }
 
-    return matched;
+    // Fallback: filter by email
+    return allListings.filter((b) =>
+      b.email?.trim().toLowerCase() === session.email.toLowerCase()
+    );
   }, [allListings, session]);
 
   // Filter listings matching search input
@@ -165,68 +178,146 @@ export default function ClientShell({ onClose }: ClientShellProps) {
   }, [clientListings, searchTerm]);
 
   // Statistics
-  const stats = useMemo(() => {
-    const totalListings = clientListings.length;
-    const totalReviews = clientListings.reduce((sum, item) => sum + (item.reviewCount || 0), 0);
-    const avgRating = totalListings > 0
-      ? Number((clientListings.reduce((sum, item) => sum + (item.rating || 0), 0) / totalListings).toFixed(1))
-      : 0.0;
+  const [stats, setStats] = useState({
+    totalBookings: 0,
+    totalAccepted: 0,
+    totalCancelled: 0,
+    totalEnquiries: 0,
+    totalProducts: 0,
+    totalReviews: 0,
+    avgRating: 0,
+    totalRevenue: 0,
+    trajectory: [] as any[]
+  });
 
-    // 1. Total Booking, Accepted, Cancelled
-    let totalBookings = 0;
-    let hasSubmissions = false;
-    clientListings.forEach((biz) => {
-      const subSaved = localStorage.getItem(`fmp_service_submissions:${biz.id}`);
-      if (subSaved) {
-        try {
-          const parsed = JSON.parse(subSaved);
-          if (Array.isArray(parsed)) {
-            totalBookings += parsed.length;
-            hasSubmissions = true;
-          }
-        } catch (e) {}
+  useEffect(() => {
+    if (clientListings.length === 0) return;
+
+    const loadStatsData = async () => {
+      const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
+      const headers: HeadersInit = {};
+      if (token) {
+        (headers as any)["Authorization"] = `Bearer ${token}`;
       }
-    });
-    if (!hasSubmissions) {
-      totalBookings = 11;
-    }
-    const totalAccepted = hasSubmissions ? Math.round(totalBookings * 0.6) : 6;
-    const totalCancelled = hasSubmissions ? (totalBookings - totalAccepted) : 5;
 
-    // 2. Total Enquiries
-    let totalEnquiries = 0;
-    let hasEnquiries = false;
-    clientListings.forEach((biz) => {
-      const saved = localStorage.getItem(`fmp_service_enquiries:${biz.id}`);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            totalEnquiries += parsed.length;
-            hasEnquiries = true;
-          }
-        } catch (e) {}
+      let totalBookings = 0;
+      let totalEnquiries = 0;
+      let totalRevenue = 0;
+      let totalCancelled = 0;
+      const monthCountsB = Array(12).fill(0);
+      const monthCountsE = Array(12).fill(0);
+
+      const totalListings = clientListings.length;
+      const totalReviews = clientListings.reduce((sum, item) => sum + (item.reviewCount || 0), 0);
+      const avgRating = totalListings > 0
+        ? Number((clientListings.reduce((sum, item) => sum + (item.rating || 0), 0) / totalListings).toFixed(1))
+        : 0.0;
+      const totalProducts = clientListings.reduce((sum, item) => sum + (item.products?.length || 0), 0);
+
+      try {
+        await Promise.all(clientListings.map(async (biz) => {
+          // 1. Fetch bookings (custom submissions + product orders)
+          try {
+            const resSub = await fetch(`http://localhost:5000/api/service-forms/${biz.id}/submissions`, { headers });
+            const dataSub = await resSub.json();
+            if (dataSub.success && Array.isArray(dataSub.data)) {
+              totalBookings += dataSub.data.length;
+              dataSub.data.forEach((bk: any) => {
+                if (bk.timestamp) {
+                  const parts = bk.timestamp.split("/");
+                  if (parts.length >= 2) {
+                    const monthIdx = parseInt(parts[1], 10) - 1;
+                    if (monthIdx >= 0 && monthIdx < 12) {
+                      monthCountsB[monthIdx]++;
+                    }
+                  }
+                }
+              });
+            }
+          } catch {}
+
+          try {
+            const resOrder = await fetch(`http://localhost:5000/api/product-orders/${biz.id}`, { headers });
+            const dataOrder = await resOrder.json();
+            if (dataOrder.success && Array.isArray(dataOrder.data)) {
+              totalBookings += dataOrder.data.length;
+              dataOrder.data.forEach((bk: any) => {
+                if (bk.timestamp) {
+                  const parts = bk.timestamp.split("/");
+                  if (parts.length >= 2) {
+                    const monthIdx = parseInt(parts[1], 10) - 1;
+                    if (monthIdx >= 0 && monthIdx < 12) {
+                      monthCountsB[monthIdx]++;
+                    }
+                  }
+                }
+              });
+            }
+          } catch {}
+
+          // 2. Fetch enquiries
+          try {
+            const resEnq = await fetch(`http://localhost:5000/api/businesses/${biz.id}/enquiries`, { headers });
+            const dataEnq = await resEnq.json();
+            if (dataEnq.success && Array.isArray(dataEnq.data)) {
+              totalEnquiries += dataEnq.data.length;
+              dataEnq.data.forEach((enq: any) => {
+                const createdAt = enq.createdAt;
+                if (createdAt) {
+                  const monthIdx = new Date(createdAt).getMonth();
+                  if (monthIdx >= 0 && monthIdx < 12) {
+                    monthCountsE[monthIdx]++;
+                  }
+                }
+              });
+            }
+          } catch {}
+
+          // 3. Fetch transactions
+          try {
+            const resTxn = await fetch(`http://localhost:5000/api/transactions/business/${biz.id}`, { headers });
+            const dataTxn = await resTxn.json();
+            if (dataTxn.success && Array.isArray(dataTxn.data)) {
+              dataTxn.data.forEach((txn: any) => {
+                if (txn.status === "Completed") {
+                  totalRevenue += txn.amount;
+                } else if (txn.status === "Refunded" || txn.status === "Failed") {
+                  totalCancelled += 1;
+                }
+              });
+            }
+          } catch {}
+        }));
+      } catch (err) {
+        console.error("Error loading stats:", err);
       }
-    });
-    if (!hasEnquiries) {
-      totalEnquiries = 18;
-    }
 
-    // 3. Total Products
-    const totalProducts = clientListings.reduce((sum, item) => sum + (item.products?.length || 0), 0);
+      const totalAccepted = Math.max(0, totalBookings - totalCancelled);
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"];
+      const trajectory = monthNames.map((name, idx) => ({
+        name,
+        Orders: monthCountsB[idx],
+        Enquiries: monthCountsE[idx]
+      }));
 
-    const totalRevenue = hasSubmissions ? totalBookings * 180 : 1080;
-
-    return {
-      totalBookings,
-      totalAccepted,
-      totalCancelled,
-      totalEnquiries,
-      totalProducts,
-      totalReviews,
-      avgRating,
-      totalRevenue
+      setStats({
+        totalBookings,
+        totalAccepted,
+        totalCancelled,
+        totalEnquiries,
+        totalProducts,
+        totalReviews,
+        avgRating,
+        totalRevenue,
+        trajectory
+      });
     };
+
+    loadStatsData();
+    // Re-run stats fetch on storage changes (such as new bookings or enquiries)
+    const handleStorage = () => { loadStatsData(); };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, [clientListings]);
 
   const allBookingsDisabled = useMemo(() => {
@@ -285,9 +376,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
             </div>
             <nav className="space-y-2">
               <button
-                onClick={() => {
-                  setCurrentView("overview");
-                }}
+                onClick={() => { navigateTo("overview"); }}
                 className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                   currentView === "overview"
                     ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
@@ -304,9 +393,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
               </button>
 
               <button
-                onClick={() => {
-                  setCurrentView("listings");
-                }}
+                onClick={() => { navigateTo("listings"); }}
                 className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                   currentView === "listings"
                     ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
@@ -324,9 +411,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
 
               {!allBookingsDisabled && (
                 <button
-                  onClick={() => {
-                    setCurrentView("bookings");
-                  }}
+                  onClick={() => { navigateTo("bookings"); }}
                   className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                     currentView === "bookings"
                       ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
@@ -345,9 +430,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
 
               {!allBookingsDisabled && (
                 <button
-                  onClick={() => {
-                    setCurrentView("wallet");
-                  }}
+                  onClick={() => { navigateTo("wallet"); }}
                   className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                     currentView === "wallet"
                       ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
@@ -366,9 +449,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
 
               {!allBookingsDisabled && (
                 <button
-                  onClick={() => {
-                    setCurrentView("payments");
-                  }}
+                  onClick={() => { navigateTo("payments"); }}
                   className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                     currentView === "payments"
                       ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
@@ -386,9 +467,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
               )}
 
               <button
-                onClick={() => {
-                  setCurrentView("enquiries");
-                }}
+                onClick={() => { navigateTo("enquiries"); }}
                 className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                   currentView === "enquiries"
                     ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
@@ -406,9 +485,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
 
               {!allBookingsDisabled && (
                 <button
-                  onClick={() => {
-                    setCurrentView("serviceform");
-                  }}
+                  onClick={() => { navigateTo("serviceform"); }}
                   className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                     currentView === "serviceform"
                       ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
@@ -426,9 +503,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
               )}
 
               <button
-                onClick={() => {
-                  setCurrentView("addproduct");
-                }}
+                onClick={() => { navigateTo("addproduct"); }}
                 className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                   currentView === "addproduct"
                     ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
@@ -445,9 +520,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
               </button>
 
               <button
-                onClick={() => {
-                  setCurrentView("reviews");
-                }}
+                onClick={() => { navigateTo("reviews"); }}
                 className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                   currentView === "reviews"
                     ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
@@ -464,9 +537,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
               </button>
 
               <button
-                onClick={() => {
-                  setCurrentView("postmedia");
-                }}
+                onClick={() => { navigateTo("postmedia"); }}
                 className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                   currentView === "postmedia"
                     ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
@@ -483,9 +554,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
               </button>
 
               <button
-                onClick={() => {
-                  setCurrentView("faq");
-                }}
+                onClick={() => { navigateTo("faq"); }}
                 className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                   currentView === "faq"
                     ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
@@ -502,9 +571,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
               </button>
 
               <button
-                onClick={() => {
-                  setCurrentView("settings");
-                }}
+                onClick={() => { navigateTo("settings"); }}
                 className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                   currentView === "settings"
                     ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
@@ -611,6 +678,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
             <div className="animate-fade-in-up">
               <AdminEntryForm
                 businessId={editingBusinessId}
+                isClient={true}
                 onCancel={() => {
                   setCurrentView("listings");
                 }}

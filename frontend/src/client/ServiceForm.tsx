@@ -1187,33 +1187,79 @@ export default function ServiceForm({ clientListings }: ServiceFormProps) {
 
   const selectedBiz = clientListings.find((b) => b.id === selectedBizId);
 
+  // Sync selectedBizId when clientListings load
+  useEffect(() => {
+    if (clientListings.length > 0 && (!selectedBizId || !clientListings.some(b => b.id === selectedBizId))) {
+      setSelectedBizId(clientListings[0].id);
+    }
+  }, [clientListings, selectedBizId]);
+
+  // Load configuration from backend API
   useEffect(() => {
     if (!selectedBizId) return;
-    const saved = localStorage.getItem(`fmp_service_form:${selectedBizId}`);
-    if (saved) {
-      try {
-        const config: ServiceFormConfig = JSON.parse(saved);
-        setFields(config.fields || []);
-        setBookNowEnabled(config.bookNowEnabled ?? true);
-        setFormTitle(config.formTitle || "Book Our Services");
-        setFormDescription(config.formDescription || "Fill in the details below to book or enquire.");
-        return;
-      } catch {}
-    }
-    if (selectedBiz) {
-      setFields(getTemplateFields(selectedBiz.category || ""));
-      setBookNowEnabled(true);
-      setFormTitle("Book Our Services");
-      setFormDescription("Fill in the details below to book or enquire.");
-    }
-  }, [selectedBizId]);
 
-  const handleSave = () => {
+    const loadConfig = async () => {
+      try {
+        const res = await fetch(`http://localhost:5000/api/service-forms/${selectedBizId}`);
+        const data = await res.json();
+        if (data.success && data.data) {
+          const config = data.data;
+          setFields(config.fields || []);
+          setBookNowEnabled(config.bookNowEnabled ?? true);
+          setFormTitle(config.formTitle || "Book Our Services");
+          setFormDescription(config.formDescription || "Fill in the details below to book or enquire.");
+        } else {
+          // Fallback to templates
+          if (selectedBiz) {
+            setFields(getTemplateFields(selectedBiz.category || ""));
+            setBookNowEnabled(true);
+            setFormTitle("Book Our Services");
+            setFormDescription("Fill in the details below to book or enquire.");
+          }
+        }
+      } catch (err) {
+        if (selectedBiz) {
+          setFields(getTemplateFields(selectedBiz.category || ""));
+          setBookNowEnabled(true);
+          setFormTitle("Book Our Services");
+          setFormDescription("Fill in the details below to book or enquire.");
+        }
+      }
+    };
+
+    loadConfig();
+  }, [selectedBizId, selectedBiz]);
+
+  const handleSave = async () => {
     if (!selectedBizId) return;
-    const config: ServiceFormConfig = { businessId: selectedBizId, fields, bookNowEnabled, formTitle, formDescription, savedAt: new Date().toISOString() };
-    localStorage.setItem(`fmp_service_form:${selectedBizId}`, JSON.stringify(config));
-    setSavedMsg("Form configuration saved successfully!");
-    setTimeout(() => setSavedMsg(""), 3000);
+    const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/service-forms/${selectedBizId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          fields,
+          bookNowEnabled,
+          formTitle,
+          formDescription
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to save configuration.");
+      }
+
+      setSavedMsg("Form configuration saved successfully!");
+      setTimeout(() => setSavedMsg(""), 3000);
+    } catch (err: any) {
+      setSavedMsg(err.message || "Error saving configuration.");
+      setTimeout(() => setSavedMsg(""), 3000);
+    }
   };
 
   const addField = (type: FieldType) => {

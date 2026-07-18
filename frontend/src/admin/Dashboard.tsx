@@ -11,9 +11,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  AreaChart,
-  Area,
-  Legend,
 } from "recharts";
 
 interface DashboardProps {}
@@ -42,7 +39,6 @@ export default function Dashboard({}: DashboardProps) {
     } catch (e) {
       console.error(e);
     }
-    if (usersCount === 0) usersCount = 18;
 
     // 2. Total Category
     let customCats: any[] = [];
@@ -72,7 +68,7 @@ export default function Dashboard({}: DashboardProps) {
       }
     });
     customSubs.forEach((s) => subSet.add(s.name));
-    const subcategoriesCount = subSet.size || 15; // default to at least 15 if empty
+    const subcategoriesCount = subSet.size;
 
     // 4. Total Advertise Request
     let advertiseCount = 0;
@@ -83,7 +79,6 @@ export default function Dashboard({}: DashboardProps) {
         if (Array.isArray(parsed)) advertiseCount = parsed.length;
       }
     } catch (e) {}
-    if (advertiseCount === 0) advertiseCount = 2; // fallback mock
 
     // 5. Total Tourist Places
     let touristPlacesCount = 0;
@@ -94,14 +89,12 @@ export default function Dashboard({}: DashboardProps) {
         if (Array.isArray(parsed)) touristPlacesCount = parsed.length;
       }
     } catch (e) {}
-    if (touristPlacesCount === 0) touristPlacesCount = 8; // fallback mock
 
     // 6. Total Support Request
     let supportCount = 0;
     try {
       supportCount = loadTickets().length;
     } catch (e) {}
-    if (supportCount === 0) supportCount = 3; // fallback mock
 
     return {
       usersCount,
@@ -122,15 +115,6 @@ export default function Dashboard({}: DashboardProps) {
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [listings]);
 
-  const trafficData = [
-    { day: "Mon", Views: 240, Leads: 120 },
-    { day: "Tue", Views: 320, Leads: 160 },
-    { day: "Wed", Views: 450, Leads: 220 },
-    { day: "Thu", Views: 390, Leads: 180 },
-    { day: "Fri", Views: 480, Leads: 260 },
-    { day: "Sat", Views: 620, Leads: 340 },
-    { day: "Sun", Views: 550, Leads: 300 },
-  ];
 
   return (
     <div className="space-y-6 w-full animate-fade-in-up">
@@ -290,57 +274,16 @@ export default function Dashboard({}: DashboardProps) {
               Visual activity logs of views and user actions
             </p>
           </div>
-          <div className="h-60 w-full text-xs">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trafficData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="#e2e8f0"
-                  className="dark:stroke-slate-800/50"
-                />
-                <XAxis dataKey="day" stroke="#94a3b8" fontSize={9} tickLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#0f172a",
-                    border: "none",
-                    borderRadius: "12px",
-                    color: "#fff",
-                    fontSize: "11px",
-                  }}
-                />
-                <Legend iconType="circle" iconSize={6} wrapperStyle={{ paddingTop: 8 }} />
-                <Area
-                  type="monotone"
-                  dataKey="Views"
-                  stroke="#4f46e5"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorViews)"
-                  name="Traffic Views"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="Leads"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorLeads)"
-                  name="Generated Leads"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="h-60 w-full flex flex-col items-center justify-center gap-3 text-slate-400 dark:text-slate-600">
+            <div className="h-12 w-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <div className="text-center">
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">No Traffic Data Available</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-600 mt-0.5">Analytics will appear here once tracking is set up.</p>
+            </div>
           </div>
         </div>
       </div>

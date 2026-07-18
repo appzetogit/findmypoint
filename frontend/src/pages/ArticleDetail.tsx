@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   MapPin,
   Clock,
@@ -17,8 +17,53 @@ import {
   Star,
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
-import { articlesData, ArticleData } from "../data/articlesData";
 import Footer from "./Footer";
+import { API_BASE_URL } from "../config";
+
+// ─── Types (inline, no mock data dependency) ──────────────────────────────────
+export interface BusinessDetail {
+  id: string;
+  name: string;
+  images: string[];
+  description: string;
+  quote?: string;
+  foodRange?: string;
+  mustTry?: string;
+  priceForTwo?: string;
+  timings?: string;
+  address?: string;
+  rating?: number;
+}
+
+export interface Recommendation {
+  title: string;
+  img: string;
+  desc?: string;
+  link?: string;
+}
+
+export interface ArticleData {
+  _id?: string;
+  id: number;
+  title: string;
+  category: string;
+  readTime: string;
+  views: string;
+  commentsCount: number;
+  mainImage: string;
+  galleryImages: string[];
+  author: {
+    name: string;
+    avatar: string;
+    role: string;
+    verified: boolean;
+    date: string;
+  };
+  introParagraphs: string[];
+  businesses: BusinessDetail[];
+  tags: string[];
+  recommendations: Recommendation[];
+}
 
 interface ArticleDetailPageProps {
   articleId: number;
@@ -31,40 +76,90 @@ export default function ArticleDetailPage({
   onBack,
   onArticleSelect,
 }: ArticleDetailPageProps) {
-  const article: ArticleData | undefined = articlesData.find((a) => a.id === articleId);
+  const [allArticles, setAllArticles] = useState<ArticleData[]>([]);
+  const [loadingArticles, setLoadingArticles] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
 
-  // Fallback to first article if not found
-  const currentArticle = article || articlesData[0];
+  useEffect(() => {
+    setLoadingArticles(true);
+    setFetchError(false);
+    fetch(`${API_BASE_URL}/articles`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) setAllArticles(data.data);
+        else setFetchError(true);
+      })
+      .catch(() => setFetchError(true))
+      .finally(() => setLoadingArticles(false));
+  }, []);
+
+  const currentArticle = allArticles.find((a) => String(a.id) === String(articleId)) ?? allArticles[0];
+
+  const alsoReadArticles = useMemo(() => {
+    if (!currentArticle) return [];
+    const sameCat = allArticles.filter(
+      (a) => a.category === currentArticle.category && String(a.id) !== String(currentArticle.id)
+    );
+    const diffCat = allArticles.filter(
+      (a) => a.category !== currentArticle.category && String(a.id) !== String(currentArticle.id)
+    );
+    return [...sameCat, ...diffCat].slice(0, 4);
+  }, [allArticles, currentArticle]);
 
   const [prevArticleId, setPrevArticleId] = useState(articleId);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [commentCount, setCommentCount] = useState(currentArticle.commentsCount);
+  const [commentCount, setCommentCount] = useState(0);
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
+
+  // Sync comment count when article changes
+  useEffect(() => {
+    if (currentArticle) setCommentCount(currentArticle.commentsCount);
+  }, [currentArticle]);
 
   if (articleId !== prevArticleId) {
     setPrevArticleId(articleId);
     setActiveImageIndex(0);
-    setCommentCount(currentArticle.commentsCount);
     setLiked(false);
     setBookmarked(false);
   }
 
-  // Categories for the subheader (consistent with JDCollections / reference layout)
-  const categoryBar = [
-    { label: "Food & Beverage", active: currentArticle.category === "Food & Dining" },
-    { label: "Travel & Tourism", active: false },
-    { label: "Beauty & Fashion", active: currentArticle.category === "Wedding Style" },
-    { label: "Health & Fitness", active: false },
-    { label: "Recreation", active: false },
-    { label: "Education & Career", active: currentArticle.category === "Home Decor" },
-    { label: "Daily Needs", active: false },
-  ];
+
+
 
   // Scroll to top when article changes
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [articleId]);
+
+  // ── Loading / error states ─────────────────────────────────────────────────
+  if (loadingArticles) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-muted-foreground font-semibold">Loading article...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError || !currentArticle) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-center px-6">
+          <p className="text-lg font-black text-foreground">Article not found</p>
+          <p className="text-xs text-muted-foreground">This article may have been removed.</p>
+          <button
+            onClick={onBack}
+            className="mt-2 px-5 py-2 rounded-full bg-primary text-primary-foreground text-xs font-bold cursor-pointer"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleEnquire = (businessName: string) => {
     alert(
@@ -86,6 +181,8 @@ export default function ArticleDetailPage({
       alert("Article link copied to clipboard!");
     }
   };
+
+
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
@@ -145,18 +242,7 @@ export default function ArticleDetailPage({
           </div>
         </div>
 
-        <div className="hidden md:block border-t border-border bg-card/60 overflow-x-auto no-scrollbar">
-          <div className="mx-auto max-w-7xl flex items-center gap-6 px-6 py-2.5 whitespace-nowrap text-xs font-bold text-muted-foreground w-full">
-            {categoryBar.map((cat, idx) => (
-              <span
-                key={idx}
-                className={`cursor-pointer transition-colors duration-200 hover:text-primary ${cat.active ? "text-primary border-b-2 border-primary pb-0.5" : ""}`}
-              >
-                {cat.label}
-              </span>
-            ))}
-          </div>
-        </div>
+
       </header>
 
       <main className="mx-auto max-w-7xl px-6 py-8 w-full">
@@ -422,25 +508,31 @@ export default function ArticleDetailPage({
             </div>
 
             {/* Also Read Widget */}
-            <div className="hidden sm:block border-t border-border/60 pt-10 mt-6">
-              <h4 className="text-[15px] font-black text-foreground mb-4">Also Read</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                {currentArticle.recommendations.map((rec, rIdx) => (
-                  <div key={rIdx} className="group flex flex-col gap-2 cursor-pointer">
-                    <div className="aspect-[16/10] rounded-xl overflow-hidden bg-secondary border border-border shadow-sm">
-                      <img
-                        src={rec.img}
-                        alt={rec.title}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
+            {alsoReadArticles.length > 0 && (
+              <div className="hidden sm:block border-t border-border/60 pt-10 mt-6">
+                <h4 className="text-[15px] font-black text-foreground mb-4">Also Read</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  {alsoReadArticles.map((art) => (
+                    <div
+                      key={art.id}
+                      onClick={() => onArticleSelect && onArticleSelect(art.id)}
+                      className="group flex flex-col gap-2 cursor-pointer"
+                    >
+                      <div className="aspect-[16/10] rounded-xl overflow-hidden bg-secondary border border-border shadow-sm">
+                        <img
+                          src={art.mainImage}
+                          alt={art.title}
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      </div>
+                      <span className="text-[11.5px] font-bold text-foreground/80 leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                        {art.title}
+                      </span>
                     </div>
-                    <span className="text-[11.5px] font-bold text-foreground/80 leading-snug group-hover:text-primary transition-colors line-clamp-2">
-                      {rec.title}
-                    </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* RIGHT COLUMN: Sticky Sidebar */}
@@ -525,8 +617,8 @@ export default function ArticleDetailPage({
               </div>
 
               <div className="flex flex-col gap-4">
-                {articlesData
-                  .filter((a) => a.id !== currentArticle.id)
+                {allArticles
+                  .filter((a) => String(a.id) !== String(currentArticle.id))
                   .map((art) => (
                     <div
                       key={art.id}

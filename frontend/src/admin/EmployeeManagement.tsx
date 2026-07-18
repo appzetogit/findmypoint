@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Search, Plus, Edit2, Trash2, Calendar, Phone, MapPin, User, ShieldCheck, X, Briefcase, Heart, CheckCircle2, UserPlus, Image as ImageIcon } from "lucide-react";
+import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
 
 interface Employee {
   id: string;
@@ -9,40 +10,11 @@ interface Employee {
   fieldLocation: string;
   bloodGroup: string;
   contactNumber: string;
-  photo: string; // Base64 data URI
+  photo: string;
   designation: string;
   joinedDate: string;
   isValidWorking: boolean;
 }
-
-const mockEmployees: Employee[] = [
-  {
-    id: "emp-1",
-    empIdNumber: "FMPEMP001",
-    name: "Rahul Sharma",
-    address: "104, Saket Nagar, Indore, MP",
-    fieldLocation: "Vijay Nagar Zone",
-    bloodGroup: "O+",
-    contactNumber: "+91 98765 43210",
-    photo: "", // Initial empty, will fallback to initials
-    designation: "Senior Field Officer",
-    joinedDate: "2026-01-15",
-    isValidWorking: true,
-  },
-  {
-    id: "emp-2",
-    empIdNumber: "FMPEMP002",
-    name: "Priya Patel",
-    address: "202, Silver Arch, Anand, Gujarat",
-    fieldLocation: "Gujarat Central Zone",
-    bloodGroup: "A+",
-    contactNumber: "+91 87654 32109",
-    photo: "",
-    designation: "Area Sales Manager",
-    joinedDate: "2026-02-10",
-    isValidWorking: true,
-  },
-];
 
 const splitPhoneNumber = (fullPhone: string) => {
   const cleanPhone = (fullPhone || "").trim();
@@ -83,6 +55,13 @@ export default function EmployeeManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const getImageUrl = (img: string) => {
+    if (!img) return "";
+    if (img.startsWith("data:") || img.startsWith("http")) return img;
+    return `${BACKEND_ORIGIN}${img}`;
+  };
 
   // Form Fields
   const [name, setName] = useState("");
@@ -97,25 +76,35 @@ export default function EmployeeManagement() {
   const [joinedDate, setJoinedDate] = useState("");
   const [isValidWorking, setIsValidWorking] = useState(true);
 
-  // Load employees from localStorage or prepopulate
-  useEffect(() => {
-    const saved = localStorage.getItem("fmp_employees_data:v1");
-    if (saved) {
-      try {
-        setEmployees(JSON.parse(saved));
-      } catch (e) {
-        setEmployees(mockEmployees);
+  const fetchEmployees = async () => {
+    setLoading(true);
+    const token = localStorage.getItem("fmp_admin_token");
+    try {
+      const res = await fetch(`${API_BASE_URL}/employees`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.success && data.employees) {
+        const mapped = data.employees.map((emp: any) => ({
+          ...emp,
+          id: emp._id
+        }));
+        setEmployees(mapped);
+      } else {
+        console.error("Failed to fetch employees:", data.message);
       }
-    } else {
-      setEmployees(mockEmployees);
-      localStorage.setItem("fmp_employees_data:v1", JSON.stringify(mockEmployees));
+    } catch (err) {
+      console.error("Failed to fetch employees:", err);
+    } finally {
+      setLoading(false);
     }
-  }, []);
-
-  const saveEmployees = (updatedList: Employee[]) => {
-    setEmployees(updatedList);
-    localStorage.setItem("fmp_employees_data:v1", JSON.stringify(updatedList));
   };
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
 
   const handleOpenAddModal = () => {
     setEditingEmployee(null);
@@ -168,14 +157,30 @@ export default function EmployeeManagement() {
     }
   };
 
-  const handleDeleteEmployee = (id: string) => {
+  const handleDeleteEmployee = async (id: string) => {
     if (confirm("Are you sure you want to delete this employee?")) {
-      const updated = employees.filter((emp) => emp.id !== id);
-      saveEmployees(updated);
+      const token = localStorage.getItem("fmp_admin_token");
+      try {
+        const res = await fetch(`${API_BASE_URL}/employees/${id}`, {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        const data = await res.json();
+        if (data.success) {
+          setEmployees(employees.filter((emp) => emp.id !== id));
+        } else {
+          alert("Failed to delete employee: " + (data.message || "Unknown error"));
+        }
+      } catch (err) {
+        console.error("Error deleting employee:", err);
+        alert("Network error occurred while deleting employee.");
+      }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !empIdNumber.trim() || !designation.trim() || !contactNumber.trim()) {
       alert("Please fill in all mandatory fields.");
@@ -183,47 +188,63 @@ export default function EmployeeManagement() {
     }
 
     const fullContact = `${contactCode} ${contactNumber}`.trim();
+    const token = localStorage.getItem("fmp_admin_token");
 
-    if (editingEmployee) {
-      // Edit mode
-      const updated = employees.map((emp) => {
-        if (emp.id === editingEmployee.id) {
-          return {
-            ...emp,
-            name,
-            address,
-            fieldLocation,
-            bloodGroup,
-            contactNumber: fullContact,
-            photo,
-            empIdNumber,
-            designation,
-            joinedDate,
-            isValidWorking,
-          };
+    const employeePayload = {
+      name,
+      address,
+      fieldLocation,
+      bloodGroup,
+      contactNumber: fullContact,
+      photo,
+      empIdNumber,
+      designation,
+      joinedDate,
+      isValidWorking,
+    };
+
+    try {
+      if (editingEmployee) {
+        // Edit mode
+        const res = await fetch(`${API_BASE_URL}/employees/${editingEmployee.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify(employeePayload)
+        });
+        const data = await res.json();
+        if (data.success && data.employee) {
+          const updatedEmp = { ...data.employee, id: data.employee._id };
+          setEmployees(employees.map((emp) => emp.id === editingEmployee.id ? updatedEmp : emp));
+          setIsModalOpen(false);
+        } else {
+          alert("Failed to update employee: " + (data.message || "Unknown error"));
         }
-        return emp;
-      });
-      saveEmployees(updated);
-    } else {
-      // Add mode
-      const newEmp: Employee = {
-        id: "emp-" + Date.now(),
-        name,
-        address,
-        fieldLocation,
-        bloodGroup,
-        contactNumber: fullContact,
-        photo,
-        empIdNumber,
-        designation,
-        joinedDate,
-        isValidWorking,
-      };
-      saveEmployees([...employees, newEmp]);
+      } else {
+        // Add mode
+        const res = await fetch(`${API_BASE_URL}/employees`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify(employeePayload)
+        });
+        const data = await res.json();
+        if (data.success && data.employee) {
+          const newEmp = { ...data.employee, id: data.employee._id };
+          setEmployees([newEmp, ...employees]);
+          setIsModalOpen(false);
+        } else {
+          alert("Failed to create employee: " + (data.message || "Unknown error"));
+        }
+      }
+    } catch (err) {
+      console.error("Error saving employee:", err);
+      alert("Network error occurred while saving employee.");
     }
-
-    setIsModalOpen(false);
   };
 
   const filteredEmployees = useMemo(() => {
@@ -307,7 +328,7 @@ export default function EmployeeManagement() {
                     <div className="flex items-center gap-3">
                       {emp.photo ? (
                         <img
-                          src={emp.photo}
+                          src={getImageUrl(emp.photo)}
                           alt={emp.name}
                           className="h-10 w-10 rounded-xl object-cover border border-slate-200 dark:border-slate-800 shrink-0"
                         />
@@ -585,7 +606,7 @@ export default function EmployeeManagement() {
                     {photo ? (
                       <div className="relative group shrink-0">
                         <img
-                          src={photo}
+                          src={getImageUrl(photo)}
                           alt="Preview"
                           className="h-16 w-16 rounded-xl object-cover border border-slate-200 dark:border-slate-800"
                         />

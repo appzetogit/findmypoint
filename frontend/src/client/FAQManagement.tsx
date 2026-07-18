@@ -33,34 +33,6 @@ export default function FAQManagement({ clientListings }: FAQManagementProps) {
     setTimeout(() => setSuccessMsg(""), 3000);
   };
 
-  const MOCK_FAQS: FAQEntry[] = [
-    {
-      id: "mock_1",
-      question: "What are your working hours?",
-      answer: "We are open Monday to Saturday, 9:00 AM – 8:00 PM. On Sundays we operate from 10:00 AM – 5:00 PM.",
-    },
-    {
-      id: "mock_2",
-      question: "Do you offer home delivery or on-site service?",
-      answer: "Yes! We provide both home delivery and on-site service depending on your location. Please contact us to confirm availability in your area.",
-    },
-    {
-      id: "mock_3",
-      question: "What payment methods do you accept?",
-      answer: "We accept cash, UPI (PhonePe, GPay, Paytm), debit/credit cards, and net banking. EMI options are available on select services.",
-    },
-    {
-      id: "mock_4",
-      question: "Is there a service warranty or guarantee?",
-      answer: "All our services come with a 30-day satisfaction guarantee. If you experience any issues within this period, we will resolve it at no extra cost.",
-    },
-    {
-      id: "mock_5",
-      question: "How do I book an appointment?",
-      answer: "You can book through our website, call us directly, or walk in during working hours. Online bookings receive priority slots.",
-    },
-  ];
-
   useEffect(() => {
     const map: Record<string, FAQEntry[]> = {};
     clientListings.forEach((biz) => {
@@ -69,12 +41,10 @@ export default function FAQManagement({ clientListings }: FAQManagementProps) {
         if (saved) {
           map[biz.id] = JSON.parse(saved);
         } else {
-          // Seed mock FAQs on first load
-          map[biz.id] = MOCK_FAQS;
-          localStorage.setItem(storageKey(biz.id), JSON.stringify(MOCK_FAQS));
+          map[biz.id] = [];
         }
       } catch {
-        map[biz.id] = MOCK_FAQS;
+        map[biz.id] = [];
       }
     });
     setFaqsMap(map);

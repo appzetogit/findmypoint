@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Plus, Search, ChevronDown, ChevronUp, Trash2, X, Save, Sparkles } from "lucide-react";
-import { categories } from "../pages/Home";
-import { subcategoriesData } from "../pages/CategoryDetail";
+import { useCategories } from "../context/CategoryContext";
+import { getCategoryImage } from "../utils/categoryImages";
+import { API_BASE_URL } from "../config";
 
 interface AddSubcategoryFormProps {
   onCancel: () => void;
-  onSuccess: () => void;
 }
 
 const getSubcategoryEmoji = (category: string, subcatName: string): string => {
@@ -93,11 +93,18 @@ const getSubcategoryEmoji = (category: string, subcatName: string): string => {
   return "🏷️";
 };
 
-export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcategoryFormProps) {
+export default function AddSubcategoryForm({ onCancel }: AddSubcategoryFormProps) {
+  const { categories, refreshCategories } = useCategories();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(categories[0]?.label || "");
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [subcategoryName, setSubcategoryName] = useState("");
   const [iconImage, setIconImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (categories.length > 0 && !selectedCategory) {
+      setSelectedCategory(categories[0].label);
+    }
+  }, [categories, selectedCategory]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -109,19 +116,8 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
       reader.readAsDataURL(file);
     }
   };
-  const [searchQuery, setSearchQuery] = useState("");
-  const [subcatIcons, setSubcatIcons] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    const savedIcons = localStorage.getItem("fmp_subcategory_icons");
-    if (savedIcons) {
-      try {
-        setSubcatIcons(JSON.parse(savedIcons));
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }, [isModalOpen]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Edit subcategory states
   const [editingSub, setEditingSub] = useState<{ category: string; name: string } | null>(null);
@@ -131,14 +127,17 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
   useEffect(() => {
     if (editingSub) {
       setEditName(editingSub.name);
-      setEditIcon(subcatIcons[editingSub.name] || null);
+      // Find subcategory icon from categories
+      const catObj = categories.find((c) => c.label === editingSub.category);
+      const subObj = catObj?.subcategories.find((s) => s.label === editingSub.name);
+      setEditIcon(subObj?.icon || null);
     } else {
       setEditName("");
       setEditIcon(null);
     }
-  }, [editingSub, subcatIcons]);
+  }, [editingSub, categories]);
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingSub) return;
     if (!editName.trim()) {
@@ -150,72 +149,43 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
     const cleanNewName = editName.trim();
     const catLabel = editingSub.category;
 
+    const catObj = categories.find((c) => c.label === catLabel);
+    if (!catObj) return;
+
     try {
-      // 1. Update custom subcategories list
-      const savedList = localStorage.getItem("fmp_custom_subcategories");
-      if (savedList) {
-        const parsedList = JSON.parse(savedList);
-        if (parsedList[catLabel]) {
-          parsedList[catLabel] = parsedList[catLabel].map((s: string) =>
-            s === cleanOldName ? cleanNewName : s
-          );
-          localStorage.setItem("fmp_custom_subcategories", JSON.stringify(parsedList));
-          setCustomSubcategories(parsedList);
+      const token = localStorage.getItem("fmp_admin_token");
+      const res = await fetch(
+        `${API_BASE_URL}/categories/${catObj._id}/subcategories/${encodeURIComponent(cleanOldName)}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            label: cleanNewName,
+            icon: editIcon || ""
+          })
         }
-      }
+      );
 
-      // 2. Update in-memory subcategoriesData
-      if (subcategoriesData[catLabel]) {
-        subcategoriesData[catLabel] = subcategoriesData[catLabel].map((s) =>
-          s === cleanOldName ? cleanNewName : s
-        );
+      const data = await res.json();
+      if (data.success) {
+        alert("Subcategory updated successfully!");
+        setEditingSub(null);
+        await refreshCategories();
+      } else {
+        alert(data.message || "Failed to update subcategory.");
       }
-      setLocalSubcategories({ ...subcategoriesData });
-
-      // 3. Update icon image
-      const savedIcons = localStorage.getItem("fmp_subcategory_icons");
-      const parsedIcons = savedIcons ? JSON.parse(savedIcons) : {};
-      
-      // delete old icon entry
-      if (parsedIcons[cleanOldName]) {
-        delete parsedIcons[cleanOldName];
-      }
-      
-      // save new icon entry
-      if (editIcon) {
-        parsedIcons[cleanNewName] = editIcon;
-      }
-      
-      localStorage.setItem("fmp_subcategory_icons", JSON.stringify(parsedIcons));
-      
-      // Reload state
-      setSubcatIcons(parsedIcons);
-
-      alert("Subcategory updated successfully!");
-      setEditingSub(null);
-      onSuccess();
     } catch (err) {
       console.error(err);
-      alert("Failed to update subcategory.");
+      alert("Failed to connect to server.");
     }
   };
+
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
-  const [localSubcategories, setLocalSubcategories] = useState<Record<string, string[]>>({});
-  const [customSubcategories, setCustomSubcategories] = useState<Record<string, string[]>>({});
 
-  useEffect(() => {
-    let savedAll = localStorage.getItem("fmp_all_subcategories");
-    if (!savedAll) {
-      localStorage.setItem("fmp_all_subcategories", JSON.stringify(subcategoriesData));
-    } else {
-      const parsed = JSON.parse(savedAll);
-      Object.keys(subcategoriesData).forEach((k) => delete subcategoriesData[k]);
-      Object.assign(subcategoriesData, parsed);
-    }
-    setLocalSubcategories({ ...subcategoriesData });
-  }, []);
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCategory) {
       alert("Please select a parent category.");
@@ -227,88 +197,66 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
     }
 
     const cleanSubName = subcategoryName.trim();
+    const catObj = categories.find((c) => c.label === selectedCategory);
+    if (!catObj) return;
 
     try {
-      const existingSubcategories = subcategoriesData[selectedCategory] || [];
-      if (existingSubcategories.some((s) => s.toLowerCase() === cleanSubName.toLowerCase())) {
-        alert("This subcategory already exists under the selected category!");
-        return;
-      }
+      const token = localStorage.getItem("fmp_admin_token");
+      const res = await fetch(`${API_BASE_URL}/categories/${catObj._id}/subcategories`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          label: cleanSubName,
+          icon: iconImage || ""
+        })
+      });
 
-      // Save to fmp_all_subcategories
-      const savedAll = localStorage.getItem("fmp_all_subcategories");
-      const subcatMap = savedAll ? JSON.parse(savedAll) : { ...subcategoriesData };
-      if (!subcatMap[selectedCategory]) {
-        subcatMap[selectedCategory] = [];
+      const data = await res.json();
+      if (data.success) {
+        alert("Subcategory added successfully!");
+        setSubcategoryName("");
+        setIconImage(null);
+        setIsModalOpen(false);
+        await refreshCategories();
+      } else {
+        alert(data.message || "Failed to add subcategory.");
       }
-      subcatMap[selectedCategory].push(cleanSubName);
-      localStorage.setItem("fmp_all_subcategories", JSON.stringify(subcatMap));
-
-      // Save custom subcategory icon if uploaded
-      if (iconImage) {
-        try {
-          const savedIcons = localStorage.getItem("fmp_subcategory_icons");
-          const customIcons = savedIcons ? JSON.parse(savedIcons) : {};
-          customIcons[cleanSubName] = iconImage;
-          localStorage.setItem("fmp_subcategory_icons", JSON.stringify(customIcons));
-        } catch (err) {
-          console.error("Error saving custom subcategory icon:", err);
-        }
-      }
-
-      // Append to the active in-memory dictionary
-      if (!subcategoriesData[selectedCategory]) {
-        subcategoriesData[selectedCategory] = [];
-      }
-      subcategoriesData[selectedCategory].push(cleanSubName);
-      setLocalSubcategories({ ...subcategoriesData });
-
-      alert("Subcategory added successfully!");
-      setSubcategoryName("");
-      setIconImage(null);
-      setIsModalOpen(false);
-      onSuccess();
     } catch (error) {
       console.error(error);
-      alert("Failed to save subcategory.");
+      alert("Failed to connect to server.");
     }
   };
 
-  const handleDeleteSubcategory = (catLabel: string, subcatName: string) => {
+  const handleDeleteSubcategory = async (catLabel: string, subcatName: string) => {
+    const catObj = categories.find((c) => c.label === catLabel);
+    if (!catObj) return;
+
     if (confirm(`Are you sure you want to delete "${subcatName}" from "${catLabel}"?`)) {
       try {
-        const savedAll = localStorage.getItem("fmp_all_subcategories");
-        if (savedAll) {
-          const parsed = JSON.parse(savedAll);
-          if (parsed[catLabel]) {
-            parsed[catLabel] = parsed[catLabel].filter((s: string) => s !== subcatName);
-            localStorage.setItem("fmp_all_subcategories", JSON.stringify(parsed));
-          }
-        }
-
-        // Delete custom subcategory icon if it exists
-        try {
-          const savedIcons = localStorage.getItem("fmp_subcategory_icons");
-          if (savedIcons) {
-            const parsedIcons = JSON.parse(savedIcons);
-            if (parsedIcons[subcatName]) {
-              delete parsedIcons[subcatName];
-              localStorage.setItem("fmp_subcategory_icons", JSON.stringify(parsedIcons));
+        const token = localStorage.getItem("fmp_admin_token");
+        const res = await fetch(
+          `${API_BASE_URL}/categories/${catObj._id}/subcategories/${encodeURIComponent(subcatName)}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`
             }
           }
-        } catch (err) {
-          console.error("Error deleting subcategory icon:", err);
-        }
+        );
 
-        // Remove from in-memory subcategoriesData
-        if (subcategoriesData[catLabel]) {
-          subcategoriesData[catLabel] = subcategoriesData[catLabel].filter((s) => s !== subcatName);
+        const data = await res.json();
+        if (data.success) {
+          alert("Subcategory deleted successfully!");
+          await refreshCategories();
+        } else {
+          alert(data.message || "Failed to delete subcategory.");
         }
-        setLocalSubcategories({ ...subcategoriesData });
-        alert("Subcategory deleted successfully!");
       } catch (err) {
         console.error(err);
-        alert("Failed to delete subcategory.");
+        alert("Failed to connect to server.");
       }
     }
   };
@@ -316,18 +264,14 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
   const toggleCategory = (label: string) => {
     setExpandedCategories((prev) => ({
       ...prev,
-      [label]: !prev[label],
+      [label]: !prev[label]
     }));
-  };
-
-  const isCustomSub = (catLabel: string, subcatName: string) => {
-    return customSubcategories[catLabel]?.includes(subcatName) || false;
   };
 
   const filteredCategories = categories.filter((cat) => {
     const matchesCat = cat.label.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSub = (localSubcategories[cat.label] || []).some((sub) =>
-      sub.toLowerCase().includes(searchQuery.toLowerCase()),
+    const matchesSub = cat.subcategories.some((sub) =>
+      sub.label.toLowerCase().includes(searchQuery.toLowerCase())
     );
     return matchesCat || matchesSub;
   });
@@ -389,9 +333,9 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
             </div>
           ) : (
             filteredCategories.map((cat, idx) => {
-              const subs = localSubcategories[cat.label] || [];
+              const subs = cat.subcategories || [];
               const filteredSubs = subs.filter((sub) =>
-                sub.toLowerCase().includes(searchQuery.toLowerCase()),
+                sub.label.toLowerCase().includes(searchQuery.toLowerCase())
               );
               const isExpanded = !!expandedCategories[cat.label] || searchQuery.trim().length > 0;
 
@@ -408,7 +352,7 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 p-1 flex items-center justify-center border border-slate-200/40 shrink-0">
                         <img
-                          src={cat.img}
+                          src={getCategoryImage(cat.label, cat.img)}
                           alt={cat.label}
                           className="h-full w-full object-contain"
                           onError={(e) => {
@@ -421,7 +365,7 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
                         <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
                           {cat.label}
                         </h3>
-                        <p className="text-xs text-slate-450 dark:text-slate-500 font-medium">
+                        <p className="text-xs text-slate-455 dark:text-slate-500 font-medium">
                           {subs.length} subcategories{" "}
                           {searchQuery && `(${filteredSubs.length} matching)`}
                         </p>
@@ -446,26 +390,26 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
                       ) : (
                         <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
                           {filteredSubs.map((sub, sIdx) => {
-                            const icon = subcatIcons[sub] || getSubcategoryEmoji(cat.label, sub);
+                            const icon = sub.icon || getSubcategoryEmoji(cat.label, sub.label);
                             const isImg = icon.startsWith("data:image") || icon.startsWith("http");
 
                             return (
                               <div
-                                key={`${sub}-${sIdx}`}
+                                key={`${sub.label}-${sIdx}`}
                                 className="flex items-center justify-between py-2.5 hover:bg-slate-55/15 dark:hover:bg-slate-900/10 px-2 rounded-xl transition-colors"
                               >
                                 {/* Left: Icon & Name */}
                                 <div className="flex items-center gap-3">
                                   <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200/50 dark:border-slate-800/80 text-xl overflow-hidden shrink-0">
                                     {isImg ? (
-                                      <img src={icon} alt={sub} className="h-full w-full object-contain" />
+                                      <img src={icon} alt={sub.label} className="h-full w-full object-contain" />
                                     ) : (
                                       icon
                                     )}
                                   </div>
                                   <div className="flex flex-col text-left">
                                     <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                                      {sub}
+                                      {sub.label}
                                     </span>
                                   </div>
                                 </div>
@@ -474,14 +418,14 @@ export default function AddSubcategoryForm({ onCancel, onSuccess }: AddSubcatego
                                 <div className="flex items-center gap-2">
                                   <button
                                     type="button"
-                                    onClick={() => setEditingSub({ category: cat.label, name: sub })}
+                                    onClick={() => setEditingSub({ category: cat.label, name: sub.label })}
                                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 transition cursor-pointer border-none"
                                   >
                                     Edit
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => handleDeleteSubcategory(cat.label, sub)}
+                                    onClick={() => handleDeleteSubcategory(cat.label, sub.label)}
                                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-450 transition cursor-pointer border-none"
                                   >
                                     Delete

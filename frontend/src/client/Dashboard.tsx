@@ -24,29 +24,10 @@ interface DashboardProps {
     totalReviews: number;
     avgRating: number;
     totalRevenue: number;
+    trajectory?: Array<{ name: string; Orders: number; Enquiries: number }>;
   };
   isBookingDisabled?: boolean;
 }
-
-const trajectoryData = [
-  { name: "Aug", Orders: 0, Enquiries: 0 },
-  { name: "Sept", Orders: 0, Enquiries: 0 },
-  { name: "Oct", Orders: 0, Enquiries: 0 },
-  { name: "Nov", Orders: 0, Enquiries: 0 },
-  { name: "Dec", Orders: 0, Enquiries: 0 },
-  { name: "Jan", Orders: 0, Enquiries: 0 },
-  { name: "Feb", Orders: 0, Enquiries: 0 },
-  { name: "Mar", Orders: 0, Enquiries: 0 },
-  { name: "Apr", Orders: 0, Enquiries: 0 },
-  { name: "May", Orders: 0, Enquiries: 0 },
-  { name: "Jun", Orders: 11, Enquiries: 18 },
-  { name: "Jul", Orders: 0, Enquiries: 0 }
-];
-
-const orderMixData = [
-  { name: "Delivered", value: 6, color: "#0ea5e9" }, // sky-500
-  { name: "Cancelled", value: 5, color: "#ef4444" }  // red-500
-];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -79,6 +60,26 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function Dashboard({ stats, isBookingDisabled }: DashboardProps) {
+  const defaultTrajectory = [
+    { name: "Jan", Orders: 0, Enquiries: 0 },
+    { name: "Feb", Orders: 0, Enquiries: 0 },
+    { name: "Mar", Orders: 0, Enquiries: 0 },
+    { name: "Apr", Orders: 0, Enquiries: 0 },
+    { name: "May", Orders: 0, Enquiries: 0 },
+    { name: "Jun", Orders: 0, Enquiries: 0 },
+    { name: "Jul", Orders: 0, Enquiries: 0 },
+    { name: "Aug", Orders: 0, Enquiries: 0 },
+    { name: "Sept", Orders: 0, Enquiries: 0 },
+    { name: "Oct", Orders: 0, Enquiries: 0 },
+    { name: "Nov", Orders: 0, Enquiries: 0 },
+    { name: "Dec", Orders: 0, Enquiries: 0 }
+  ];
+  const trajectory = stats.trajectory || defaultTrajectory;
+
+  const orderMixData = [
+    { name: "Delivered", value: stats.totalAccepted, color: "#0ea5e9" }, // sky-500
+    { name: "Cancelled", value: stats.totalCancelled, color: "#ef4444" }  // red-500
+  ];
   return (
     <div className="space-y-8 animate-fade-in-up text-left">
       {/* Statistics Grid */}
@@ -182,7 +183,7 @@ export default function Dashboard({ stats, isBookingDisabled }: DashboardProps) 
           
           <div className="h-64 w-full text-xs mt-6">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={trajectoryData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <ComposedChart data={trajectory} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
@@ -260,7 +261,7 @@ export default function Dashboard({ stats, isBookingDisabled }: DashboardProps) 
                 </p>
               </div>
               <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-black tracking-wider px-2.5 py-1 rounded-full border border-slate-200/50 dark:border-slate-700/50">
-                11 orders
+                {stats.totalBookings} orders
               </span>
             </div>
 
@@ -285,7 +286,7 @@ export default function Dashboard({ stats, isBookingDisabled }: DashboardProps) 
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-3xl font-black text-slate-900 dark:text-white leading-none">11</span>
+                <span className="text-3xl font-black text-slate-900 dark:text-white leading-none">{stats.totalBookings}</span>
                 <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Orders</span>
               </div>
             </div>
@@ -309,14 +310,14 @@ export default function Dashboard({ stats, isBookingDisabled }: DashboardProps) 
                   <span className="w-2 h-2 rounded-full bg-indigo-500" />
                   <span>Total Orders</span>
                 </span>
-                <span className="font-black text-slate-900 dark:text-white">11</span>
+                <span className="font-black text-slate-900 dark:text-white">{stats.totalBookings}</span>
               </div>
               <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800/50 text-xs">
                 <span className="flex items-center gap-2 text-slate-650 dark:text-slate-400 font-semibold">
                   <span className="w-2 h-2 rounded-full bg-red-500" />
                   <span>Cancelled</span>
                 </span>
-                <span className="font-black text-slate-900 dark:text-white">5</span>
+                <span className="font-black text-slate-900 dark:text-white">{stats.totalCancelled}</span>
               </div>
             </div>
           </div>

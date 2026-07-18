@@ -14,10 +14,11 @@ import {
   Sparkles,
   Tag,
   Clock,
+  Upload,
 } from "lucide-react";
-import { categories } from "../pages/Home";
-import { subcategoriesData } from "../pages/CategoryDetail";
-import { businessesData, BusinessListingData } from "../data/businessesData";
+import { useCategories } from "../context/CategoryContext";
+import { BusinessListingData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 import statesData from "../data/states-and-districts.json";
 import countryCodesData from "../data/country-by-calling-code.json";
 
@@ -133,22 +134,122 @@ const splitPhoneNumber = (fullPhone: string) => {
   };
 };
 
+const COMMON_HOLIDAYS = [
+  "Sunday",
+  "Saturday & Sunday",
+  "Open All Days",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "National Holidays"
+];
+
+interface TimeSelectorProps {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  required?: boolean;
+}
+
+function TimeSelector({ label, value, onChange, required }: TimeSelectorProps) {
+  const parseTime = (timeStr: string) => {
+    const trimmed = (timeStr || "").trim();
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      return {
+        hour: match[1].padStart(2, "0"),
+        minute: match[2],
+        period: match[3].toUpperCase()
+      };
+    }
+    return {
+      hour: "09",
+      minute: "00",
+      period: "AM"
+    };
+  };
+
+  const { hour, minute, period } = parseTime(value);
+
+  const setTimePart = (part: "hour" | "minute" | "period", val: string) => {
+    const nextHour = part === "hour" ? val : hour;
+    const nextMin = part === "minute" ? val : minute;
+    const nextPeriod = part === "period" ? val : period;
+    onChange(`${nextHour}:${nextMin} ${nextPeriod}`);
+  };
+
+  const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
+  const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
+  const periods = ["AM", "PM"];
+
+  return (
+    <div className="space-y-2">
+      <label className="text-xs uppercase tracking-wider block font-bold text-slate-900 dark:text-slate-100">
+        {label} {required && <span className="text-rose-500 font-bold">*</span>}
+      </label>
+      <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+        <select
+          value={hour}
+          onChange={(e) => setTimePart("hour", e.target.value)}
+          className="bg-transparent text-sm py-1 px-1.5 outline-none text-slate-900 dark:text-slate-100 font-semibold cursor-pointer grow text-center"
+        >
+          {hours.map((h) => (
+            <option key={h} value={h} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-semibold">
+              {h}
+            </option>
+          ))}
+        </select>
+        <span className="text-slate-400 font-bold">:</span>
+        <select
+          value={minute}
+          onChange={(e) => setTimePart("minute", e.target.value)}
+          className="bg-transparent text-sm py-1 px-1.5 outline-none text-slate-900 dark:text-slate-100 font-semibold cursor-pointer grow text-center"
+        >
+          {minutes.map((m) => (
+            <option key={m} value={m} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-semibold">
+              {m}
+            </option>
+          ))}
+        </select>
+        <select
+          value={period}
+          onChange={(e) => setTimePart("period", e.target.value)}
+          className="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-705 dark:text-indigo-300 text-xs font-bold py-1.5 px-2 rounded-lg outline-none cursor-pointer text-center"
+        >
+          {periods.map((p) => (
+            <option key={p} value={p} className="bg-white dark:bg-slate-900 text-slate-905 dark:text-slate-100 font-semibold">
+              {p}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 interface AdminEntryFormProps {
   businessId: string | null; // If null, we are in Add mode, otherwise Edit mode
   onCancel: () => void;
   onSuccess: () => void;
+  isClient?: boolean;
 }
 
 type TabType = "basic" | "contact" | "timings" | "media" | "extra";
 
-export default function AdminEntryForm({ businessId, onCancel, onSuccess }: AdminEntryFormProps) {
+export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClient = false }: AdminEntryFormProps) {
+  const { categories, subcategoriesData } = useCategories();
   const isEditMode = !!businessId;
   const [activeTab, setActiveTab] = useState<TabType>("basic");
+  const [originalBusiness, setOriginalBusiness] = useState<BusinessListingData | null>(null);
 
   // Form State
   const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
   const [highlightsName, setHighlightsName] = useState("");
-  const [category, setCategory] = useState(categories[0]?.label || "Spa Point");
+  const [category, setCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
@@ -157,12 +258,13 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
   const [branches, setBranches] = useState<string[]>([]);
   const [openTime, setOpenTime] = useState("09:00 AM");
   const [closeTime, setCloseTime] = useState("09:00 PM");
-  const [holidayTime, setHolidayTime] = useState("Sunday");
+  const [selectedHoliday, setSelectedHoliday] = useState("Sunday");
+  const [customHoliday, setCustomHoliday] = useState("");
   const [isTimingMandatory, setIsTimingMandatory] = useState(false);
-  const [country, setCountry] = useState("India");
-  const [selectedState, setSelectedState] = useState("Madhya Pradesh");
+  const [country, setCountry] = useState("");
+  const [selectedState, setSelectedState] = useState("");
   const [customState, setCustomState] = useState("");
-  const [selectedDistrict, setSelectedDistrict] = useState("Indore");
+  const [selectedDistrict, setSelectedDistrict] = useState("");
   const [customDistrict, setCustomDistrict] = useState("");
   const [cityTown, setCityTown] = useState("");
   const [pincode, setPincode] = useState("");
@@ -183,80 +285,103 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
   // Subcategories matching active category
   const availableSubcategories = subcategoriesData[category] || [];
 
+  // Update initial category once loaded
+  useEffect(() => {
+    if (categories.length > 0 && !category) {
+      setCategory(categories[0].label);
+    }
+  }, [categories, category]);
+
   // Update subcategory default when category changes
   useEffect(() => {
-    if (!isEditMode) {
-      setSubCategory(availableSubcategories[0] || "");
+    if (availableSubcategories.length > 0 && (!subCategory || !availableSubcategories.includes(subCategory))) {
+      setSubCategory(availableSubcategories[0]);
     }
-  }, [category, isEditMode]);
+  }, [category, availableSubcategories, subCategory]);
+
+  const populateForm = (biz: BusinessListingData) => {
+    setName(biz.name || "");
+    setHighlightsName(biz.highlightsName || "");
+
+    const [mainCat, subCat] = biz.category.split(" > ");
+    setCategory(mainCat || (categories.length > 0 ? categories[0].label : ""));
+    setSubCategory(subCat || "");
+
+    setAddress(biz.address || "");
+    setPhone(biz.phone || "");
+    setWhatsapp(biz.whatsapp || "");
+    setExtraNumbers(biz.extraNumbers || []);
+    setBranches(biz.branches || []);
+    setOpenTime(biz.openTime || "09:00 AM");
+    setCloseTime(biz.closeTime || "09:00 PM");
+    const dbHoliday = biz.holidayTime || "Sunday";
+    if (COMMON_HOLIDAYS.includes(dbHoliday)) {
+      setSelectedHoliday(dbHoliday);
+      setCustomHoliday("");
+    } else {
+      setSelectedHoliday("Custom");
+      setCustomHoliday(dbHoliday);
+    }
+    setIsTimingMandatory(biz.isTimingMandatory || false);
+    const dbCountry = biz.country || "India";
+    setCountry(dbCountry);
+
+    const countryMap = GLOBAL_LOCATIONS_MAP[dbCountry] || { "Other State": ["Other"] };
+    const dbState = biz.state || "";
+    const stateKeys = Object.keys(countryMap);
+    if (stateKeys.includes(dbState) && dbState !== "Other State") {
+      setSelectedState(dbState);
+      setCustomState("");
+    } else if (dbState) {
+      setSelectedState("Other State");
+      setCustomState(dbState);
+    } else {
+      setSelectedState(stateKeys[0] || "Other State");
+      setCustomState("");
+    }
+
+    const dbDistrict = biz.district || "";
+    const currentStateKey = stateKeys.includes(dbState) && dbState !== "Other State" ? dbState : "Other State";
+    const districtsForState = countryMap[currentStateKey] || [];
+    if (districtsForState.includes(dbDistrict) && dbDistrict !== "Other") {
+      setSelectedDistrict(dbDistrict);
+      setCustomDistrict("");
+    } else if (dbDistrict) {
+      setSelectedDistrict("Other");
+      setCustomDistrict(dbDistrict);
+    } else {
+      setSelectedDistrict(districtsForState[0] || "Other");
+      setCustomDistrict("");
+    }
+    setCityTown(biz.cityTown || "");
+    setPincode(biz.pincode || "");
+    setDescription(biz.description || "");
+    setOfficers(biz.officers || []);
+    setFacilities(biz.facilities || []);
+    setEmail(biz.email || "");
+    setWebsite(biz.website || "");
+    setVideoLink(biz.videoLink || "");
+    setFrontPhoto(biz.images[0] || "");
+    setInteriorPhotos(biz.images.slice(1) || []);
+    setLocationLink(biz.locationLink || "");
+    setOthersDestination(biz.othersDestination || "");
+    setCategoryLine(biz.categoryLine || "");
+    setSubCategoryLine(biz.subCategoryLine || "");
+    setBookingButtonLabel(biz.bookingButtonLabel || "");
+  };
 
   // Load existing business details if in Edit Mode
   useEffect(() => {
     if (isEditMode && businessId) {
-      const biz = businessesData.find((b) => b.id === businessId);
-      if (biz) {
-        setName(biz.name || "");
-        setHighlightsName(biz.highlightsName || "");
-
-        const [mainCat, subCat] = biz.category.split(" > ");
-        setCategory(mainCat || categories[0]?.label || "Spa Point");
-        setSubCategory(subCat || "");
-
-        setAddress(biz.address || "");
-        setPhone(biz.phone || "");
-        setWhatsapp(biz.whatsapp || "");
-        setExtraNumbers(biz.extraNumbers || []);
-        setBranches(biz.branches || []);
-        setOpenTime(biz.openTime || "09:00 AM");
-        setCloseTime(biz.closeTime || "09:00 PM");
-        setHolidayTime(biz.holidayTime || "Sunday");
-        setIsTimingMandatory(biz.isTimingMandatory || false);
-        const dbCountry = biz.country || "India";
-        setCountry(dbCountry);
-
-        const countryMap = GLOBAL_LOCATIONS_MAP[dbCountry] || { "Other State": ["Other"] };
-        const dbState = biz.state || "";
-        const stateKeys = Object.keys(countryMap);
-        if (stateKeys.includes(dbState) && dbState !== "Other State") {
-          setSelectedState(dbState);
-          setCustomState("");
-        } else if (dbState) {
-          setSelectedState("Other State");
-          setCustomState(dbState);
-        } else {
-          setSelectedState(stateKeys[0] || "Other State");
-          setCustomState("");
-        }
-
-        const dbDistrict = biz.district || "";
-        const currentStateKey = stateKeys.includes(dbState) && dbState !== "Other State" ? dbState : "Other State";
-        const districtsForState = countryMap[currentStateKey] || [];
-        if (districtsForState.includes(dbDistrict) && dbDistrict !== "Other") {
-          setSelectedDistrict(dbDistrict);
-          setCustomDistrict("");
-        } else if (dbDistrict) {
-          setSelectedDistrict("Other");
-          setCustomDistrict(dbDistrict);
-        } else {
-          setSelectedDistrict(districtsForState[0] || "Other");
-          setCustomDistrict("");
-        }
-        setCityTown(biz.cityTown || "");
-        setPincode(biz.pincode || "");
-        setDescription(biz.description || "");
-        setOfficers(biz.officers || []);
-        setFacilities(biz.facilities || []);
-        setEmail(biz.email || "");
-        setWebsite(biz.website || "");
-        setVideoLink(biz.videoLink || "");
-        setFrontPhoto(biz.images[0] || "");
-        setInteriorPhotos(biz.images.slice(1) || []);
-        setLocationLink(biz.locationLink || "");
-        setOthersDestination(biz.othersDestination || "");
-        setCategoryLine(biz.categoryLine || "");
-        setSubCategoryLine(biz.subCategoryLine || "");
-        setBookingButtonLabel(biz.bookingButtonLabel || "");
-      }
+      fetch(`${API_BASE_URL}/businesses/${encodeURIComponent(businessId)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.data) {
+            setOriginalBusiness(data.data);
+            populateForm(data.data);
+          }
+        })
+        .catch((e) => console.error("Failed to load business details:", e));
     } else {
       try {
         const savedSession = localStorage.getItem("fmp_client_session:v1");
@@ -310,6 +435,16 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
     setInteriorPhotos(updated);
   };
 
+  const handleImageUpload = (file: File, setter: (val: string) => void) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        setter(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Facilities predefined list
   const standardFacilities = [
     "Free Wi-Fi",
@@ -346,6 +481,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
     const finalState = selectedState === "Other State" ? customState : selectedState;
     const finalDistrict = selectedDistrict === "Other" ? customDistrict : selectedDistrict;
+    const finalHolidayTime = selectedHoliday === "Custom" ? customHoliday.trim() : selectedHoliday;
 
     if (!finalState.trim()) {
       alert("State is required.");
@@ -378,62 +514,27 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
       }
     }
 
-    // Default Images fallback if empty
-    const finalFrontPhoto =
-      frontPhoto.trim() ||
-      "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80";
+    const finalFrontPhoto = frontPhoto.trim();
     const cleanInteriorPhotos = interiorPhotos.map((p) => p.trim()).filter(Boolean);
 
     // Save/Update Object matching BusinessListingData schema
     const newBusiness: BusinessListingData = {
       id: businessId || `custom-${Date.now()}-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
       name: name.trim(),
-      location: address.includes("Indore") ? "South Tukoganj - Indore" : "Andheri West - Mumbai", // default location parsed or fallback
+      location: cityTown.trim() || address.trim(),
       category: `${category} > ${subCategory}`,
-      rating: isEditMode ? businessesData.find((b) => b.id === businessId)?.rating || 4.8 : 5.0,
-      reviewCount: isEditMode
-        ? businessesData.find((b) => b.id === businessId)?.reviewCount || 1
-        : 1,
+      rating: isEditMode ? originalBusiness?.rating || 0 : 0,
+      reviewCount: isEditMode ? originalBusiness?.reviewCount || 0 : 0,
       phone: phone.trim(),
       address: address.trim(),
-      timings: `${openTime} - ${closeTime} (${holidayTime})`,
+      timings: `${openTime} - ${closeTime} (${finalHolidayTime})`,
       openStatus: "Open Now",
       website: website.trim(),
       images: [finalFrontPhoto, ...cleanInteriorPhotos],
-      description:
-        description.trim() ||
-        `${name} is a leading premium business serving your requirements in the region.`,
-      products: isEditMode
-        ? businessesData.find((b) => b.id === businessId)?.products || []
-        : [
-            {
-              name: `Standard ${subCategory} Service`,
-              price: "₹499 onwards",
-              img: finalFrontPhoto,
-              desc: `Full professional package for standard ${subCategory} requirements.`,
-            },
-          ],
-      reviews: isEditMode
-        ? businessesData.find((b) => b.id === businessId)?.reviews || []
-        : [
-            {
-              userName: "Admin Panel",
-              userInitial: "A",
-              userColor: "from-indigo-500 to-purple-600",
-              rating: 5,
-              date: "Just now",
-              reviewText: "Listing registered officially via the Admin Panel.",
-            },
-          ],
-      faqs: isEditMode
-        ? businessesData.find((b) => b.id === businessId)?.faqs || []
-        : [
-            {
-              question: "What forms of payment are accepted?",
-              answer:
-                "We support cash, major credit cards, UPI (GPay/PhonePe), and online banking.",
-            },
-          ],
+      description: description.trim(),
+      products: isEditMode ? originalBusiness?.products || [] : [],
+      reviews: isEditMode ? originalBusiness?.reviews || [] : [],
+      faqs: isEditMode ? originalBusiness?.faqs || [] : [],
       similarListings: [],
       // Custom Extra Fields
       whatsapp: whatsapp.trim(),
@@ -441,15 +542,15 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
       branches: branches.map((b) => b.trim()).filter(Boolean),
       openTime,
       closeTime,
-      holidayTime,
+      holidayTime: finalHolidayTime,
       officers: officers.filter((o) => o.name.trim() && o.designation.trim()),
       facilities,
       email: email.trim(),
       videoLink: videoLink.trim(),
       locationLink: locationLink.trim(),
       othersDestination: othersDestination.trim(),
-      categoryLine: categoryLine.trim(),
-      subCategoryLine: subCategoryLine.trim(),
+      categoryLine: category.trim(),
+      subCategoryLine: subCategory.trim(),
       highlightsName: highlightsName.trim(),
       bookingButtonLabel: bookingButtonLabel.trim(),
       isTimingMandatory,
@@ -458,37 +559,36 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
       district: finalDistrict.trim(),
       cityTown: cityTown.trim(),
       pincode: pincode.trim(),
+      password: password.trim() || undefined,
     };
 
-    try {
-      const saved = localStorage.getItem("fmp_custom_businesses");
-      let customList = saved ? JSON.parse(saved) : [];
+    const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_user_token");
+    const url = isEditMode && businessId
+      ? `${API_BASE_URL}/businesses/${encodeURIComponent(businessId)}`
+      : `${API_BASE_URL}/businesses`;
+    const method = isEditMode && businessId ? "PUT" : "POST";
 
-      if (isEditMode && businessId) {
-        customList = customList.map((b: any) => (b.id === businessId ? newBusiness : b));
-
-        // Update in active memory array
-        const idx = businessesData.findIndex((b) => b.id === businessId);
-        if (idx > -1) {
-          businessesData[idx] = newBusiness;
-        }
+    fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(newBusiness)
+    })
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.success) {
+        alert(isEditMode ? "Listing updated successfully!" : "Listing registered successfully!");
+        onSuccess();
       } else {
-        customList.push(newBusiness);
-
-        // Push in active memory array
-        businessesData.push(newBusiness);
+        alert(data.message || "Failed to save business listing.");
       }
-
-      localStorage.setItem("fmp_custom_businesses", JSON.stringify(customList));
-      alert(isEditMode ? "Listing updated successfully!" : "Listing registered successfully!");
-
-      // Dispatch storage event to alert lists
-      window.dispatchEvent(new Event("storage"));
-      onSuccess();
-    } catch (e) {
+    })
+    .catch((e) => {
       console.error(e);
       alert("Failed to save business listing.");
-    }
+    });
   };
 
   return (
@@ -532,7 +632,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
       {/* Form Container (Flat background, card wrapper styles removed) */}
       <form
         onSubmit={handleSubmit}
-        className="space-y-6 [&_input]:bg-white [&_input]:dark:bg-slate-900 [&_select]:bg-white [&_select]:dark:bg-slate-900 [&_textarea]:bg-white [&_textarea]:dark:bg-slate-900 [&_input]:shadow-sm [&_select]:shadow-sm [&_textarea]:shadow-sm [&_input]:py-2 [&_input]:px-3.5 [&_input]:text-xs [&_input]:rounded-lg [&_select]:py-2 [&_select]:px-3.5 [&_select]:text-xs [&_select]:rounded-lg [&_textarea]:py-2 [&_textarea]:px-3.5 [&_textarea]:text-xs [&_textarea]:rounded-lg [&_label]:text-[10px] [&_h3]:text-sm [&_.grid]:gap-4 [&_.space-y-6]:space-y-4"
+        className="space-y-6 [&_input]:bg-white [&_input]:dark:bg-slate-900 [&_select]:bg-white [&_select]:dark:bg-slate-900 [&_textarea]:bg-white [&_textarea]:dark:bg-slate-900 [&_input]:shadow-sm [&_select]:shadow-sm [&_textarea]:shadow-sm [&_input]:py-2 [&_input]:px-3.5 [&_input]:text-xs [&_input]:rounded-lg [&_select]:py-2 [&_select]:px-3.5 [&_select]:text-xs [&_select]:rounded-lg [&_textarea]:py-2 [&_textarea]:px-3.5 [&_textarea]:text-xs [&_textarea]:rounded-lg [&_label]:text-[10px] [&_label]:text-slate-900 [&_label]:dark:text-slate-100 [&_label]:font-extrabold [&_h3]:text-sm [&_.grid]:gap-4 [&_.space-y-6]:space-y-4"
       >
         {/* TAB 1: BASIC DETAILS */}
         {activeTab === "basic" && (
@@ -544,7 +644,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Business Name */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                <label className="text-xs uppercase tracking-wider">
                   Business Name *
                 </label>
                 <input
@@ -557,32 +657,32 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
                 />
               </div>
 
-              {/* Highlights Name */}
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-1.5">
-                  1. Highlights Name / Promo Tagline
-                  <span className="normal-case text-[10px] text-slate-400 font-normal">
-                    (Promoted label in listings)
-                  </span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 50% Off / Pure Organic / Best Rated"
-                  value={highlightsName}
-                  onChange={(e) => setHighlightsName(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                />
-              </div>
+              {/* Login Password */}
+              {!isClient && (
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-wider">
+                    Login Password {isEditMode ? "(Leave blank to keep unchanged)" : "*"}
+                  </label>
+                  <input
+                    type="password"
+                    required={!isEditMode}
+                    placeholder="Set account password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  />
+                </div>
+              )}
 
               {/* Category of Business */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  2. Category of Business *
+                <label className="text-xs font-extrabold uppercase text-slate-900 dark:text-slate-100 tracking-wider">
+                  Category of Business *
                 </label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-952 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
                 >
                   {categories.map((cat) => (
                     <option key={cat.label} value={cat.label}>
@@ -594,13 +694,13 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
               {/* Sub-Category of Business */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  19. Business Sub-Category *
+                <label className="text-xs font-extrabold uppercase text-slate-900 dark:text-slate-100 tracking-wider">
+                  Business Sub-Category *
                 </label>
                 <select
                   value={subCategory}
                   onChange={(e) => setSubCategory(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-952 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
                 >
                   {availableSubcategories.map((subcat) => (
                     <option key={subcat} value={subcat}>
@@ -616,8 +716,8 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
             {/* Description */}
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                10. Business Description
+              <label className="text-xs font-extrabold uppercase text-slate-900 dark:text-slate-100 tracking-wider">
+                Business Description
               </label>
               <textarea
                 rows={5}
@@ -640,8 +740,8 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Business Address */}
               <div className="space-y-2 md:col-span-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  3. Business Address *
+                <label className="text-xs uppercase tracking-wider">
+                  Business Address *
                 </label>
                 <input
                   type="text"
@@ -655,7 +755,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
               {/* Country Selection */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                <label className="text-xs uppercase tracking-wider">
                   Country *
                 </label>
                 <select
@@ -683,7 +783,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
               {/* State */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                <label className="text-xs uppercase tracking-wider">
                   State *
                 </label>
                 <select
@@ -716,7 +816,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
               {/* District */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                <label className="text-xs uppercase tracking-wider">
                   District *
                 </label>
                 <select
@@ -744,7 +844,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
               {/* Area / City / Town */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                <label className="text-xs uppercase tracking-wider">
                   Area / City / Town *
                 </label>
                 <input
@@ -759,7 +859,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
               {/* Pincode */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                <label className="text-xs uppercase tracking-wider">
                   Pincode *
                 </label>
                 <input
@@ -774,8 +874,8 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
               {/* Contact Number */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  4. Contact Number *
+                <label className="text-xs uppercase tracking-wider">
+                  Contact Number *
                 </label>
                 {(() => {
                   const splitVal = splitPhoneNumber(phone);
@@ -810,8 +910,8 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
               {/* Whatsapp Number */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  5. Whatsapp Number
+                <label className="text-xs uppercase tracking-wider">
+                  Whatsapp Number
                 </label>
                 {(() => {
                   const splitVal = splitPhoneNumber(whatsapp);
@@ -845,8 +945,8 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
               {/* Business Location link */}
               <div className="space-y-2 md:col-span-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  17. Business Location link (Google Maps Embed/Direction URL)
+                <label className="text-xs uppercase tracking-wider">
+                  Business Location link (Google Maps Embed/Direction URL)
                 </label>
                 <input
                   type="url"
@@ -858,106 +958,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
               </div>
             </div>
 
-            {/* Extra Numbers Section */}
-            <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  6. Others Extra Numbers Add
-                </label>
-                <button
-                  type="button"
-                  onClick={handleAddExtraNumber}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 transition cursor-pointer"
-                >
-                  <Plus className="h-4 w-4" /> Add Phone
-                </button>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {extraNumbers.map((num, idx) => {
-                  const splitVal = splitPhoneNumber(num);
-                  const selectOptions = SORTED_CALLING_CODES.includes(splitVal.code)
-                    ? SORTED_CALLING_CODES
-                    : [splitVal.code, ...SORTED_CALLING_CODES];
-                  return (
-                    <div key={idx} className="flex gap-2 items-center">
-                      <select
-                        value={splitVal.code}
-                        onChange={(e) => handleExtraNumberChange(idx, `${e.target.value} ${splitVal.number}`.trim())}
-                        className="w-24 bg-slate-50 dark:bg-slate-955 text-sm px-2 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold cursor-pointer shrink-0 text-center"
-                      >
-                        {selectOptions.map((code) => (
-                          <option key={code} value={code}>
-                            {code}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="tel"
-                        placeholder={`Extra Phone #${idx + 1}`}
-                        value={splitVal.number}
-                        onChange={(e) => handleExtraNumberChange(idx, `${splitVal.code} ${e.target.value}`.trim())}
-                        className="flex-1 bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveExtraNumber(idx)}
-                        className="h-11 w-11 shrink-0 flex items-center justify-center text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition cursor-pointer"
-                      >
-                        <Trash2 className="h-4.5 w-4.5" />
-                      </button>
-                    </div>
-                  );
-                })}
-                {extraNumbers.length === 0 && (
-                  <p className="text-xs text-slate-400 dark:text-slate-500 col-span-2 italic">
-                    No extra contact numbers added.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Branches Section */}
-            <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  7. Business Branch Addresses
-                </label>
-                <button
-                  type="button"
-                  onClick={handleAddBranch}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 transition cursor-pointer"
-                >
-                  <Plus className="h-4 w-4" /> Add Branch
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {branches.map((br, idx) => (
-                  <div key={idx} className="flex gap-2 items-center">
-                    <input
-                      type="text"
-                      placeholder={`e.g. Vijay Nagar Branch - 14, Food Court Road, Indore`}
-                      value={br}
-                      onChange={(e) => handleBranchChange(idx, e.target.value)}
-                      className="flex-1 bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveBranch(idx)}
-                      className="h-11 w-11 shrink-0 flex items-center justify-center text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition cursor-pointer"
-                    >
-                      <Trash2 className="h-4.5 w-4.5" />
-                    </button>
-                  </div>
-                ))}
-                {branches.length === 0 && (
-                  <p className="text-xs text-slate-400 dark:text-slate-500 italic">
-                    No business branches added.
-                  </p>
-                )}
-              </div>
-            </div>
           </div>
         )}
 
@@ -1007,45 +1008,47 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
             {/* Operating Times */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Open Time */}
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  8. Open Time {isTimingMandatory && <span className="text-rose-500 font-bold">*</span>}
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 09:00 AM"
-                  value={openTime}
-                  onChange={(e) => setOpenTime(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                />
-              </div>
+              <TimeSelector
+                label="Open Time"
+                value={openTime}
+                onChange={setOpenTime}
+                required={isTimingMandatory}
+              />
 
               {/* Close Time */}
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  8. Close Time {isTimingMandatory && <span className="text-rose-500 font-bold">*</span>}
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 10:00 PM"
-                  value={closeTime}
-                  onChange={(e) => setCloseTime(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                />
-              </div>
+              <TimeSelector
+                label="Close Time"
+                value={closeTime}
+                onChange={setCloseTime}
+                required={isTimingMandatory}
+              />
 
               {/* Holiday time */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  9. Holiday time / Days Closed
+                <label className="text-xs uppercase tracking-wider font-extrabold text-slate-900 dark:text-slate-100">
+                  Holiday time / Days Closed
                 </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Sunday Closed / National Holidays"
-                  value={holidayTime}
-                  onChange={(e) => setHolidayTime(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                />
+                <select
+                  value={selectedHoliday}
+                  onChange={(e) => setSelectedHoliday(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-955 text-sm px-4 py-3.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
+                >
+                  {COMMON_HOLIDAYS.map((day) => (
+                    <option key={day} value={day} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                      {day}
+                    </option>
+                  ))}
+                  <option value="Custom" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Custom...</option>
+                </select>
+                {selectedHoliday === "Custom" && (
+                  <input
+                    type="text"
+                    placeholder="e.g. Sunday Closed / National Holidays"
+                    value={customHoliday}
+                    onChange={(e) => setCustomHoliday(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-955 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all mt-2"
+                  />
+                )}
               </div>
             </div>
 
@@ -1053,8 +1056,8 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100 dark:border-slate-800">
               {/* Business Email */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-1.5">
-                  <Mail className="h-4 w-4" /> 12 (Part 2). Business Email
+                <label className="text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <Mail className="h-4 w-4" /> Business Email
                 </label>
                 <input
                   type="email"
@@ -1067,8 +1070,8 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
               {/* Business websites */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-1.5">
-                  <Globe className="h-4 w-4" /> 13. Business websites
+                <label className="text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <Globe className="h-4 w-4" /> Business websites
                 </label>
                 <input
                   type="url"
@@ -1082,8 +1085,8 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
             {/* Facilities checklist */}
             <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                12 (Part 1). Business Facilities / Amenities
+              <label className="text-xs uppercase tracking-wider">
+                Business Facilities / Amenities
               </label>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -1145,28 +1148,47 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
             {/* Business front photo */}
             <div className="space-y-3">
-              <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                15. Business Front Photo (Primary Banner URL)
+              <label className="text-xs uppercase tracking-wider font-bold">
+                Business Front Photo (Primary Banner)
               </label>
-              <div className="flex flex-col sm:flex-row gap-4 items-start">
+              <div className="relative border border-dashed border-slate-250 dark:border-slate-800 rounded-xl p-6 bg-slate-50/40 dark:bg-slate-950/20 hover:bg-slate-50 dark:hover:bg-slate-950/40 transition-colors flex flex-col items-center justify-center gap-1.5 cursor-pointer">
                 <input
-                  type="url"
-                  placeholder="https://images.unsplash.com/photo-... (Paste any image URL)"
-                  value={frontPhoto}
-                  onChange={(e) => setFrontPhoto(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 transition-all"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImageUpload(file, setFrontPhoto);
+                  }}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                 />
+                <Upload className="h-6 w-6 text-slate-400 mb-1" />
+                <span className="text-xs font-bold text-slate-650 dark:text-slate-400">
+                  Click to upload image file
+                </span>
+                <span className="text-[10px] text-slate-400">PNG, JPG, JPEG up to 10MB</span>
               </div>
               {frontPhoto && (
-                <div className="h-28 w-44 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 relative group">
-                  <img
-                    src={frontPhoto}
-                    alt="Front Preview"
-                    className="h-full w-full object-cover"
-                  />
-                  <span className="absolute bottom-1 right-1 bg-black/75 text-[9px] font-black uppercase text-white px-1.5 py-0.5 rounded">
-                    Banner Preview
-                  </span>
+                <div className="p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 rounded-xl flex items-center gap-3 text-left">
+                  <div className="h-14 w-24 bg-white dark:bg-slate-850 border border-slate-200/30 rounded-lg overflow-hidden flex items-center justify-center shadow-sm shrink-0">
+                    <img
+                      src={frontPhoto}
+                      alt="Front Preview"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      Front Photo Selected
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate">Banner Preview Ready</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFrontPhoto("")}
+                    className="text-xs font-bold text-rose-500 hover:underline cursor-pointer"
+                  >
+                    Clear
+                  </button>
                 </div>
               )}
             </div>
@@ -1174,44 +1196,82 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
             {/* Business interior photos */}
             <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  16. Business Interior Photos (Additional URLs)
+                <label className="text-xs uppercase tracking-wider font-bold">
+                  Business Interior Photos (Additional)
                 </label>
                 <button
                   type="button"
                   onClick={handleAddInteriorPhoto}
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 transition cursor-pointer"
                 >
-                  <Plus className="h-4 w-4" /> Add Photo
+                  <Plus className="h-4 w-4" /> Add Photo Slot
                 </button>
               </div>
 
               <div className="space-y-4">
                 {interiorPhotos.map((photo, idx) => (
-                  <div key={idx} className="space-y-2">
-                    <div className="flex gap-2 items-center">
-                      <input
-                        type="url"
-                        placeholder={`Interior Photo URL #${idx + 1}`}
-                        value={photo}
-                        onChange={(e) => handleInteriorPhotoChange(idx, e.target.value)}
-                        className="flex-1 bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 transition-all"
-                      />
+                  <div key={idx} className="p-3 bg-slate-50/50 dark:bg-slate-950/10 border border-slate-150 dark:border-slate-850 rounded-xl space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-slate-650 dark:text-slate-400">
+                        Interior Photo #{idx + 1}
+                      </span>
                       <button
                         type="button"
                         onClick={() => handleRemoveInteriorPhoto(idx)}
-                        className="h-11 w-11 shrink-0 flex items-center justify-center text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition cursor-pointer"
+                        className="text-xs text-rose-500 hover:text-rose-650 flex items-center gap-1 font-bold cursor-pointer"
                       >
-                        <Trash2 className="h-4.5 w-4.5" />
+                        <Trash2 className="h-3.5 w-3.5" /> Remove Slot
                       </button>
                     </div>
-                    {photo && (
-                      <div className="h-20 w-32 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950">
-                        <img
-                          src={photo}
-                          alt={`Interior Preview #${idx + 1}`}
-                          className="h-full w-full object-cover"
+
+                    {!photo ? (
+                      <div className="relative border border-dashed border-slate-200 dark:border-slate-800 rounded-lg p-4 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-950/20 transition-colors flex flex-col items-center justify-center gap-1 cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleImageUpload(file, (val) => {
+                                const updated = [...interiorPhotos];
+                                updated[idx] = val;
+                                setInteriorPhotos(updated);
+                              });
+                            }
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                         />
+                        <Upload className="h-4 w-4 text-slate-400 mb-1" />
+                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                          Click to upload file
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 text-left">
+                        <div className="h-12 w-20 bg-white dark:bg-slate-850 border border-slate-200/30 rounded-lg overflow-hidden flex items-center justify-center shadow-sm shrink-0">
+                          <img
+                            src={photo}
+                            alt={`Interior Preview #${idx + 1}`}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-bold text-slate-700 dark:text-slate-350">
+                            Image Selected
+                          </p>
+                          <p className="text-[9px] text-slate-400 truncate">Ready</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = [...interiorPhotos];
+                            updated[idx] = "";
+                            setInteriorPhotos(updated);
+                          }}
+                          className="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
                       </div>
                     )}
                   </div>
@@ -1226,9 +1286,8 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
             {/* Business vido link */}
             <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider flex items-center gap-1.5">
-                <Video className="h-4 w-4 text-rose-500" /> 14. Business Video Link (YouTube Share /
-                Embed Link)
+              <label className="text-xs uppercase tracking-wider flex items-center gap-1.5">
+                <Video className="h-4 w-4 text-rose-500" /> Business Video Link (YouTube Share / Embed Link)
               </label>
               <input
                 type="url"
@@ -1251,8 +1310,8 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
             {/* Officers dynamic list */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  11. Business Officers / Management Team
+                <label className="text-xs uppercase tracking-wider">
+                  Business Officers / Management Team
                 </label>
                 <button
                   type="button"
@@ -1302,8 +1361,8 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
 
             {/* Destination detail */}
             <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                18. Business Others Destination (Other Details/Features)
+              <label className="text-xs uppercase tracking-wider">
+                Business Others Destination (Other Details/Features)
               </label>
               <input
                 type="text"
@@ -1314,49 +1373,18 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess }: Admi
               />
             </div>
 
-            {/* Custom option lines */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-              {/* Category option line */}
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  20. Business Category Option Line (Custom Tag Override)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Primary: Grocery & Daily Essentials"
-                  value={categoryLine}
-                  onChange={(e) => setCategoryLine(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition-all"
-                />
-              </div>
-
-              {/* Sub Category option line */}
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  19. Business Sub Category Option Line (Custom Subtag)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Sub: Hypermarket / Fashion Retailer"
-                  value={subCategoryLine}
-                  onChange={(e) => setSubCategoryLine(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition-all"
-                />
-              </div>
-
-              {/* Booking Button Custom Label */}
-              <div className="space-y-2 col-span-1 md:col-span-2">
-                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  Booking Button Name (e.g. Book Table, Book Appointment, Order Now)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Defaults to Book Now / Book Table / Book Room based on category"
-                  value={bookingButtonLabel}
-                  onChange={(e) => setBookingButtonLabel(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition-all"
-                />
-              </div>
+            {/* Booking Button Custom Label */}
+            <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <label className="text-xs uppercase tracking-wider">
+                Booking Button Name (e.g. Book Table, Book Appointment, Order Now)
+              </label>
+              <input
+                type="text"
+                placeholder="Defaults to Book Now / Book Table / Book Room based on category"
+                value={bookingButtonLabel}
+                onChange={(e) => setBookingButtonLabel(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition-all"
+              />
             </div>
           </div>
         )}

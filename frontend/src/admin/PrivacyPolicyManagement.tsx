@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { API_BASE_URL } from "../config";
 import {
   Shield,
   Save,
@@ -24,29 +25,23 @@ interface PolicySection {
 
 export default function PrivacyPolicyManagement() {
   const [lastUpdated, setLastUpdated] = useState("July 2026");
-  const [sections, setSections] = useState<PolicySection[]>([
-    {
-      id: "1",
-      icon: "lock",
-      title: "1. Information We Collect",
-      content:
-        "We collect personal identifiers including First Name, Last Name, Birthdates, Marital Status, and contact numbers to establish user configurations under local storage. Photos uploaded as avatars are processed locally as Base64 strings.",
-    },
-    {
-      id: "2",
-      icon: "cookie",
-      title: "2. Cookie Policy & Web Storage",
-      content:
-        "Cookies and local browser storage are utilized solely to maintain session credentials, admin profile data, user registration states, and page layout configurations. No targeted advertisement scripts are configured.",
-    },
-    {
-      id: "3",
-      icon: "globe",
-      title: "3. Dynamic Content Disclaimer",
-      content:
-        "Certain elements of the application, such as user review ratings, listings, and text fields on the homepage (like About and SEO descriptions) are rendered dynamically from local databases. Changing these fields does not alter standard network packages.",
-    },
-  ]);
+  const [sections, setSections] = useState<PolicySection[]>([]);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/policies/privacy`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.privacy) {
+          setLastUpdated(data.privacy.lastUpdated || "July 2026");
+          if (data.privacy.sections) {
+            setSections(data.privacy.sections);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch Privacy Policy", err);
+      });
+  }, []);
 
   const [isSavedAlert, setIsSavedAlert] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -103,10 +98,32 @@ export default function PrivacyPolicyManagement() {
     }
   };
 
-  const handleSaveAll = (e: React.FormEvent) => {
+  const handleSaveAll = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSavedAlert(true);
-    setTimeout(() => setIsSavedAlert(false), 4000);
+    const token = localStorage.getItem("fmp_admin_token");
+    try {
+      const res = await fetch(`${API_BASE_URL}/policies/privacy`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          lastUpdated,
+          sections
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsSavedAlert(true);
+        setTimeout(() => setIsSavedAlert(false), 4000);
+      } else {
+        alert("Failed to save privacy policy: " + (data.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("Failed to save Privacy Policy", err);
+      alert("Network error saving privacy policy.");
+    }
   };
 
   // Helper to render icons in live preview

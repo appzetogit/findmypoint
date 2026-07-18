@@ -26,117 +26,79 @@ interface EnquiryRecord {
 }
 
 // Mock enquiries generator matching client structure
-const getMockEnquiriesForBiz = (bizId: string, bizName: string, category: string): EnquiryRecord[] => {
-  const currentYear = new Date().getFullYear();
-  const names = [
-    "Aarav Sharma", "Isha Patel", "Kabir Mehta", "Riya Sen", "Dev Dixit",
-    "Aditya Rao", "Ananya Verma", "Rohan Das", "Sneha Kapoor", "Rahul Joshi"
-  ];
-  const mobiles = ["9876543210", "9123456789", "9988776655", "9456781230", "9871234560", "9345678901", "9012345678", "9234567890", "9567890123", "9678901234"];
-  const messages = [
-    "I want to enquire about bulk orders and discount pricing.",
-    "Is home delivery available for orders above ₹500 in this locality?",
-    "Are you open on Sunday evenings? Need to visit with family.",
-    "Can you share the menu or catalog details for service options?",
-    "What is the average response time for booking confirmation?",
-    "Do you have special festive offers running currently?",
-    "Do you support online payment options like UPI and Card?",
-    "I tried calling your support number but it was busy. Please call back."
-  ];
-
-  return Array.from({ length: 4 }, (_, i) => {
-    const hoursAgo = i * 4 + 2;
-    const date = new Date(Date.now() - hoursAgo * 60 * 60 * 1000);
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const strHours = String(date.getHours()).padStart(2, "0");
-    const strMinutes = String(date.getMinutes()).padStart(2, "0");
-    const timestamp = `${day}/${month}/${currentYear} ${strHours}:${strMinutes}`;
-
-    return {
-      id: `enq-mock-${bizId}-${i}`,
-      timestamp,
-      businessId: bizId,
-      businessName: bizName,
-      categoryName: category,
-      name: names[i % names.length],
-      mobile: mobiles[i % mobiles.length],
-      email: `${names[i % names.length].toLowerCase().replace(" ", ".")}@example.com`,
-      message: messages[i % messages.length]
-    };
-  });
-};
-
 export default function AllEnquiries() {
   const [enquiries, setEnquiries] = useState<EnquiryRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedBiz, setSelectedBiz] = useState("All");
 
-  const loadAllEnquiries = () => {
+  const getAuthHeaders = (): HeadersInit => {
+    const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_business_token") || "";
+    return token
+      ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+      : { "Content-Type": "application/json" };
+  };
+
+  const loadAllEnquiries = async () => {
     // 1. Gather all businesses
-    let allBiz = [...businessesData];
+    let allBiz: any[] = [];
     try {
-      const savedCustom = localStorage.getItem("fmp_custom_businesses");
-      if (savedCustom) {
-        const parsed = JSON.parse(savedCustom);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((custom: any) => {
-            if (!allBiz.some((b) => b.id === custom.id)) {
-              allBiz.push(custom);
-            }
-          });
-        }
+      const resBiz = await fetch("http://localhost:5000/api/businesses");
+      const dataBiz = await resBiz.json();
+      if (dataBiz.success && Array.isArray(dataBiz.data)) {
+        allBiz = dataBiz.data;
       }
-    } catch (e) {
-      console.error("Failed to load custom businesses in enquiries panel", e);
+    } catch {}
+
+    if (allBiz.length === 0) {
+      allBiz = [...businessesData];
+      try {
+        const savedCustom = localStorage.getItem("fmp_custom_businesses");
+        if (savedCustom) {
+          const parsed = JSON.parse(savedCustom);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((custom: any) => {
+              if (!allBiz.some((b) => b.id === custom.id)) {
+                allBiz.push(custom);
+              }
+            });
+          }
+        }
+      } catch (e) {}
     }
 
     // 2. Load enquiries for each business
     const list: EnquiryRecord[] = [];
-    allBiz.forEach((biz) => {
-      const enquiriesKey = `fmp_service_enquiries:${biz.id}`;
-      const saved = localStorage.getItem(enquiriesKey);
-      
-      if (saved) {
+    try {
+      await Promise.all(allBiz.map(async (biz) => {
         try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            parsed.forEach((enq: any) => {
+          const res = await fetch(`http://localhost:5000/api/businesses/${biz.id}/enquiries`, {
+            headers: getAuthHeaders()
+          });
+          const data = await res.json();
+          if (data.success && Array.isArray(data.data)) {
+            data.data.forEach((item: any) => {
               list.push({
-                ...enq,
+                id: item._id,
+                timestamp: item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-GB') + ' ' + new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '',
                 businessId: biz.id,
                 businessName: biz.name,
-                categoryName: biz.category || "General"
+                categoryName: biz.category || "General",
+                name: item.name,
+                mobile: item.phone,
+                email: item.email || "N/A",
+                message: item.message
               });
             });
           }
-        } catch (e) {
-          console.error("Failed to parse enquiries for " + biz.name, e);
-        }
-      } else {
-        // Fallback to generating mock enquiries if empty
-        const mocks = getMockEnquiriesForBiz(biz.id, biz.name, biz.category || "General");
-        localStorage.setItem(enquiriesKey, JSON.stringify(mocks));
-        mocks.forEach((m) => list.push(m));
-      }
-    });
+        } catch {}
+      }));
+    } catch (e) {
+      console.error("Failed to parse enquiries", e);
+    }
 
-    // Sort by timestamp (newest first)
-    list.sort((a, b) => {
-      const partsA = a.timestamp.split(" ");
-      const partsB = b.timestamp.split(" ");
-      if (partsA.length === 2 && partsB.length === 2) {
-        const [dayA, monthA, yearA] = partsA[0].split("/").map(Number);
-        const [hourA, minA] = partsA[1].split(":").map(Number);
-        const [dayB, monthB, yearB] = partsB[0].split("/").map(Number);
-        const [hourB, minB] = partsB[1].split(":").map(Number);
-        const dateA = new Date(yearA, monthA - 1, dayA, hourA, minA);
-        const dateB = new Date(yearB, monthB - 1, dayB, hourB, minB);
-        return dateB.getTime() - dateA.getTime();
-      }
-      return b.id.localeCompare(a.id);
-    });
+    // Sort by ID (newest first)
+    list.sort((a, b) => b.id.localeCompare(a.id));
 
     setEnquiries(list);
   };

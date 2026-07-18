@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, Eye, Trash2, Calendar, Clock, MapPin, Phone, Mail, User, ShieldCheck, Image as ImageIcon, X } from "lucide-react";
+import { API_BASE_URL } from "../config";
 
 interface BusinessRequest {
   id: string;
@@ -23,11 +24,14 @@ interface BusinessRequest {
   pinCode: string;
   employeeName: string;
   submittedAt: string;
+  paymentStatus?: string;
+  razorpayOrderId?: string;
 }
 
 export default function BusinessRequests() {
   const [requests, setRequests] = useState<BusinessRequest[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
   const [viewingRequest, setViewingRequest] = useState<BusinessRequest | null>(null);
   const [zoomPhoto, setZoomPhoto] = useState<string | null>(null);
 
@@ -35,50 +39,208 @@ export default function BusinessRequests() {
   const [feeInput, setFeeInput] = useState("500");
 
   useEffect(() => {
-    const savedFee = localStorage.getItem("fmp_listing_request_fee:v1");
-    if (savedFee) {
-      setListingFee(savedFee);
-      setFeeInput(savedFee);
-    }
-  }, []);
-
-  const handleUpdateFee = (e: React.FormEvent) => {
-    e.preventDefault();
-    localStorage.setItem("fmp_listing_request_fee:v1", feeInput);
-    setListingFee(feeInput);
-    alert("Listing fee updated successfully to ₹" + feeInput);
-  };
-
-  // Load submissions from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("fmp_business_requests:v1");
-    if (saved) {
+    const loadFee = async () => {
       try {
-        setRequests(JSON.parse(saved));
-      } catch (e) {}
-    }
+        const res = await fetch(`${API_BASE_URL}/business-requests/fee`);
+        const data = await res.json();
+        if (data.success && data.amount !== undefined) {
+          setListingFee(data.amount.toString());
+          setFeeInput(data.amount.toString());
+        }
+      } catch (err) {
+        console.error("Failed to load listing fee:", err);
+      }
+    };
+    loadFee();
   }, []);
 
-  const saveRequests = (updated: BusinessRequest[]) => {
-    setRequests(updated);
-    localStorage.setItem("fmp_business_requests:v1", JSON.stringify(updated));
+  const handleUpdateFee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem("fmp_admin_token");
+      const res = await fetch(`${API_BASE_URL}/business-requests/fee`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ amount: Number(feeInput) })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setListingFee(feeInput);
+        alert("Listing fee updated successfully to ₹" + feeInput);
+      } else {
+        alert(data.message || "Failed to update fee.");
+      }
+    } catch (err) {
+      console.error("Failed to update listing fee:", err);
+      alert("Network error updating listing fee.");
+    }
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm("Are you sure you want to delete this business request?")) {
-      const updated = requests.filter((r) => r.id !== id);
-      saveRequests(updated);
+  const loadRequests = async () => {
+    try {
+      const token = localStorage.getItem("fmp_admin_token");
+      const res = await fetch(`${API_BASE_URL}/business-requests`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        const mapped = data.data.map((r: any) => ({
+          ...r,
+          id: r._id,
+          submittedAt: r.createdAt ? new Date(r.createdAt).toLocaleString() : r.submittedAt
+        }));
+        setRequests(mapped);
+      }
+    } catch (err) {
+      console.error("Failed to load business requests:", err);
     }
+  };
+
+  useEffect(() => {
+    loadRequests();
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm("Are you sure you want to delete this business request?")) {
+      try {
+        const token = localStorage.getItem("fmp_admin_token");
+        const res = await fetch(`${API_BASE_URL}/business-requests/${id}`, {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("Business request deleted successfully.");
+          loadRequests();
+        } else {
+          alert(data.message || "Failed to delete request.");
+        }
+      } catch (err) {
+        console.error("Failed to delete request:", err);
+        alert("Network error deleting request.");
+      }
+    }
+  };
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePendingPaymentClick = async (req: BusinessRequest) => {
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded) {
+      alert("Failed to load Razorpay Checkout SDK.");
+      return;
+    }
+
+    const adminToken = localStorage.getItem("fmp_admin_token");
+    
+    // 1. Get or create fresh Razorpay order
+    let order: any = null;
+    try {
+      const resOrder = await fetch(`${API_BASE_URL}/business-requests/${req.id}/payment-order`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${adminToken}`
+        }
+      });
+      const orderData = await resOrder.json();
+      if (orderData.success && orderData.order) {
+        order = orderData.order;
+      } else {
+        alert(orderData.message || "Failed to generate Razorpay order.");
+        return;
+      }
+    } catch (errOrder) {
+      console.error(errOrder);
+      alert("Network error generating Razorpay order.");
+      return;
+    }
+
+    const options = {
+      key: "rzp_test_S3IcSS1NbymL6D",
+      amount: order.amount,
+      currency: order.currency || "INR",
+      name: "FindmyPoint",
+      description: `Listing fee payment for ${req.businessName}`,
+      order_id: order.id,
+      handler: async (response: any) => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/business-requests/verify-payment`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${adminToken}`
+            },
+            body: JSON.stringify({
+              requestId: req.id,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature
+            })
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            alert("Payment verified successfully!");
+            loadRequests();
+          } else {
+            alert(data.message || "Payment verification failed.");
+          }
+        } catch (err) {
+          console.error("Verification failed:", err);
+          alert("Verification failed.");
+        }
+      },
+      prefill: {
+        name: req.ownerName,
+        email: req.email,
+        contact: req.contactNumber
+      },
+      theme: {
+        color: "#4f46e5"
+      }
+    };
+
+    const rzp = new (window as any).Razorpay(options);
+    rzp.open();
   };
 
   const filteredRequests = requests.filter((req) => {
     const term = searchTerm.toLowerCase();
+
+    // 1. Payment status filter
+    if (statusFilter !== "All") {
+      const status = req.paymentStatus || "Pending";
+      if (status.toLowerCase() !== statusFilter.toLowerCase()) {
+        return false;
+      }
+    }
+
+    // 2. Search term check
     return (
       req.businessName.toLowerCase().includes(term) ||
       req.ownerName.toLowerCase().includes(term) ||
       req.category.toLowerCase().includes(term) ||
       req.employeeName.toLowerCase().includes(term) ||
-      req.city.toLowerCase().includes(term)
+      (req.city || "").toLowerCase().includes(term)
     );
   });
 
@@ -131,7 +293,7 @@ export default function BusinessRequests() {
         </div>
       </div>
 
-      {/* Action panel (Search & Count) */}
+      {/* Action panel (Search, Status Filter & Count) */}
       <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-2xl p-4.5 flex flex-col sm:flex-row gap-4 items-center justify-between shadow-sm">
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
@@ -143,8 +305,23 @@ export default function BusinessRequests() {
             className="w-full bg-slate-50 dark:bg-slate-955 text-xs pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-450 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
           />
         </div>
-        <div className="text-xs text-slate-500 dark:text-slate-455 font-bold">
-          Total Requests: <span className="text-indigo-650 dark:text-indigo-400 font-extrabold">{filteredRequests.length}</span>
+        <div className="flex flex-col sm:flex-row gap-4 items-center w-full sm:w-auto">
+          {/* Payment Status Dropdown Filter */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider whitespace-nowrap">Payment Status</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-955 text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-905 dark:text-slate-100 font-bold focus:border-indigo-500 transition-all cursor-pointer"
+            >
+              <option value="All">All</option>
+              <option value="Paid">Paid</option>
+              <option value="Pending">Pending</option>
+            </select>
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-455 font-bold">
+            Total Requests: <span className="text-indigo-650 dark:text-indigo-400 font-extrabold">{filteredRequests.length}</span>
+          </div>
         </div>
       </div>
 
@@ -159,6 +336,7 @@ export default function BusinessRequests() {
                 <th className="py-4 px-6">Owner Info</th>
                 <th className="py-4 px-6">Submitted By</th>
                 <th className="py-4 px-6">Submitted At</th>
+                <th className="py-4 px-6">Payment Status</th>
                 <th className="py-4 px-6 text-right">Actions</th>
               </tr>
             </thead>
@@ -180,7 +358,7 @@ export default function BusinessRequests() {
                       )}
                       <div>
                         <h4 className="font-bold text-slate-900 dark:text-white text-sm">{req.businessName}</h4>
-                        <span className="text-[10px] text-slate-450 dark:text-slate-500 font-semibold">{req.city}, {req.state}</span>
+                        <span className="text-[10px] text-slate-455 dark:text-slate-500 font-semibold">{req.city ? `${req.city}, ` : ""}{req.state}</span>
                       </div>
                     </div>
                   </td>
@@ -194,12 +372,25 @@ export default function BusinessRequests() {
                     </div>
                   </td>
                   <td className="py-3.5 px-6 font-semibold text-slate-700 dark:text-slate-300">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 text-[10px] font-black rounded-lg border border-indigo-100/50 dark:border-indigo-950/20">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 text-[10px] font-black rounded-lg border border-indigo-100/50 dark:border-indigo-955/20">
                       {req.employeeName}
                     </span>
                   </td>
                   <td className="py-3.5 px-6 text-slate-505 dark:text-slate-400 font-mono">
                     {req.submittedAt}
+                  </td>
+                  <td className="py-3.5 px-6">
+                    {req.paymentStatus === "Paid" ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 border border-emerald-200 dark:border-emerald-900/30 uppercase tracking-wide">Paid</span>
+                    ) : (
+                      <span
+                        onClick={() => handlePendingPaymentClick(req)}
+                        title="Click to Pay with Razorpay"
+                        className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-rose-50 dark:bg-rose-950/30 text-rose-600 hover:text-rose-800 dark:hover:text-rose-400 border border-rose-200 dark:border-rose-900/30 hover:border-rose-400 uppercase tracking-wide cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm shadow-rose-500/5 animate-pulse"
+                      >
+                        Pending
+                      </span>
+                    )}
                   </td>
                   <td className="py-3.5 px-6 text-right">
                     <div className="flex items-center justify-end gap-1.5">
@@ -317,6 +508,12 @@ export default function BusinessRequests() {
                     <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-850/50">
                       <span className="text-slate-500 dark:text-slate-400 font-medium">Email:</span>
                       <span className="font-bold text-slate-800 dark:text-slate-200">{viewingRequest.email}</span>
+                    </div>
+                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-850/50">
+                      <span className="text-slate-550 dark:text-slate-400 font-medium">Payment Status:</span>
+                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${viewingRequest.paymentStatus === "Paid" ? "bg-emerald-50 dark:bg-emerald-955/20 text-emerald-600 border-emerald-200 dark:border-emerald-900/20" : "bg-rose-50 dark:bg-rose-955/20 text-rose-600 border-rose-200 dark:border-rose-900/20"}`}>
+                        {viewingRequest.paymentStatus || "Pending"}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500 dark:text-slate-400 font-bold">Amount Paid:</span>

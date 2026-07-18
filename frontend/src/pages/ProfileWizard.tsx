@@ -1,4 +1,5 @@
 import { useState, useEffect, useReducer } from "react";
+import { API_BASE_URL } from "../config";
 import {
   User,
   MapPin,
@@ -184,28 +185,111 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
     selectedFavorites,
   } = state;
 
-  // Load existing profile from localStorage
+  const [categoriesList, setCategoriesList] = useState<any[]>(FAVORITE_CATEGORIES);
+
+  // Load categories from database
   useEffect(() => {
-    try {
-      const savedPersonal = localStorage.getItem("fmp_profile_personal:v1");
-      if (savedPersonal) {
-        dispatch({ type: "SET_PERSONAL", value: JSON.parse(savedPersonal) });
-      } else if (username) {
-        dispatch({ type: "UPDATE_PERSONAL", fields: { firstName: username } });
-      }
+    fetch(`${API_BASE_URL}/categories`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.categories && data.categories.length > 0) {
+          const mapped = data.categories.map((c: any) => {
+            const matchedDefault = FAVORITE_CATEGORIES.find(
+              (f) => f.label.toLowerCase() === c.label.toLowerCase() || f.id === c.label.toLowerCase()
+            );
+            return {
+              id: c.label.toLowerCase(),
+              label: c.label,
+              icon: c.img || matchedDefault?.icon || "🏷️",
+            };
+          });
+          setCategoriesList(mapped);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch categories from database", err);
+      });
+  }, []);
 
-      const savedAddresses = localStorage.getItem("fmp_profile_addresses:v1");
-      if (savedAddresses) {
-        dispatch({ type: "SET_ADDRESSES", value: JSON.parse(savedAddresses) });
-      }
+  // Load existing profile from backend database
+  useEffect(() => {
+    const token = localStorage.getItem("fmp_user_token");
+    if (!token) {
+      // Fallback to localStorage if no token is present
+      try {
+        const savedPersonal = localStorage.getItem("fmp_profile_personal:v1");
+        if (savedPersonal) {
+          dispatch({ type: "SET_PERSONAL", value: JSON.parse(savedPersonal) });
+        } else if (username) {
+          dispatch({ type: "UPDATE_PERSONAL", fields: { firstName: username } });
+        }
 
-      const savedFavorites = localStorage.getItem("fmp_profile_favorites:v1");
-      if (savedFavorites) {
-        dispatch({ type: "SET_FAVORITES", value: JSON.parse(savedFavorites) });
+        const savedAddresses = localStorage.getItem("fmp_profile_addresses:v1");
+        if (savedAddresses) {
+          dispatch({ type: "SET_ADDRESSES", value: JSON.parse(savedAddresses) });
+        }
+
+        const savedFavorites = localStorage.getItem("fmp_profile_favorites:v1");
+        if (savedFavorites) {
+          dispatch({ type: "SET_FAVORITES", value: JSON.parse(savedFavorites) });
+        }
+      } catch (e) {
+        console.error("Failed to load profile data from local storage", e);
       }
-    } catch (e) {
-      console.error("Failed to load profile data from local storage", e);
+      return;
     }
+
+    fetch(`${API_BASE_URL}/auth/profile`, {
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success && data.user) {
+        const u = data.user;
+        dispatch({
+          type: "SET_PERSONAL",
+          value: {
+            title: u.title || "Mr.",
+            firstName: u.firstName || "",
+            middleName: u.middleName || "",
+            lastName: u.lastName || "",
+            dobDD: u.dobDD || "",
+            dobMM: u.dobMM || "",
+            dobYYYY: u.dobYYYY || "",
+            maritalStatus: u.maritalStatus || "Single",
+            occupation: u.occupation || "Employed",
+            mobile1: u.mobile1 || "",
+            mobile2: u.mobile2 || "",
+            avatar: u.avatar || "",
+          }
+        });
+        if (u.addresses) {
+          dispatch({
+            type: "SET_ADDRESSES",
+            value: u.addresses.map((a: any) => ({
+              id: a._id || a.id,
+              name: a.name || "",
+              phone: a.phone || "",
+              email: a.email || "",
+              address: a.address || "",
+              pincode: a.pincode || "",
+              city: a.city || "",
+              landlineStd: a.landlineStd || "",
+              landlineNum: a.landlineNum || "",
+              tag: a.tag || "Home",
+            }))
+          });
+        }
+        if (u.selectedFavorites) {
+          dispatch({ type: "SET_FAVORITES", value: u.selectedFavorites });
+        }
+      }
+    })
+    .catch(err => {
+      console.error("Failed to fetch user profile", err);
+    });
   }, [username]);
 
   // Image Upload handler
@@ -221,8 +305,25 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
   };
 
   // Step 1 Save
-  const handleSavePersonal = (e: React.FormEvent) => {
+  const handleSavePersonal = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const token = localStorage.getItem("fmp_user_token");
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/auth/profile`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify(personal)
+        });
+      } catch (err) {
+        console.error("Failed to save personal profile details to backend", err);
+      }
+    }
+
     localStorage.setItem("fmp_profile_personal:v1", JSON.stringify(personal));
     dispatch({ type: "SET_STEP", step: 2 });
   };
@@ -246,10 +347,47 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
     localStorage.setItem("fmp_profile_addresses:v1", JSON.stringify(updated));
   };
 
-  const handleSaveAddresses = () => {
+  const handleSaveAddresses = async () => {
+    let finalAddresses = [...addresses];
     if (addresses.length === 0 && newAddr.address) {
-      handleAddAddress();
+      const item: AddressItem = {
+        ...newAddr,
+        id: Math.random().toString(36).substring(2, 9),
+      };
+      finalAddresses = [item];
+      dispatch({ type: "SET_ADDRESSES", value: finalAddresses });
+      localStorage.setItem("fmp_profile_addresses:v1", JSON.stringify(finalAddresses));
+      dispatch({ type: "RESET_NEW_ADDR", username: username || "" });
     }
+
+    const token = localStorage.getItem("fmp_user_token");
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/auth/profile`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            addresses: finalAddresses.map(a => ({
+              name: a.name,
+              phone: a.phone,
+              email: a.email,
+              address: a.address,
+              pincode: a.pincode,
+              city: a.city,
+              landlineStd: a.landlineStd,
+              landlineNum: a.landlineNum,
+              tag: a.tag
+            }))
+          })
+        });
+      } catch (err) {
+        console.error("Failed to save addresses to backend", err);
+      }
+    }
+
     dispatch({ type: "SET_STEP", step: 3 });
   };
 
@@ -263,7 +401,26 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
   };
 
   // Complete profile wizard
-  const handleCompleteWizard = () => {
+  const handleCompleteWizard = async () => {
+    const token = localStorage.getItem("fmp_user_token");
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/auth/profile`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            selectedFavorites
+          })
+        });
+      } catch (err) {
+        console.error("Failed to save favorites to backend", err);
+      }
+    }
+
+    localStorage.setItem("fmp_profile_favorites:v1", JSON.stringify(selectedFavorites));
     dispatch({ type: "SET_STEP", step: 4 });
   };
 
@@ -506,48 +663,26 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                   </div>
 
                   {/* Name fields */}
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
-                    <div className="sm:col-span-3">
-                      <label
-                        htmlFor="profileTitle"
-                        className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5"
-                      >
-                        Title
-                      </label>
-                      <select
-                        id="profileTitle"
-                        value={personal.title}
-                        onChange={(e) =>
-                          dispatch({ type: "UPDATE_PERSONAL", fields: { title: e.target.value } })
-                        }
-                        className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-xs font-semibold outline-none focus:border-accent"
-                      >
-                        <option value="Mr">Mr.</option>
-                        <option value="Mrs">Mrs.</option>
-                        <option value="Ms">Ms.</option>
-                      </select>
-                    </div>
-                    <div className="sm:col-span-9">
-                      <label
-                        htmlFor="profileFirstName"
-                        className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5"
-                      >
-                        Full Name
-                      </label>
-                      <input
-                        id="profileFirstName"
-                        type="text"
-                        value={personal.firstName}
-                        onChange={(e) =>
-                          dispatch({
-                            type: "UPDATE_PERSONAL",
-                            fields: { firstName: e.target.value },
-                          })
-                        }
-                        placeholder="Full Name"
-                        className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
-                      />
-                    </div>
+                  <div>
+                    <label
+                      htmlFor="profileFirstName"
+                      className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5"
+                    >
+                      Full Name
+                    </label>
+                    <input
+                      id="profileFirstName"
+                      type="text"
+                      value={personal.firstName}
+                      onChange={(e) =>
+                        dispatch({
+                          type: "UPDATE_PERSONAL",
+                          fields: { firstName: e.target.value },
+                        })
+                      }
+                      placeholder="Full Name"
+                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent"
+                    />
                   </div>
 
                   {/* Date of Birth Selectors */}
@@ -1016,7 +1151,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
               </div>
 
               <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-                {FAVORITE_CATEGORIES.map((cat) => {
+                {categoriesList.map((cat) => {
                   const isSelected = selectedFavorites.includes(cat.id);
                   return (
                     <button
@@ -1029,7 +1164,13 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                           : "bg-card border-border hover:bg-secondary/40 text-foreground/80 hover:border-primary/20"
                       }`}
                     >
-                      <span className="text-xl sm:text-3xl filter drop-shadow">{cat.icon}</span>
+                      <span className="text-xl sm:text-3xl filter drop-shadow">
+                        {cat.icon.startsWith("http") || cat.icon.startsWith("data:") || cat.icon.startsWith("/") ? (
+                          <img src={cat.icon} alt={cat.label} className="h-8 w-8 sm:h-12 sm:w-12 object-contain mx-auto" />
+                        ) : (
+                          cat.icon
+                        )}
+                      </span>
                       <span className="text-[10px] sm:text-xs font-bold mt-0.5 sm:mt-1 block tracking-tight leading-none text-center">
                         {cat.label}
                       </span>
@@ -1069,7 +1210,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
               <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mb-6 font-medium">
                 Congratulations{" "}
                 <span className="font-extrabold text-primary">
-                  {personal.title}. {personal.firstName}
+                  {personal.firstName}
                 </span>
                 ! Your personal profile details, addresses, and favorites have been updated
                 securely.

@@ -1,4 +1,18 @@
 import { useState, useEffect, useReducer, useMemo } from "react";
+
+const loadRazorpayScript = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if ((window as any).Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
 import {
   ArrowLeft,
   Search,
@@ -13,10 +27,13 @@ import {
   X,
   Check,
   ShieldCheck,
+  Loader2,
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
-import { getBusinessesForSubcategory, BusinessListingData } from "../data/businessesData";
+import { BusinessListingData } from "../data/businessesData";
 import Footer from "./Footer";
+import { useCategories } from "../context/CategoryContext";
+import { API_BASE_URL } from "../config";
 
 function formatDateTimeDMY(d: Date): string {
   const day = String(d.getDate()).padStart(2, "0");
@@ -115,228 +132,7 @@ const getSubcategoryEmoji = (category: string, subcatName: string): string => {
   return "🏷️";
 };
 
-// Master list of subcategories provided by the client + standard fallbacks
-export const subcategoriesData: Record<string, string[]> = {
-  "Spa Point": [
-    "Ayurvedic Spa",
-    "Massage Center",
-    "Beauty Spa",
-    "Thai Massage",
-    "Luxury Spa",
-    "Unisex Salon",
-    "Beauty Parlours",
-    "Spa & Massages",
-    "Salons",
-  ],
-  "Tour Point": [
-    "India",
-    "Nepal",
-    "Sri Lanka",
-    "Bangladesh",
-    "Indonesia",
-    "Dubai",
-    "UK",
-    "USA",
-    "Australia",
-    "Japan",
-    "China",
-    "Russia",
-    "Maldives",
-    "Bhutan",
-    "Myanmar",
-    "Thailand",
-    "France",
-    "Germany",
-    "Saudi Arabia",
-    "South Africa",
-    "Switzerland",
-  ],
-  "Job Point": [
-    "Accounting",
-    "Bank",
-    "BPO",
-    "ETC",
-    "FRESHER",
-    "Government",
-    "Health Care",
-    "HR",
-    "IIM",
-    "IIT",
-    "Industrial",
-    "IT",
-    "International",
-    "Judicial",
-    "Manufacturing Unit",
-    "Marketing",
-    "Official",
-    "Petrol Pump",
-    "Sales",
-    "Security",
-    "Teacher",
-    "Worker",
-    "Home Care",
-    "Delivery",
-  ],
-  "Service Point": [
-    "AC Repair",
-    "Builder",
-    "Care Taker",
-    "Carpenter",
-    "CCTV Repair & Installation",
-    "Contractor",
-    "Cook",
-    "Driver",
-    "Dry Cleaners",
-    "Electrical & Electronic",
-    "Home Teacher",
-    "House Cleaner",
-    "Home interior & Decoration",
-    "Labour",
-    "Maid",
-    "Marble & Tiles Repair",
-    "Microwave Oven Repair",
-    "Mobile & Computer Repair",
-    "Paint Man & Repair",
-    "Plaster & Ceiling Repair",
-    "Plumber Repair",
-    "Refrigerator Repair",
-    "TV Repair",
-    "Washing Machine Repair",
-    "Water tank Repair",
-    "AC Service",
-    "Car Service",
-    "Bike Service",
-    "Electricians",
-  ],
-  "Education Point": [
-    "Coaching Center",
-    "College",
-    "Computer Center",
-    "Diploma College",
-    "Engineering College",
-    "ITI",
-    "Institute Center",
-    "Medical College",
-    "Nursing & Pathology Institute",
-    "Play School",
-    "School",
-    "University",
-  ],
-  "Health Care Point": [
-    "Animal Care",
-    "CHC & PHC",
-    "Clinic",
-    "Doctors",
-    "Hospital",
-    "Medicine Store",
-    "Nursing Home",
-    "Pathology",
-    "Pharmacy",
-  ],
-  "Hotel Point": [
-    "5 Star Hotels",
-    "Budget Hotels",
-    "Resorts",
-    "Guest House",
-    "Lodging",
-    "Homestays",
-    "Banquet Halls",
-  ],
-  "Doctor Point": [
-    "Cardiologist",
-    "Dentist",
-    "Dermatologist",
-    "Gynecologist",
-    "Pediatrician",
-    "General Physician",
-    "Orthopedic",
-  ],
-  "Garments Point": [
-    "Men's Wear",
-    "Women's Wear",
-    "Kids Wear",
-    "Boutique",
-    "Ethnic Wear",
-    "Bridal Wear",
-    "Bridal Requisite",
-  ],
-  "Astrologer Point": [
-    "Vedic Astrologer",
-    "Palm Reader",
-    "Numerologist",
-    "Tarot Card Reader",
-    "Vastu Consultant",
-    "Horoscope Expert",
-  ],
-  "Product Point": [
-    "Electronics",
-    "Mobile Phones",
-    "Furniture",
-    "Home Appliances",
-    "Computers & Laptops",
-    "Clothing & Apparel",
-    "Movies",
-    "Grocery",
-  ],
-  "Food Point": [
-    "Restaurants",
-    "Cafes",
-    "Sweet Shops",
-    "Fast Food",
-    "Bakeries",
-    "Cloud Kitchens",
-    "Caterers",
-  ],
-  "Courier Point": [
-    "Domestic Courier",
-    "International Courier",
-    "Cargo Services",
-    "Express Delivery",
-    "Local Parcel Service",
-  ],
-  "Car Rental Point": [
-    "Self-Drive Cars",
-    "Chauffeur-Driven Cars",
-    "Luxury Car Rental",
-    "Airport Cab Service",
-    "SUV Rental",
-    "Wedding Car Rental",
-  ],
-};
-
-// Load custom subcategories from local storage on startup
-if (typeof window !== "undefined") {
-  try {
-    let savedAll = localStorage.getItem("fmp_all_subcategories");
-    if (!savedAll) {
-      localStorage.setItem("fmp_all_subcategories", JSON.stringify(subcategoriesData));
-    } else {
-      const parsed = JSON.parse(savedAll);
-      Object.keys(subcategoriesData).forEach((k) => delete subcategoriesData[k]);
-      Object.assign(subcategoriesData, parsed);
-    }
-
-    // Migrate fmp_custom_subcategories if present
-    const savedSubcats = localStorage.getItem("fmp_custom_subcategories");
-    if (savedSubcats) {
-      const parsed = JSON.parse(savedSubcats);
-      Object.keys(parsed).forEach((catLabel) => {
-        if (!subcategoriesData[catLabel]) {
-          subcategoriesData[catLabel] = [];
-        }
-        parsed[catLabel].forEach((subcat: string) => {
-          if (!subcategoriesData[catLabel].includes(subcat)) {
-            subcategoriesData[catLabel].push(subcat);
-          }
-        });
-      });
-      localStorage.setItem("fmp_all_subcategories", JSON.stringify(subcategoriesData));
-      localStorage.removeItem("fmp_custom_subcategories");
-    }
-  } catch (err) {
-    console.error("Error loading subcategories:", err);
-  }
-}
+export const subcategoriesData: Record<string, string[]> = {};
 
 interface CategoryDetailPageProps {
   categoryName: string;
@@ -493,6 +289,7 @@ export default function CategoryDetailPage({
   onProfileClick,
   username,
 }: CategoryDetailPageProps) {
+  const { subcategoriesData, subcatIcons } = useCategories();
   // Get all subcategories for this category, fallback to empty array
   const subcategories = subcategoriesData[categoryName] || ["General Services"];
 
@@ -515,8 +312,26 @@ export default function CategoryDetailPage({
     );
   }
 
-  const listings = useMemo(() => {
-    return getBusinessesForSubcategory(categoryName, activeSubcategory);
+  const [listings, setListings] = useState<BusinessListingData[]>([]);
+  const [listingsLoading, setListingsLoading] = useState(false);
+
+  // Fetch real businesses from API whenever category or subcategory changes
+  useEffect(() => {
+    if (!activeSubcategory) return;
+    setListingsLoading(true);
+    fetch(
+      `${API_BASE_URL}/businesses?category=${encodeURIComponent(categoryName)}&subcategory=${encodeURIComponent(activeSubcategory)}`
+    )
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.data)) {
+          setListings(data.data);
+        } else {
+          setListings([]);
+        }
+      })
+      .catch(() => setListings([]))
+      .finally(() => setListingsLoading(false));
   }, [categoryName, activeSubcategory]);
 
   // Search states grouped to reduce useState count
@@ -525,18 +340,6 @@ export default function CategoryDetailPage({
     subcatQuery: "",
   });
   const { query: searchQuery, subcatQuery: subcatSearch } = searchFilters;
-
-  const [subcatIcons, setSubcatIcons] = useState<Record<string, string>>({});
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("fmp_subcategory_icons");
-      if (saved) {
-        setSubcatIcons(JSON.parse(saved));
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
 
   const [bookingState, dispatchBooking] = useReducer(bookingReducer, initialBookingState);
   const {
@@ -586,6 +389,86 @@ export default function CategoryDetailPage({
     if (categoryName === "Service Point") return 599;
     if (categoryName === "Education Point") return 1200;
     return 499;
+  };
+
+  const handleRazorpayPayment = async (
+    amount: number,
+    onSuccess: (paymentId: string) => void | Promise<void>
+  ) => {
+    dispatchBooking({ type: "SET_PROCESSING", value: true });
+    const loaded = await loadRazorpayScript();
+    if (!loaded) {
+      alert("Razorpay SDK failed to load. Are you online?");
+      dispatchBooking({ type: "SET_PROCESSING", value: false });
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:5000/api/razorpay/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount })
+      });
+      const orderData = await res.json();
+      if (!orderData.success || !orderData.data) {
+        alert("Failed to initiate payment with Razorpay.");
+        dispatchBooking({ type: "SET_PROCESSING", value: false });
+        return;
+      }
+
+      const { id: order_id, amount: order_amount, currency } = orderData.data;
+
+      const options = {
+        key: "rzp_test_S3IcSS1NbymL6D",
+        amount: order_amount,
+        currency,
+        name: "FindmyPoint",
+        description: "Booking Payment for " + (selectedBizForBooking?.name || "Services"),
+        order_id,
+        handler: async function (response: any) {
+          dispatchBooking({ type: "SET_PROCESSING", value: true });
+          try {
+            const verifyRes = await fetch("http://localhost:5000/api/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+            const verifyData = await verifyRes.json();
+            dispatchBooking({ type: "SET_PROCESSING", value: false });
+            if (verifyData.success) {
+              onSuccess(response.razorpay_payment_id);
+            } else {
+              alert("Payment verification failed.");
+            }
+          } catch (err) {
+            dispatchBooking({ type: "SET_PROCESSING", value: false });
+            alert("Error verifying payment signature.");
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            dispatchBooking({ type: "SET_PROCESSING", value: false });
+          }
+        },
+        prefill: {
+          name: bookingForm.name || username || "Customer",
+          contact: bookingForm.phone || ""
+        },
+        theme: {
+          color: "#6366f1"
+        }
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      dispatchBooking({ type: "SET_PROCESSING", value: false });
+      alert("Payment gateway connection failed.");
+    }
   };
 
   // Phone reveal states
@@ -647,17 +530,23 @@ export default function CategoryDetailPage({
     dispatchEnquiry({ type: "SET_SUBMITTED", value: true });
 
     if (selectedBizForEnquiry) {
-      const enquiryKey = `fmp_service_enquiries:${selectedBizForEnquiry.id}`;
-      const existingEnquiries = JSON.parse(localStorage.getItem(enquiryKey) || "[]");
-      const newEnquiry = {
-        id: `enq-${Date.now()}`,
-        timestamp: formatDateTimeDMY(new Date()),
-        name: enquiryForm.name,
-        mobile: enquiryForm.phone,
-        email: enquiryForm.email || "N/A",
-        message: enquiryForm.message || "",
-      };
-      localStorage.setItem(enquiryKey, JSON.stringify([newEnquiry, ...existingEnquiries]));
+      // Send enquiry to backend API
+      fetch(`http://localhost:5000/api/businesses/${selectedBizForEnquiry.id}/enquire`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: enquiryForm.name,
+          phone: enquiryForm.phone,
+          email: enquiryForm.email || "",
+          message: enquiryForm.message || "",
+          subject: `Enquiry for ${selectedBizForEnquiry.name}`
+        })
+      }).then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            window.dispatchEvent(new Event("storage"));
+          }
+        }).catch(err => console.error("Enquiry submit failed:", err));
     }
 
     setTimeout(() => {
@@ -665,8 +554,22 @@ export default function CategoryDetailPage({
     }, 2500);
   };
 
+  // Order/submission creation requires a logged-in customer; openBookingModal
+  // already gates on `username`, so a token should exist by submit time.
+  const getAuthHeaders = (): HeadersInit => {
+    const token = localStorage.getItem("fmp_user_token") || localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
+    return token
+      ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+      : { "Content-Type": "application/json" };
+  };
+
   // Handle opening booking modal
   const openBookingModal = (biz: BusinessListingData) => {
+    if (!username) {
+      alert("Please sign in to book. You need an account to make a booking.");
+      onSignInClick?.();
+      return;
+    }
     dispatchBooking({
       type: "OPEN_MODAL",
       biz,
@@ -1463,7 +1366,7 @@ export default function CategoryDetailPage({
           </div>
 
           {/* User profile action */}
-          <div className="flex items-center gap-2.5 ml-auto shrink-0">
+          <div className="hidden sm:flex items-center gap-2.5 ml-auto shrink-0">
             {username ? (
               <button
                 onClick={onProfileClick}
@@ -1570,24 +1473,44 @@ export default function CategoryDetailPage({
                 Top {activeSubcategory} in Mumbai
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                Showing {filteredListings.length} verified listings ready to assist you.
+                {listingsLoading
+                  ? "Loading listings..."
+                  : `Showing ${filteredListings.length} verified listing${filteredListings.length !== 1 ? 's' : ''} ready to assist you.`}
               </p>
             </div>
 
             {/* Listings Grid */}
+            {listingsLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground font-medium">Loading listings...</p>
+              </div>
+            ) : filteredListings.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+                <div className="h-14 w-14 rounded-2xl bg-secondary flex items-center justify-center">
+                  <Search className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-bold text-foreground">
+                  {searchQuery ? "No businesses match your search" : "No businesses registered yet"}
+                </p>
+                <p className="text-xs text-muted-foreground max-w-xs">
+                  {searchQuery
+                    ? "Try a different keyword or clear the search."
+                    : `No verified ${activeSubcategory} businesses have been registered for this area yet. Check back soon!`}
+                </p>
+              </div>
+            ) : (
             <div key={activeSubcategory} className="flex flex-col gap-4 sm:gap-6 animate-fade-in-up">
-              {filteredListings.length > 0 ? (
-                filteredListings.map((biz) => {
-                  const isPhoneRevealed = !!revealedPhoneIds[biz.id];
+              {filteredListings.map((biz) => {
                   return (
                     <div key={biz.id}>
                       {/* Mobile View Compact Card */}
-                      <div className="sm:hidden group flex flex-col overflow-hidden rounded-xl border border-border bg-card p-2.5 gap-2 transition-all duration-300">
-                        {/* Top part: Image + Info Row (Entire row clickable to open details) */}
-                        <div
-                          onClick={() => onBusinessSelect(biz.id)}
-                          className="flex flex-row gap-2.5 items-start w-full cursor-pointer"
-                        >
+                      <div
+                        onClick={() => onBusinessSelect(biz.id)}
+                        className="sm:hidden group flex flex-col overflow-hidden rounded-xl border border-border bg-card p-2.5 gap-2 transition-all duration-300 cursor-pointer"
+                      >
+                        {/* Top part: Image + Info Row */}
+                        <div className="flex flex-row gap-2.5 items-start w-full">
                           {/* Image */}
                           <div className="relative h-20 w-20 overflow-hidden rounded-lg bg-secondary shrink-0">
                             <img
@@ -1641,6 +1564,7 @@ export default function CategoryDetailPage({
                         <div className="flex flex-row items-center gap-1 pt-1.5 border-t border-border/40 w-full">
                           <a
                             href={`tel:${biz.phone.replace(/[^0-9+]/g, "")}`}
+                            onClick={(e) => e.stopPropagation()}
                             className="flex-1 inline-flex items-center justify-center gap-0.5 rounded-lg border border-border bg-background py-1 text-[9px] font-bold text-foreground cursor-pointer whitespace-nowrap"
                           >
                             <Phone className="h-2.5 w-2.5 text-accent" />
@@ -1648,7 +1572,10 @@ export default function CategoryDetailPage({
                           </a>
 
                           <button
-                            onClick={() => openEnquiryModal(biz)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEnquiryModal(biz);
+                            }}
                             className="flex-1 inline-flex items-center justify-center gap-0.5 rounded-lg bg-primary py-1 text-[9px] font-bold text-primary-foreground cursor-pointer shadow-sm whitespace-nowrap"
                           >
                             <MessageSquare className="h-2.5 w-2.5" />
@@ -1659,7 +1586,8 @@ export default function CategoryDetailPage({
                             const bookNowEnabled = !biz.isBookingDisabled;
                             return bookNowEnabled ? (
                               <button
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   if (onBookNow) {
                                     onBookNow(biz.id);
                                   } else {
@@ -1677,12 +1605,12 @@ export default function CategoryDetailPage({
                       </div>
 
                       {/* Desktop View Original Card */}
-                      <div className="hidden sm:flex group flex-row overflow-hidden rounded-2xl border border-border bg-card p-4 transition-all duration-300 hover:border-primary/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+                      <div
+                        onClick={() => onBusinessSelect(biz.id)}
+                        className="hidden sm:flex group flex-row overflow-hidden rounded-2xl border border-border bg-card p-4 transition-all duration-300 hover:border-primary/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] cursor-pointer"
+                      >
                         {/* Left: Listing Image */}
-                        <div
-                          className="relative h-44 w-full sm:w-60 overflow-hidden rounded-xl bg-secondary shrink-0 cursor-pointer"
-                          onClick={() => onBusinessSelect(biz.id)}
-                        >
+                        <div className="relative h-44 w-full sm:w-60 overflow-hidden rounded-xl bg-secondary shrink-0">
                           <img
                             src={biz.images[0]}
                             alt={biz.name}
@@ -1697,10 +1625,7 @@ export default function CategoryDetailPage({
                           <div>
                             {/* Title & Badge */}
                             <div className="flex items-start justify-between gap-2">
-                              <h2
-                                onClick={() => onBusinessSelect(biz.id)}
-                                className="font-serif text-xl font-bold text-foreground cursor-pointer group-hover:text-primary transition-colors leading-tight"
-                              >
+                              <h2 className="font-serif text-xl font-bold text-foreground transition-colors leading-tight">
                                 {biz.name}
                               </h2>
                               {biz.isVerified ? (
@@ -1765,6 +1690,7 @@ export default function CategoryDetailPage({
                           <div className="mt-6 flex flex-wrap gap-1.5 pt-4 border-t border-border/50">
                             <a
                               href={`tel:${biz.phone.replace(/[^0-9+]/g, "")}`}
+                              onClick={(e) => e.stopPropagation()}
                               className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full border border-border bg-background px-2.5 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-foreground transition-all hover:bg-secondary cursor-pointer"
                             >
                               <Phone className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-accent" />
@@ -1772,7 +1698,10 @@ export default function CategoryDetailPage({
                             </a>
 
                             <button
-                              onClick={() => openEnquiryModal(biz)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEnquiryModal(biz);
+                              }}
                               className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full bg-primary px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-primary-foreground transition-all hover:bg-primary/95 cursor-pointer shadow-sm hover:scale-[1.02]"
                             >
                               <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
@@ -1783,7 +1712,8 @@ export default function CategoryDetailPage({
                               const bookNowEnabled = !biz.isBookingDisabled;
                               return bookNowEnabled ? (
                                 <button
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     if (onBookNow) {
                                       onBookNow(biz.id);
                                     } else {
@@ -1799,7 +1729,10 @@ export default function CategoryDetailPage({
                             })()}
 
                             <button
-                              onClick={() => onBusinessSelect(biz.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onBusinessSelect(biz.id);
+                              }}
                               className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-secondary/30 hover:bg-secondary px-2.5 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-semibold text-muted-foreground hover:text-foreground transition sm:ml-auto cursor-pointer"
                             >
                               Details <ChevronRight className="h-3 w-3" />
@@ -1809,18 +1742,9 @@ export default function CategoryDetailPage({
                       </div>
                     </div>
                   );
-                })
-              ) : (
-                <div className="rounded-2xl border border-border/80 border-dashed bg-card/50 p-12 text-center">
-                  <p className="text-muted-foreground text-sm font-semibold">
-                    No listings found matching "{searchQuery}"
-                  </p>
-                  <p className="text-xs text-muted-foreground/80 mt-1">
-                    Try refining your search text or select another subcategory.
-                  </p>
-                </div>
-              )}
-            </div>
+                })}
+              </div>
+            )}
           </section>
         </div>
       </main>
@@ -2241,31 +2165,33 @@ export default function CategoryDetailPage({
 
                     <button
                       onClick={() => {
-                        if (paymentMethod === "upi" && !upiId) {
-                          alert("Please enter a valid UPI ID.");
-                          return;
-                        }
-                        if (paymentMethod === "card" && (!cardNumber || !cardExpiry || !cardCvv)) {
-                          alert("Please fill in Card Details.");
-                          return;
-                        }
-                        dispatchBooking({ type: "SET_PROCESSING", value: true });
-                        setTimeout(() => {
-                          dispatchBooking({ type: "SET_PROCESSING", value: false });
+                        const amount = getBookingPrice();
+                        handleRazorpayPayment(amount, async (paymentId) => {
                           dispatchBooking({ type: "SET_STEP", step: "success" });
                           dispatchBooking({ type: "SET_SUBMITTED", value: true });
 
                           if (selectedBizForBooking) {
-                            const submissionKey = `fmp_service_submissions:${selectedBizForBooking.id}`;
-                            const existingSubmissions = JSON.parse(localStorage.getItem(submissionKey) || "[]");
-
-                            const dataToSave = {
+                            const dataToSave: Record<string, any> = {
                               "Full Name": bookingForm.name,
                               "Phone Number": bookingForm.phone,
                               "Date": bookingForm.date || new Date().toISOString().split("T")[0],
                               "Persons/Guests/Travelers": bookingForm.persons || bookingForm.guests || bookingForm.travelers || "1",
                               "Room/Timeslot/Package": bookingForm.roomType || bookingForm.timeslot || bookingForm.package || "General Selection",
                             };
+
+                            // Always inject logged-in customer details from backend
+                            try {
+                              const profRes = await fetch("http://localhost:5000/api/auth/profile", { headers: getAuthHeaders() });
+                              const profData = await profRes.json();
+                              if (profData.success && profData.user) {
+                                const prof = profData.user;
+                                const fullName = [prof.firstName, prof.lastName].filter(Boolean).join(" ");
+                                if (!dataToSave["Full Name"] && !dataToSave["Customer Name"] && !dataToSave["Your Name"] && !dataToSave["Name"] && fullName) dataToSave["Full Name"] = fullName;
+                                if (!dataToSave["Phone Number"] && !dataToSave["Phone"] && !dataToSave["Mobile"] && !dataToSave["Mobile Number"] && prof.mobile1) dataToSave["Phone Number"] = prof.mobile1;
+                                if (!dataToSave["Email"] && !dataToSave["Email Address"] && prof.email) dataToSave["Email"] = prof.email;
+                              }
+                            } catch (_) {}
+
 
                             const formatDateTimeDMY = (date: Date) => {
                               const d = String(date.getDate()).padStart(2, "0");
@@ -2282,32 +2208,47 @@ export default function CategoryDetailPage({
                               data: dataToSave
                             };
 
-                            localStorage.setItem(submissionKey, JSON.stringify([newSub, ...existingSubmissions]));
+                            // API Submission
+                            fetch(`http://localhost:5000/api/service-forms/${selectedBizForBooking.id}/submissions`, {
+                              method: "POST",
+                              headers: getAuthHeaders(),
+                              body: JSON.stringify({
+                                businessName: selectedBizForBooking.name,
+                                data: dataToSave
+                              })
+                            }).then(res => res.json())
+                              .then(data => {
+                                const details = selectedBizForBooking.category.includes("Hotel Point")
+                                  ? "Room Stay Reservation Deposit"
+                                  : selectedBizForBooking.category.includes("Health Care Point") || selectedBizForBooking.category.includes("Doctor Point")
+                                    ? "Appointment Consultation Fee"
+                                    : "Table Booking Deposit";
 
-                            const paymentsKey = `fmp_service_payments:${selectedBizForBooking.id}`;
-                            const existingPayments = JSON.parse(localStorage.getItem(paymentsKey) || "[]");
-                            const amount = getBookingPrice();
-                            const details = selectedBizForBooking.category.includes("Hotel Point")
-                              ? "Room Stay Reservation Deposit"
-                              : selectedBizForBooking.category.includes("Health Care Point") || selectedBizForBooking.category.includes("Doctor Point")
-                                ? "Appointment Consultation Fee"
-                                : "Table Booking Deposit";
-
-                            const newPayment = {
-                              id: `txn-${Date.now()}`,
-                              bookingId: newSub.id,
-                              timestamp: newSub.timestamp,
-                              customerName: bookingForm.name,
-                              amount,
-                              paymentMethod: paymentMethod || "upi",
-                              status: "Completed",
-                              details
-                            };
-
-                            localStorage.setItem(paymentsKey, JSON.stringify([newPayment, ...existingPayments]));
-                            window.dispatchEvent(new Event("storage"));
+                                // API Transaction Log POST call
+                                fetch("http://localhost:5000/api/transactions", {
+                                  method: "POST",
+                                  headers: getAuthHeaders(),
+                                  body: JSON.stringify({
+                                    description: details,
+                                    businessName: selectedBizForBooking.name,
+                                    businessId: selectedBizForBooking.id,
+                                    bookingId: newSub.id,
+                                    customerName: dataToSave["Full Name"] || bookingForm.name || "Guest",
+                                    details,
+                                    amount,
+                                    type: "credit",
+                                    paymentMethod: "Razorpay Gateway",
+                                    status: "Completed"
+                                  })
+                                }).then(res => res.json())
+                                  .then(data => {
+                                    if (data.success) {
+                                      window.dispatchEvent(new Event("storage"));
+                                    }
+                                  }).catch(err => console.error("API transaction failed:", err));
+                              }).catch(err => console.error("API booking submission failed:", err));
                           }
-                        }, 2000);
+                        });
                       }}
                       className="w-full mt-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md text-center"
                     >

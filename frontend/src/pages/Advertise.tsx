@@ -1,4 +1,5 @@
-import { useReducer } from "react";
+import { useReducer, useState, useEffect } from "react";
+import { BACKEND_ORIGIN } from "../config";
 import {
   ArrowLeft,
   Check,
@@ -27,16 +28,17 @@ interface AdvertiseFormState {
   businessName: string;
   category: string;
   city: string;
+  email: string;
   submitted: boolean;
   loading: boolean;
 }
 
 type AdvertiseFormAction =
   | {
-      type: "CHANGE_FIELD";
-      field: keyof Omit<AdvertiseFormState, "submitted" | "loading">;
-      value: string;
-    }
+    type: "CHANGE_FIELD";
+    field: keyof Omit<AdvertiseFormState, "submitted" | "loading">;
+    value: string;
+  }
   | { type: "SET_SUBMITTED"; value: boolean }
   | { type: "SET_LOADING"; value: boolean }
   | { type: "RESET" };
@@ -46,6 +48,7 @@ const initialAdvertiseState: AdvertiseFormState = {
   businessName: "",
   category: "Restaurant",
   city: "Mumbai",
+  email: "",
   submitted: false,
   loading: false,
 };
@@ -71,48 +74,80 @@ function advertiseReducer(
 export default function Advertise({ onClose, username }: AdvertiseProps) {
   const [state, dispatch] = useReducer(advertiseReducer, initialAdvertiseState);
   const { businessName, category, city } = state;
+  const [pageConfig, setPageConfig] = useState<any>(null);
+  const [dbCategories, setDbCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch(`${BACKEND_ORIGIN}/api/advertise-config`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.config) {
+          setPageConfig(data.config);
+        }
+      })
+      .catch((err) => console.error("Error loading advertise config", err));
+
+    fetch(`${BACKEND_ORIGIN}/api/categories`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.categories)) {
+          const labels = data.categories.map((c: any) => c.label);
+          if (labels.length > 0) {
+            setDbCategories(labels);
+            dispatch({ type: "CHANGE_FIELD", field: "category", value: labels[0] });
+          }
+        }
+      })
+      .catch((err) => console.error("Error loading categories", err));
+  }, []);
+
+  const c = (key: string, defaultValue: string = "") => {
+    return pageConfig?.[key] || defaultValue;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!state.email || !state.email.includes("@")) {
+      alert("Please enter a valid email address.");
+      return;
+    }
     if (!state.mobile || state.mobile.length < 10) {
       alert("Please enter a valid 10-digit mobile number.");
       return;
     }
     dispatch({ type: "SET_LOADING", value: true });
 
-    // Save to localStorage
-    try {
-      const existingReqs = JSON.parse(localStorage.getItem("fmp_advertise_requests:v1") || "[]");
-      const newReq = {
-        id: "adv_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9),
+    fetch(`${BACKEND_ORIGIN}/api/advertise-requests`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
         businessName: state.businessName,
         category: state.category,
         city: state.city,
+        email: state.email,
         mobile: state.mobile,
-        createdAt: new Date().toISOString(),
-      };
-      existingReqs.push(newReq);
-      localStorage.setItem("fmp_advertise_requests:v1", JSON.stringify(existingReqs));
-    } catch (err) {
-      console.error("Failed to save advertise request to localStorage", err);
-    }
-
-    setTimeout(() => {
-      dispatch({ type: "SET_LOADING", value: false });
-      dispatch({ type: "SET_SUBMITTED", value: true });
-    }, 1500);
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          dispatch({ type: "SET_SUBMITTED", value: true });
+        } else {
+          alert(data.message || "Failed to submit advertise request.");
+        }
+      })
+      .catch((err) => {
+        console.error("Error submitting advertise request to backend", err);
+        alert("An error occurred. Please try again.");
+      })
+      .finally(() => {
+        dispatch({ type: "SET_LOADING", value: false });
+      });
   };
 
-  const categories = [
-    "Restaurant",
-    "Doctor & Clinic",
-    "Real Estate",
-    "Packers & Movers",
-    "Car & Bike Service",
-    "Spa & Salon",
-    "Education & Coaching",
-    "Interior Designer",
-  ];
+  const categories = dbCategories;
 
   const cities = ["Mumbai", "Indore", "Pune", "Jaipur", "Delhi", "Bangalore"];
 
@@ -122,12 +157,6 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 md:h-20 max-w-7xl items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-3 md:gap-4 shrink-0">
-            <button
-              onClick={onClose}
-              className="flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm cursor-pointer shrink-0"
-            >
-              <ArrowLeft className="h-4.5 w-4.5 md:h-5 md:w-5" />
-            </button>
             <img
               src={logoImg}
               alt="FindMyPoint Logo"
@@ -171,13 +200,14 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
                 <span className="text-slate-800">{state.businessName || "Unnamed Business"}</span>
               </div>
               <div className="flex justify-between text-xs font-bold text-slate-500">
+                <span>Email Address:</span>
+                <span className="text-slate-800">{state.email}</span>
+              </div>
+              <div className="flex justify-between text-xs font-bold text-slate-500">
                 <span>Category:</span>
                 <span className="text-slate-800">{state.category}</span>
               </div>
-              <div className="flex justify-between text-xs font-bold text-slate-500">
-                <span>Target City:</span>
-                <span className="text-slate-800">{state.city}</span>
-              </div>
+
             </div>
             <button
               onClick={() => {
@@ -192,13 +222,21 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-center">
             {/* Left Column: Branding, Value Proposition & Form */}
             <div className="lg:col-span-7 space-y-8 text-left">
-              <div>
-                <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 leading-[1.08] tracking-tight uppercase">
-                  GROW <span className="text-primary bg-clip-text">Your</span> Business
-                </h1>
-                <p className="text-sm sm:text-base font-bold text-slate-500 mt-2">
-                  Advertise on India's #1 Premium Local Search Engine.
-                </p>
+              <div className="flex items-start gap-4">
+                <button
+                  onClick={onClose}
+                  className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm cursor-pointer shrink-0 mt-1.5"
+                >
+                  <ArrowLeft className="h-5 w-5 md:h-6 md:w-6" />
+                </button>
+                <div>
+                  <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 leading-[1.08] tracking-tight uppercase lg:whitespace-nowrap">
+                    {c("heroTitle")}
+                  </h1>
+                  <p className="text-sm sm:text-base font-bold text-slate-500 mt-2">
+                    {c("heroSubtitle")}
+                  </p>
+                </div>
               </div>
 
               {/* Lead Capture Form */}
@@ -208,10 +246,10 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
               >
                 <div className="space-y-1">
                   <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">
-                    Get Started In 10 Seconds
+                    {c("formTitle")}
                   </h3>
                   <p className="text-xs text-slate-400 font-medium">
-                    No credit card required. Enter your details and let customers find you.
+                    {c("formSubtitle")}
                   </p>
                 </div>
 
@@ -245,6 +283,31 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Email Input */}
+                    <div>
+                      <label
+                        htmlFor="advEmail"
+                        className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5"
+                      >
+                        Email Address
+                      </label>
+                      <input
+                        id="advEmail"
+                        type="email"
+                        required
+                        placeholder="e.g. contact@business.com"
+                        value={state.email}
+                        onChange={(e) =>
+                          dispatch({
+                            type: "CHANGE_FIELD",
+                            field: "email",
+                            value: e.target.value,
+                          })
+                        }
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-xs font-bold outline-none focus:border-primary focus:bg-white transition"
+                      />
+                    </div>
+
                     {/* Category Selector */}
                     <div>
                       <label
@@ -266,30 +329,6 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-xs font-bold outline-none focus:border-primary focus:bg-white transition"
                       >
                         {categories.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* City Selector */}
-                    <div>
-                      <label
-                        htmlFor="advCity"
-                        className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5"
-                      >
-                        Target City
-                      </label>
-                      <select
-                        id="advCity"
-                        value={state.city}
-                        onChange={(e) =>
-                          dispatch({ type: "CHANGE_FIELD", field: "city", value: e.target.value })
-                        }
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-xs font-bold outline-none focus:border-primary focus:bg-white transition"
-                      >
-                        {cities.map((c) => (
                           <option key={c} value={c}>
                             {c}
                           </option>
@@ -352,10 +391,10 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
               {/* Quick Checklist */}
               <div className="space-y-3.5 bg-slate-100/60 border border-slate-200/40 rounded-2xl p-5">
                 {[
-                  "Get verified lead and calls in your target City/Area.",
-                  "Find high-intent, ready-to-buy customers instantly.",
-                  "Stay ranked at the top, ahead of all competitors.",
-                  "Get a custom web storefront with reviews and showcase photos.",
+                  c("benefit1"),
+                  c("benefit2"),
+                  c("benefit3"),
+                  c("benefit4"),
                 ].map((text, idx) => (
                   <div key={idx} className="flex items-start gap-3">
                     <div className="h-5 w-5 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0 mt-0.5 text-emerald-600">
@@ -459,9 +498,9 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
                   <Users className="h-4.5 w-4.5" />
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className="text-[13px] font-black text-slate-900">1.5 Crore+</span>
+                  <span className="text-[13px] font-black text-slate-900">{c("badge1Value")}</span>
                   <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                    Active Customers
+                    {c("badge1Label", "Active Customers")}
                   </span>
                 </div>
               </div>
@@ -471,9 +510,9 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
                   <Briefcase className="h-4.5 w-4.5" />
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className="text-[13px] font-black text-slate-900">50 Lakh+</span>
+                  <span className="text-[13px] font-black text-slate-900">{c("badge2Value")}</span>
                   <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                    Verified Partners
+                    {c("badge2Label", "Verified Partners")}
                   </span>
                 </div>
               </div>
@@ -485,30 +524,28 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
         <section className="mt-12 md:mt-20 border-t border-slate-200/80 pt-10 md:pt-16 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
           <div className="md:col-span-8 space-y-4 text-left">
             <h3 className="font-serif text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tight">
-              India's Trusted Search & Growth Engine
+              {c("section2Title")}
             </h3>
             <p className="text-slate-500 text-sm leading-relaxed max-w-2xl font-medium">
-              For over a decade, FindMyPoint has helped micro, small, and medium businesses scale
-              locally. With advanced analytical matching and SEO priority indexes, our advertising
-              system gets you the highest conversion rates possible.
+              {c("section2Subtitle")}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4">
               <div className="space-y-1">
-                <span className="text-3xl font-black text-primary">10x</span>
+                <span className="text-3xl font-black text-primary">{c("stat1Value")}</span>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Average ROI Increase
+                  {c("stat1Label")}
                 </p>
               </div>
               <div className="space-y-1">
-                <span className="text-3xl font-black text-primary">48 Hrs</span>
+                <span className="text-3xl font-black text-primary">{c("stat2Value")}</span>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Activation Guarantee
+                  {c("stat2Label")}
                 </p>
               </div>
               <div className="space-y-1">
-                <span className="text-3xl font-black text-primary">24/7</span>
+                <span className="text-3xl font-black text-primary">{c("stat3Value")}</span>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Dedicated Ad Manager
+                  {c("stat3Label")}
                 </p>
               </div>
             </div>
@@ -522,40 +559,21 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
                 <ShieldCheck className="h-3 w-3 text-accent" /> Verified Listing
               </div>
               <h4 className="text-lg font-black leading-tight uppercase tracking-tight">
-                Need a custom enterprise campaign?
+                {c("ctaTitle")}
               </h4>
               <p className="text-[11px] text-white/70 mt-2 font-medium">
-                Get custom enterprise solutions, national brand packages, and multi-location
-                management support.
+                {c("ctaDesc")}
               </p>
             </div>
             <button
-              onClick={() => alert("Please call corporate relationship desk at 1800-FMP-GROW")}
+              onClick={() => alert("Please call corporate relationship desk at " + c("ctaBtnText"))}
               className="mt-6 w-full bg-accent hover:bg-accent/95 text-accent-foreground text-xs font-black py-2.5 rounded-xl transition-all cursor-pointer shadow-md text-center"
             >
-              Call 1800-FMP-GROW
+              {c("ctaBtnText")}
             </button>
           </div>
         </section>
       </main>
-
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200/80 py-8">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold text-slate-400">
-          <span>© 2026 FindMyPoint Ltd. All rights reserved.</span>
-          <div className="flex gap-6">
-            <a href="#" className="hover:text-slate-600 transition">
-              Terms of Service
-            </a>
-            <a href="#" className="hover:text-slate-600 transition">
-              Privacy Policy
-            </a>
-            <a href="#" className="hover:text-slate-600 transition">
-              Contact Us
-            </a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

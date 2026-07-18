@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { User, Lock, Mail, Check, Save } from "lucide-react";
+import { User, Lock, Mail, Check, Save, Eye, EyeOff } from "lucide-react";
+import { API_BASE_URL } from "../config";
 
 interface AdminProfile {
   username: string;
@@ -13,29 +14,39 @@ interface AdminProfileSettingsProps {
 }
 
 export default function AdminProfileSettings({ onCancel, onUpdate }: AdminProfileSettingsProps) {
-  const [username, setUsername] = useState("Guest Root");
-  const [email, setEmail] = useState("admin@fmp.com");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState("System Administrator");
+  const [role, setRole] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Load profile from localStorage on mount
+  // Load profile from backend on mount
   useEffect(() => {
-    const saved = localStorage.getItem("fmp_admin_profile:v1");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setUsername(parsed.username || "Guest Root");
-        setEmail(parsed.email || "admin@fmp.com");
-        setRole(parsed.role || "System Administrator");
-      } catch (e) {
-        console.error("Failed to parse admin profile", e);
+    const token = localStorage.getItem("fmp_admin_token");
+    if (!token) return;
+
+    fetch(`${API_BASE_URL}/admin/profile`, {
+      headers: {
+        "Authorization": `Bearer ${token}`
       }
-    }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success && data.admin) {
+        setUsername(data.admin.name);
+        setEmail(data.admin.email);
+        setRole(data.admin.role || "System Administrator");
+      }
+    })
+    .catch(err => {
+      console.error("Failed to fetch admin profile", err);
+    });
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (password && password !== confirmPassword) {
@@ -43,26 +54,47 @@ export default function AdminProfileSettings({ onCancel, onUpdate }: AdminProfil
       return;
     }
 
-    const updatedProfile = {
-      username: username.trim(),
-      email: email.trim(),
-      role: role.trim(),
-    };
+    const token = localStorage.getItem("fmp_admin_token");
+    if (!token) {
+      alert("Session expired. Please log in again.");
+      return;
+    }
 
     try {
-      // Save profile info
-      localStorage.setItem("fmp_admin_profile:v1", JSON.stringify(updatedProfile));
-
-      // If password is changed, also update the validation in localStorage or login check
-      // We can store the password or update the credentials check
+      const body: any = {
+        name: username.trim(),
+        email: email.trim(),
+      };
       if (password) {
-        localStorage.setItem("fmp_admin_password:v1", password);
+        body.password = password;
       }
 
-      onUpdate(updatedProfile);
-      setIsSuccess(true);
-      setTimeout(() => setIsSuccess(false), 3000);
-      alert("Admin profile updated successfully!");
+      const res = await fetch(`${API_BASE_URL}/admin/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+      
+      const data = await res.json();
+
+      if (data.success && data.admin) {
+        const updatedProfile = {
+          username: data.admin.name,
+          email: data.admin.email,
+          role: data.admin.role || "System Administrator"
+        };
+        onUpdate(updatedProfile);
+        setIsSuccess(true);
+        setTimeout(() => setIsSuccess(false), 3000);
+        setPassword("");
+        setConfirmPassword("");
+        alert("Admin profile updated successfully!");
+      } else {
+        alert(data.message || "Failed to update profile");
+      }
     } catch (err) {
       console.error(err);
       alert("Failed to save admin profile.");
@@ -104,14 +136,13 @@ export default function AdminProfileSettings({ onCancel, onUpdate }: AdminProfil
               Superadmin Username
             </label>
             <div className="relative">
-              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
               <input
                 type="text"
                 required
                 placeholder="e.g. Superadmin"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-950 text-sm pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
               />
             </div>
           </div>
@@ -122,14 +153,13 @@ export default function AdminProfileSettings({ onCancel, onUpdate }: AdminProfil
               Email Address
             </label>
             <div className="relative">
-              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
               <input
                 type="email"
                 required
                 placeholder="admin@fmp.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-950 text-sm pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
               />
             </div>
           </div>
@@ -147,14 +177,21 @@ export default function AdminProfileSettings({ onCancel, onUpdate }: AdminProfil
                   New Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="Leave blank to keep same"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950 text-sm pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-sm pl-4 pr-10 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-450 hover:text-slate-650 dark:text-slate-500 dark:hover:text-slate-350 transition-colors bg-transparent border-0 outline-none cursor-pointer p-0 flex items-center justify-center"
+                    title={showPassword ? "Hide Password" : "Show Password"}
+                  >
+                    {showPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+                  </button>
                 </div>
               </div>
 
@@ -164,14 +201,21 @@ export default function AdminProfileSettings({ onCancel, onUpdate }: AdminProfil
                   Confirm New Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
                   <input
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirm new password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950 text-sm pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-sm pl-4 pr-10 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-450 hover:text-slate-650 dark:text-slate-500 dark:hover:text-slate-350 transition-colors bg-transparent border-0 outline-none cursor-pointer p-0 flex items-center justify-center"
+                    title={showConfirmPassword ? "Hide Password" : "Show Password"}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+                  </button>
                 </div>
               </div>
             </div>

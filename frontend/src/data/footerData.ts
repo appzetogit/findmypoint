@@ -17,19 +17,14 @@ export const DEFAULT_FOOTER_DATA: FooterData = {
   tagline:
     "A premium local discovery platform connecting millions of buyers with verified businesses across the country.",
   socials: [
-    { id: "facebook", name: "Facebook", url: "https://facebook.com/findmypoint", show: true },
-    { id: "youtube", name: "YouTube", url: "https://youtube.com/findmypoint", show: true },
-    { id: "instagram", name: "Instagram", url: "https://instagram.com/findmypoint", show: true },
-    {
-      id: "linkedin",
-      name: "LinkedIn",
-      url: "https://linkedin.com/company/findmypoint",
-      show: true,
-    },
-    { id: "x", name: "X (Twitter)", url: "https://x.com/findmypoint", show: true },
+    { id: "facebook", name: "Facebook", url: "", show: true },
+    { id: "youtube", name: "YouTube", url: "", show: true },
+    { id: "instagram", name: "Instagram", url: "", show: true },
+    { id: "linkedin", name: "LinkedIn", url: "", show: true },
+    { id: "x", name: "X (Twitter)", url: "", show: true },
   ],
-  playstoreUrl: "https://play.google.com/store",
-  appstoreUrl: "https://apple.com/app-store",
+  playstoreUrl: "",
+  appstoreUrl: "",
   copyright: "© 2026 FindmyPoint Directory Services. All rights reserved.",
 };
 

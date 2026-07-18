@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { API_BASE_URL } from "../config";
 import {
   Shield,
   FileText,
@@ -17,6 +18,55 @@ interface PolicyPageProps {
 
 export default function PolicyPage({ initialTab = "privacy" }: PolicyPageProps) {
   const [activeTab, setActiveTab] = useState<"privacy" | "terms" | "refunds">(initialTab);
+  const [termsData, setTermsData] = useState<{ lastUpdated: string; sections: any[] }>({
+    lastUpdated: "July 2026",
+    sections: []
+  });
+  const [privacyData, setPrivacyData] = useState<{ lastUpdated: string; sections: any[] }>({
+    lastUpdated: "July 2026",
+    sections: []
+  });
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/policies/terms`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.terms) {
+          setTermsData(data.terms);
+        }
+      })
+      .catch((err) => console.error("Error fetching terms", err));
+
+    fetch(`${API_BASE_URL}/policies/privacy`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.privacy) {
+          setPrivacyData(data.privacy);
+        }
+      })
+      .catch((err) => console.error("Error fetching privacy policy", err));
+  }, []);
+
+  const getIconComponent = (icon: string) => {
+    switch (icon) {
+      case "lock":
+        return <Lock className="h-4 w-4 text-indigo-500" />;
+      case "cookie":
+        return <CheckCircle className="h-4 w-4 text-emerald-500" />;
+      case "globe":
+        return <Info className="h-4 w-4 text-indigo-500" />;
+      case "alert":
+        return <AlertCircle className="h-4 w-4 text-amber-500" />;
+      case "scale":
+        return <Scale className="h-4 w-4 text-indigo-500" />;
+      case "file":
+        return <FileText className="h-4 w-4 text-indigo-500" />;
+      case "shield":
+        return <Shield className="h-4 w-4 text-indigo-500" />;
+      default:
+        return <Info className="h-4 w-4 text-indigo-500" />;
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start text-left max-w-6xl mx-auto py-4">
@@ -93,49 +143,24 @@ export default function PolicyPage({ initialTab = "privacy" }: PolicyPageProps) 
                 Privacy Policy
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Last Updated: July 2026
+                Last Updated: {privacyData.lastUpdated}
               </p>
             </div>
 
             <div className="space-y-5 text-slate-600 dark:text-slate-455 text-xs font-semibold leading-relaxed">
-              <div className="space-y-2">
-                <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <Lock className="h-4 w-4 text-indigo-500" />
-                  1. Information We Collect
-                </h4>
-                <p>
-                  We collect personal identifiers including First Name, Last Name, Birthdates,
-                  Marital Status, and primary/secondary contact numbers to establish user
-                  configurations under your local storage profiles. Photos uploaded as avatars are
-                  processed locally as Base64 strings and are not shared with external vendors.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-emerald-500" />
-                  2. Cookie Policy & Web Storage
-                </h4>
-                <p>
-                  Cookies and local browser storage are utilized solely to maintain session
-                  credentials, admin profile data, user registration states, and page layout
-                  configurations (e.g., sidebar status, about page text values). No targeted
-                  advertisement scripts are configured.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-indigo-500" />
-                  3. Dynamic Content Disclaimer
-                </h4>
-                <p>
-                  Certain elements of the application, such as user review ratings, listings, and
-                  text fields on the homepage (like About and SEO descriptions) are rendered
-                  dynamically from local databases. Changing these fields does not alter standard
-                  network packages.
-                </p>
-              </div>
+              {privacyData.sections && privacyData.sections.length > 0 ? (
+                privacyData.sections.map((section) => (
+                  <div key={section.id} className="space-y-2">
+                    <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      {getIconComponent(section.icon)}
+                      {section.title}
+                    </h4>
+                    <p>{section.content}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="italic text-slate-400">No privacy policy sections configured.</p>
+              )}
             </div>
           </div>
         )}
@@ -147,46 +172,24 @@ export default function PolicyPage({ initialTab = "privacy" }: PolicyPageProps) 
                 Terms & Conditions
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Last Updated: July 2026
+                Last Updated: {termsData.lastUpdated}
               </p>
             </div>
 
             <div className="space-y-5 text-slate-600 dark:text-slate-455 text-xs font-semibold leading-relaxed">
-              <div className="space-y-2">
-                <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <Scale className="h-4 w-4 text-indigo-500" />
-                  1. Usage Responsibility & Rules
-                </h4>
-                <p>
-                  Users agree to submit accurate, non-fraudulent information when registering local
-                  businesses, searching categories, or creating lists. Submitting spam bookings or
-                  utilizing automated scripts to crawl data will result in profile limitations.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-amber-500" />
-                  2. Merchant Liability
-                </h4>
-                <p>
-                  FindmyPoint acts as an intermediate directory search hub. Any quality issues with
-                  services rendered by local plumbing, salon, or medical clinics are directly the
-                  concern of the respective service provider.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-indigo-500" />
-                  3. Content Policy
-                </h4>
-                <p>
-                  All submitted reviews and comments undergo standard checks. Reviews containing
-                  inappropriate content, explicit details, or promotional URLs will be flagged and
-                  deleted by admin operations.
-                </p>
-              </div>
+              {termsData.sections && termsData.sections.length > 0 ? (
+                termsData.sections.map((section) => (
+                  <div key={section.id} className="space-y-2">
+                    <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      {getIconComponent(section.icon)}
+                      {section.title}
+                    </h4>
+                    <p>{section.content}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="italic text-slate-450">No terms & conditions sections configured.</p>
+              )}
             </div>
           </div>
         )}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { FileText, Save, Eye, CheckCircle } from "lucide-react";
 import { loadAboutData, saveAboutData, AboutData } from "../data/aboutData";
+import { API_BASE_URL } from "../config";
 
 export default function AboutManagement() {
   const [aboutData, setAboutData] = useState<AboutData>({
@@ -13,7 +14,19 @@ export default function AboutManagement() {
   const [isSavedAlert, setIsSavedAlert] = useState(false);
 
   useEffect(() => {
-    setAboutData(loadAboutData());
+    fetch(`${API_BASE_URL}/about`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.about) {
+          setAboutData(data.about);
+        } else {
+          setAboutData(loadAboutData());
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading about settings:", err);
+        setAboutData(loadAboutData());
+      });
   }, []);
 
   const handleChangeField = (field: keyof AboutData, value: string) => {
@@ -23,15 +36,36 @@ export default function AboutManagement() {
     }));
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveAboutData(aboutData);
-    setIsSavedAlert(true);
-    setTimeout(() => {
-      setIsSavedAlert(false);
-    }, 4000);
-    // Dispatch storage event so other open pages update instantly
-    window.dispatchEvent(new Event("storage"));
+    const token = localStorage.getItem("fmp_admin_token");
+    try {
+      const res = await fetch(`${API_BASE_URL}/about/save`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(aboutData)
+      });
+      const data = await res.json();
+      if (data.success && data.about) {
+        setAboutData(data.about);
+        saveAboutData(data.about); // Update local backup
+        setIsSavedAlert(true);
+        setTimeout(() => {
+          setIsSavedAlert(false);
+        }, 4000);
+        // Dispatch events so other open pages update instantly
+        window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("fmp_about_changed"));
+      } else {
+        alert("Failed to save about settings: " + (data.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("Error saving about settings:", err);
+      alert("Network error occurred while saving details.");
+    }
   };
 
   return (
@@ -163,8 +197,7 @@ export default function AboutManagement() {
             {/* Simulated Live Section Content */}
             <div className="space-y-4">
               <h3 className="text-base sm:text-lg font-serif font-bold text-slate-900 dark:text-white tracking-tight leading-snug">
-                {aboutData.title ||
-                  "One-Stop for All Local Businesses, Services, & Stores Nearby Across India"}
+                {aboutData.title}
               </h3>
 
               <div className="space-y-3.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
@@ -183,10 +216,10 @@ export default function AboutManagement() {
                           </span>
                         ))
                       : aboutData.paragraph1
-                    : "Welcome text paragraph..."}
+                    : ""}
                 </p>
-                <p>{aboutData.paragraph2 || "Reach scope paragraph..."}</p>
-                <p>{aboutData.paragraph3 || "Free listings and quote details paragraph..."}</p>
+                <p>{aboutData.paragraph2}</p>
+                <p>{aboutData.paragraph3}</p>
               </div>
             </div>
           </div>

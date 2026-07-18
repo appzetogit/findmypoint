@@ -10,41 +10,49 @@ import {
   CheckCircle,
   X,
   MessageSquare,
-  AlertCircle,
   ChevronDown,
   ChevronUp,
   Phone,
-  Calendar,
-  User,
-  FileText,
   Send,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
-import {
-  loadFAQs,
-  saveFAQs,
-  loadTickets,
-  saveTickets,
-  FAQItem,
-  SupportTicket,
-  loadHelpContact,
-  saveHelpContact,
-  HelpContactData,
-} from "../data/helpData";
+import { BACKEND_ORIGIN } from "../config";
+
+interface FAQItem {
+  _id: string;
+  question: string;
+  answer: string;
+}
+
+interface SupportTicket {
+  id: string;
+  userName: string;
+  userEmail: string;
+  subject: string;
+  description: string;
+  status: "Open" | "In Progress" | "Resolved" | "Closed";
+  date: string;
+  createdAt: string;
+}
 
 export default function HelpCenterManagement() {
   const [activeTab, setActiveTab] = useState<"faqs" | "tickets">("faqs");
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [loading, setLoading] = useState(false);
 
   // Support Contact states
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [savingContact, setSavingContact] = useState(false);
 
   // FAQ Modal states
   const [showFaqModal, setShowFaqModal] = useState(false);
   const [editingFaq, setEditingFaq] = useState<FAQItem | null>(null);
   const [faqQuestion, setFaqQuestion] = useState("");
   const [faqAnswer, setFaqAnswer] = useState("");
+  const [savingFaq, setSavingFaq] = useState(false);
 
   // Email Composer Modal states
   const [showMailModal, setShowMailModal] = useState(false);
@@ -58,16 +66,46 @@ export default function HelpCenterManagement() {
 
   const [isSavedAlert, setIsSavedAlert] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
+  const [alertType, setAlertType] = useState<"success" | "error">("success");
+
+  const adminToken = localStorage.getItem("fmp_admin_token") || "";
+
+  // ── Load Data ─────────────────────────────────────────────────────────────
+  const loadFAQs = async () => {
+    try {
+      const res = await fetch(`${BACKEND_ORIGIN}/api/help/faqs`);
+      const data = await res.json();
+      if (data.success) setFaqs(data.data);
+    } catch { /* silent */ }
+  };
+
+  const loadTickets = async () => {
+    try {
+      const res = await fetch(`${BACKEND_ORIGIN}/api/help/tickets`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const data = await res.json();
+      if (data.success) setTickets(data.data);
+    } catch { /* silent */ }
+  };
+
+  const loadContact = async () => {
+    try {
+      const res = await fetch(`${BACKEND_ORIGIN}/api/help/contact`);
+      const data = await res.json();
+      if (data.success) {
+        setContactEmail(data.data.email || "");
+        setContactPhone(data.data.phone || "");
+      }
+    } catch { /* silent */ }
+  };
 
   useEffect(() => {
-    setFaqs(loadFAQs());
-    setTickets(loadTickets());
-
-    const contact = loadHelpContact();
-    setContactEmail(contact.email);
-    setContactPhone(contact.phone);
+    setLoading(true);
+    Promise.all([loadFAQs(), loadContact(), loadTickets()]).finally(() => setLoading(false));
   }, []);
 
+  // ── FAQ Handlers ──────────────────────────────────────────────────────────
   const handleOpenAddFaq = () => {
     setEditingFaq(null);
     setFaqQuestion("");
@@ -82,106 +120,157 @@ export default function HelpCenterManagement() {
     setShowFaqModal(true);
   };
 
-  const handleSaveFaqModal = (e: React.FormEvent) => {
+  const handleSaveFaqModal = async (e: React.FormEvent) => {
     e.preventDefault();
-    let updatedFaqs: FAQItem[] = [];
-    if (editingFaq) {
-      updatedFaqs = faqs.map((f) =>
-        f.id === editingFaq.id ? { ...f, question: faqQuestion, answer: faqAnswer } : f,
-      );
-    } else {
-      updatedFaqs = [
-        ...faqs,
-        { id: Date.now().toString(), question: faqQuestion, answer: faqAnswer },
-      ];
-    }
-    setFaqs(updatedFaqs);
-    saveFAQs(updatedFaqs);
-    setShowFaqModal(false);
-    triggerAlert("FAQs list updated and saved successfully!");
-  };
-
-  const handleDeleteFaq = (id: string) => {
-    if (confirm("Are you sure you want to delete this FAQ?")) {
-      const updated = faqs.filter((f) => f.id !== id);
-      setFaqs(updated);
-      saveFAQs(updated);
-      if (previewOpenFaq === id) setPreviewOpenFaq(null);
-      triggerAlert("FAQ deleted successfully.");
-    }
-  };
-
-  const handleSaveContact = (e: React.FormEvent) => {
-    e.preventDefault();
-    saveHelpContact({
-      email: contactEmail,
-      phone: contactPhone,
-    });
-    triggerAlert("Support contact details updated successfully!");
-  };
-
-  const handleToggleTicketStatus = (id: string) => {
-    const updated = tickets.map((t) => {
-      if (t.id === id) {
-        const newStatus = t.status === "pending" ? "resolved" : "pending";
-        return { ...t, status: newStatus as any };
+    setSavingFaq(true);
+    try {
+      const url = editingFaq
+        ? `${BACKEND_ORIGIN}/api/help/faqs/${editingFaq._id}`
+        : `${BACKEND_ORIGIN}/api/help/faqs`;
+      const method = editingFaq ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ question: faqQuestion, answer: faqAnswer }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadFAQs();
+        setShowFaqModal(false);
+        triggerAlert("FAQs list updated and saved successfully!");
+      } else {
+        triggerAlert(data.message || "Failed to save FAQ.", "error");
       }
-      return t;
-    });
-    setTickets(updated);
-    saveTickets(updated);
-    triggerAlert("Ticket status updated successfully!");
+    } catch {
+      triggerAlert("Network error. Please try again.", "error");
+    } finally {
+      setSavingFaq(false);
+    }
   };
 
-  const handleDeleteTicket = (id: string) => {
-    if (confirm("Delete this support ticket record?")) {
-      const updated = tickets.filter((t) => t.id !== id);
-      setTickets(updated);
-      saveTickets(updated);
-      triggerAlert("Support ticket record deleted.");
+  const handleDeleteFaq = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this FAQ?")) return;
+    try {
+      const res = await fetch(`${BACKEND_ORIGIN}/api/help/faqs/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadFAQs();
+        if (previewOpenFaq === id) setPreviewOpenFaq(null);
+        triggerAlert("FAQ deleted successfully.");
+      } else {
+        triggerAlert(data.message || "Failed to delete FAQ.", "error");
+      }
+    } catch {
+      triggerAlert("Network error.", "error");
+    }
+  };
+
+  // ── Contact Handlers ──────────────────────────────────────────────────────
+  const handleSaveContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingContact(true);
+    try {
+      const res = await fetch(`${BACKEND_ORIGIN}/api/help/contact`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ email: contactEmail, phone: contactPhone }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        triggerAlert("Support contact details updated successfully!");
+      } else {
+        triggerAlert(data.message || "Failed to save contact.", "error");
+      }
+    } catch {
+      triggerAlert("Network error.", "error");
+    } finally {
+      setSavingContact(false);
+    }
+  };
+
+  // ── Ticket Handlers ───────────────────────────────────────────────────────
+  const handleToggleTicketStatus = async (ticket: SupportTicket) => {
+    const newStatus = ticket.status === "Open" || ticket.status === "In Progress"
+      ? "Resolved"
+      : "Open";
+    try {
+      const res = await fetch(`${BACKEND_ORIGIN}/api/help/tickets/${ticket.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadTickets();
+        triggerAlert("Ticket status updated successfully!");
+      } else {
+        triggerAlert(data.message || "Failed to update ticket.", "error");
+      }
+    } catch {
+      triggerAlert("Network error.", "error");
+    }
+  };
+
+  const handleDeleteTicket = async (id: string) => {
+    if (!confirm("Delete this support ticket record?")) return;
+    try {
+      const res = await fetch(`${BACKEND_ORIGIN}/api/help/tickets/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadTickets();
+        triggerAlert("Support ticket record deleted.");
+      } else {
+        triggerAlert(data.message || "Failed to delete ticket.", "error");
+      }
+    } catch {
+      triggerAlert("Network error.", "error");
     }
   };
 
   const handleOpenMailModal = (ticket: SupportTicket) => {
-    setMailRecipient(ticket.email);
+    setMailRecipient(ticket.userEmail);
     setMailSubject(`Re: ${ticket.subject}`);
     setMailBody(
-      `Hello ${ticket.name},\n\nThank you for reaching out to FindmyPoint support desk regarding: "${ticket.subject}".\n\n[Write details here]\n\nBest regards,\nFindmyPoint Administrator`,
+      `Hello ${ticket.userName},\n\nThank you for reaching out to FindmyPoint support desk regarding: "${ticket.subject}".\n\n[Write details here]\n\nBest regards,\nFindmyPoint Administrator`,
     );
     setReplyTicketId(ticket.id);
     setShowMailModal(true);
   };
 
-  const handleSendEmailReply = (e: React.FormEvent) => {
+  const handleSendEmailReply = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Auto-resolve ticket upon sending reply email
+    // Mark ticket as Resolved upon sending email reply
     if (replyTicketId) {
-      const updated = tickets.map((t) => {
-        if (t.id === replyTicketId) {
-          return { ...t, status: "resolved" as const };
-        }
-        return t;
-      });
-      setTickets(updated);
-      saveTickets(updated);
+      const ticket = tickets.find((t) => t.id === replyTicketId);
+      if (ticket) await handleToggleTicketStatus({ ...ticket, status: "Open" });
     }
-
     setShowMailModal(false);
-    triggerAlert(
-      `Email reply sent successfully to ${mailRecipient}! Ticket status updated to Resolved.`,
-    );
+    triggerAlert(`Email reply queued for ${mailRecipient}. Ticket marked Resolved.`);
   };
 
-  const triggerAlert = (msg: string) => {
+  const triggerAlert = (msg: string, type: "success" | "error" = "success") => {
     setAlertMsg(msg);
+    setAlertType(type);
     setIsSavedAlert(true);
     setTimeout(() => setIsSavedAlert(false), 4000);
-    // Dispatch storage event to keep tabs/views in sync
-    window.dispatchEvent(new Event("storage"));
   };
 
-  const pendingCount = tickets.filter((t) => t.status === "pending").length;
+  const pendingCount = tickets.filter((t) => t.status === "Open" || t.status === "In Progress").length;
 
   return (
     <div className="space-y-6 w-full animate-fade-in-up text-left relative">
@@ -213,8 +302,18 @@ export default function HelpCenterManagement() {
       </div>
 
       {isSavedAlert && (
-        <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400 p-4 rounded-xl flex items-center gap-2.5 text-xs font-bold animate-fade-in">
-          <CheckCircle className="h-4.5 w-4.5 text-emerald-500 shrink-0" />
+        <div
+          className={`p-4 rounded-xl flex items-center gap-2.5 text-xs font-bold animate-fade-in border ${
+            alertType === "error"
+              ? "bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-400"
+              : "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-250 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400"
+          }`}
+        >
+          {alertType === "error" ? (
+            <AlertCircle className="h-4.5 w-4.5 shrink-0" />
+          ) : (
+            <CheckCircle className="h-4.5 w-4.5 text-emerald-500 shrink-0" />
+          )}
           <span>{alertMsg}</span>
         </div>
       )}
@@ -243,14 +342,20 @@ export default function HelpCenterManagement() {
           Support Tickets
           {pendingCount > 0 && (
             <span className="bg-rose-500 text-white font-bold text-[9px] px-2 py-0.5 rounded-full shrink-0 animate-pulse">
-              {pendingCount} Pending
+              {pendingCount} Open
             </span>
           )}
         </button>
       </div>
 
+      {loading && (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-7 w-7 text-indigo-400 animate-spin" />
+        </div>
+      )}
+
       {/* FAQs Panel */}
-      {activeTab === "faqs" && (
+      {!loading && activeTab === "faqs" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* FAQs List Table */}
           <div className="lg:col-span-7 space-y-4">
@@ -263,7 +368,7 @@ export default function HelpCenterManagement() {
             <div className="space-y-3.5 max-h-[500px] overflow-y-auto no-scrollbar">
               {faqs.map((faq) => (
                 <div
-                  key={faq.id}
+                  key={faq._id}
                   className="flex items-start justify-between gap-4 p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 shadow-xs hover:border-slate-350 dark:hover:border-slate-750 transition"
                 >
                   <div className="space-y-1.5 text-left flex-1 min-w-0 font-semibold">
@@ -283,7 +388,7 @@ export default function HelpCenterManagement() {
                       <Edit2 className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => handleDeleteFaq(faq.id)}
+                      onClick={() => handleDeleteFaq(faq._id)}
                       className="p-1.5 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 transition hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg cursor-pointer"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -321,7 +426,6 @@ export default function HelpCenterManagement() {
                 <div className="relative">
                   <input
                     type="email"
-                    required
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-950 text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-semibold"
@@ -338,7 +442,6 @@ export default function HelpCenterManagement() {
                 <div className="relative">
                   <input
                     type="text"
-                    required
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-950 text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-semibold"
@@ -350,10 +453,11 @@ export default function HelpCenterManagement() {
               {/* Save Button */}
               <button
                 type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg flex items-center justify-center gap-2 transition duration-200 cursor-pointer text-xs"
+                disabled={savingContact}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg flex items-center justify-center gap-2 transition duration-200 cursor-pointer text-xs"
               >
-                <Save className="h-4 w-4" />
-                <span>Save Contact Details</span>
+                {savingContact ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                <span>{savingContact ? "Saving..." : "Save Contact Details"}</span>
               </button>
             </form>
 
@@ -371,23 +475,23 @@ export default function HelpCenterManagement() {
               <div className="space-y-2.5">
                 {faqs.slice(0, 4).map((faq) => (
                   <div
-                    key={faq.id}
+                    key={faq._id}
                     className="border border-slate-150 dark:border-slate-850 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-xs"
                   >
                     <button
                       type="button"
-                      onClick={() => setPreviewOpenFaq(previewOpenFaq === faq.id ? null : faq.id)}
+                      onClick={() => setPreviewOpenFaq(previewOpenFaq === faq._id ? null : faq._id)}
                       className="w-full flex items-center justify-between p-3.5 text-left font-black text-slate-800 dark:text-slate-150 text-[11px] cursor-pointer hover:bg-slate-50/40 dark:hover:bg-slate-900/20 transition outline-none border-none"
                     >
                       <span>{faq.question}</span>
-                      {previewOpenFaq === faq.id ? (
+                      {previewOpenFaq === faq._id ? (
                         <ChevronUp className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
                       ) : (
                         <ChevronDown className="h-3.5 w-3.5 text-slate-450 shrink-0" />
                       )}
                     </button>
 
-                    {previewOpenFaq === faq.id && (
+                    {previewOpenFaq === faq._id && (
                       <div className="p-3.5 border-t border-slate-150 dark:border-slate-850 text-[10.5px] text-slate-550 dark:text-slate-400 leading-relaxed font-semibold bg-slate-50/20 dark:bg-slate-950/5">
                         {faq.answer}
                       </div>
@@ -399,6 +503,11 @@ export default function HelpCenterManagement() {
                     ({faqs.length - 4} more items hidden in preview)
                   </span>
                 )}
+                {faqs.length === 0 && (
+                  <span className="text-[10px] text-slate-400 italic block text-center py-4">
+                    No FAQs to preview yet.
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -406,7 +515,7 @@ export default function HelpCenterManagement() {
       )}
 
       {/* Support Tickets Panel */}
-      {activeTab === "tickets" && (
+      {!loading && activeTab === "tickets" && (
         <div className="space-y-5 w-full text-left">
           <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-slate-800 mb-2">
             <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
@@ -438,10 +547,10 @@ export default function HelpCenterManagement() {
                       <td className="py-4 px-6 align-top">
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-black shrink-0">
-                            {ticket.name.charAt(0).toUpperCase()}
+                            {(ticket.userName || "?").charAt(0).toUpperCase()}
                           </div>
                           <span className="text-xs font-bold text-slate-900 dark:text-white">
-                            {ticket.name}
+                            {ticket.userName}
                           </span>
                         </div>
                       </td>
@@ -449,14 +558,14 @@ export default function HelpCenterManagement() {
                       {/* Email */}
                       <td className="py-4 px-6 align-top">
                         <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold font-mono">
-                          {ticket.email}
+                          {ticket.userEmail}
                         </span>
                       </td>
 
                       {/* Date */}
                       <td className="py-4 px-6 align-top">
                         <span className="text-[10px] text-slate-400 dark:text-slate-550 font-semibold font-mono">
-                          {ticket.date}
+                          {ticket.date || new Date(ticket.createdAt).toLocaleDateString("en-GB")}
                         </span>
                       </td>
 
@@ -466,8 +575,8 @@ export default function HelpCenterManagement() {
                           <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 block">
                             {ticket.subject}
                           </span>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                            {ticket.message}
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed line-clamp-2">
+                            {ticket.description}
                           </p>
                         </div>
                       </td>
@@ -475,10 +584,12 @@ export default function HelpCenterManagement() {
                       {/* Status */}
                       <td className="py-4 px-6 align-top text-center">
                         <button
-                          onClick={() => handleToggleTicketStatus(ticket.id)}
+                          onClick={() => handleToggleTicketStatus(ticket)}
                           className={`px-3 py-1 rounded-full text-[9px] font-extrabold tracking-wider uppercase cursor-pointer transition ${
-                            ticket.status === "resolved"
+                            ticket.status === "Resolved" || ticket.status === "Closed"
                               ? "bg-emerald-50 text-emerald-700 border border-emerald-250/60 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/40"
+                              : ticket.status === "In Progress"
+                              ? "bg-blue-50 text-blue-700 border border-blue-200/60 dark:bg-blue-950/20 dark:text-blue-400"
                               : "bg-amber-50 text-amber-700 border border-amber-250/60 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/40"
                           }`}
                         >
@@ -594,8 +705,10 @@ export default function HelpCenterManagement() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl transition cursor-pointer text-xs"
+                  disabled={savingFaq}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition cursor-pointer text-xs flex items-center justify-center gap-2"
                 >
+                  {savingFaq && <Loader2 className="h-4 w-4 animate-spin" />}
                   {editingFaq ? "Save Changes" : "Create FAQ"}
                 </button>
               </div>

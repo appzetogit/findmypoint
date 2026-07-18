@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "../config";
 import {
   Shield,
+  UserPlus,
   LayoutDashboard,
   PlusCircle,
   ArrowLeft,
@@ -26,6 +28,8 @@ import {
   Send,
   Wallet,
   Briefcase,
+  FileText,
+  Star,
 } from "lucide-react";
 import Dashboard from "./Dashboard";
 import AdminEntryForm from "./AdminEntryForm";
@@ -51,6 +55,9 @@ import BusinessCommission from "./BusinessCommission";
 import AdminWithdrawals from "./AdminWithdrawals";
 import AdminBusinessWallets from "./AdminBusinessWallets";
 import BusinessRequests from "./BusinessRequests";
+import ArticleManagement from "./ArticleManagement";
+import HeroSubcategoriesManagement from "./HeroSubcategoriesManagement";
+import PopularServicesManagement from "./PopularServicesManagement";
 import logoImg from "../assets/logo.png";
 
 interface AdminShellProps {
@@ -83,31 +90,90 @@ export type AdminView =
   | "commissions"
   | "admin_withdrawals"
   | "business_wallets"
-  | "business_requests";
+  | "business_requests"
+  | "article_management"
+  | "popular_services"
+  | "hero_subcategories";
 
 export default function AdminShell({ onClose, username }: AdminShellProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [emailInput, setEmailInput] = useState("admin@fmp.com");
-  const [passwordInput, setPasswordInput] = useState("admin");
+  const [isValidatingToken, setIsValidatingToken] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !!localStorage.getItem("fmp_admin_token");
+    }
+    return false;
+  });
+  const [emailInput, setEmailInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [nameInput, setNameInput] = useState("");
+  const [isSigningUp, setIsSigningUp] = useState(false);
   const [loginError, setLoginError] = useState("");
 
-  const [currentView, setCurrentView] = useState<AdminView>("dashboard");
-  const [editingBusinessId, setEditingBusinessId] = useState<string | null>(null);
-  const [adminTab, setAdminTab] = useState<"admin" | "client">("admin");
-
-  const [adminProfile, setAdminProfile] = useState({
-    username: "Guest Root",
-    email: "admin@fmp.com",
-    role: "System Administrator",
+  const [currentView, setCurrentView] = useState<AdminView>(() => {
+    if (typeof window !== "undefined") {
+      const savedView = localStorage.getItem("fmp_admin_current_view");
+      if (savedView) {
+        return savedView as AdminView;
+      }
+    }
+    return "dashboard";
+  });
+  const [editingBusinessId, setEditingBusinessId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("fmp_admin_editing_business_id");
+    }
+    return null;
+  });
+  const [adminTab, setAdminTab] = useState<"admin" | "client">(() => {
+    if (typeof window !== "undefined") {
+      const savedTab = localStorage.getItem("fmp_admin_current_tab");
+      if (savedTab === "admin" || savedTab === "client") {
+        return savedTab as "admin" | "client";
+      }
+    }
+    return "admin";
   });
 
-  // Load profile from localStorage on mount
+  const [adminProfile, setAdminProfile] = useState({
+    username: "",
+    email: "",
+    role: "",
+  });
+
+  // Verify token on mount and fetch profile
   useEffect(() => {
-    const saved = localStorage.getItem("fmp_admin_profile:v1");
-    if (saved) {
-      try {
-        setAdminProfile(JSON.parse(saved));
-      } catch (e) {}
+    const token = localStorage.getItem("fmp_admin_token");
+    if (token) {
+      fetch(`${API_BASE_URL}/admin/profile`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("Verification failed");
+        return res.json();
+      })
+      .then(data => {
+        if (data.success && data.admin) {
+          setIsAuthenticated(true);
+          setAdminProfile({
+            username: data.admin.name,
+            email: data.admin.email,
+            role: data.admin.role
+          });
+        } else {
+          localStorage.removeItem("fmp_admin_token");
+        }
+      })
+      .catch(err => {
+        console.error("Token verification failed", err);
+        localStorage.removeItem("fmp_admin_token");
+      })
+      .finally(() => {
+        setIsValidatingToken(false);
+      });
+    } else {
+      setIsValidatingToken(false);
     }
   }, []);
 
@@ -131,49 +197,114 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError("");
 
-    let correctEmail = "admin@fmp.com";
-    let correctPassword = "admin";
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: emailInput.trim(),
+          password: passwordInput
+        })
+      });
+      const data = await res.json();
 
-    const savedProfile = localStorage.getItem("fmp_admin_profile:v1");
-    if (savedProfile) {
-      try {
-        const parsed = JSON.parse(savedProfile);
-        if (parsed.email) correctEmail = parsed.email.trim().toLowerCase();
-      } catch (err) {}
+      if (data.success) {
+        localStorage.setItem("fmp_admin_token", data.token);
+        setIsAuthenticated(true);
+        setAdminProfile({
+          username: data.admin.name,
+          email: data.admin.email,
+          role: data.admin.role
+        });
+        setLoginError("");
+      } else {
+        setLoginError(data.message || "Invalid email or password");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setLoginError("Failed to connect to backend server. Is it running?");
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+
+    if (!nameInput.trim()) {
+      setLoginError("Please enter your name");
+      return;
     }
 
-    const savedPassword = localStorage.getItem("fmp_admin_password:v1");
-    if (savedPassword) {
-      correctPassword = savedPassword;
-    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: nameInput.trim(),
+          email: emailInput.trim(),
+          password: passwordInput,
+          role: "System Administrator"
+        })
+      });
+      const data = await res.json();
 
-    if (emailInput.trim().toLowerCase() === correctEmail && passwordInput === correctPassword) {
-      setIsAuthenticated(true);
-      setLoginError("");
-    } else {
-      setLoginError(`Invalid email or password. Use: ${correctEmail} / ${correctPassword}`);
+      if (data.success) {
+        localStorage.setItem("fmp_admin_token", data.token);
+        setIsAuthenticated(true);
+        setAdminProfile({
+          username: data.admin.name,
+          email: data.admin.email,
+          role: data.admin.role
+        });
+        setLoginError("");
+        setIsSigningUp(false);
+      } else {
+        setLoginError(data.message || "Registration failed");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setLoginError("Failed to connect to backend server. Is it running?");
     }
   };
 
   const handleEditBusiness = (id: string) => {
     setEditingBusinessId(id);
+    localStorage.setItem("fmp_admin_editing_business_id", id);
     setCurrentView("edit");
+    localStorage.setItem("fmp_admin_current_view", "edit");
   };
 
   const handleAddNew = () => {
     setEditingBusinessId(null);
+    localStorage.removeItem("fmp_admin_editing_business_id");
     setCurrentView("add");
+    localStorage.setItem("fmp_admin_current_view", "add");
   };
 
   const handleViewChange = (view: AdminView) => {
     if (view !== "edit") {
       setEditingBusinessId(null);
+      localStorage.removeItem("fmp_admin_editing_business_id");
     }
     setCurrentView(view);
+    localStorage.setItem("fmp_admin_current_view", view);
   };
+
+  // 0. Loading Gate during token validation
+  if (isValidatingToken) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Verifying session...</p>
+        </div>
+      </div>
+    );
+  }
 
   // 1. Unauthenticated Login Gate View
   if (!isAuthenticated) {
@@ -205,18 +336,43 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
               />
             )}
             <h2 className="font-serif text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-              Admin Portal
+              {isSigningUp ? "Create Admin Account" : "Admin Portal"}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-[280px]">
-              Access the FindmyPoint admin database. Please sign in with your credentials.
+              {isSigningUp 
+                ? "Register a new superuser account for the database panel."
+                : "Access the FindmyPoint admin database. Please sign in with your credentials."}
             </p>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleLogin} className="mt-8 space-y-4 text-left">
+          <form onSubmit={isSigningUp ? handleSignUp : handleLogin} className="mt-8 space-y-4 text-left">
             {loginError && (
               <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/45 text-rose-600 dark:text-rose-450 p-3 rounded-xl text-xs font-bold text-center">
                 {loginError}
+              </div>
+            )}
+
+            {isSigningUp && (
+              <div className="space-y-1.5 text-left">
+                <label
+                  htmlFor="adminName"
+                  className="block text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500"
+                >
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-3.5 h-4.5 w-4.5 text-slate-400 dark:text-slate-500" />
+                  <input
+                    id="adminName"
+                    type="text"
+                    required
+                    placeholder="Ajay Panchal"
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-sm pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                  />
+                </div>
               </div>
             )}
 
@@ -262,24 +418,12 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
               </div>
             </div>
 
-            {/* Quick Demo Hint */}
-            <div className="bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 rounded-xl p-3 text-[11.5px] text-slate-500 dark:text-slate-400 text-center font-semibold">
-              Demo Credentials:
-              <br />
-              Email:{" "}
-              <span className="text-slate-800 dark:text-slate-200 font-extrabold">
-                admin@fmp.com
-              </span>{" "}
-              & Password:{" "}
-              <span className="text-slate-800 dark:text-slate-200 font-extrabold">admin</span>
-            </div>
-
             <button
               type="submit"
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/25 active:scale-[0.99] transition duration-200 cursor-pointer text-center text-sm flex items-center justify-center gap-2"
             >
-              <Shield className="h-4.5 w-4.5" />
-              <span>Verify & Enter Dashboard</span>
+              {isSigningUp ? <UserPlus className="h-4.5 w-4.5" /> : <Shield className="h-4.5 w-4.5" />}
+              <span>{isSigningUp ? "Create Account & Sign In" : "Verify & Enter Dashboard"}</span>
             </button>
           </form>
 
@@ -489,6 +633,57 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
                       className={`h-4.5 w-4.5 transition-colors ${currentView === "employee_management" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
                     />
                     <span>Employee Management</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleViewChange("article_management")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "article_management"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-855 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "article_management" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <FileText
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "article_management" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>Article Management</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleViewChange("popular_services")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "popular_services"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-855 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "popular_services" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <Star
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "popular_services" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>Popular Services</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleViewChange("hero_subcategories")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "hero_subcategories"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-855 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "hero_subcategories" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <Sparkles
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "hero_subcategories" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>Hero Subcategories</span>
                   </button>
 
                   <button
@@ -719,6 +914,7 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
             <button
               onClick={() => {
                 setAdminTab("admin");
+                localStorage.setItem("fmp_admin_current_tab", "admin");
                 handleViewChange("dashboard");
               }}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -732,6 +928,7 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
             <button
               onClick={() => {
                 setAdminTab("client");
+                localStorage.setItem("fmp_admin_current_tab", "client");
                 handleViewChange("listings");
               }}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -773,14 +970,19 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
               }`}
               title="Admin Profile Settings"
             >
-              {adminProfile.username.substring(0, 2).toUpperCase()}
+              {(adminProfile.username || "AD").substring(0, 2).toUpperCase()}
             </button>
 
             {/* Logout Button (Red color) */}
             <button
               onClick={() => {
+                localStorage.removeItem("fmp_admin_token");
+                localStorage.removeItem("fmp_admin_current_view");
+                localStorage.removeItem("fmp_admin_current_tab");
+                localStorage.removeItem("fmp_admin_editing_business_id");
                 setIsAuthenticated(false);
                 setCurrentView("dashboard");
+                setAdminTab("admin");
               }}
               className="p-2 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50/50 dark:bg-rose-950/20 hover:bg-rose-100/70 dark:hover:bg-rose-900/30 text-rose-600 dark:text-rose-450 transition-colors cursor-pointer shadow-sm"
               title="Logout Admin Session"
@@ -822,7 +1024,6 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
           {currentView === "add_subcategory" && (
             <AddSubcategoryForm
               onCancel={() => handleViewChange("dashboard")}
-              onSuccess={() => handleViewChange("dashboard")}
             />
           )}
 
@@ -841,6 +1042,12 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
           {currentView === "banner_management" && <BannerManagement />}
 
           {currentView === "employee_management" && <EmployeeManagement />}
+
+          {currentView === "article_management" && <ArticleManagement />}
+
+          {currentView === "popular_services" && <PopularServicesManagement />}
+
+          {currentView === "hero_subcategories" && <HeroSubcategoriesManagement />}
 
           {currentView === "privacy_policy" && <PrivacyPolicyManagement />}
 

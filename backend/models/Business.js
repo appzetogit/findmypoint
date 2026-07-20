@@ -80,6 +80,7 @@ const BusinessSchema = new mongoose.Schema({
   pincode: { type: String },
   password: { type: String },
   clientPassword: { type: String }, // Plain text — admin reference only
+  ownerName: { type: String },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 

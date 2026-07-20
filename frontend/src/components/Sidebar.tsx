@@ -12,6 +12,7 @@ import {
   Handshake,
   LogOut,
   LogIn,
+  CalendarDays,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -91,6 +92,14 @@ export default function Sidebar({
       },
     },
     { label: "Edit Profile", icon: User, action: onMyProfileClick },
+    {
+      label: "My Booking",
+      icon: CalendarDays,
+      action: () => {
+        onMenuClick?.("My Bookings");
+        onClose();
+      },
+    },
     {
       label: "My Transaction",
       icon: Receipt,

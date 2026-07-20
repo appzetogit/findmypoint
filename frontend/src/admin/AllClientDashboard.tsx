@@ -160,7 +160,7 @@ export default function AllClientDashboard() {
     allBookingsList.forEach((bk) => {
       if (bk.status === 'cancelled') {
         cancelled++;
-      } else {
+      } else if (bk.status === 'confirmed' || bk.status === 'completed') {
         accepted++;
       }
     });

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Wallet as WalletIcon,
   IndianRupee,
@@ -12,7 +13,9 @@ import {
   CreditCard,
   Send,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  X,
+  Smartphone
 } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
 
@@ -39,6 +42,13 @@ interface WithdrawalRecord {
   target: string;
   status: "Completed" | "Processing" | "Failed";
   bizName?: string;
+  bankDetails?: {
+    holderName: string;
+    bankName: string;
+    accountNumber: string;
+    ifsc: string;
+  };
+  upiId?: string;
 }
 
 export default function Wallet({ clientListings }: WalletProps) {
@@ -51,22 +61,46 @@ export default function Wallet({ clientListings }: WalletProps) {
   const [filterType, setFilterType] = useState<"all" | "credit" | "debit">("all");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Withdrawal modal state
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawMethod, setWithdrawMethod] = useState<"bank" | "upi">("bank");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [bankHolderName, setBankHolderName] = useState("");
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [bankIfsc, setBankIfsc] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [upiId, setUpiId] = useState("");
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const [isSubmittingWithdraw, setIsSubmittingWithdraw] = useState(false);
+
   // Load payments and withdrawals
   const loadWalletData = async () => {
     // 1. Load active payments across client businesses
     const allPayments: any[] = [];
-    
+
     // Fetch configured commissions from localStorage
     let commissionMap: Record<string, number> = {};
     try {
       const savedCommissions = localStorage.getItem("fmp_business_commissions");
       if (savedCommissions) commissionMap = JSON.parse(savedCommissions);
-    } catch (e) {}
+    } catch (e) { }
 
     const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
     const headers: HeadersInit = {};
     if (token) {
       (headers as any)["Authorization"] = `Bearer ${token}`;
+    }
+
+    // Fetch raw bookings first to verify booking status
+    let rawBookings: any[] = [];
+    try {
+      const res = await fetch("http://localhost:5000/api/bookings", { headers });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        rawBookings = data.data;
+      }
+    } catch (err) {
+      console.error("Error loading bookings for wallet:", err);
     }
 
     try {
@@ -77,22 +111,28 @@ export default function Wallet({ clientListings }: WalletProps) {
           const data = await res.json();
           if (data.success && Array.isArray(data.data)) {
             data.data.forEach((txn: any) => {
-              allPayments.push({
-                id: txn.id,
-                bookingId: txn.bookingId || "",
-                timestamp: txn.timestamp,
-                customerName: txn.customerName || "Guest",
-                amount: txn.amount,
-                paymentMethod: txn.paymentMethod || "upi",
-                status: txn.status || "Completed",
-                details: txn.details || txn.description || "Booking Payment",
-                bizId: biz.id,
-                bizName: biz.name,
-                commissionRate: commRate
-              });
+              const bookingMatch = rawBookings.find((b) => b.id === txn.bookingId);
+              const isRefunded = txn.status === "Refunded";
+              const isCompleted = bookingMatch ? (bookingMatch.status === "completed") : (txn.status === "Completed");
+
+              if (isCompleted || isRefunded) {
+                allPayments.push({
+                  id: txn.id,
+                  bookingId: txn.bookingId || "",
+                  timestamp: txn.timestamp,
+                  customerName: txn.customerName || "Guest",
+                  amount: txn.amount,
+                  paymentMethod: txn.paymentMethod || "upi",
+                  status: txn.status || "Completed",
+                  details: txn.details || txn.description || "Booking Payment",
+                  bizId: biz.id,
+                  bizName: biz.name,
+                  commissionRate: commRate
+                });
+              }
             });
           }
-        } catch {}
+        } catch { }
       }));
     } catch (e) {
       console.error("Failed to load transactions for wallet", e);
@@ -108,7 +148,7 @@ export default function Wallet({ clientListings }: WalletProps) {
       } else {
         setWithdrawals([]);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   useEffect(() => {
@@ -117,6 +157,97 @@ export default function Wallet({ clientListings }: WalletProps) {
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, [clientListings]);
+
+  const resetWithdrawForm = () => {
+    setWithdrawMethod("bank");
+    setWithdrawAmount("");
+    setBankHolderName("");
+    setBankAccountNumber("");
+    setBankIfsc("");
+    setBankName("");
+    setUpiId("");
+    setWithdrawError(null);
+  };
+
+  const openWithdrawModal = () => {
+    resetWithdrawForm();
+    setShowWithdrawModal(true);
+  };
+
+  const closeWithdrawModal = () => {
+    if (isSubmittingWithdraw) return;
+    setShowWithdrawModal(false);
+    resetWithdrawForm();
+  };
+
+  const handleWithdrawSubmit = () => {
+    setWithdrawError(null);
+
+    const amountNum = Number(withdrawAmount);
+    if (!withdrawAmount || isNaN(amountNum) || amountNum <= 0) {
+      setWithdrawError("Please enter a valid withdrawal amount.");
+      return;
+    }
+    if (amountNum > stats.withdrawable) {
+      setWithdrawError("Withdrawal amount exceeds your withdrawable balance.");
+      return;
+    }
+
+    let target = "";
+    if (withdrawMethod === "bank") {
+      if (!bankHolderName.trim() || !bankAccountNumber.trim() || !bankIfsc.trim() || !bankName.trim()) {
+        setWithdrawError("Please fill in all bank account details.");
+        return;
+      }
+      target = `${bankName.trim()} - A/C ${bankAccountNumber.trim()} (${bankIfsc.trim().toUpperCase()}), ${bankHolderName.trim()}`;
+    } else {
+      if (!upiId.trim()) {
+        setWithdrawError("Please enter your UPI ID or number.");
+        return;
+      }
+      target = upiId.trim();
+    }
+
+    setIsSubmittingWithdraw(true);
+
+    const newWithdrawal: WithdrawalRecord = {
+      id: `WD-${Date.now()}`,
+      timestamp: new Date().toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true
+      }).replace(",", ""),
+      amount: amountNum,
+      method: withdrawMethod,
+      target,
+      status: "Processing",
+      ...(withdrawMethod === "bank"
+        ? {
+            bankDetails: {
+              holderName: bankHolderName.trim(),
+              bankName: bankName.trim(),
+              accountNumber: bankAccountNumber.trim(),
+              ifsc: bankIfsc.trim().toUpperCase()
+            }
+          }
+        : { upiId: upiId.trim() })
+    };
+
+    const updatedWithdrawals = [...withdrawals, newWithdrawal];
+    setWithdrawals(updatedWithdrawals);
+    try {
+      localStorage.setItem("fmp_client_withdrawals", JSON.stringify(updatedWithdrawals));
+    } catch (e) { }
+
+    setIsSubmittingWithdraw(false);
+    setShowWithdrawModal(false);
+    resetWithdrawForm();
+    setToastMessage(`Withdrawal request of ₹${amountNum.toLocaleString("en-IN")} via ${withdrawMethod === "bank" ? "Bank Transfer" : "UPI"} submitted successfully.`);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
   // Combined ledger transactions sorting newest first
   const ledgerTransactions = useMemo(() => {
@@ -152,16 +283,22 @@ export default function Wallet({ clientListings }: WalletProps) {
       }
     });
 
-    // 2. Add debit entries from withdrawals
+    // 2. Add withdrawal entries. Rejected withdrawals are refunded back to the
+    // wallet, so they show up as a credit instead of a debit.
     withdrawals.forEach((w) => {
+      const isRejected = w.status === "Failed";
       list.push({
         id: w.id,
         timestamp: w.timestamp,
-        type: "debit",
+        type: isRejected ? "credit" : "debit",
         amount: w.amount,
-        description: `Funds withdrawal to ${w.method.toUpperCase()}`,
+        description: isRejected
+          ? "Withdrawal request rejected — refunded"
+          : `Funds withdrawal to ${w.method.toUpperCase()}`,
         status: w.status,
-        details: `Payout account: ${w.target}`
+        details: isRejected
+          ? `Refunded to wallet balance. Original payout target: ${w.target}`
+          : `Payout account: ${w.target}`
       });
     });
 
@@ -194,9 +331,10 @@ export default function Wallet({ clientListings }: WalletProps) {
       .filter((tx) => tx.description.includes("refund") && tx.status === "Refunded")
       .reduce((sum, tx) => sum + tx.amount, 0);
 
-    // Sum of successfully completed withdrawals
+    // Sum of withdrawals already paid out or currently being processed
+    // (reserved immediately so the withdrawable balance drops as soon as a request is made)
     const totalWithdrawn = withdrawals
-      .filter((w) => w.status === "Completed")
+      .filter((w) => w.status === "Completed" || w.status === "Processing")
       .reduce((sum, w) => sum + w.amount, 0);
 
     // Net earnings = Credits - Refunds
@@ -227,7 +365,7 @@ export default function Wallet({ clientListings }: WalletProps) {
 
       return matchesSearch && matchesType;
     });
-  }, [ledgerTransactions, searchQuery, filterType]);  return (
+  }, [ledgerTransactions, searchQuery, filterType]); return (
     <div className="space-y-8 animate-fade-in-up text-left max-w-7xl mx-auto">
       {/* Header section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/50 dark:border-slate-800/50 pb-6">
@@ -240,6 +378,14 @@ export default function Wallet({ clientListings }: WalletProps) {
             Monitor booking payouts, calculate net commissions, and transfer earnings to your bank account.
           </p>
         </div>
+        <button
+          onClick={openWithdrawModal}
+          disabled={stats.withdrawable <= 0}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-wider shadow-sm transition-colors shrink-0"
+        >
+          <Send className="h-3.5 w-3.5" />
+          Withdraw
+        </button>
       </div>
 
       {/* KPI Cards */}
@@ -330,30 +476,30 @@ export default function Wallet({ clientListings }: WalletProps) {
                 filteredTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-900/30 transition-colors">
                     <td className="px-5 py-3 whitespace-nowrap text-slate-500 dark:text-slate-400">{tx.timestamp}</td>
-                     <td className="px-5 py-3 whitespace-nowrap font-mono text-indigo-600 dark:text-indigo-400 font-bold select-all">
-                       {tx.bookingId ? (
-                         tx.bookingId.startsWith("FMP-") || tx.bookingId.startsWith("BK")
-                           ? tx.bookingId
-                           : (() => {
-                               const numbers = tx.bookingId.replace(/\D/g, "");
-                               return `BOOK${numbers.slice(-5) || "12345"}`;
-                             })()
-                       ) : (
-                         (() => {
-                           const numbers = tx.id.replace(/\D/g, "");
-                           return `BOOK${numbers.slice(-5) || "12345"}`;
-                         })()
-                       )}
-                     </td>
+                    <td className="px-5 py-3 whitespace-nowrap font-mono text-indigo-600 dark:text-indigo-400 font-bold select-all">
+                      {tx.bookingId ? (
+                        tx.bookingId.startsWith("FMP-") || tx.bookingId.startsWith("BK")
+                          ? tx.bookingId
+                          : (() => {
+                            const numbers = tx.bookingId.replace(/\D/g, "");
+                            return `BOOK${numbers.slice(-5) || "12345"}`;
+                          })()
+                      ) : (
+                        (() => {
+                          const numbers = tx.id.replace(/\D/g, "");
+                          return `BOOK${numbers.slice(-5) || "12345"}`;
+                        })()
+                      )}
+                    </td>
                     <td className="px-5 py-3 font-bold text-slate-900 dark:text-white">{tx.description}</td>
                     <td className="px-5 py-3 whitespace-nowrap">
                       {tx.type === "credit" ? (
                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-wider">
-                          Credit
+                          {tx.description.toLowerCase().includes("refund") && tx.description.toLowerCase().includes("withdrawal") ? "Refund" : "Credit"}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-wider">
-                          Debit
+                          {tx.description.toLowerCase().includes("withdrawal") ? "Withdrawal" : "Debit"}
                         </span>
                       )}
                     </td>
@@ -376,6 +522,193 @@ export default function Wallet({ clientListings }: WalletProps) {
           </table>
         </div>
       </div>
+
+      {/* Withdrawal Modal */}
+      {showWithdrawModal && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 animate-fade-in"
+          onClick={closeWithdrawModal}
+        >
+          <div
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl shadow-2xl animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60">
+              <h4 className="font-serif text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                <Send className="h-4.5 w-4.5 text-indigo-500" />
+                Withdraw
+              </h4>
+              <button
+                onClick={closeWithdrawModal}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-5">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Withdrawable balance: <span className="font-black text-indigo-600 dark:text-indigo-400">₹{stats.withdrawable.toLocaleString("en-IN")}</span>
+              </p>
+
+              {/* Method selector */}
+              <div>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">
+                  Withdraw Via
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawMethod("bank")}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border text-xs font-black uppercase tracking-wide transition-colors ${withdrawMethod === "bank"
+                      ? "border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+                      : "border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700"
+                      }`}
+                  >
+                    <Building className="h-4 w-4" />
+                    Bank Account
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawMethod("upi")}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border text-xs font-black uppercase tracking-wide transition-colors ${withdrawMethod === "upi"
+                      ? "border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+                      : "border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700"
+                      }`}
+                  >
+                    <Smartphone className="h-4 w-4" />
+                    UPI
+                  </button>
+                </div>
+              </div>
+
+              {/* Conditional fields */}
+              {withdrawMethod === "bank" ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                      Account Holder Name
+                    </label>
+                    <input
+                      type="text"
+                      value={bankHolderName}
+                      onChange={(e) => setBankHolderName(e.target.value)}
+                      placeholder="e.g. Ajay Panchal"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                      Bank Name
+                    </label>
+                    <input
+                      type="text"
+                      value={bankName}
+                      onChange={(e) => setBankName(e.target.value)}
+                      placeholder="e.g. HDFC Bank"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                        Account Number
+                      </label>
+                      <input
+                        type="text"
+                        value={bankAccountNumber}
+                        onChange={(e) => setBankAccountNumber(e.target.value.replace(/[^0-9]/g, ""))}
+                        placeholder="1234567890"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                        IFSC Code
+                      </label>
+                      <input
+                        type="text"
+                        value={bankIfsc}
+                        onChange={(e) => setBankIfsc(e.target.value.toUpperCase())}
+                        placeholder="HDFC0001234"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                    UPI ID / Number
+                  </label>
+                  <input
+                    type="text"
+                    value={upiId}
+                    onChange={(e) => setUpiId(e.target.value)}
+                    placeholder="Enter You number for withdrawl"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              )}
+
+              {/* Amount field */}
+              <div>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                  Amount to Withdraw
+                </label>
+                <div className="relative">
+                  <IndianRupee className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                  <input
+                    type="number"
+                    min={1}
+                    max={stats.withdrawable}
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {withdrawError && (
+                <div className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/30 text-rose-500 px-3.5 py-2.5 rounded-xl text-[11px] font-bold">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{withdrawError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal footer */}
+            <div className="flex items-center gap-3 px-6 py-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/50">
+              <button
+                type="button"
+                onClick={closeWithdrawModal}
+                disabled={isSubmittingWithdraw}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 text-xs font-black uppercase tracking-wide hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleWithdrawSubmit}
+                disabled={isSubmittingWithdraw}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-xs font-black uppercase tracking-wide transition-colors"
+              >
+                {isSubmittingWithdraw ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  "Confirm Withdrawal"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

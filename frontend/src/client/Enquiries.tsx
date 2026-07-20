@@ -45,6 +45,8 @@ interface EnquiryRecord {
   mobile: string;
   email: string;
   message: string;
+  subject: string;
+  status: 'New' | 'Contacted' | 'Closed';
   read?: boolean;
 }
 
@@ -96,8 +98,10 @@ export default function Enquiries({ clientListings }: EnquiriesProps) {
               timestamp: item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-GB') + ' ' + new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '',
               name: item.name,
               mobile: item.phone,
-              email: item.email || "N/A",
+              email: item.email || 'N/A',
               message: item.message,
+              subject: item.subject || `Enquiry`,
+              status: item.status || 'New',
               read: item.read || false
             }));
             setEnquiries(mapped);
@@ -184,6 +188,25 @@ export default function Enquiries({ clientListings }: EnquiriesProps) {
       }
     } catch (err) {
       console.error("Failed to update read status:", err);
+    }
+  };
+
+  // Handle status change
+  const handleStatusChange = async (enqId: string, newStatus: 'New' | 'Contacted' | 'Closed') => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/businesses/${selectedBizId}/enquiries/${enqId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: newStatus })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEnquiries((prev) =>
+          prev.map((e) => (e.id === enqId ? { ...e, status: newStatus } : e))
+        );
+      }
+    } catch (err) {
+      console.error('Failed to update status:', err);
     }
   };
 
@@ -299,6 +322,7 @@ export default function Enquiries({ clientListings }: EnquiriesProps) {
                   <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] w-44">Name</th>
                   <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] w-40">Phone Number</th>
                   <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] w-44">Email Address</th>
+                  <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] w-32">Status</th>
                   <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px]">Message</th>
                   <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] text-right w-28">Actions</th>
                 </tr>
@@ -372,6 +396,25 @@ export default function Enquiries({ clientListings }: EnquiriesProps) {
                           <Mail className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                           {enq.email}
                         </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="p-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <select
+                          value={enq.status}
+                          onChange={(e) => handleStatusChange(enq.id, e.target.value as 'New' | 'Contacted' | 'Closed')}
+                          className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-lg border cursor-pointer outline-none transition ${
+                            enq.status === 'New'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-800'
+                              : enq.status === 'Contacted'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800'
+                          }`}
+                        >
+                          <option value="New">New</option>
+                          <option value="Contacted">Contacted</option>
+                          <option value="Closed">Closed</option>
+                        </select>
                       </td>
 
                       {/* Message */}

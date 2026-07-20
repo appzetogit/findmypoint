@@ -100,6 +100,61 @@ const updateBookingStatus = async (req, res) => {
     booking.status = status;
     await booking.save();
 
+    if (status === 'completed') {
+      const io = req.app.get('io');
+      const activeSockets = req.app.get('activeSockets');
+      if (io && activeSockets) {
+        const userIdStr = booking.userId.toString();
+        const socketIds = activeSockets.get(userIdStr);
+        if (socketIds && socketIds.size > 0) {
+          console.log(`Emitting request_review to user ${userIdStr} sockets:`, Array.from(socketIds));
+          socketIds.forEach(socketId => {
+            io.to(socketId).emit('request_review', {
+              bookingId: booking.id,
+              businessId: booking.businessId,
+              businessName: booking.businessName,
+              service: booking.service || 'Service Booking'
+            });
+          });
+        }
+      }
+    }
+
+    res.status(200).json({ success: true, data: booking });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Refund a cancelled booking's payment
+// @route   PUT /api/bookings/:id/refund
+// @access  Private
+const refundBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findOne({ id: req.params.id });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const isAuthorizedOwner = booking.userId.toString() === req.user._id.toString();
+    const isAuthorizedBusiness = req.user.isBusiness && booking.businessId === req.user.businessId;
+
+    if (!req.user.isAdmin && !isAuthorizedOwner && !isAuthorizedBusiness) {
+      return res.status(403).json({ success: false, message: 'Not authorized to refund this booking' });
+    }
+
+    if (booking.status !== 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Only cancelled bookings can be refunded' });
+    }
+
+    if (booking.paymentStatus !== 'paid') {
+      return res.status(400).json({ success: false, message: 'This booking has no paid amount to refund' });
+    }
+
+    booking.paymentStatus = 'refunded';
+    await booking.save();
+
     res.status(200).json({ success: true, data: booking });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -136,5 +191,6 @@ module.exports = {
   getBookings,
   createBooking,
   updateBookingStatus,
+  refundBooking,
   deleteBooking
 };

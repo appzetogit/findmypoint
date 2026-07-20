@@ -1,8 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { Star, Tag, Building2, User, Layers, Megaphone, Compass, HelpCircle } from "lucide-react";
-import { businessesData, BusinessListingData } from "../data/businessesData";
-import { loadAdminUsers } from "../data/usersData";
-import { loadTickets } from "../data/helpData";
+import { useState, useEffect } from "react";
+import { Tag, User, Layers, Megaphone, Compass, HelpCircle } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -12,108 +9,127 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { API_BASE_URL } from "../config";
 
 interface DashboardProps {}
 
+interface DashboardStats {
+  usersCount: number;
+  categoriesCount: number;
+  subcategoriesCount: number;
+  advertiseCount: number;
+  touristPlacesCount: number;
+  supportCount: number;
+}
+
 export default function Dashboard({}: DashboardProps) {
-  const [listings, setListings] = useState<BusinessListingData[]>([]);
+  const [stats, setStats] = useState<DashboardStats>({
+    usersCount: 0,
+    categoriesCount: 0,
+    subcategoriesCount: 0,
+    advertiseCount: 0,
+    touristPlacesCount: 0,
+    supportCount: 0
+  });
+  const [categoryData, setCategoryData] = useState<{ name: string; value: number }[]>([]);
 
-  const loadListings = () => {
-    setListings([...businessesData]);
-  };
+  const loadDashboardData = async () => {
+    const token = localStorage.getItem("fmp_admin_token") || "";
+    const authHeaders: HeadersInit = { Authorization: `Bearer ${token}` };
 
-  useEffect(() => {
-    loadListings();
-    const handleStorageChange = () => {
-      loadListings();
-    };
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
-
-  const stats = useMemo(() => {
-    // 1. Total Users
+    // 1. Total Users (registered end users)
     let usersCount = 0;
     try {
-      usersCount = loadAdminUsers().length;
+      const res = await fetch(`${API_BASE_URL}/admin/users`, { headers: authHeaders });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.users)) usersCount = data.users.length;
     } catch (e) {
-      console.error(e);
+      console.error("Failed to load users count", e);
     }
 
-    // 2. Total Category
-    let customCats: any[] = [];
+    // 2 & 3. Total Category / Total Subcategory
+    let categoriesCount = 0;
+    let subcategoriesCount = 0;
+    let categoryCounts: Record<string, number> = {};
     try {
-      const saved = localStorage.getItem("fmp_custom_categories");
-      if (saved) customCats = JSON.parse(saved);
-    } catch (e) {}
-
-    const categoriesSet = new Set([
-      ...listings.map((l) => l.category.split(" > ")[0] || l.category),
-      ...customCats.map((c) => c.name)
-    ]);
-    const categoriesCount = categoriesSet.size;
-
-    // 3. Total Subcategory
-    let customSubs: any[] = [];
-    try {
-      const saved = localStorage.getItem("fmp_custom_subcategories");
-      if (saved) customSubs = JSON.parse(saved);
-    } catch (e) {}
-
-    const subSet = new Set();
-    listings.forEach((l) => {
-      const parts = l.category.split(" > ");
-      if (parts.length > 1) {
-        subSet.add(parts[1]);
+      const res = await fetch(`${API_BASE_URL}/categories`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.categories)) {
+        categoriesCount = data.categories.length;
+        subcategoriesCount = data.categories.reduce(
+          (sum: number, cat: any) => sum + (Array.isArray(cat.subcategories) ? cat.subcategories.length : 0),
+          0
+        );
+        data.categories.forEach((cat: any) => {
+          categoryCounts[cat.label] = 0;
+        });
       }
-    });
-    customSubs.forEach((s) => subSet.add(s.name));
-    const subcategoriesCount = subSet.size;
+    } catch (e) {
+      console.error("Failed to load categories", e);
+    }
 
-    // 4. Total Advertise Request
+    // Business listings — used to weight the category share chart with real usage
+    try {
+      const res = await fetch(`${API_BASE_URL}/businesses`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        data.data.forEach((biz: any) => {
+          const mainCat = (biz.category || "General").split(" > ")[0];
+          categoryCounts[mainCat] = (categoryCounts[mainCat] || 0) + 1;
+        });
+      }
+    } catch (e) {
+      console.error("Failed to load businesses for category chart", e);
+    }
+
+    // 4. Total Advertise Requests
     let advertiseCount = 0;
     try {
-      const advSaved = localStorage.getItem("fmp_advertise_requests:v1");
-      if (advSaved) {
-        const parsed = JSON.parse(advSaved);
-        if (Array.isArray(parsed)) advertiseCount = parsed.length;
-      }
-    } catch (e) {}
+      const res = await fetch(`${API_BASE_URL}/advertise-requests`, { headers: authHeaders });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.requests)) advertiseCount = data.requests.length;
+    } catch (e) {
+      console.error("Failed to load advertise requests", e);
+    }
 
     // 5. Total Tourist Places
     let touristPlacesCount = 0;
     try {
-      const tourSaved = localStorage.getItem("fmp_custom_tourist_places");
-      if (tourSaved) {
-        const parsed = JSON.parse(tourSaved);
-        if (Array.isArray(parsed)) touristPlacesCount = parsed.length;
-      }
-    } catch (e) {}
+      const res = await fetch(`${API_BASE_URL}/tourist-places`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) touristPlacesCount = data.data.length;
+    } catch (e) {
+      console.error("Failed to load tourist places", e);
+    }
 
-    // 6. Total Support Request
+    // 6. Total Support Requests
     let supportCount = 0;
     try {
-      supportCount = loadTickets().length;
-    } catch (e) {}
+      const res = await fetch(`${API_BASE_URL}/help/tickets`, { headers: authHeaders });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) supportCount = data.data.length;
+    } catch (e) {
+      console.error("Failed to load support tickets", e);
+    }
 
-    return {
+    setStats({
       usersCount,
       categoriesCount,
       subcategoriesCount,
       advertiseCount,
       touristPlacesCount,
       supportCount
-    };
-  }, [listings]);
-
-  const categoryData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    listings.forEach((l) => {
-      const mainCat = l.category.split(" > ")[0] || l.category;
-      counts[mainCat] = (counts[mainCat] || 0) + 1;
     });
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [listings]);
+    setCategoryData(
+      Object.entries(categoryCounts)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+    );
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
 
 
   return (

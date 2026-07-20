@@ -17,6 +17,8 @@ import PopularServiceDetailPage from "./pages/PopularServiceDetail";
 import MobileTransactionPage from "./pages/MobileTransactionPage";
 import MobileProfilePage from "./pages/MobileProfilePage";
 import { Home, CalendarDays, Receipt, User } from "lucide-react";
+import { socketService } from "./services/socketService";
+import ReviewPromptModal from "./components/ReviewPromptModal";
 
 
 interface AppViewState {
@@ -209,6 +211,13 @@ function parsePath(): {
 }
 
 export default function App() {
+  const [activeReviewPrompt, setActiveReviewPrompt] = useState<{
+    bookingId: string;
+    businessId: string;
+    businessName: string;
+    service: string;
+  } | null>(null);
+
   const [username, setUsername] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
       const savedProfile = localStorage.getItem("fmp_profile_personal:v1");
@@ -402,6 +411,48 @@ export default function App() {
       window.removeEventListener("fmp-open-signin", handleSignInOpen);
       window.removeEventListener("fmp-open-page", handleOpenPage);
       window.removeEventListener("fmp-select-business", handleSelectBusiness);
+    };
+  }, []);
+
+  // WebSocket Connection and Event Listening for Real-time Review Prompts
+  useEffect(() => {
+    const registerSocket = () => {
+      const token = localStorage.getItem("fmp_user_token");
+      if (token) {
+        try {
+          const payload = token.split(".")[1];
+          const decoded = JSON.parse(window.atob(payload));
+          if (decoded && decoded.id) {
+            socketService.registerUser(decoded.id);
+          }
+        } catch (e) {
+          console.error("Failed to register socket user:", e);
+        }
+      }
+    };
+
+    // Initial registration
+    registerSocket();
+
+    // Listen for booking completed events
+    socketService.onRequestReview((data) => {
+      console.log("WebSocket review request received in App:", data);
+      setActiveReviewPrompt(data);
+    });
+
+    // Check on storage events (sign in / logout)
+    const handleStorageChange = () => {
+      const token = localStorage.getItem("fmp_user_token");
+      if (token) {
+        registerSocket();
+      } else {
+        socketService.unregisterUser();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
 
@@ -751,6 +802,17 @@ export default function App() {
             })}
           </div>
         </nav>
+      )}
+
+      {/* Real-time rating/review popup prompt */}
+      {activeReviewPrompt && (
+        <ReviewPromptModal
+          bookingId={activeReviewPrompt.bookingId}
+          businessId={activeReviewPrompt.businessId}
+          businessName={activeReviewPrompt.businessName}
+          service={activeReviewPrompt.service}
+          onClose={() => setActiveReviewPrompt(null)}
+        />
       )}
     </div>
   );

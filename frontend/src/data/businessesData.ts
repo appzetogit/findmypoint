@@ -76,6 +76,7 @@ export interface BusinessListingData {
   pincode?: string;
   password?: string;
   clientPassword?: string; // Plain text — admin reference only
+  ownerName?: string;
 }
 
 export const businessesData: BusinessListingData[] = [];

@@ -36,27 +36,50 @@ export default function FAQManagement({ clientListings }: FAQManagementProps) {
   useEffect(() => {
     const map: Record<string, FAQEntry[]> = {};
     clientListings.forEach((biz) => {
-      try {
-        const saved = localStorage.getItem(storageKey(biz.id));
-        if (saved) {
-          map[biz.id] = JSON.parse(saved);
-        } else {
-          map[biz.id] = [];
-        }
-      } catch {
-        map[biz.id] = [];
-      }
+      const dbFaqs = Array.isArray(biz.faqs) ? biz.faqs : [];
+      map[biz.id] = dbFaqs.map((f: any, idx: number) => ({
+        id: f.id || `faq_${idx}_${Date.now()}`,
+        question: f.question || "",
+        answer: f.answer || ""
+      }));
     });
     setFaqsMap(map);
   }, [clientListings]);
 
-  const saveFaqs = (bizId: string, faqs: FAQEntry[]) => {
+  useEffect(() => {
+    if (clientListings.length > 0 && !selectedBizId) {
+      setSelectedBizId(clientListings[0].id);
+    }
+  }, [clientListings, selectedBizId]);
+
+  const saveFaqs = async (bizId: string, faqs: FAQEntry[]) => {
     const updated = { ...faqsMap, [bizId]: faqs };
     setFaqsMap(updated);
+
+    const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
+    const headers: HeadersInit = {
+      "Content-Type": "application/json"
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     try {
-      localStorage.setItem(storageKey(bizId), JSON.stringify(faqs));
+      const res = await fetch(`http://localhost:5000/api/faqs/business/${bizId}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          faqs: faqs.map(f => ({ question: f.question, answer: f.answer }))
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.dispatchEvent(new Event("storage"));
+      } else {
+        console.error("Failed to update FAQs in database:", data.message);
+      }
     } catch (e) {
-      console.error("Failed to save FAQs", e);
+      console.error("Failed to save FAQs to backend API:", e);
     }
   };
 

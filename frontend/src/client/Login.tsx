@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Mail, Lock, ShieldCheck, Sun, Moon, AlertCircle, Loader2 } from "lucide-react";
+import { Mail, Lock, ShieldCheck, Sun, Moon, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import logoImg from "../assets/logo.png";
 
 interface ClientSession {
@@ -19,6 +19,7 @@ interface LoginProps {
 export default function Login({ onLoginSuccess, isDarkMode, toggleDarkMode }: LoginProps) {
   const [emailInput, setEmailInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -126,13 +127,22 @@ export default function Login({ onLoginSuccess, isDarkMode, toggleDarkMode }: Lo
               <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
               <input
                 id="clientPassword"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
                 placeholder="••••••••"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-950 text-sm pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                className="w-full bg-slate-50 dark:bg-slate-950 text-sm pl-11 pr-11 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((p) => !p)}
+                className="absolute right-3.5 top-3.5 text-slate-400 dark:text-slate-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                tabIndex={-1}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </div>
 

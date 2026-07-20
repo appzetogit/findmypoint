@@ -149,7 +149,7 @@ const deleteBusiness = async (req, res) => {
 // @route   POST /api/businesses/:id/reviews
 // @access  Public (or Private depending on policy, we will extract user information if logged in)
 const addBusinessReview = async (req, res) => {
-  const { userName, rating, reviewText, userEmail } = req.body;
+  const { userName, rating, reviewText, userEmail, bookingId } = req.body;
 
   if (!userName || !rating || !reviewText) {
     return res.status(400).json({ success: false, message: 'Please provide name, rating, and review text' });
@@ -193,6 +193,15 @@ const addBusinessReview = async (req, res) => {
     business.rating = Number((totalRatingSum / totalReviews).toFixed(1));
 
     await business.save();
+
+    if (bookingId) {
+      try {
+        const BookingModel = require('../models/Booking');
+        await BookingModel.findOneAndUpdate({ id: bookingId }, { isReviewed: true });
+      } catch (err) {
+        console.error('Failed to update booking isReviewed status:', err);
+      }
+    }
 
     res.status(201).json({ success: true, rating: business.rating, reviewCount: business.reviewCount, data: business.reviews });
   } catch (error) {
@@ -383,11 +392,16 @@ const changeBusinessPassword = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
     }
 
-    // Hash new password and save
+    // Hash new password and save via direct update to bypass pre-save hook (which would double-hash)
     const salt = await bcrypt.genSalt(10);
-    business.password = await bcrypt.hash(newPassword, salt);
-    business.clientPassword = newPassword; // Keep plain text in sync for admin reference
-    await business.save();
+    const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
+    await Business.findByIdAndUpdate(businessId, {
+      $set: {
+        password: hashedNewPassword,
+        clientPassword: newPassword // Store plain text for admin reference
+      }
+    });
 
     res.status(200).json({ success: true, message: 'Password updated successfully.' });
   } catch (error) {

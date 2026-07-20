@@ -1,13 +1,27 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Search,
   CheckCircle,
   Percent,
   Save,
-  Tag
+  Tag,
+  Eye,
+  X,
+  IndianRupee,
+  Receipt
 } from "lucide-react";
 import { businessesData } from "../data/businessesData";
 import { API_BASE_URL } from "../config";
+
+interface CommissionTransaction {
+  id: string;
+  bookingId: string;
+  timestamp: string;
+  customerName: string;
+  amount: number;
+  status: string;
+}
 
 interface BusinessCommissionRow {
   id: string;
@@ -16,6 +30,8 @@ interface BusinessCommissionRow {
   salesVolume: number;
   commissionRate: number; // e.g. 10 for 10%
   commissionEarned: number;
+  isEstimated: boolean;
+  transactions: CommissionTransaction[];
 }
 
 export default function BusinessCommission() {
@@ -23,6 +39,7 @@ export default function BusinessCommission() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [detailsRow, setDetailsRow] = useState<BusinessCommissionRow | null>(null);
 
   const loadCommissionsData = async () => {
     try {
@@ -86,6 +103,7 @@ export default function BusinessCommission() {
       // 3. Compile rows
       const compiledRows: BusinessCommissionRow[] = await Promise.all(activeBookingListings.map(async (biz) => {
         let salesVolume = 0;
+        let transactions: CommissionTransaction[] = [];
         try {
           const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_business_token") || "";
           const headers: HeadersInit = {};
@@ -95,14 +113,22 @@ export default function BusinessCommission() {
           const resTxn = await fetch(`${API_BASE_URL}/transactions/business/${biz.id}`, { headers });
           const dataTxn = await resTxn.json();
           if (dataTxn.success && Array.isArray(dataTxn.data)) {
-            salesVolume = dataTxn.data
-              .filter((tx: any) => tx.status === "Completed")
-              .reduce((sum: number, tx: any) => sum + tx.amount, 0);
+            const completedTxns = dataTxn.data.filter((tx: any) => tx.status === "Completed");
+            salesVolume = completedTxns.reduce((sum: number, tx: any) => sum + tx.amount, 0);
+            transactions = completedTxns.map((tx: any) => ({
+              id: tx.id,
+              bookingId: tx.bookingId || tx.id,
+              timestamp: tx.timestamp,
+              customerName: tx.customerName || "Guest",
+              amount: tx.amount,
+              status: tx.status
+            }));
           }
         } catch (e) {}
 
         // Fallback mock if sales volume is zero for premium look
-        if (salesVolume === 0) {
+        const isEstimated = salesVolume === 0;
+        if (isEstimated) {
           const hash = biz.id.charCodeAt(0) + biz.id.charCodeAt(biz.id.length - 1);
           salesVolume = (hash % 10 + 2) * 999;
         }
@@ -113,6 +139,8 @@ export default function BusinessCommission() {
         return {
           id: biz.id,
           name: biz.name,
+          isEstimated,
+          transactions,
           category: biz.category || "General",
           salesVolume,
           commissionRate,
@@ -262,6 +290,7 @@ export default function BusinessCommission() {
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Category</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Booking Status</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider w-40">Commission Rate (%)</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Admin Profit</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Action</th>
               </tr>
             </thead>
@@ -289,20 +318,32 @@ export default function BusinessCommission() {
                         <span className="text-slate-400 font-bold">%</span>
                       </div>
                     </td>
+                    <td className="px-6 py-4 font-black text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                      ₹{row.commissionEarned.toLocaleString("en-IN")}
+                    </td>
                     <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => handleSaveCommission(row.id, row.commissionRate)}
-                        className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/30 dark:border-indigo-900/30 transition cursor-pointer inline-flex items-center justify-center"
-                        title="Save Commission Rate"
-                      >
-                        <Save className="h-4 w-4" />
-                      </button>
+                      <div className="inline-flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => setDetailsRow(row)}
+                          className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 border border-slate-200/60 dark:border-slate-700/60 transition cursor-pointer inline-flex items-center justify-center"
+                          title="View Profit Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleSaveCommission(row.id, row.commissionRate)}
+                          className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/30 dark:border-indigo-900/30 transition cursor-pointer inline-flex items-center justify-center"
+                          title="Save Commission Rate"
+                        >
+                          <Save className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-semibold">
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-semibold">
                     No active booking businesses found matching the criteria.
                   </td>
                 </tr>
@@ -311,6 +352,119 @@ export default function BusinessCommission() {
           </table>
         </div>
       </div>
+
+      {/* Admin Profit Details Modal */}
+      {detailsRow && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setDetailsRow(null)}
+        >
+          <div
+            className="w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 sticky top-0 bg-white dark:bg-slate-900 z-10">
+              <div>
+                <h4 className="font-serif text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                  <Receipt className="h-4.5 w-4.5 text-indigo-500" />
+                  Admin Profit Details
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{detailsRow.name} &middot; {detailsRow.category}</p>
+              </div>
+              <button
+                onClick={() => setDetailsRow(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Summary strip */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60">
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Total Sales Volume</span>
+                <span className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-0.5">
+                  <IndianRupee className="h-3.5 w-3.5" /> {detailsRow.salesVolume.toLocaleString("en-IN")}
+                </span>
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Commission Rate</span>
+                <span className="text-sm font-black text-slate-900 dark:text-white">{detailsRow.commissionRate}%</span>
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Total Admin Profit</span>
+                <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                  <IndianRupee className="h-3.5 w-3.5" /> {detailsRow.commissionEarned.toLocaleString("en-IN")}
+                </span>
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Total Business Profit</span>
+                <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-0.5">
+                  <IndianRupee className="h-3.5 w-3.5" /> {(detailsRow.salesVolume - detailsRow.commissionEarned).toLocaleString("en-IN")}
+                </span>
+              </div>
+            </div>
+
+            {detailsRow.isEstimated && (
+              <div className="mx-6 mt-4 flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 px-3.5 py-2.5 rounded-xl text-[11px] font-semibold">
+                <span>No completed bookings found yet for this business — the figures above are an estimated placeholder, not booking-wise profit.</span>
+              </div>
+            )}
+
+            {/* Booking-wise breakdown */}
+            <div className="px-6 py-5">
+              {detailsRow.transactions.length > 0 ? (
+                <div className="overflow-x-auto border border-slate-200/50 dark:border-slate-800/50 rounded-xl">
+                  <table className="w-full border-collapse text-left">
+                    <thead>
+                      <tr className="bg-slate-50/50 dark:bg-slate-950/50 border-b border-slate-200/60 dark:border-slate-800/60">
+                        <th className="px-4 py-2.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Date</th>
+                        <th className="px-4 py-2.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Booking ID</th>
+                        <th className="px-4 py-2.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Customer</th>
+                        <th className="px-4 py-2.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-right">Order Value</th>
+                        <th className="px-4 py-2.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-right">Admin Profit</th>
+                        <th className="px-4 py-2.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-right">Business Profit</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200/40 dark:divide-slate-800/40 text-xs font-medium text-slate-700 dark:text-slate-300">
+                      {detailsRow.transactions.map((txn) => {
+                        const profit = parseFloat(((txn.amount * detailsRow.commissionRate) / 100).toFixed(2));
+                        const bizProfit = parseFloat((txn.amount - profit).toFixed(2));
+                        return (
+                          <tr key={txn.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-900/30 transition-colors">
+                            <td className="px-4 py-2.5 whitespace-nowrap text-slate-500 dark:text-slate-400">{txn.timestamp}</td>
+                            <td className="px-4 py-2.5 font-mono text-indigo-600 dark:text-indigo-400 font-bold whitespace-nowrap">{txn.bookingId}</td>
+                            <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-white">{txn.customerName}</td>
+                            <td className="px-4 py-2.5 text-right">₹{txn.amount.toLocaleString("en-IN")}</td>
+                            <td className="px-4 py-2.5 text-right font-black text-emerald-600 dark:text-emerald-400">₹{profit.toLocaleString("en-IN")}</td>
+                            <td className="px-4 py-2.5 text-right font-black text-indigo-600 dark:text-indigo-400">₹{bizProfit.toLocaleString("en-IN")}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                !detailsRow.isEstimated && (
+                  <p className="text-center text-slate-400 dark:text-slate-500 font-semibold text-xs py-8">
+                    No completed bookings found for this business yet.
+                  </p>
+                )
+              )}
+            </div>
+
+            <div className="flex items-center justify-end px-6 py-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/50">
+              <button
+                onClick={() => setDetailsRow(null)}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

@@ -30,6 +30,7 @@ export interface PaymentTransaction {
   paymentMethod: "upi" | "card" | "netbanking";
   status: "Completed" | "Refunded" | "Failed";
   details: string;
+  bookingStatus?: string;
 }
 
 export default function PaymentManagement({ clientListings }: PaymentManagementProps) {
@@ -62,21 +63,43 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
     if (selectedBizId) {
       const loadTransactions = async () => {
         try {
+          // Fetch raw bookings to get the status matching bookingId
+          let rawBookings: any[] = [];
+          const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
+          const headers: HeadersInit = {};
+          if (token) {
+            headers["Authorization"] = `Bearer ${token}`;
+          }
+
+          try {
+            const res = await fetch("http://localhost:5000/api/bookings", { headers });
+            const data = await res.json();
+            if (data.success && Array.isArray(data.data)) {
+              rawBookings = data.data;
+            }
+          } catch (err) {
+            console.error("Error loading bookings for payments:", err);
+          }
+
           const res = await fetch(`http://localhost:5000/api/transactions/business/${selectedBizId}`, {
             headers: getAuthHeaders()
           });
           const data = await res.json();
           if (data.success && Array.isArray(data.data)) {
-            const mapped = data.data.map((txn: any) => ({
-              id: txn.id,
-              bookingId: txn.bookingId || "",
-              timestamp: txn.timestamp,
-              customerName: txn.customerName || "Guest",
-              amount: txn.amount,
-              paymentMethod: txn.paymentMethod || "upi",
-              status: txn.status || "Completed",
-              details: txn.details || txn.description || "Booking Payment"
-            }));
+            const mapped = data.data.map((txn: any) => {
+              const bookingMatch = rawBookings.find((b) => b.id === txn.bookingId);
+              return {
+                id: txn.id,
+                bookingId: txn.bookingId || "",
+                timestamp: txn.timestamp,
+                customerName: txn.customerName || "Guest",
+                amount: txn.amount,
+                paymentMethod: txn.paymentMethod || "upi",
+                status: txn.status || "Completed",
+                details: txn.details || txn.description || "Booking Payment",
+                bookingStatus: bookingMatch ? bookingMatch.status : "pending"
+              };
+            });
             setTransactions(mapped);
           } else {
             setTransactions([]);
@@ -197,6 +220,42 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
       } catch (err) {
         alert("Failed to issue refund in database");
       }
+    }
+  };
+
+  const getBookingStatusBadge = (status: string) => {
+    const s = (status || "pending").toLowerCase();
+    switch (s) {
+      case "completed":
+        return (
+          <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <CheckCircle className="h-3 w-3" /> Completed
+          </span>
+        );
+      case "confirmed":
+        return (
+          <span className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <CheckCircle className="h-3 w-3" /> Confirmed
+          </span>
+        );
+      case "pending":
+        return (
+          <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-450 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <AlertCircle className="h-3 w-3" /> Pending
+          </span>
+        );
+      case "cancelled":
+        return (
+          <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-955/20 text-rose-700 dark:text-rose-455 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <XCircle className="h-3 w-3" /> Cancelled
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 px-2 py-0.5 rounded-full text-[10px] font-bold capitalize">
+            {status}
+          </span>
+        );
     }
   };
 
@@ -379,8 +438,8 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
                     <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Details</th>
                     <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Method</th>
                     <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                    <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Payment Status</th>
+                    <th className="px-4 py-3.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Booking Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-150 dark:divide-slate-850">
@@ -410,13 +469,13 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
                       <td className="px-4 py-3 text-xs text-slate-900 dark:text-white font-serif font-black">
                         ₹{txn.amount}
                       </td>
-                      <td className="px-4 py-3 text-xs">
+                      <td className="px-4 py-3 text-xs text-center">
                         <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
                           txn.status === "Completed"
                             ? "bg-emerald-50 dark:bg-emerald-950/25 text-emerald-600 dark:text-emerald-450 border border-emerald-250/25"
                             : txn.status === "Refunded"
                               ? "bg-amber-50 dark:bg-amber-950/25 text-amber-600 dark:text-amber-450 border border-amber-250/25"
-                              : "bg-rose-50 dark:bg-rose-950/25 text-rose-600 dark:text-rose-450 border border-rose-250/25"
+                              : "bg-rose-50 dark:bg-rose-950/25 text-rose-600 dark:text-rose-455 border border-rose-250/25"
                         }`}>
                           {txn.status === "Completed" && <CheckCircle className="h-3 w-3 fill-current stroke-none" />}
                           {txn.status === "Refunded" && <RefreshCcw className="h-3 w-3" />}
@@ -424,17 +483,8 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
                           {txn.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        {txn.status === "Completed" ? (
-                          <button
-                            onClick={() => handleRefund(txn.id)}
-                            className="px-3 py-1 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg text-[10.5px] font-bold transition duration-300 cursor-pointer active:scale-95 border border-amber-500/20"
-                          >
-                            Issue Refund
-                          </button>
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground/60 font-extrabold italic select-none">No Action</span>
-                        )}
+                      <td className="px-4 py-3 text-xs text-center">
+                        {getBookingStatusBadge(txn.bookingStatus || "pending")}
                       </td>
                     </tr>
                   ))}

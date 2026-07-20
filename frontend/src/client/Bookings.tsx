@@ -14,6 +14,7 @@ import {
   XCircle
 } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 
 interface BookingsProps {
   clientListings: BusinessListingData[];
@@ -23,6 +24,7 @@ interface Submission {
   id: string;
   timestamp: string;
   status?: string;
+  paymentStatus?: string;
   data: Record<string, any>;
 }
 
@@ -36,6 +38,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
   const [reloadCount, setReloadCount] = useState(0);
   const [confirmCancelBookingId, setConfirmCancelBookingId] = useState<string | null>(null);
   const [confirmCancelCustomerName, setConfirmCancelCustomerName] = useState<string>("");
+  const [commissionRate, setCommissionRate] = useState<number>(10);
 
   // Sync selectedBizId when clientListings load
   useEffect(() => {
@@ -48,6 +51,26 @@ export default function Bookings({ clientListings }: BookingsProps) {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, selectedBizId]);
+
+  // Load this business's admin commission rate so we can show its own profit per booking
+  useEffect(() => {
+    if (!selectedBizId) return;
+    const loadCommissionRate = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/business-commissions`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          const match = data.data.find((item: any) => item.businessId === selectedBizId);
+          setCommissionRate(match ? match.commissionRate : 10);
+        } else {
+          setCommissionRate(10);
+        }
+      } catch (err) {
+        setCommissionRate(10);
+      }
+    };
+    loadCommissionRate();
+  }, [selectedBizId]);
 
   // Load configuration & submissions for selected business
   useEffect(() => {
@@ -118,7 +141,8 @@ export default function Bookings({ clientListings }: BookingsProps) {
             mergedSubmissions.push({
               id: match.id, // Use FMP-XXXX
               timestamp: sub.timestamp,
-              status: match.status || (bookingMatch ? bookingMatch.status : "pending"),
+              status: bookingMatch ? bookingMatch.status : (match.status || "pending"),
+              paymentStatus: bookingMatch ? bookingMatch.paymentStatus : "paid",
               data: {
                 ...sub.data,
                 "Order Type": "Product Order"
@@ -134,6 +158,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
           id: sub.id,
           timestamp: sub.timestamp,
           status: bookingMatch ? bookingMatch.status : "pending",
+          paymentStatus: bookingMatch ? bookingMatch.paymentStatus : "pending",
           data: sub.data
         });
       });
@@ -144,7 +169,8 @@ export default function Bookings({ clientListings }: BookingsProps) {
         mergedSubmissions.push({
           id: order.id,
           timestamp: order.timestamp,
-          status: order.status || (bookingMatch ? bookingMatch.status : "pending"),
+          status: bookingMatch ? bookingMatch.status : (order.status || "pending"),
+          paymentStatus: bookingMatch ? bookingMatch.paymentStatus : "paid",
           data: {
             "Full Name": order.customerName,
             "Phone Number": order.customerPhone,
@@ -220,29 +246,83 @@ export default function Bookings({ clientListings }: BookingsProps) {
     return "-";
   };
 
-  const getStatusBadge = (status: string) => {
-    const s = status === "confirmed" || status === "completed" || status === "Completed" ? "Completed" : status === "cancelled" || status === "Cancelled" ? "Cancelled" : "Pending";
-    switch (s) {
-      case "Completed":
+  // Parses the raw total amount string (e.g. "₹599") down to a plain number
+  const getTotalAmountNumber = (data: Record<string, any>): number => {
+    const raw = getTotalAmount(data);
+    const parsed = parseFloat(raw.replace(/[^0-9.]/g, ""));
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  // Business's own earnings for a booking after the admin commission is deducted
+  const getBusinessProfit = (data: Record<string, any>): number => {
+    const amount = getTotalAmountNumber(data);
+    return parseFloat((amount - (amount * commissionRate) / 100).toFixed(2));
+  };
+
+  const getPaymentStatusBadge = (paymentStatus: string) => {
+    const ps = (paymentStatus || "pending").toLowerCase();
+    switch (ps) {
+      case "paid":
+      case "success":
         return (
-          <span className="inline-flex items-center gap-1 bg-emerald-55/70 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
+          <span className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            Paid
+          </span>
+        );
+      case "pending":
+        return (
+          <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-955/20 text-amber-600 dark:text-amber-450 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            Pending
+          </span>
+        );
+      case "failed":
+        return (
+          <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-455 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            Failed
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-400 px-2 py-0.5 rounded-full text-[10px] font-bold capitalize">
+            {paymentStatus}
+          </span>
+        );
+    }
+  };
+
+  const getBookingStatusBadge = (status: string) => {
+    const s = (status || "pending").toLowerCase();
+    switch (s) {
+      case "completed":
+        return (
+          <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
             <CheckCircle className="h-3 w-3" /> Completed
           </span>
         );
-      case "Pending":
+      case "confirmed":
         return (
-          <span className="inline-flex items-center gap-1 bg-amber-55/70 dark:bg-amber-955/20 text-amber-700 dark:text-amber-450 px-2 py-0.5 rounded-full text-[10px] font-bold">
+          <span className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <CheckCircle className="h-3 w-3" /> Confirmed
+          </span>
+        );
+      case "pending":
+        return (
+          <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-450 px-2 py-0.5 rounded-full text-[10px] font-bold">
             <AlertCircle className="h-3 w-3" /> Pending
           </span>
         );
-      case "Cancelled":
+      case "cancelled":
         return (
-          <span className="inline-flex items-center gap-1 bg-rose-55/70 dark:bg-rose-955/20 text-rose-700 dark:text-rose-455 px-2 py-0.5 rounded-full text-[10px] font-bold">
+          <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-955/20 text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
             <XCircle className="h-3 w-3" /> Cancelled
           </span>
         );
       default:
-        return null;
+        return (
+          <span className="inline-flex items-center gap-1 bg-slate-105 dark:bg-slate-800 text-slate-700 dark:text-slate-400 px-2 py-0.5 rounded-full text-[10px] font-bold capitalize">
+            {status}
+          </span>
+        );
     }
   };
 
@@ -335,6 +415,32 @@ export default function Bookings({ clientListings }: BookingsProps) {
       }
     } catch (err) {
       alert("Something went wrong while cancelling the booking");
+    }
+  };
+
+  // Perform actual completion API call
+  const executeComplete = async (bookingId: string) => {
+    const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}/status`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ status: "completed" })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setReloadCount(prev => prev + 1);
+        window.dispatchEvent(new Event("storage"));
+      } else {
+        alert(data.message || "Failed to complete booking");
+      }
+    } catch (err) {
+      alert("Something went wrong while completing the booking");
     }
   };
 
@@ -447,7 +553,9 @@ export default function Bookings({ clientListings }: BookingsProps) {
                     <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] min-w-[120px]">Phone</th>
                     <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] min-w-[180px]">Order Items</th>
                     <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] min-w-[110px]">Total Amount</th>
-                    <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] text-center min-w-[100px]">Status</th>
+                    <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] min-w-[110px]">Your Profit</th>
+                    <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] text-center min-w-[130px]">Payment Status</th>
+                    <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] text-center min-w-[130px]">Booking Status</th>
                     <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] text-right">Actions</th>
                   </tr>
                 </thead>
@@ -503,9 +611,21 @@ export default function Bookings({ clientListings }: BookingsProps) {
                           {getTotalAmount(sub.data)}
                         </td>
 
-                        {/* Status */}
+                        {/* Your Profit (order value after admin commission) */}
+                        <td className="p-4 whitespace-nowrap font-bold text-indigo-600 dark:text-indigo-400">
+                          {getTotalAmountNumber(sub.data) > 0
+                            ? `₹${getBusinessProfit(sub.data).toLocaleString("en-IN")}`
+                            : "-"}
+                        </td>
+
+                        {/* Payment Status */}
                         <td className="p-4 whitespace-nowrap text-center">
-                          {getStatusBadge(sub.status || "pending")}
+                          {getPaymentStatusBadge(sub.paymentStatus || "pending")}
+                        </td>
+
+                        {/* Booking Status */}
+                        <td className="p-4 whitespace-nowrap text-center">
+                          {getBookingStatusBadge(sub.status || "pending")}
                         </td>
 
                         {/* Actions */}
@@ -518,7 +638,20 @@ export default function Bookings({ clientListings }: BookingsProps) {
                             >
                               <Eye className="h-4 w-4" />
                             </button>
-                            {sub.status !== "cancelled" && sub.status !== "Cancelled" && (
+                             {sub.status !== "completed" && sub.status !== "Completed" && sub.status !== "cancelled" && sub.status !== "Cancelled" && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Are you sure you want to mark booking ${bookingId} as Completed?`)) {
+                                    executeComplete(sub.id);
+                                  }
+                                }}
+                                className="p-2 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition cursor-pointer"
+                                title="Mark as Completed"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </button>
+                            )}
+                            {sub.status !== "cancelled" && sub.status !== "Cancelled" && sub.status !== "completed" && sub.status !== "Completed" && (
                               <button
                                 onClick={() => handleCancel(sub.id, getCustomerName(sub.data))}
                                 className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-55/70 dark:hover:bg-amber-950/20 transition cursor-pointer"
@@ -621,12 +754,31 @@ export default function Bookings({ clientListings }: BookingsProps) {
                 <span>Submitted at: <strong>{selectedSubForModal.timestamp}</strong></span>
               </div>
               <div>
-                <span>Booking ID: <strong className="font-mono text-indigo-600 dark:text-indigo-400 select-all">{(() => {
-                  const numbers = selectedSubForModal.id.replace(/\D/g, "");
-                  return `BOOK${numbers.slice(-5) || "12345"}`;
-                })()}</strong></span>
+                <span>Booking ID: <strong className="font-mono text-indigo-600 dark:text-indigo-400 select-all">{
+                  selectedSubForModal.id.startsWith("FMP-") || selectedSubForModal.id.startsWith("BK")
+                    ? selectedSubForModal.id
+                    : (() => {
+                        const numbers = selectedSubForModal.id.replace(/\D/g, "");
+                        return `BOOK${numbers.slice(-5) || "12345"}`;
+                      })()
+                }</strong></span>
               </div>
             </div>
+
+            {getTotalAmountNumber(selectedSubForModal.data) > 0 && (
+              <div className="grid grid-cols-2 gap-3 p-4 border border-slate-100 dark:border-slate-800 rounded-2xl bg-slate-50/30 dark:bg-slate-950/20">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Admin Commission</span>
+                  <span className="text-sm font-black text-slate-800 dark:text-slate-200">{commissionRate}%</span>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Your Profit</span>
+                  <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
+                    ₹{getBusinessProfit(selectedSubForModal.data).toLocaleString("en-IN")}
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/30 dark:bg-slate-950/20">
               {Object.entries(selectedSubForModal.data || {}).map(([key, val]) => {
@@ -655,6 +807,20 @@ export default function Bookings({ clientListings }: BookingsProps) {
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-3 pt-5 mt-5 border-t border-slate-100 dark:border-slate-800">
+            {selectedSubForModal.status !== "completed" && selectedSubForModal.status !== "Completed" && selectedSubForModal.status !== "cancelled" && selectedSubForModal.status !== "Cancelled" && (
+              <button
+                onClick={async () => {
+                  if (window.confirm("Are you sure you want to mark this booking as Completed?")) {
+                    const subId = selectedSubForModal.id;
+                    setSelectedSubForModal(null);
+                    await executeComplete(subId);
+                  }
+                }}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition cursor-pointer"
+              >
+                Mark as Completed
+              </button>
+            )}
             <button
               onClick={() => setSelectedSubForModal(null)}
               className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-350 hover:bg-slate-200 dark:hover:bg-slate-750 transition cursor-pointer"

@@ -16,7 +16,7 @@ interface ProfileSettingsProps {
 
 export default function ProfileSettings({ session, onProfileUpdate }: ProfileSettingsProps) {
   // General Info states
-  const [name, setName] = useState("");
+  const [ownerName, setOwnerName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
@@ -37,12 +37,21 @@ export default function ProfileSettings({ session, onProfileUpdate }: ProfileSet
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Populate from session on mount or change
+  // Populate from session and fetch ownerName from business listing
   useEffect(() => {
     if (session) {
-      setName(session.name || "");
       setEmail(session.email || "");
       setPhone(session.phone || "");
+    }
+    if (session?.businessId) {
+      fetch(`http://localhost:5000/api/businesses/${session.businessId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.data) {
+            setOwnerName(data.data.ownerName || "");
+          }
+        })
+        .catch(() => {});
     }
   }, [session]);
 
@@ -114,7 +123,7 @@ export default function ProfileSettings({ session, onProfileUpdate }: ProfileSet
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          name: name.trim(),
+          ownerName: ownerName.trim(),
           phone: phone.trim(),
           email: email.trim(),
         }),
@@ -132,7 +141,7 @@ export default function ProfileSettings({ session, onProfileUpdate }: ProfileSet
       // Step 3: Sync local session with updated data
       const updatedSession: ClientSession = {
         ...session,
-        name: profileData.data?.name || name.trim(),
+        name: profileData.data?.name || session.name || "",
         email: profileData.data?.email || email.trim(),
         phone: profileData.data?.phone || phone.trim(),
       };
@@ -187,10 +196,9 @@ export default function ProfileSettings({ session, onProfileUpdate }: ProfileSet
                 <User className="absolute left-3.5 top-3.5 h-4.5 w-4.5 text-slate-400 dark:text-slate-500" />
                 <input
                   type="text"
-                  required
-                  placeholder="Demo Client"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Rajesh Sharma"
+                  value={ownerName}
+                  onChange={(e) => setOwnerName(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-slate-950 text-xs pl-11 pr-4 py-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 font-semibold"
                 />
               </div>

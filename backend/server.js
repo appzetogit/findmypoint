@@ -17,6 +17,47 @@ connectDB();
 
 const app = express();
 
+// Initialize HTTP server and Socket.io server
+const http = require('http');
+const { Server } = require('socket.io');
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE']
+  }
+});
+
+const activeSockets = new Map(); // userId -> Set of socketIds
+app.set('io', io);
+app.set('activeSockets', activeSockets);
+
+io.on('connection', (socket) => {
+  console.log(`Socket connected: ${socket.id}`);
+
+  socket.on('register_user', (userId) => {
+    if (!userId) return;
+    console.log(`Registering user ${userId} to socket ${socket.id}`);
+    socket.userId = userId;
+    if (!activeSockets.has(userId)) {
+      activeSockets.set(userId, new Set());
+    }
+    activeSockets.get(userId).add(socket.id);
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`Socket disconnected: ${socket.id}`);
+    if (socket.userId && activeSockets.has(socket.userId)) {
+      const sockets = activeSockets.get(socket.userId);
+      sockets.delete(socket.id);
+      if (sockets.size === 0) {
+        activeSockets.delete(socket.userId);
+      }
+    }
+  });
+});
+
 // Serve static assets using strict absolute path
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -53,6 +94,8 @@ const advertiseRequestRoutes = require('./routes/advertiseRequestRoutes');
 const helpRoutes = require('./routes/helpRoutes');
 const businessCommissionRoutes = require('./routes/businessCommissionRoutes');
 const businessRequestRoutes = require('./routes/businessRequestRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+const faqRoutes = require('./routes/faqRoutes');
 
 // API Healthcheck
 app.get('/api/health', (req, res) => {
@@ -90,6 +133,8 @@ app.use('/api/advertise-requests', advertiseRequestRoutes);
 app.use('/api/help', helpRoutes);
 app.use('/api/business-commissions', businessCommissionRoutes);
 app.use('/api/business-requests', businessRequestRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/faqs', faqRoutes);
 
 
 // Fallback Route
@@ -108,6 +153,6 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running in development mode on port ${PORT}`);
 });

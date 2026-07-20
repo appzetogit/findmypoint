@@ -63,6 +63,7 @@ const generateAIReply = (customerName: string, businessName: string, rating: num
 export default function Reviews({ clientListings }: ReviewsProps) {
   const [deletedReviews, setDeletedReviews] = useState<string[]>([]);
   const [customReviewsMap, setCustomReviewsMap] = useState<Record<string, UserReview[]>>({});
+  const [dbReviews, setDbReviews] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   
   // AI Marketing App States
@@ -100,11 +101,29 @@ export default function Reviews({ clientListings }: ReviewsProps) {
     setCustomReviewsMap(customMap);
   };
 
+  const fetchDbReviews = async () => {
+    const bizId = clientListings[0]?.id;
+    if (!bizId) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/reviews/business/${bizId}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setDbReviews(data.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch reviews:", err);
+    }
+  };
+
   useEffect(() => {
     loadReviewsData();
+    fetchDbReviews();
+
     const handleStorageChange = () => {
       loadReviewsData();
+      fetchDbReviews();
     };
+
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, [clientListings]);
@@ -137,16 +156,41 @@ export default function Reviews({ clientListings }: ReviewsProps) {
     clientListings.forEach((biz) => {
       const staticReviews = biz.reviews || [];
       const customReviews = customReviewsMap[biz.id] || [];
-      const combined = [...customReviews, ...staticReviews];
+      const dbReviewsForBiz = dbReviews.filter((r) => r.businessId === biz.id);
+      
+      const combined = [...dbReviewsForBiz, ...customReviews, ...staticReviews];
+      const seenIds = new Set<string>();
 
       combined.forEach((rev) => {
+        // Build a unique identifier to avoid duplicate logs in view
+        const key = rev._id || rev.id || `${rev.userName}:${rev.reviewText}`;
+        if (seenIds.has(key.toString())) return;
+        seenIds.add(key.toString());
+
+        let displayDate = rev.date;
+        if (!displayDate && rev.createdAt) {
+          displayDate = new Date(rev.createdAt).toLocaleDateString('en-GB', { 
+            day: 'numeric', 
+            month: 'short', 
+            year: 'numeric' 
+          });
+        }
+
         const uniqueKey = `${biz.id}:${rev.userName}:${rev.reviewText}`;
         if (!deletedReviews.includes(uniqueKey)) {
           list.push({
             uniqueKey,
             businessId: biz.id,
             businessName: biz.name,
-            ...rev,
+            userName: rev.userName,
+            userInitial: rev.userInitial || rev.userName.charAt(0).toUpperCase(),
+            userColor: rev.userColor || "from-indigo-500 to-purple-600",
+            rating: rev.rating,
+            date: displayDate || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+            reviewText: rev.reviewText,
+            userEmail: rev.userEmail || "",
+            image: rev.image,
+            isVerified: rev.isVerified
           });
         }
       });
@@ -157,7 +201,7 @@ export default function Reviews({ clientListings }: ReviewsProps) {
       const dateB = new Date(b.date).getTime() || 0;
       return dateB - dateA;
     });
-  }, [clientListings, customReviewsMap, deletedReviews]);
+  }, [clientListings, dbReviews, customReviewsMap, deletedReviews]);
 
   // Filter reviews by tab selection
   const filteredReviewsList = useMemo(() => {

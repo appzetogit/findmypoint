@@ -33,7 +33,8 @@ const BookingSchema = new mongoose.Schema({
   paymentMethod: { type: String, default: '' },
   paymentStatus: { type: String, default: 'pending' },
 
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  isReviewed: { type: Boolean, default: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Booking', BookingSchema);

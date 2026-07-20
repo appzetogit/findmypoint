@@ -84,45 +84,49 @@ export default function Dashboard({ stats, isBookingDisabled }: DashboardProps) 
     <div className="space-y-8 animate-fade-in-up text-left">
       {/* Statistics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-5 flex items-center justify-between shadow-sm animate-fade-in">
-          <div className="space-y-1">
-            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Booking</span>
-            <h4 className="text-3xl font-black text-slate-900 dark:text-white">{stats.totalBookings}</h4>
-          </div>
-          <div className="h-12 w-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-            <Calendar className="h-6 w-6" />
-          </div>
-        </div>
+        {!isBookingDisabled && (
+          <>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-5 flex items-center justify-between shadow-sm animate-fade-in">
+              <div className="space-y-1">
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Booking</span>
+                <h4 className="text-3xl font-black text-slate-900 dark:text-white">{stats.totalBookings}</h4>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                <Calendar className="h-6 w-6" />
+              </div>
+            </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-5 flex items-center justify-between shadow-sm animate-fade-in">
-          <div className="space-y-1">
-            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Accepted</span>
-            <h4 className="text-3xl font-black text-slate-900 dark:text-white">{stats.totalAccepted}</h4>
-          </div>
-          <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-            <CheckCircle2 className="h-6 w-6" />
-          </div>
-        </div>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-5 flex items-center justify-between shadow-sm animate-fade-in">
+              <div className="space-y-1">
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Accepted</span>
+                <h4 className="text-3xl font-black text-slate-900 dark:text-white">{stats.totalAccepted}</h4>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
+            </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-5 flex items-center justify-between shadow-sm animate-fade-in">
-          <div className="space-y-1">
-            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Cancelled</span>
-            <h4 className="text-3xl font-black text-slate-900 dark:text-white">{stats.totalCancelled}</h4>
-          </div>
-          <div className="h-12 w-12 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500">
-            <XCircle className="h-6 w-6" />
-          </div>
-        </div>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-5 flex items-center justify-between shadow-sm animate-fade-in">
+              <div className="space-y-1">
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Cancelled</span>
+                <h4 className="text-3xl font-black text-slate-900 dark:text-white">{stats.totalCancelled}</h4>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500">
+                <XCircle className="h-6 w-6" />
+              </div>
+            </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-5 flex items-center justify-between shadow-sm animate-fade-in">
-          <div className="space-y-1">
-            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Revenue</span>
-            <h4 className="text-3xl font-black text-slate-900 dark:text-white">₹{stats.totalRevenue}</h4>
-          </div>
-          <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-            <IndianRupee className="h-6 w-6" />
-          </div>
-        </div>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-5 flex items-center justify-between shadow-sm animate-fade-in">
+              <div className="space-y-1">
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Revenue</span>
+                <h4 className="text-3xl font-black text-slate-900 dark:text-white">₹{stats.totalRevenue}</h4>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                <IndianRupee className="h-6 w-6" />
+              </div>
+            </div>
+          </>
+        )}
 
         <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-5 flex items-center justify-between shadow-sm animate-fade-in">
           <div className="space-y-1">

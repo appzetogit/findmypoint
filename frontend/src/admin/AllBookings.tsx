@@ -13,7 +13,8 @@ import {
   AlertCircle,
   XCircle,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  RotateCcw
 } from "lucide-react";
 import { businessesData } from "../data/businessesData";
 
@@ -28,6 +29,7 @@ interface BookingRecord {
   details: Record<string, any>;
   amount: number;
   paymentMethod: string;
+  paymentStatus: string;
   status: "Completed" | "Pending" | "Cancelled" | "Refunded";
 }
 
@@ -65,6 +67,7 @@ export default function AllBookings() {
           details: b.formData || {},
           amount: b.amount || 0,
           paymentMethod: b.paymentMethod || "N/A",
+          paymentStatus: b.paymentStatus || "pending",
           status: b.status === "confirmed" || b.status === "completed" ? "Completed" : b.status === "cancelled" ? "Cancelled" : "Pending",
         }));
         setBookings(list);
@@ -162,6 +165,27 @@ export default function AllBookings() {
     }
   };
 
+  // Handle Refund Booking (Mark payment as refunded for a cancelled booking)
+  const handleRefundBooking = async (booking: BookingRecord) => {
+    if (window.confirm(`Mark payment of ₹${booking.amount} as refunded for ${booking.customerName}?`)) {
+      try {
+        const res = await fetch(`http://localhost:5000/api/bookings/${booking.id}/refund`, {
+          method: "PUT",
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadBookings();
+          window.dispatchEvent(new Event("storage"));
+        } else {
+          alert(data.message || "Failed to refund booking");
+        }
+      } catch (err) {
+        alert("Error refunding booking in database: " + err);
+      }
+    }
+  };
+
   // Handle Delete Booking (Remove entirely from database)
   const handleDeleteBooking = async (booking: BookingRecord) => {
     if (window.confirm(`Delete booking for ${booking.customerName} permanently? This cannot be undone.`)) {
@@ -214,19 +238,49 @@ export default function AllBookings() {
         );
       case "Pending":
         return (
-          <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-450 px-2 py-0.5 rounded-full text-[10px] font-bold">
+          <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
             <AlertCircle className="h-3 w-3" /> Pending
           </span>
         );
       case "Cancelled":
       case "Refunded":
         return (
-          <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-955/20 text-rose-700 dark:text-rose-455 px-2 py-0.5 rounded-full text-[10px] font-bold">
+          <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
             <XCircle className="h-3 w-3" /> Cancelled
           </span>
         );
       default:
         return null;
+    }
+  };
+
+  const getPaymentStatusBadge = (paymentStatus: string) => {
+    const normalized = (paymentStatus || "pending").toLowerCase();
+    switch (normalized) {
+      case "paid":
+        return (
+          <span className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <CheckCircle className="h-3 w-3" /> Paid
+          </span>
+        );
+      case "refunded":
+        return (
+          <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <XCircle className="h-3 w-3" /> Refunded
+          </span>
+        );
+      case "failed":
+        return (
+          <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <XCircle className="h-3 w-3" /> Failed
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <AlertCircle className="h-3 w-3" /> Pending
+          </span>
+        );
     }
   };
 
@@ -280,7 +334,7 @@ export default function AllBookings() {
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Pending Approvals</span>
             <div className="text-2xl font-black text-amber-600 dark:text-amber-500">{stats.pendingCount}</div>
           </div>
-          <div className="h-10 w-10 bg-amber-50 dark:bg-amber-955/20 text-amber-600 dark:text-amber-450 rounded-xl flex items-center justify-center">
+          <div className="h-10 w-10 bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 rounded-xl flex items-center justify-center">
             <TrendingUp className="h-5 w-5" />
           </div>
         </div>
@@ -291,7 +345,7 @@ export default function AllBookings() {
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Cancelled / Refunded</span>
             <div className="text-2xl font-black text-rose-600 dark:text-rose-500">{stats.cancelledCount}</div>
           </div>
-          <div className="h-10 w-10 bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-450 rounded-xl flex items-center justify-center">
+          <div className="h-10 w-10 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 rounded-xl flex items-center justify-center">
             <XCircle className="h-5 w-5" />
           </div>
         </div>
@@ -307,7 +361,7 @@ export default function AllBookings() {
             placeholder="Search by customer, phone, business, or ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-955 text-xs pl-10 pr-4 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-medium"
+            className="w-full bg-slate-50 dark:bg-slate-950 text-xs pl-10 pr-4 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-medium"
           />
         </div>
 
@@ -321,7 +375,7 @@ export default function AllBookings() {
                 setSelectedBusiness(e.target.value);
                 setSelectedCategory("All"); // Reset category when business changes
               }}
-              className="bg-slate-50 dark:bg-slate-955 text-xs px-3 py-2 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-bold max-w-[200px]"
+              className="bg-slate-50 dark:bg-slate-950 text-xs px-3 py-2 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-bold max-w-[200px]"
             >
               <option value="">Select Business...</option>
               {businessesList.map((biz) => (
@@ -337,7 +391,7 @@ export default function AllBookings() {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-955 text-xs px-3 py-2 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-bold"
+              className="bg-slate-50 dark:bg-slate-950 text-xs px-3 py-2 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-bold"
             >
               {categoriesList.map((cat) => (
                 <option key={cat} value={cat}>
@@ -352,7 +406,7 @@ export default function AllBookings() {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-955 text-xs px-3 py-2 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-bold"
+              className="bg-slate-50 dark:bg-slate-950 text-xs px-3 py-2 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-bold"
             >
               <option value="All">All Statuses</option>
               <option value="Completed">Completed</option>
@@ -372,19 +426,20 @@ export default function AllBookings() {
         ) : filteredBookings.length > 0 ? (
           <div className="overflow-x-auto w-full">
             <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800 text-left border-collapse">
-              <thead className="bg-slate-50/55 dark:bg-slate-955/40">
+              <thead className="bg-slate-50/55 dark:bg-slate-950/40">
                 <tr>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-400">Booking ID / Date</th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-400">Business / Category</th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-400">Customer Details</th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-400">Deposit / Payment</th>
+                  <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-400 text-center">Payment Status</th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-400 text-center">Status</th>
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-slate-400 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
                 {filteredBookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-955/10 transition-colors">
+                  <tr key={b.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-950/10 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-bold text-slate-900 dark:text-white">{b.id}</div>
                       <div className="text-[10px] text-slate-400 font-medium mt-0.5">{b.timestamp}</div>
@@ -416,13 +471,16 @@ export default function AllBookings() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
+                      {getPaymentStatusBadge(b.paymentStatus)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       {getStatusBadge(b.status)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right space-x-1.5">
                       <button
                         type="button"
                         onClick={() => setSelectedBooking(b)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 transition shadow-sm border border-slate-150 dark:border-slate-700/60 cursor-pointer"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 transition shadow-sm border border-slate-200 dark:border-slate-700/60 cursor-pointer"
                         title="View Details"
                       >
                         <Eye className="h-4 w-4" />
@@ -431,16 +489,26 @@ export default function AllBookings() {
                         <button
                           type="button"
                           onClick={() => handleCancelBooking(b)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-450 hover:bg-rose-600 hover:text-white transition shadow-sm border border-rose-100 dark:border-rose-900/30 cursor-pointer"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 hover:bg-rose-600 hover:text-white transition shadow-sm border border-rose-100 dark:border-rose-900/30 cursor-pointer"
                           title="Cancel Booking"
                         >
                           <X className="h-4 w-4" />
                         </button>
                       )}
+                      {b.status === "Cancelled" && b.paymentStatus === "paid" && (
+                        <button
+                          type="button"
+                          onClick={() => handleRefundBooking(b)}
+                          className="inline-flex h-8 items-center justify-center gap-1.5 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 hover:bg-amber-600 hover:text-white transition shadow-sm border border-amber-200 dark:border-amber-900/30 cursor-pointer text-[11px] font-bold"
+                          title="Refund Payment"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" /> Refund
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleDeleteBooking(b)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-450 hover:bg-rose-600 hover:text-white transition shadow-sm border border-slate-150 dark:border-slate-700/60 cursor-pointer"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:bg-rose-600 hover:text-white transition shadow-sm border border-slate-200 dark:border-slate-700/60 cursor-pointer"
                         title="Delete Record"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -510,7 +578,7 @@ export default function AllBookings() {
               {/* Submission Dynamic Fields */}
               <div className="border-t border-slate-100 dark:border-slate-800/60 pt-3.5 space-y-3">
                 <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">Submitted Form Data</span>
-                <div className="bg-slate-50 dark:bg-slate-955/40 border border-slate-150 dark:border-slate-850/60 rounded-2xl p-4 space-y-2.5">
+                <div className="bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/60 rounded-2xl p-4 space-y-2.5">
                   {Object.entries(selectedBooking.details).map(([key, val]) => {
                     // Skip name and phone if already shown, otherwise show everything
                     if (key === "Full Name" || key === "Phone Number" || key === "Mobile Number" || key === "Your Name") return null;
@@ -525,7 +593,7 @@ export default function AllBookings() {
               </div>
 
               {/* Payment Section */}
-              <div className="grid grid-cols-3 gap-4 border-t border-slate-100 dark:border-slate-800/60 pt-3.5">
+              <div className="grid grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-800/60 pt-3.5">
                 <div className="space-y-0.5">
                   <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Deposit Paid</span>
                   <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">₹{selectedBooking.amount}</div>
@@ -535,14 +603,18 @@ export default function AllBookings() {
                   <div className="text-xs font-bold text-slate-900 dark:text-white uppercase">{selectedBooking.paymentMethod}</div>
                 </div>
                 <div className="space-y-0.5">
-                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Status</span>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Payment Status</span>
+                  <div>{getPaymentStatusBadge(selectedBooking.paymentStatus)}</div>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Booking Status</span>
                   <div>{getStatusBadge(selectedBooking.status)}</div>
                 </div>
               </div>
             </div>
 
             {/* Footer Buttons */}
-            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-955/20 flex justify-between gap-3 shrink-0">
+            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 flex justify-between gap-3 shrink-0">
               <button
                 type="button"
                 onClick={() => handleDeleteBooking(selectedBooking)}
@@ -561,6 +633,18 @@ export default function AllBookings() {
                     className="px-4 py-2 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-250 rounded-xl transition cursor-pointer"
                   >
                     Cancel Booking
+                  </button>
+                )}
+                {selectedBooking.status === "Cancelled" && selectedBooking.paymentStatus === "paid" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleRefundBooking(selectedBooking);
+                      setSelectedBooking(null);
+                    }}
+                    className="px-4 py-2 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-250 rounded-xl transition cursor-pointer"
+                  >
+                    Refund Payment
                   </button>
                 )}
                 <button

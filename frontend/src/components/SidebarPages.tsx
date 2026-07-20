@@ -8,6 +8,7 @@ import PolicyPage from "./PolicyPage";
 import FeedbackPage from "./FeedbackPage";
 import HelpPage from "./HelpPage";
 import MyReviewsPage from "./MyReviewsPage";
+import MyBookingsPage from "./MyBookingsPage";
 
 interface SidebarPagesProps {
   activePage: string;
@@ -39,6 +40,9 @@ export default function SidebarPages({
   } else if (activePage === "My Transaction") {
     pageIcon = "🧾";
     pageSubtitle = "Invoice receipts, booking deposits, and payment details";
+  } else if (activePage === "My Bookings") {
+    pageIcon = "📅";
+    pageSubtitle = "View and manage your service and product bookings";
   } else if (activePage === "Customer Service") {
     pageIcon = "🎧";
     pageSubtitle = "Help hotline, email ticket desk, and interactive assistant";
@@ -84,6 +88,7 @@ export default function SidebarPages({
           <SavedPage onNavigateToBusiness={onNavigateToBusiness} />
         )}
         {activePage === "My Transaction" && <MyTransactionPage />}
+        {activePage === "My Bookings" && <MyBookingsPage />}
         {activePage === "Notifications" && <NotificationsPage />}
         {activePage === "Customer Service" && <CustomerServicePage />}
         {(activePage === "Policy" || activePage === "Privacy Policy" || activePage === "Terms & Conditions") && (

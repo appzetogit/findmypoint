@@ -11,7 +11,11 @@ import {
   CreditCard,
   MessageSquare,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Eye,
+  X,
+  Building,
+  Smartphone
 } from "lucide-react";
 
 interface WithdrawalRecord {
@@ -22,6 +26,23 @@ interface WithdrawalRecord {
   target: string;
   status: "Completed" | "Processing" | "Failed";
   bizName?: string;
+  bankDetails?: {
+    holderName: string;
+    bankName: string;
+    accountNumber: string;
+    ifsc: string;
+  };
+  upiId?: string;
+}
+
+// Legacy records saved before structured bank fields were tracked only have a
+// combined "target" string, e.g. "Axis Bank - A/C 9874563210 (DFDD2200), Ajay Panchal".
+// Parse it so the details modal can still render labeled rows for those.
+function parseLegacyBankTarget(target: string) {
+  const match = target.match(/^(.*?)\s-\sA\/C\s(.*?)\s\((.*?)\),\s(.*)$/);
+  if (!match) return null;
+  const [, bankName, accountNumber, ifsc, holderName] = match;
+  return { bankName, accountNumber, ifsc, holderName };
 }
 
 export default function AdminWithdrawals() {
@@ -35,36 +56,19 @@ export default function AdminWithdrawals() {
   const [simulationSteps, setSimulationSteps] = useState<string[]>([]);
   const [showSimModal, setShowSimModal] = useState(false);
 
+  // Payout details modal state
+  const [detailsRequest, setDetailsRequest] = useState<WithdrawalRecord | null>(null);
+
   const loadRequests = () => {
     try {
       const saved = localStorage.getItem("fmp_client_withdrawals");
-      if (saved) {
-        setRequests(JSON.parse(saved));
-      } else {
-        // Create mock default requests if none exist
-        const mocks: WithdrawalRecord[] = [
-          {
-            id: `wth-1`,
-            timestamp: "03/07/2026 18:20",
-            amount: 2500,
-            method: "bank",
-            target: "SBI (A/C: ...4321)",
-            status: "Processing",
-            bizName: "Vishal Mega Mart"
-          },
-          {
-            id: `wth-2`,
-            timestamp: "02/07/2026 12:10",
-            amount: 1500,
-            method: "upi",
-            target: "client@upi",
-            status: "Completed",
-            bizName: "Sunny Chilled Water"
-          }
-        ];
-        setRequests(mocks);
-        localStorage.setItem("fmp_client_withdrawals", JSON.stringify(mocks));
+      const parsed: WithdrawalRecord[] = saved ? JSON.parse(saved) : [];
+      // Purge legacy seeded demo rows ("wth-1"/"wth-2") left in old browser storage
+      const cleaned = parsed.filter((r) => r.id !== "wth-1" && r.id !== "wth-2");
+      if (cleaned.length !== parsed.length) {
+        localStorage.setItem("fmp_client_withdrawals", JSON.stringify(cleaned));
       }
+      setRequests(cleaned);
     } catch (e) {}
   };
 
@@ -126,7 +130,7 @@ export default function AdminWithdrawals() {
           "Verifying withdrawal request details...",
           "Generating rejection reason payload...",
           "Cancelling IMPS transfer buffer node...",
-          "Refund request rejected successfully."
+          "Request rejected — amount refunded to client wallet."
         ];
 
     let currentStep = 0;
@@ -250,7 +254,7 @@ export default function AdminWithdrawals() {
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Business Name</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Amount</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Method</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Payout Target</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Details</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Actions</th>
               </tr>
@@ -267,7 +271,15 @@ export default function AdminWithdrawals() {
                       ₹{row.amount.toLocaleString("en-IN")}
                     </td>
                     <td className="px-6 py-4 uppercase font-bold text-slate-500">{row.method}</td>
-                    <td className="px-6 py-4 font-mono">{row.target}</td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        onClick={() => setDetailsRequest(row)}
+                        title="View payout details"
+                        className="inline-flex items-center justify-center h-7 w-7 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 dark:hover:border-indigo-700 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
                     <td className="px-6 py-4">
                       {row.status === "Processing" && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase tracking-wider">
@@ -351,6 +363,113 @@ export default function AdminWithdrawals() {
                 disabled={processingId !== null}
                 onClick={() => setShowSimModal(false)}
                 className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Payout Details Modal */}
+      {detailsRequest && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setDetailsRequest(null)}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full shadow-2xl animate-scale-in text-slate-900 dark:text-slate-100 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60">
+              <h4 className="font-bold text-base flex items-center gap-2">
+                {detailsRequest.method === "bank" ? (
+                  <Building className="h-4.5 w-4.5 text-indigo-500" />
+                ) : (
+                  <Smartphone className="h-4.5 w-4.5 text-indigo-500" />
+                )}
+                Payout Details
+              </h4>
+              <button
+                onClick={() => setDetailsRequest(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px]">Business</span>
+                <span className="font-bold text-slate-900 dark:text-white">{detailsRequest.bizName || "Client Business"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px]">Amount</span>
+                <span className="font-black text-slate-900 dark:text-white">₹{detailsRequest.amount.toLocaleString("en-IN")}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px]">Method</span>
+                <span className="font-bold uppercase text-slate-700 dark:text-slate-300">{detailsRequest.method}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px]">Requested On</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300">{detailsRequest.timestamp}</span>
+              </div>
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+                <span className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px] block">
+                  {detailsRequest.method === "bank" ? "Bank Payout Target" : "UPI Payout Target"}
+                </span>
+
+                {(() => {
+                  if (detailsRequest.method === "bank") {
+                    const bankDetails = detailsRequest.bankDetails || parseLegacyBankTarget(detailsRequest.target);
+                    if (bankDetails) {
+                      return (
+                        <div className="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl p-3.5 space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-slate-400 dark:text-slate-500 font-semibold">Account Holder</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 text-right">{bankDetails.holderName}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-slate-400 dark:text-slate-500 font-semibold">Bank Name</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 text-right">{bankDetails.bankName}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-slate-400 dark:text-slate-500 font-semibold">Account Number</span>
+                            <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-right select-all">{bankDetails.accountNumber}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-slate-400 dark:text-slate-500 font-semibold">IFSC Code</span>
+                            <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-right select-all">{bankDetails.ifsc}</span>
+                          </div>
+                        </div>
+                      );
+                    }
+                  } else {
+                    const upiId = detailsRequest.upiId || detailsRequest.target;
+                    if (upiId) {
+                      return (
+                        <div className="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl p-3.5">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-slate-400 dark:text-slate-500 font-semibold">UPI ID</span>
+                            <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-right select-all">{upiId}</span>
+                          </div>
+                        </div>
+                      );
+                    }
+                  }
+                  return (
+                    <p className="font-mono text-slate-700 dark:text-slate-300 leading-relaxed break-words">{detailsRequest.target}</p>
+                  );
+                })()}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end px-6 py-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/50">
+              <button
+                onClick={() => setDetailsRequest(null)}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors"
               >
                 Close
               </button>

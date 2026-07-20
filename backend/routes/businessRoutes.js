@@ -6,8 +6,6 @@ const {
   createBusiness,
   updateBusiness,
   deleteBusiness,
-  addBusinessReview,
-  deleteBusinessReview,
   toggleBookingDisable,
   submitEnquiry,
   loginBusiness,
@@ -17,13 +15,14 @@ const {
   deleteEnquiry,
   clearEnquiries
 } = require('../controllers/businessController');
+const { addReview, deleteReview } = require('../controllers/reviewController');
 const { protect } = require('../middleware/authMiddleware');
 
 // Public routes
 router.get('/', getBusinesses);
 router.post('/login', loginBusiness);
 router.get('/:id', getBusinessById);
-router.post('/:id/reviews', addBusinessReview);
+router.post('/:id/reviews', addReview);
 router.post('/:id/enquire', submitEnquiry);
 
 // Protected routes
@@ -31,7 +30,7 @@ router.put('/change-password', protect, changeBusinessPassword);
 router.post('/', protect, createBusiness);
 router.put('/:id', protect, updateBusiness);
 router.delete('/:id', protect, deleteBusiness);
-router.delete('/:id/reviews/:reviewId', protect, deleteBusinessReview);
+router.delete('/:id/reviews/:reviewId', protect, deleteReview);
 router.post('/:id/booking-disable', protect, toggleBookingDisable);
 
 // Enquiry routes for client dashboard

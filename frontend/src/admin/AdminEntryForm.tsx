@@ -281,6 +281,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
   const [categoryLine, setCategoryLine] = useState("");
   const [subCategoryLine, setSubCategoryLine] = useState("");
   const [bookingButtonLabel, setBookingButtonLabel] = useState("");
+  const [ownerName, setOwnerName] = useState("");
 
   // Subcategories matching active category
   const availableSubcategories = subcategoriesData[category] || [];
@@ -368,6 +369,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
     setCategoryLine(biz.categoryLine || "");
     setSubCategoryLine(biz.subCategoryLine || "");
     setBookingButtonLabel(biz.bookingButtonLabel || "");
+    setOwnerName(biz.ownerName || "");
   };
 
   // Load existing business details if in Edit Mode
@@ -560,6 +562,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
       cityTown: cityTown.trim(),
       pincode: pincode.trim(),
       password: password.trim() || undefined,
+      ownerName: ownerName.trim() || undefined,
     };
 
     const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_user_token");
@@ -941,6 +944,20 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                     </div>
                   );
                 })()}
+              </div>
+
+              {/* Owner Name */}
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-wider">
+                  Owner Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Rajesh Sharma"
+                  value={ownerName}
+                  onChange={(e) => setOwnerName(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                />
               </div>
 
               {/* Business Location link */}

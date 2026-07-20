@@ -1,55 +1,129 @@
 import { useState, useEffect } from "react";
-import { Check, X, FileText } from "lucide-react";
+import { Check, X, Download } from "lucide-react";
+import { jsPDF } from "jspdf";
 
 export default function MyTransactionPage() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const savedBookings = localStorage.getItem("fmp_bookings:v1");
-      if (savedBookings) {
-        setBookings(JSON.parse(savedBookings));
-      } else {
-        const defaultBookings = [
-          {
-            id: "FMP-8921",
-            category: "Food Point",
-            business: "Shree shyam restaurant",
-            details: "Table Booking for 4 Guests",
-            amount: 250,
-            date: "2026-06-24",
-            status: "Success",
-            paymentMode: "UPI (sharma@okaxis)",
-          },
-          {
-            id: "FMP-7652",
-            category: "Service Point",
-            business: "Apex AC Repair Hub",
-            details: "AC General Servicing Service",
-            amount: 850,
-            date: "2026-06-20",
-            status: "Success",
-            paymentMode: "Card (xxxx-xxxx-xxxx-4321)",
-          },
-          {
-            id: "FMP-6541",
-            category: "Health Care Point",
-            business: "Dr. Batra Dental Clinic",
-            details: "Morning Slot Consultation (10:30 AM)",
-            amount: 300,
-            date: "2026-06-15",
-            status: "Success",
-            paymentMode: "Net Banking (SBI)",
-          },
-        ];
-        localStorage.setItem("fmp_bookings:v1", JSON.stringify(defaultBookings));
-        setBookings(defaultBookings);
+    const loadTransactions = async () => {
+      const token = localStorage.getItem("fmp_user_token") || "";
+      const headers: HeadersInit = {
+        "Content-Type": "application/json"
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
-    } catch (e) {
-      console.error("Failed to load transactions", e);
-    }
+
+      try {
+        const res = await fetch("http://localhost:5000/api/transactions", { headers });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          const mapped = data.data.map((txn: any) => ({
+            id: txn.bookingId || txn.id,
+            transactionId: txn.id,
+            category: "Secure Booking",
+            business: txn.businessName || "FindmyPoint Listing",
+            details: txn.details || txn.description || "Service Booking Payment",
+            amount: txn.amount,
+            date: txn.timestamp ? txn.timestamp.split(",")[0] : "",
+            status: txn.status === "Completed" ? "Success" : txn.status,
+            paymentMode: txn.paymentMethod || "UPI Gateway"
+          }));
+          setBookings(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to fetch transactions from server:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTransactions();
   }, []);
+
+  const handleDownloadInvoice = (receipt: any) => {
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a5"
+    });
+
+    const primaryColor = "#0f172a"; 
+    const secondaryColor = "#64748b"; 
+    const lightBg = "#f8fafc"; 
+
+    doc.setTextColor(primaryColor);
+    
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("FINDMYPOINT", 15, 18);
+    
+    doc.setFont("Helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(secondaryColor);
+    doc.text("Secure Payment Receipt & Invoice", 15, 22);
+    
+    doc.setFillColor(240, 253, 250); 
+    doc.roundedRect(95, 12, 40, 8, 1.5, 1.5, "F");
+    doc.setTextColor(5, 150, 105); 
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("PAID RECEIPT", 103, 17.2);
+    
+    doc.setDrawColor(226, 232, 240); 
+    doc.setLineWidth(0.3);
+    doc.line(15, 27, 135, 27);
+    
+    let y = 37;
+    const addRow = (label: string, value: string, fontStyle: "bold" | "normal" = "normal") => {
+      doc.setTextColor(secondaryColor);
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(8);
+      doc.text(label, 15, y);
+      
+      doc.setTextColor(primaryColor);
+      doc.setFont("Helvetica", fontStyle);
+      doc.setFontSize(8);
+      doc.text(value, 48, y);
+      y += 8;
+    };
+    
+    if (receipt.transactionId) {
+      addRow("Transaction ID:", receipt.transactionId, "bold");
+    }
+    addRow("Order ID:", receipt.id, "bold");
+    addRow("Merchant:", receipt.business);
+    addRow("Service/Details:", receipt.details);
+    addRow("Date:", receipt.date);
+    addRow("Payment Mode:", receipt.paymentMode);
+    addRow("Status:", "Success (Paid)", "bold");
+    
+    y += 2;
+    doc.setFillColor(248, 250, 252); 
+    doc.setDrawColor(241, 245, 249); 
+    doc.roundedRect(15, y, 120, 14, 2, 2, "FD");
+    
+    doc.setTextColor(primaryColor);
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("Total Paid:", 22, y + 8.5);
+    
+    doc.setTextColor(5, 150, 105); 
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text(`Rs. ${receipt.amount}.00`, 98, y + 9);
+    
+    y += 24;
+    doc.setTextColor(secondaryColor);
+    doc.setFont("Helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text("Thank you for using FindmyPoint!", 15, y);
+    doc.text("This is an electronically generated document. No signature required.", 15, y + 3.5);
+    
+    doc.save(`FMP_Receipt_${receipt.id}.pdf`);
+  };
 
   return (
     <div className="space-y-6">
@@ -60,7 +134,11 @@ export default function MyTransactionPage() {
         </p>
       </div>
 
-      {bookings.length === 0 ? (
+      {loading ? (
+        <div className="py-20 text-center text-xs font-semibold text-muted-foreground animate-pulse">
+          Fetching transaction logs...
+        </div>
+      ) : bookings.length === 0 ? (
         <div className="border border-dashed border-border rounded-2xl p-10 text-center text-xs font-bold text-slate-400 bg-secondary/5">
           No transactions or checkout records discovered yet.
         </div>
@@ -135,6 +213,12 @@ export default function MyTransactionPage() {
 
             {/* Invoice Meta */}
             <div className="space-y-3 text-xs border-b border-slate-100 pb-4 mb-4">
+              {selectedReceipt.transactionId && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Transaction ID:</span>
+                  <span className="font-mono font-bold text-slate-800">{selectedReceipt.transactionId}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-slate-400">Order ID:</span>
                 <span className="font-bold text-slate-800">{selectedReceipt.id}</span>
@@ -164,12 +248,10 @@ export default function MyTransactionPage() {
             </div>
 
             <button
-              onClick={() => {
-                window.print();
-              }}
-              className="w-full bg-slate-900 hover:bg-black text-white text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
+              onClick={() => handleDownloadInvoice(selectedReceipt)}
+              className="w-full bg-indigo-600 hover:bg-indigo-750 text-white text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md"
             >
-              <FileText className="h-4 w-4" /> Print Invoice
+              <Download className="h-4 w-4" /> Download Invoice
             </button>
           </div>
         </div>

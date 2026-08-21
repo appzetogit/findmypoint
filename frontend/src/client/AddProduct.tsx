@@ -555,7 +555,7 @@ export default function AddProduct({ clientListings }: AddProductProps) {
                   {/* Image Preview */}
                   {imgPreview && (
                     <div className="p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 rounded-xl flex items-center gap-3">
-                      <div className="h-14 w-14 bg-white dark:bg-slate-850 border border-slate-200/30 rounded-xl overflow-hidden shrink-0 shadow-sm">
+                      <div className="h-20 w-20 bg-white dark:bg-slate-850 border border-slate-200/40 rounded-xl overflow-hidden shrink-0 shadow-sm">
                         <img
                           src={imgPreview.startsWith("/uploads/") ? `${API_BASE}${imgPreview}` : imgPreview}
                           alt="Preview"

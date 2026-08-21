@@ -22,6 +22,8 @@ import {
   Share2,
   Eye,
   EyeOff,
+  Maximize2,
+  X,
 } from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
 import { BusinessListingData } from "../data/businessesData";
@@ -298,6 +300,10 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
   const [status, setStatus] = useState<"published" | "draft" | "suspended" | "deleted">("published");
   const [isIndexable, setIsIndexable] = useState(true);
 
+  // Full Screen Image Preview Modal for Admin
+  const [previewModalImage, setPreviewModalImage] = useState<string | null>(null);
+  const [previewModalTitle, setPreviewModalTitle] = useState("");
+
   // Social Media Links & Visibility Toggles
   const [facebookUrl, setFacebookUrl] = useState("");
   const [showFacebook, setShowFacebook] = useState(true);
@@ -572,7 +578,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
       reviewCount: isEditMode ? originalBusiness?.reviewCount || 0 : 0,
       phone: phone.trim(),
       address: address.trim(),
-      timings: `${openTime} - ${closeTime} (${finalHolidayTime})`,
+      timings: `${openTime} - ${closeTime} (${finalHolidayTime ? (finalHolidayTime.toLowerCase().includes('close') ? finalHolidayTime : `${finalHolidayTime} Closed`) : 'Sunday Closed'})`,
       openStatus: "Open Now",
       website: website.trim(),
       images: [finalFrontPhoto, ...cleanInteriorPhotos],
@@ -1303,91 +1309,161 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
 
         {/* TAB 4: MEDIA & VIDEOS */}
         {activeTab === "media" && (
-          <div className="space-y-6">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
-              <ImageIcon className="h-5 w-5 text-indigo-500" /> Business Photos
-            </h3>
+          <div className="space-y-6 text-left">
+            <div className="pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <ImageIcon className="h-5 w-5 text-indigo-500" /> Business Photos & Banner
+              </h3>
+              <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1 rounded-full">
+                Cover Fit • High Resolution
+              </span>
+            </div>
 
-            {/* Business front photo */}
+            {/* Business front photo (Primary Banner) */}
             <div className="space-y-3">
-              <label className="text-xs uppercase tracking-wider font-bold">
-                Business Front Photo (Primary Banner)
-              </label>
-              <div className="relative border border-dashed border-slate-250 dark:border-slate-800 rounded-xl p-6 bg-slate-50/40 dark:bg-slate-950/20 hover:bg-slate-50 dark:hover:bg-slate-950/40 transition-colors flex flex-col items-center justify-center gap-1.5 cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleImageUpload(file, setFrontPhoto);
-                  }}
-                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                />
-                <Upload className="h-6 w-6 text-slate-400 mb-1" />
-                <span className="text-xs font-bold text-slate-650 dark:text-slate-400">
-                  Click to upload image file
-                </span>
-                <span className="text-[10px] text-slate-400">PNG, JPG, JPEG up to 10MB</span>
-              </div>
-              {frontPhoto && (
-                <div className="p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 rounded-xl flex items-center gap-3 text-left">
-                  <div className="h-14 w-24 bg-white dark:bg-slate-850 border border-slate-200/30 rounded-lg overflow-hidden flex items-center justify-center shadow-sm shrink-0">
-                    <img
-                      src={frontPhoto}
-                      alt="Front Preview"
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      Front Photo Selected
-                    </p>
-                    <p className="text-[10px] text-slate-400 truncate">Banner Preview Ready</p>
-                  </div>
+              <div className="flex items-center justify-between">
+                <label className="text-xs uppercase tracking-wider font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  Business Front Photo (Primary Banner) <span className="text-rose-500 font-bold">*</span>
+                </label>
+                {frontPhoto && (
                   <button
                     type="button"
-                    onClick={() => setFrontPhoto("")}
-                    className="text-xs font-bold text-rose-500 hover:underline cursor-pointer"
+                    onClick={() => {
+                      setPreviewModalImage(frontPhoto);
+                      setPreviewModalTitle("Business Front Banner Photo");
+                    }}
+                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
                   >
-                    Clear
+                    <Maximize2 className="h-3.5 w-3.5" /> Full Screen Preview
                   </button>
+                )}
+              </div>
+
+              {!frontPhoto ? (
+                <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-500 rounded-2xl p-8 bg-slate-50/50 dark:bg-slate-950/20 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/10 transition-all flex flex-col items-center justify-center gap-2 cursor-pointer group text-center min-h-[180px]">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageUpload(file, setFrontPhoto);
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                  />
+                  <div className="h-12 w-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
+                    <Upload className="h-6 w-6" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                    Click or drag & drop Front Banner Photo
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    Full image will be uploaded in full HD resolution and displayed end-to-end with cover fit (PNG, JPG, WEBP)
+                  </span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="relative w-full h-56 sm:h-72 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900 shadow-md group">
+                    <img
+                      src={frontPhoto}
+                      alt="Front Banner Preview"
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                    
+                    {/* Top Badges */}
+                    <div className="absolute top-3 left-3 flex items-center gap-2">
+                      <span className="bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-lg shadow-sm">
+                        Primary Cover Banner
+                      </span>
+                      <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-lg">
+                        Cover Fit Ready
+                      </span>
+                    </div>
+
+                    {/* Bottom Action Bar */}
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                      <p className="text-white text-xs font-semibold drop-shadow-md truncate max-w-xs">
+                        Full image uploaded & ready for public display
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPreviewModalImage(frontPhoto);
+                            setPreviewModalTitle("Business Front Banner Photo");
+                          }}
+                          className="px-3 py-1.5 bg-white/90 hover:bg-white text-slate-900 text-xs font-bold rounded-xl shadow backdrop-blur-sm transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Maximize2 className="h-3.5 w-3.5" /> Full View
+                        </button>
+                        <label className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow transition flex items-center gap-1.5 cursor-pointer">
+                          <Upload className="h-3.5 w-3.5" /> Replace
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleImageUpload(file, setFrontPhoto);
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setFrontPhoto("")}
+                          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Clear
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Business interior photos */}
+            {/* Business interior photos (Gallery) */}
             <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center justify-between">
-                <label className="text-xs uppercase tracking-wider font-bold">
-                  Business Interior Photos (Additional)
-                </label>
+                <div>
+                  <label className="text-xs uppercase tracking-wider font-extrabold text-slate-900 dark:text-slate-100 block">
+                    Business Interior & Gallery Photos
+                  </label>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">
+                    Add interior scenes, branch photos, dishes, or premises. Shown in gallery end-to-end.
+                  </span>
+                </div>
                 <button
                   type="button"
                   onClick={handleAddInteriorPhoto}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 px-3.5 py-2 rounded-xl transition cursor-pointer"
                 >
                   <Plus className="h-4 w-4" /> Add Photo Slot
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {interiorPhotos.map((photo, idx) => (
-                  <div key={idx} className="p-3 bg-slate-50/50 dark:bg-slate-950/10 border border-slate-150 dark:border-slate-850 rounded-xl space-y-3">
+                  <div
+                    key={idx}
+                    className="p-3.5 bg-slate-50/70 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3 relative group"
+                  >
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-slate-650 dark:text-slate-400">
-                        Interior Photo #{idx + 1}
+                      <span className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <ImageIcon className="h-3.5 w-3.5 text-indigo-500" /> Photo #{idx + 1}
                       </span>
                       <button
                         type="button"
                         onClick={() => handleRemoveInteriorPhoto(idx)}
-                        className="text-xs text-rose-500 hover:text-rose-650 flex items-center gap-1 font-bold cursor-pointer"
+                        className="text-xs text-rose-500 hover:text-rose-600 flex items-center gap-1 font-bold cursor-pointer"
+                        title="Remove Photo Slot"
                       >
-                        <Trash2 className="h-3.5 w-3.5" /> Remove Slot
+                        <Trash2 className="h-3.5 w-3.5" /> Remove
                       </button>
                     </div>
 
                     {!photo ? (
-                      <div className="relative border border-dashed border-slate-200 dark:border-slate-800 rounded-lg p-4 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-950/20 transition-colors flex flex-col items-center justify-center gap-1 cursor-pointer">
+                      <div className="relative border-2 border-dashed border-slate-250 dark:border-slate-800 rounded-xl p-6 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-950/30 transition-colors flex flex-col items-center justify-center gap-1.5 cursor-pointer min-h-[140px]">
                         <input
                           type="file"
                           accept="image/*"
@@ -1401,49 +1477,92 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                               });
                             }
                           }}
-                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                         />
-                        <Upload className="h-4 w-4 text-slate-400 mb-1" />
-                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">
-                          Click to upload file
+                        <Upload className="h-5 w-5 text-slate-400 group-hover:text-indigo-500 mb-1" />
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                          Click to upload photo #{idx + 1}
                         </span>
+                        <span className="text-[10px] text-slate-400">Full Cover Fit Display</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-3 text-left">
-                        <div className="h-12 w-20 bg-white dark:bg-slate-850 border border-slate-200/30 rounded-lg overflow-hidden flex items-center justify-center shadow-sm shrink-0">
+                      <div className="space-y-2">
+                        <div className="relative w-full h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900 shadow-sm group/img">
                           <img
                             src={photo}
                             alt={`Interior Preview #${idx + 1}`}
-                            className="h-full w-full object-cover"
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105"
                           />
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPreviewModalImage(photo);
+                                setPreviewModalTitle(`Interior Photo #${idx + 1}`);
+                              }}
+                              className="p-2 bg-white/90 hover:bg-white text-slate-900 rounded-lg shadow cursor-pointer font-bold text-xs flex items-center gap-1"
+                              title="Full Screen Preview"
+                            >
+                              <Maximize2 className="h-3.5 w-3.5" />
+                            </button>
+                            <label className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow cursor-pointer font-bold text-xs flex items-center gap-1">
+                              <Upload className="h-3.5 w-3.5" />
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    handleImageUpload(file, (val) => {
+                                      const updated = [...interiorPhotos];
+                                      updated[idx] = val;
+                                      setInteriorPhotos(updated);
+                                    });
+                                  }
+                                }}
+                                className="hidden"
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = [...interiorPhotos];
+                                updated[idx] = "";
+                                setInteriorPhotos(updated);
+                              }}
+                              className="p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow cursor-pointer font-bold text-xs flex items-center gap-1"
+                              title="Clear Image"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-bold text-slate-700 dark:text-slate-350">
-                            Image Selected
-                          </p>
-                          <p className="text-[9px] text-slate-400 truncate">Ready</p>
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 font-semibold px-1">
+                          <span className="truncate">Cover fit ready</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPreviewModalImage(photo);
+                              setPreviewModalTitle(`Interior Photo #${idx + 1}`);
+                            }}
+                            className="text-indigo-600 dark:text-indigo-400 hover:underline font-bold"
+                          >
+                            Enlarge
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = [...interiorPhotos];
-                            updated[idx] = "";
-                            setInteriorPhotos(updated);
-                          }}
-                          className="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer"
-                        >
-                          Clear
-                        </button>
                       </div>
                     )}
                   </div>
                 ))}
-                {interiorPhotos.length === 0 && (
-                  <p className="text-xs text-slate-400 dark:text-slate-500 italic">
-                    No additional interior images added.
-                  </p>
-                )}
               </div>
+
+              {interiorPhotos.length === 0 && (
+                <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/30 dark:bg-slate-950/10">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                    No additional interior photos added yet. Click "+ Add Photo Slot" above to add more photos.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1717,6 +1836,48 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
           </button>
         </div>
       </form>
+
+      {/* Full Screen Image Preview Modal for Admin */}
+      {previewModalImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in text-left">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl flex flex-col animate-scale-in">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="h-5 w-5 text-indigo-500" />
+                <h3 className="font-bold text-slate-900 dark:text-white text-sm">
+                  {previewModalTitle || "Full Image Preview"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewModalImage(null)}
+                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-6 flex items-center justify-center bg-slate-950 max-h-[75vh] overflow-hidden">
+              <img
+                src={previewModalImage}
+                alt="Full Preview"
+                className="max-h-[70vh] max-w-full object-contain rounded-xl shadow-lg"
+              />
+            </div>
+            <div className="px-6 py-3.5 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
+              <span className="text-xs text-slate-500 font-semibold">
+                Complete uncropped image shown • Stored in high definition
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewModalImage(null)}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-sm"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

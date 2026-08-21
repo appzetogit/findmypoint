@@ -233,9 +233,6 @@ export default function ArticleDetailPage({
             >
               Home
             </button>
-            <button className="hidden md:inline-block rounded-full border border-border bg-card px-5 py-2.5 text-xs font-semibold transition hover:bg-secondary cursor-pointer">
-              Discover
-            </button>
             <button className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 cursor-pointer shrink-0">
               Sign In
             </button>

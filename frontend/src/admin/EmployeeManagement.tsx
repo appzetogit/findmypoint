@@ -536,7 +536,7 @@ export default function EmployeeManagement() {
                     <select
                       value={contactCode}
                       onChange={(e) => setContactCode(e.target.value)}
-                      className="w-24 bg-slate-50 dark:bg-slate-955 text-xs px-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold cursor-pointer shrink-0 text-center"
+                      className="w-24 bg-slate-50 dark:bg-slate-950 text-xs px-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold cursor-pointer shrink-0 text-center"
                     >
                       {CALLING_CODES.map((code) => (
                         <option key={code} value={code}>
@@ -550,7 +550,7 @@ export default function EmployeeManagement() {
                       placeholder="e.g. 98765 43210"
                       value={contactNumber}
                       onChange={(e) => setContactNumber(e.target.value)}
-                      className="flex-1 bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                      className="flex-1 bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
                     />
                   </div>
                 </div>

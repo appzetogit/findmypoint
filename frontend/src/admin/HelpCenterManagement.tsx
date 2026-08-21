@@ -690,7 +690,7 @@ export default function HelpCenterManagement() {
                   value={faqAnswer}
                   onChange={(e) => setFaqAnswer(e.target.value)}
                   placeholder="Enter details and descriptions answers..."
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 transition font-medium leading-relaxed"
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 transition font-medium leading-relaxed"
                 />
               </div>
 
@@ -782,7 +782,7 @@ export default function HelpCenterManagement() {
                   rows={8}
                   value={mailBody}
                   onChange={(e) => setMailBody(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 transition font-medium leading-relaxed"
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 transition font-medium leading-relaxed"
                 />
               </div>
 

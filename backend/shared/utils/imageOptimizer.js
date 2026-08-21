@@ -1,8 +1,12 @@
 const FOLDER_PROFILES = {
-  'profile-images': { maxWidth: 400, maxHeight: 400, quality: 80 },
-  'menu-items': { maxWidth: 800, maxHeight: 800, quality: 75 },
-  'banners': { maxWidth: 1200, maxHeight: 600, quality: 78 },
-  default: { maxWidth: 800, maxHeight: 800, quality: 75 },
+  'profile-images': { maxWidth: 1200, maxHeight: 1200, quality: 88 },
+  'menu-items': { maxWidth: 2560, maxHeight: 2560, quality: 88 },
+  'banners': { maxWidth: 2560, maxHeight: 2560, quality: 88 },
+  'categories': { maxWidth: 1200, maxHeight: 1200, quality: 88 },
+  'tourist-places': { maxWidth: 2560, maxHeight: 2560, quality: 88 },
+  'articles': { maxWidth: 2560, maxHeight: 2560, quality: 88 },
+  'employees': { maxWidth: 1200, maxHeight: 1200, quality: 88 },
+  default: { maxWidth: 2560, maxHeight: 2560, quality: 88 },
 };
 
 let JimpInstance = null;

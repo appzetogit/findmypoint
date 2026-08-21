@@ -392,7 +392,7 @@ export default function BannerManagement() {
                     value={currentSliderBanner.tag}
                     onChange={(e) => handleSliderFieldChange("tag", e.target.value)}
                     placeholder="# FEATURED SPOTLIGHT"
-                    className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 transition font-medium"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition font-medium"
                   />
                 </div>
 
@@ -404,7 +404,7 @@ export default function BannerManagement() {
                   <select
                     value={currentSliderBanner.categoryName || ""}
                     onChange={(e) => handleSliderFieldChange("categoryName", e.target.value || null)}
-                    className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 transition font-bold"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition font-bold"
                   >
                     <option value="">None / No Link</option>
                     {categoriesList.map((cat) => (
@@ -426,7 +426,7 @@ export default function BannerManagement() {
                     value={currentSliderBanner.title}
                     onChange={(e) => handleSliderFieldChange("title", e.target.value)}
                     placeholder="Discover the city's\nfinest establishments."
-                    className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 transition font-medium leading-relaxed"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition font-medium leading-relaxed"
                   />
                 </div>
 
@@ -441,7 +441,7 @@ export default function BannerManagement() {
                     value={currentSliderBanner.description}
                     onChange={(e) => handleSliderFieldChange("description", e.target.value)}
                     placeholder="Search across 5.3 crore+ verified businesses, professionals and services..."
-                    className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 transition font-medium leading-relaxed"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition font-medium leading-relaxed"
                   />
                 </div>
               </div>
@@ -454,7 +454,7 @@ export default function BannerManagement() {
 
                 <div className="w-full">
                   {/* File Uploader */}
-                  <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-200/80 dark:border-slate-800/80 rounded-2xl cursor-pointer bg-slate-50/50 hover:bg-slate-50 dark:bg-slate-955/20 dark:hover:bg-slate-955/40 transition">
+                  <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-200/80 dark:border-slate-800/80 rounded-2xl cursor-pointer bg-slate-50/50 hover:bg-slate-50 dark:bg-slate-950/40 dark:hover:bg-slate-950/60 transition">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       <Upload className="h-5 w-5 text-slate-400 mb-2" />
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">
@@ -513,7 +513,7 @@ export default function BannerManagement() {
                     value={currentSideBanner.title}
                     onChange={(e) => handleSideFieldChange("title", e.target.value)}
                     placeholder="REPAIRS &\nSERVICES"
-                    className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 transition font-medium leading-relaxed"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition font-medium leading-relaxed"
                   />
                 </div>
 
@@ -528,7 +528,7 @@ export default function BannerManagement() {
                     value={currentSideBanner.subtitle}
                     onChange={(e) => handleSideFieldChange("subtitle", e.target.value)}
                     placeholder="Get Nearest Vendor"
-                    className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 transition font-medium"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition font-medium"
                   />
                 </div>
 
@@ -540,7 +540,7 @@ export default function BannerManagement() {
                   <select
                     value={currentSideBanner.categoryName}
                     onChange={(e) => handleSideFieldChange("categoryName", e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 transition font-bold"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition font-bold"
                   >
                     <option value="">Select a category...</option>
                     {categoriesList.map((cat) => (
@@ -587,7 +587,7 @@ export default function BannerManagement() {
 
                 <div className="w-full">
                   {/* File Uploader */}
-                  <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-200/80 dark:border-slate-800/80 rounded-2xl cursor-pointer bg-slate-50/50 hover:bg-slate-50 dark:bg-slate-955/20 dark:hover:bg-slate-955/40 transition">
+                  <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-200/80 dark:border-slate-800/80 rounded-2xl cursor-pointer bg-slate-50/50 hover:bg-slate-50 dark:bg-slate-950/40 dark:hover:bg-slate-950/60 transition">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       <Upload className="h-5 w-5 text-slate-400 mb-2" />
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">
@@ -636,7 +636,7 @@ export default function BannerManagement() {
             Live Preview
           </h2>
 
-          <div className="w-full flex justify-center py-4 bg-slate-50 dark:bg-slate-955/20 rounded-2xl border border-slate-100 dark:border-slate-850/60">
+          <div className="w-full flex justify-center py-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800">
             {managementMode === "slider" ? (
               /* Slider Preview: wide horizontal format */
               <div className="relative overflow-hidden rounded-2xl w-full max-w-[280px] h-[180px] select-none">

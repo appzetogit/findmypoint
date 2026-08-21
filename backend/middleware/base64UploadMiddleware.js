@@ -58,15 +58,15 @@ const base64UploadMiddleware = async (req, res, next) => {
     const path = req.originalUrl || req.url;
     if (path.includes('/categories')) {
       folder = 'categories';
-    } else if (path.includes('/businesses')) {
-      folder = 'menu-items';
+    } else if (path.includes('/businesses') || path.includes('/business-requests')) {
+      folder = 'banners';
     } else if (path.includes('/tourist-places')) {
-      folder = 'banners';
+      folder = 'tourist-places';
     } else if (path.includes('/articles')) {
-      folder = 'banners';
+      folder = 'articles';
     } else if (path.includes('/employees')) {
       folder = 'employees';
-    } else if (path.includes('/banners')) {
+    } else if (path.includes('/banners') || path.includes('/popular-services')) {
       folder = 'banners';
     }
 

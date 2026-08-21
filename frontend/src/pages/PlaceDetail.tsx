@@ -321,9 +321,6 @@ export default function PlaceDetailPage({
             >
               Home
             </button>
-            <button className="hidden sm:block rounded-full border border-border bg-card px-5 py-2 text-xs font-semibold transition hover:bg-secondary">
-              Discover
-            </button>
             {!username && (
               <button
                 onClick={onSignInClick}
@@ -350,7 +347,7 @@ export default function PlaceDetailPage({
         {/* Collage Collage Section */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[190px] md:h-[380px] overflow-hidden rounded-3xl border border-border/80 shadow-md">
           {/* Main Large Image */}
-          <div className="col-span-1 md:col-span-8 h-full relative group overflow-hidden">
+          <div className={`col-span-1 ${placeData.images.slice(1, 4).length > 0 ? "md:col-span-8" : "md:col-span-12"} h-full relative group overflow-hidden`}>
             <img
               src={placeData.coverImage}
               alt={placeData.name}
@@ -368,21 +365,23 @@ export default function PlaceDetailPage({
           </div>
 
           {/* Side Small Images Grid */}
-          <div className="hidden md:flex md:col-span-4 flex-col gap-4 h-full">
-            {placeData.images.slice(1, 4).map((imgUrl, idx) => (
-              <div
-                key={idx}
-                className="flex-1 relative overflow-hidden group rounded-xl border border-border/40"
-              >
-                <img
-                  src={imgUrl}
-                  alt={`${placeData.name} scene ${idx + 1}`}
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-300" />
-              </div>
-            ))}
-          </div>
+          {placeData.images.slice(1, 4).length > 0 && (
+            <div className="hidden md:flex md:col-span-4 flex-col gap-4 h-full">
+              {placeData.images.slice(1, 4).map((imgUrl, idx) => (
+                <div
+                  key={idx}
+                  className="flex-1 relative overflow-hidden group rounded-xl border border-border/40"
+                >
+                  <img
+                    src={imgUrl}
+                    alt={`${placeData.name} scene ${idx + 1}`}
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-300" />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Title Block & Info Details */}

@@ -296,7 +296,7 @@ export default function PopularServicesManagement() {
             placeholder="Search popular services..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-955 text-xs pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-455 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+            className="w-full bg-slate-50 dark:bg-slate-950 text-xs pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
           />
         </div>
         <div className="text-xs text-slate-500 dark:text-slate-455 font-bold">
@@ -413,18 +413,18 @@ export default function PopularServicesManagement() {
                     placeholder="e.g. Emergency Plumbers"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-3 rounded-xl border border-slate-205 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition-all font-semibold"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 transition-all font-semibold"
                   />
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="text-[10px] font-black uppercase text-slate-455 dark:text-slate-500 tracking-wider">
+                  <label className="text-[10px] font-black uppercase text-slate-450 dark:text-slate-500 tracking-wider">
                     Tab Section *
                   </label>
                   <select
                     value={tab}
                     onChange={(e) => setTab(e.target.value as "Trending" | "Near You")}
-                    className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-3 rounded-xl border border-slate-205 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 transition-all font-semibold"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 transition-all font-semibold"
                   >
                     <option value="Trending">Trending</option>
                     <option value="Near You">Near You</option>
@@ -433,7 +433,7 @@ export default function PopularServicesManagement() {
               </div>
 
               <div className="space-y-1.5 text-left">
-                <label className="text-[10px] font-black uppercase text-slate-455 dark:text-slate-500 tracking-wider">
+                <label className="text-[10px] font-black uppercase text-slate-450 dark:text-slate-500 tracking-wider">
                   Service Subtitle / Description
                 </label>
                 <input
@@ -441,7 +441,7 @@ export default function PopularServicesManagement() {
                   placeholder="e.g. Verified 24/7 plumbing specialists"
                   value={desc}
                   onChange={(e) => setDesc(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-3 rounded-xl border border-slate-205 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition-all font-semibold"
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 transition-all font-semibold"
                 />
               </div>
 
@@ -488,7 +488,7 @@ export default function PopularServicesManagement() {
                 {/* Category and Subcategory Dropdowns */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-450 dark:text-slate-505 tracking-wider">
+                    <label className="text-[9px] font-black uppercase text-slate-450 dark:text-slate-500 tracking-wider">
                       Select Category
                     </label>
                     <select
@@ -497,7 +497,7 @@ export default function PopularServicesManagement() {
                         setFilterCategory(e.target.value);
                         setFilterSubcategory("");
                       }}
-                      className="w-full bg-slate-50 dark:bg-slate-955 text-[11px] px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 font-semibold"
+                      className="w-full bg-slate-50 dark:bg-slate-950 text-[11px] px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 font-semibold"
                     >
                       <option value="">All Categories</option>
                       {categories.map((cat) => (
@@ -509,14 +509,14 @@ export default function PopularServicesManagement() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-450 dark:text-slate-550 tracking-wider">
+                    <label className="text-[9px] font-black uppercase text-slate-450 dark:text-slate-500 tracking-wider">
                       Select Subcategory
                     </label>
                     <select
                       disabled={!filterCategory}
                       value={filterSubcategory}
                       onChange={(e) => setFilterSubcategory(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-955 text-[11px] px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full bg-slate-50 dark:bg-slate-950 text-[11px] px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <option value="">All Subcategories</option>
                       {filterCategory &&
@@ -538,7 +538,7 @@ export default function PopularServicesManagement() {
                     placeholder="Search businesses to link..."
                     value={bizSearchTerm}
                     onChange={(e) => setBizSearchTerm(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-955 text-[11px] pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-455 focus:border-indigo-500 transition-all font-semibold"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-[11px] pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 transition-all font-semibold"
                   />
                 </div>
 

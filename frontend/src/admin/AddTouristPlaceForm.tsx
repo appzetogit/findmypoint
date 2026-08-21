@@ -426,7 +426,7 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <div className="h-16 w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-850 relative group">
+                      <div className="h-32 w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-850 relative group bg-slate-900">
                         <img
                           src={coverImage}
                           alt="Cover Preview"
@@ -465,7 +465,7 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <div className="h-16 w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-850 relative group">
+                      <div className="h-32 w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-850 relative group bg-slate-900">
                         <img src={image1} alt="Preview 1" className="h-full w-full object-cover" />
                       </div>
                       <div className="flex justify-between items-center text-[10px]">
@@ -500,7 +500,7 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <div className="h-16 w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-850 relative group">
+                      <div className="h-32 w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-850 relative group bg-slate-900">
                         <img src={image2} alt="Preview 2" className="h-full w-full object-cover" />
                       </div>
                       <div className="flex justify-between items-center text-[10px]">
@@ -535,7 +535,7 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <div className="h-16 w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-850 relative group">
+                      <div className="h-32 w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-850 relative group bg-slate-900">
                         <img src={image3} alt="Preview 3" className="h-full w-full object-cover" />
                       </div>
                       <div className="flex justify-between items-center text-[10px]">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import logoImg from "@/assets/logo.png";
 import { loadFooterData, FooterData } from "../data/footerData";
-import { API_BASE_URL } from "../config";
+import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
 import { Briefcase, Phone, MapPin, Calendar, Heart, ShieldCheck, X, Search, CheckCircle2, User, Image as ImageIcon } from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
 
@@ -234,7 +234,7 @@ export default function Footer() {
     const userToken = localStorage.getItem("fmp_user_token");
 
     const options = {
-      key: "rzp_test_S3IcSS1NbymL6D", // Matching env Key ID
+      key: RAZORPAY_KEY_ID,
       amount: order.amount, // in paise
       currency: order.currency,
       name: "FindmyPoint",

@@ -1,5 +1,8 @@
 const TouristPlace = require('../models/TouristPlace');
 
+// Escape special regex characters to prevent ReDoS attacks (SEC-014)
+const escapeRegex = (str) => (str ? String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '');
+
 // @desc    Get all tourist places
 // @route   GET /api/tourist-places
 // @access  Public
@@ -17,8 +20,9 @@ const getTouristPlaces = async (req, res) => {
 // @access  Public
 const getTouristPlaceByName = async (req, res) => {
   try {
+    const safeName = escapeRegex(req.params.name);
     // Search case insensitively by name
-    const place = await TouristPlace.findOne({ name: { $regex: new RegExp(`^${req.params.name}$`, 'i') } });
+    const place = await TouristPlace.findOne({ name: { $regex: new RegExp(`^${safeName}$`, 'i') } });
 
     if (!place) {
       return res.status(404).json({ success: false, message: 'Tourist destination not found' });
@@ -52,8 +56,9 @@ const createTouristPlace = async (req, res) => {
 // @access  Private (Admin only)
 const updateTouristPlace = async (req, res) => {
   try {
+    const safeName = escapeRegex(req.params.name);
     const place = await TouristPlace.findOneAndUpdate(
-      { name: { $regex: new RegExp(`^${req.params.name}$`, 'i') } },
+      { name: { $regex: new RegExp(`^${safeName}$`, 'i') } },
       { $set: req.body },
       { new: true, runValidators: true }
     );
@@ -73,7 +78,8 @@ const updateTouristPlace = async (req, res) => {
 // @access  Private (Admin only)
 const deleteTouristPlace = async (req, res) => {
   try {
-    const result = await TouristPlace.findOneAndDelete({ name: { $regex: new RegExp(`^${req.params.name}$`, 'i') } });
+    const safeName = escapeRegex(req.params.name);
+    const result = await TouristPlace.findOneAndDelete({ name: { $regex: new RegExp(`^${safeName}$`, 'i') } });
 
     if (!result) {
       return res.status(404).json({ success: false, message: 'Tourist place not found' });

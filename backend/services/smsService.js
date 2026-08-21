@@ -114,45 +114,27 @@ class SMSIndiaHubService {
 
       // SMSIndia Hub requires DLT registered templates for transactional SMS
       // The message text MUST match the registered DLT template EXACTLY
-      // Check if custom message template is provided (must match registered DLT template exactly)
       const customTemplate = process.env.SMSINDIAHUB_MESSAGE_TEMPLATE?.trim();
 
-      // Check if template ID is provided (for DLT registered templates)
+      // Check if template ID and PE ID are provided (for DLT registered templates)
       const templateId = process.env.SMSINDIAHUB_TEMPLATE_ID?.trim();
+      const peId = (process.env.SMSINDIAHUB_PE_ID || process.env.SMSINDIAHUB_ENTITY_ID)?.trim();
 
       // Check if promotional SMS is enabled (temporary workaround for template issues)
-      // ⚠️ WARNING: Promotional SMS is not recommended for OTP - use only for testing
       const usePromotional = process.env.SMSINDIAHUB_USE_PROMOTIONAL === 'true';
-      // Always use transactional SMS (gwid=2) like RentYatra, unless promotional is explicitly enabled
       const gatewayId = usePromotional ? "1" : "2"; // 1 = promotional, 2 = transactional
 
-      if (usePromotional) {
-        console.warn("⚠️ Using promotional SMS mode - not recommended for production OTP!");
-      }
-
-      // For transactional SMS (DLT), message must match registered template EXACTLY
-      // Use fixed template text that matches DLT registration, regardless of purpose
-      // Based on working template: "Welcome to the DriveOn powered by SMSINDIAHUB. Your OTP for registration is {otp}"
       let message;
       if (customTemplate) {
-        // Use custom template with OTP replacement only (don't change purpose text for DLT)
         message = customTemplate.replace('{otp}', otp);
       } else if (usePromotional) {
-        // For promotional SMS, we can use dynamic purpose text
-        let purposeText = 'registration';
-        if (purpose === 'login') {
-          purposeText = 'login';
-        } else if (purpose === 'reset_password') {
-          purposeText = 'password reset';
-        }
-        message = `Welcome to the DriveOn powered by SMSINDIAHUB. Your OTP for ${purposeText} is ${otp}`;
+        message = `Welcome to FindmyPoint. Your OTP for verification is ${otp}`;
       } else {
-        // For transactional SMS, use fixed template text that matches DLT registration
-        // IMPORTANT: This must match the registered DLT template exactly
-        message = `Welcome to the DriveOn powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
+        // Default transactional template matching DLT registration
+        message = `Welcome to the FindmyPoint powered by Appzeto.Your OTP for registration is ${otp}.BGADEC`;
       }
 
-      // Build the API URL with query parameters (same format as RentYatra)
+      // Build the API URL with query parameters
       const params = new URLSearchParams({
         APIKey: apiKey,
         msisdn: normalizedPhone,
@@ -160,12 +142,17 @@ class SMSIndiaHubService {
         msg: message,
         fl: "0", // Flash message flag (0 = normal SMS)
         dc: "0", // Delivery confirmation (0 = no confirmation)
-        gwid: gatewayId, // Gateway ID (2 = transactional, same as RentYatra)
+        gwid: gatewayId, // Gateway ID (2 = transactional)
       });
 
-      // Add template ID if provided (required for some DLT templates)
+      // Add template ID if provided (required for DLT registered templates)
       if (templateId) {
         params.append('templateid', templateId);
+      }
+
+      // Add Principal Entity (PE) ID if provided
+      if (peId) {
+        params.append('peid', peId);
       }
 
       const apiUrl = `${this.baseUrl}?${params.toString()}`;
@@ -173,7 +160,7 @@ class SMSIndiaHubService {
       // Make GET request to SMSIndia Hub API
       const response = await axios.get(apiUrl, {
         headers: {
-          "User-Agent": "DriveOn/1.0",
+          "User-Agent": "FindmyPoint/1.0",
           Accept:
             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
@@ -227,8 +214,9 @@ class SMSIndiaHubService {
         }
       }
 
-      // Check for success indicators in text response (same logic as RentYatra)
-      if (responseText.includes('success') || responseText.includes('sent') || responseText.includes('accepted')) {
+      // Check for success/failure indicators in text response
+      const lowerText = responseText.toLowerCase();
+      if (lowerText.includes('success') || lowerText.includes('sent') || lowerText.includes('accepted')) {
         console.log("✅ SMS sent successfully - success indicator found in text");
         return {
           success: true,
@@ -239,12 +227,11 @@ class SMSIndiaHubService {
           provider: 'SMSIndia Hub',
           response: responseText
         };
-      } else if (responseText.includes('error') || responseText.includes('failed') || responseText.includes('invalid')) {
+      } else if (lowerText.includes('error') || lowerText.includes('failed') || lowerText.includes('invalid') || lowerText.includes('insufficient')) {
         console.error("❌ SMS failed - error indicator found in text:", responseText);
         throw new Error(`SMSIndia Hub API error: ${responseText}`);
       } else {
-        // If we can't determine success/failure from response, assume success if we got a response (same as RentYatra)
-        console.log("⚠️ Ambiguous response - assuming success (same as RentYatra)");
+        console.warn("⚠️ Ambiguous SMS gateway response:", responseText);
         return {
           success: true,
           messageId: `sms_${Date.now()}`,

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Mail, Lock, ShieldCheck, Sun, Moon, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import logoImg from "../assets/logo.png";
+import { API_BASE_URL } from "../config";
 
 interface ClientSession {
   email: string;
@@ -36,7 +37,7 @@ export default function Login({ onLoginSuccess, isDarkMode, toggleDarkMode }: Lo
 
     setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/businesses/login", {
+      const res = await fetch(`${API_BASE_URL}/businesses/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

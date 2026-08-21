@@ -173,13 +173,17 @@ const deleteEmployee = async (req, res) => {
   }
 };
 
+// Escape special regex characters to prevent ReDoS attacks (SEC-014)
+const escapeRegex = (str) => (str ? String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '');
+
 // @desc    Get employee by custom empIdNumber (Public Verification)
 // @route   GET /api/employees/verify/:empIdNumber
 // @access  Public
 const getEmployeeByEmpId = async (req, res) => {
   try {
+    const safeEmpId = escapeRegex(req.params.empIdNumber);
     const employee = await Employee.findOne({
-      empIdNumber: { $regex: new RegExp(`^${req.params.empIdNumber}$`, 'i') }
+      empIdNumber: { $regex: new RegExp(`^${safeEmpId}$`, 'i') }
     });
 
     if (!employee) {

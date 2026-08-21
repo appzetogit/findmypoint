@@ -17,6 +17,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { businessesData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 
 interface BusinessWalletRow {
   id: string;
@@ -59,7 +60,7 @@ export default function AdminBusinessWallets() {
     // 1. Load active bookings list
     let allBiz: any[] = [];
     try {
-      const resBiz = await fetch("http://localhost:5000/api/businesses");
+      const resBiz = await fetch(`${API_BASE_URL}/businesses`);
       const dataBiz = await resBiz.json();
       if (dataBiz.success && Array.isArray(dataBiz.data)) {
         allBiz = dataBiz.data;
@@ -83,15 +84,54 @@ export default function AdminBusinessWallets() {
       } catch (e) {}
     }
 
-    // Load configurations from localStorage
+    // Load configurations from backend API with localStorage fallback
     let commissionMap: Record<string, number> = {};
     let withdrawalsList: any[] = [];
+
+    // Fetch commissions from backend
+    try {
+      const resComm = await fetch(`${API_BASE_URL}/business-commissions`);
+      const dataComm = await resComm.json();
+      if (dataComm.success && Array.isArray(dataComm.data)) {
+        dataComm.data.forEach((item: any) => {
+          commissionMap[item.businessId] = item.commissionRate;
+        });
+      }
+    } catch (e) {}
+
+    // Fallback/merge localStorage commissions
     try {
       const savedComms = localStorage.getItem("fmp_business_commissions");
-      if (savedComms) commissionMap = JSON.parse(savedComms);
+      if (savedComms) {
+        const parsed = JSON.parse(savedComms);
+        commissionMap = { ...parsed, ...commissionMap };
+      }
+    } catch (e) {}
 
+    // Fetch withdrawals from backend
+    try {
+      const resWth = await fetch(`${API_BASE_URL}/withdrawals`, {
+        headers: getAuthHeaders()
+      });
+      const dataWth = await resWth.json();
+      if (dataWth.success && Array.isArray(dataWth.data)) {
+        withdrawalsList = dataWth.data;
+      }
+    } catch (e) {}
+
+    // Fallback/merge localStorage withdrawals
+    try {
       const savedWithdrawals = localStorage.getItem("fmp_client_withdrawals");
-      if (savedWithdrawals) withdrawalsList = JSON.parse(savedWithdrawals);
+      if (savedWithdrawals) {
+        const parsed = JSON.parse(savedWithdrawals);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((w: any) => {
+            if (!withdrawalsList.some((existing: any) => existing.id === w.id)) {
+              withdrawalsList.push(w);
+            }
+          });
+        }
+      }
     } catch (e) {}
 
     // Compile rows for active booking listings
@@ -99,7 +139,7 @@ export default function AdminBusinessWallets() {
       // 1. Get payments/sales volume
       let bizPayments: any[] = [];
       try {
-        const res = await fetch(`http://localhost:5000/api/transactions/business/${biz.id}`, {
+        const res = await fetch(`${API_BASE_URL}/transactions/business/${biz.id}`, {
           headers: getAuthHeaders()
         });
         const data = await res.json();
@@ -118,7 +158,7 @@ export default function AdminBusinessWallets() {
 
       // 3. Get withdrawals for this business
       const completedWithdrawals = withdrawalsList.filter(
-        (w: any) => (w.bizName === biz.name || w.bizId === biz.id) && w.status === "Completed"
+        (w: any) => (w.businessId === biz.id || w.bizName === biz.name || w.bizId === biz.id) && w.status === "Completed"
       );
       const clientWithdrawn = completedWithdrawals.reduce((sum: number, w: any) => sum + w.amount, 0);
       const walletBalance = Math.max(0, clientNetEarnings - clientWithdrawn);
@@ -176,7 +216,7 @@ export default function AdminBusinessWallets() {
     // Get payments list
     let bizPayments: any[] = [];
     try {
-      const res = await fetch(`http://localhost:5000/api/transactions/business/${row.id}`, {
+      const res = await fetch(`${API_BASE_URL}/transactions/business/${row.id}`, {
         headers: getAuthHeaders()
       });
       const data = await res.json();
@@ -188,13 +228,30 @@ export default function AdminBusinessWallets() {
     // Get withdrawals list
     let withdrawalsList: any[] = [];
     try {
+      const resWth = await fetch(`${API_BASE_URL}/withdrawals`, {
+        headers: getAuthHeaders()
+      });
+      const dataWth = await resWth.json();
+      if (dataWth.success && Array.isArray(dataWth.data)) {
+        withdrawalsList = dataWth.data;
+      }
+    } catch (e) {}
+
+    try {
       const saved = localStorage.getItem("fmp_client_withdrawals");
-      if (saved) withdrawalsList = JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((w: any) => {
+            if (!withdrawalsList.some((existing: any) => existing.id === w.id)) {
+              withdrawalsList.push(w);
+            }
+          });
+        }
+      }
     } catch (e) {}
 
     const list: WalletLedgerItem[] = [];
-
-    // Add Completed booking credits
     bizPayments.forEach((pay: any) => {
       if (pay.status === "Completed") {
         const commAmt = (pay.amount * row.commissionRate) / 100;

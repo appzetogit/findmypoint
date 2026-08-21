@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { Star, MessageSquare } from "lucide-react";
-import { businessesData, BusinessListingData, UserReview } from "../data/businessesData";
+import { businessesData, BusinessListingData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 
 interface ReviewItem {
   id: string;
   businessId: string;
   businessName: string;
+  category?: string;
   rating: number;
   comments: string;
   date: string;
@@ -13,30 +15,44 @@ interface ReviewItem {
 
 export default function MyReviewsPage() {
   const [reviewsList, setReviewsList] = useState<ReviewItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadReviews = async () => {
+    setLoading(true);
+    const token = localStorage.getItem("fmp_user_token") || localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
+
+    if (token) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/reviews/my-reviews`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          const mapped: ReviewItem[] = data.data.map((r: any) => ({
+            id: r.id || r._id,
+            businessId: r.businessId,
+            businessName: r.businessName || "Local Business",
+            category: r.category,
+            rating: r.rating,
+            comments: r.reviewText || r.comments || "",
+            date: r.date || "Recent"
+          }));
+          setReviewsList(mapped);
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to fetch user reviews from API:", err);
+      }
+    }
+
+    // Fallback if no token or empty database
     try {
       const allMyReviews: ReviewItem[] = [];
 
-      // 1. Scan businesses for reviews by default user "Rahul Sharma"
-      businessesData.forEach((biz: BusinessListingData) => {
-        if (biz.reviews) {
-          biz.reviews.forEach((rev: UserReview, index: number) => {
-            if (rev.userName === "Rahul Sharma" || rev.userName === "rahul.sharma") {
-              allMyReviews.push({
-                id: `review-default-${biz.id}-${index}`,
-                businessId: biz.id,
-                businessName: biz.name,
-                rating: rev.rating,
-                comments: rev.reviewText,
-                date: rev.date || "July 2026",
-              });
-            }
-          });
-        }
-      });
-
-      // 2. Scan localStorage for custom reviews posted by user
+      // Scan localStorage for custom reviews posted by user
       businessesData.forEach((biz: BusinessListingData) => {
         const saved = localStorage.getItem(`fmp_custom_reviews:${biz.id}`);
         if (saved) {
@@ -46,6 +62,7 @@ export default function MyReviewsPage() {
               id: `review-custom-${biz.id}-${index}`,
               businessId: biz.id,
               businessName: biz.name,
+              category: biz.category,
               rating: rev.rating,
               comments: rev.reviewText || rev.text || "",
               date: rev.date || new Date().toLocaleDateString(),
@@ -54,32 +71,16 @@ export default function MyReviewsPage() {
         }
       });
 
-      // If no reviews found, add some default realistic mock reviews
-      if (allMyReviews.length === 0) {
-        allMyReviews.push(
-          {
-            id: "rev-1",
-            businessId: "REST002213",
-            businessName: "Shree shyam restaurant",
-            rating: 5,
-            comments: "Delicious traditional food and excellent family dining environment! Highly recommended.",
-            date: "04/07/2026",
-          },
-          {
-            id: "rev-2",
-            businessId: "HOTEL001",
-            businessName: "The Royal Palace Hotel",
-            rating: 4,
-            comments: "Luxurious stay and clean rooms. The room service response was slightly delayed but overall a great experience.",
-            date: "29/06/2026",
-          }
-        );
-      }
-
       setReviewsList(allMyReviews);
     } catch (e) {
-      console.error("Failed to load user reviews", e);
+      console.error("Failed to load local user reviews", e);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    loadReviews();
   }, []);
 
   return (

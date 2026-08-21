@@ -16,4 +16,10 @@ const TransactionSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
+// PERF-003: Indexes for fast lookup queries
+TransactionSchema.index({ userId: 1 });
+TransactionSchema.index({ businessId: 1 });
+TransactionSchema.index({ bookingId: 1 });
+TransactionSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model('Transaction', TransactionSchema);

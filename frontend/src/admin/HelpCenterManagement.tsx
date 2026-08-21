@@ -17,7 +17,7 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
-import { BACKEND_ORIGIN } from "../config";
+import { API_BASE_URL } from "../config";
 
 interface FAQItem {
   _id: string;
@@ -73,7 +73,7 @@ export default function HelpCenterManagement() {
   // ── Load Data ─────────────────────────────────────────────────────────────
   const loadFAQs = async () => {
     try {
-      const res = await fetch(`${BACKEND_ORIGIN}/api/help/faqs`);
+      const res = await fetch(`${API_BASE_URL}/help/faqs`);
       const data = await res.json();
       if (data.success) setFaqs(data.data);
     } catch { /* silent */ }
@@ -81,7 +81,7 @@ export default function HelpCenterManagement() {
 
   const loadTickets = async () => {
     try {
-      const res = await fetch(`${BACKEND_ORIGIN}/api/help/tickets`, {
+      const res = await fetch(`${API_BASE_URL}/help/tickets`, {
         headers: { Authorization: `Bearer ${adminToken}` },
       });
       const data = await res.json();
@@ -91,7 +91,7 @@ export default function HelpCenterManagement() {
 
   const loadContact = async () => {
     try {
-      const res = await fetch(`${BACKEND_ORIGIN}/api/help/contact`);
+      const res = await fetch(`${API_BASE_URL}/help/contact`);
       const data = await res.json();
       if (data.success) {
         setContactEmail(data.data.email || "");
@@ -125,8 +125,8 @@ export default function HelpCenterManagement() {
     setSavingFaq(true);
     try {
       const url = editingFaq
-        ? `${BACKEND_ORIGIN}/api/help/faqs/${editingFaq._id}`
-        : `${BACKEND_ORIGIN}/api/help/faqs`;
+        ? `${API_BASE_URL}/help/faqs/${editingFaq._id}`
+        : `${API_BASE_URL}/help/faqs`;
       const method = editingFaq ? "PUT" : "POST";
       const res = await fetch(url, {
         method,
@@ -154,7 +154,7 @@ export default function HelpCenterManagement() {
   const handleDeleteFaq = async (id: string) => {
     if (!confirm("Are you sure you want to delete this FAQ?")) return;
     try {
-      const res = await fetch(`${BACKEND_ORIGIN}/api/help/faqs/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/help/faqs/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${adminToken}` },
       });
@@ -176,7 +176,7 @@ export default function HelpCenterManagement() {
     e.preventDefault();
     setSavingContact(true);
     try {
-      const res = await fetch(`${BACKEND_ORIGIN}/api/help/contact`, {
+      const res = await fetch(`${API_BASE_URL}/help/contact`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -203,7 +203,7 @@ export default function HelpCenterManagement() {
       ? "Resolved"
       : "Open";
     try {
-      const res = await fetch(`${BACKEND_ORIGIN}/api/help/tickets/${ticket.id}`, {
+      const res = await fetch(`${API_BASE_URL}/help/tickets/${ticket.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -226,7 +226,7 @@ export default function HelpCenterManagement() {
   const handleDeleteTicket = async (id: string) => {
     if (!confirm("Delete this support ticket record?")) return;
     try {
-      const res = await fetch(`${BACKEND_ORIGIN}/api/help/tickets/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/help/tickets/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${adminToken}` },
       });

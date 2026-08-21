@@ -1,22 +1,24 @@
 import { io, Socket } from "socket.io-client";
+import { BACKEND_ORIGIN } from "../config";
 
 class SocketService {
   private socket: Socket | null = null;
 
   connect() {
     if (this.socket) return;
-    this.socket = io("http://localhost:5000");
+    this.socket = io(BACKEND_ORIGIN);
 
     this.socket.on("connect", () => {
       console.log("WebSocket client connected to server:", this.socket?.id);
-      
+
       // Auto re-register if user details exist in localStorage
       const userStr = localStorage.getItem("fmp_user");
       if (userStr) {
         try {
           const user = JSON.parse(userStr);
-          if (user && user._id) {
-            this.registerUser(user._id);
+          const userId = user && (user._id || user.id);
+          if (userId) {
+            this.registerUser(userId);
           }
         } catch (e) {}
       }

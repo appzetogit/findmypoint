@@ -33,7 +33,7 @@ import logoImg from "@/assets/logo.png";
 import { BusinessListingData } from "../data/businessesData";
 import Footer from "./Footer";
 import { useCategories } from "../context/CategoryContext";
-import { API_BASE_URL } from "../config";
+import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
 import { getSubcategoryEmoji } from "../utils/categoryImages";
 
 
@@ -324,7 +324,7 @@ export default function CategoryDetailPage({
     }
 
     try {
-      const res = await fetch("http://localhost:5000/api/razorpay/order", {
+      const res = await fetch(`${API_BASE_URL}/razorpay/order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount })
@@ -339,7 +339,7 @@ export default function CategoryDetailPage({
       const { id: order_id, amount: order_amount, currency } = orderData.data;
 
       const options = {
-        key: "rzp_test_S3IcSS1NbymL6D",
+        key: RAZORPAY_KEY_ID,
         amount: order_amount,
         currency,
         name: "FindmyPoint",
@@ -348,7 +348,7 @@ export default function CategoryDetailPage({
         handler: async function (response: any) {
           dispatchBooking({ type: "SET_PROCESSING", value: true });
           try {
-            const verifyRes = await fetch("http://localhost:5000/api/razorpay/verify", {
+            const verifyRes = await fetch(`${API_BASE_URL}/razorpay/verify`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -451,7 +451,7 @@ export default function CategoryDetailPage({
 
     if (selectedBizForEnquiry) {
       // Send enquiry to backend API
-      fetch(`http://localhost:5000/api/businesses/${selectedBizForEnquiry.id}/enquire`, {
+      fetch(`${API_BASE_URL}/businesses/${selectedBizForEnquiry.id}/enquire`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -586,7 +586,7 @@ export default function CategoryDetailPage({
     };
 
     try {
-      const profRes = await fetch("http://localhost:5000/api/auth/profile", { headers: getAuthHeaders() });
+      const profRes = await fetch(`${API_BASE_URL}/auth/profile`, { headers: getAuthHeaders() });
       const profData = await profRes.json();
       if (profData.success && profData.user) {
         const prof = profData.user;
@@ -609,7 +609,7 @@ export default function CategoryDetailPage({
     const bookingId = `BK${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
     setConfirmedOrderId(bookingId);
 
-    fetch(`http://localhost:5000/api/service-forms/${selectedBizForBooking.id}/submissions`, {
+    fetch(`${API_BASE_URL}/service-forms/${selectedBizForBooking.id}/submissions`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -625,7 +625,7 @@ export default function CategoryDetailPage({
             ? "Appointment Consultation Fee"
             : "Table Booking Deposit";
 
-        fetch("http://localhost:5000/api/transactions", {
+        fetch(`${API_BASE_URL}/transactions`, {
           method: "POST",
           headers: getAuthHeaders(),
           body: JSON.stringify({
@@ -1961,8 +1961,8 @@ export default function CategoryDetailPage({
 
       {/* Booking Modal */}
       {bookingModalOpen && selectedBizForBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="relative w-full h-full sm:h-auto max-w-none sm:max-w-md rounded-none sm:rounded-2xl border-0 sm:border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in-up max-h-full sm:max-h-[90vh] overflow-y-auto no-scrollbar">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-md my-auto rounded-3xl sm:rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in-up max-h-[90vh] overflow-y-auto no-scrollbar">
             <button
               onClick={() => dispatchBooking({ type: "CLOSE_MODAL" })}
               className="absolute right-4 top-4 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -2292,7 +2292,7 @@ export default function CategoryDetailPage({
                             };
 
                             try {
-                              const profRes = await fetch("http://localhost:5000/api/auth/profile", { headers: getAuthHeaders() });
+                              const profRes = await fetch(`${API_BASE_URL}/auth/profile`, { headers: getAuthHeaders() });
                               const profData = await profRes.json();
                               if (profData.success && profData.user) {
                                 const prof = profData.user;
@@ -2315,7 +2315,7 @@ export default function CategoryDetailPage({
                             const bookingId = `BK${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
                             setConfirmedOrderId(bookingId);
 
-                            fetch(`http://localhost:5000/api/service-forms/${selectedBizForBooking.id}/submissions`, {
+                            fetch(`${API_BASE_URL}/service-forms/${selectedBizForBooking.id}/submissions`, {
                               method: "POST",
                               headers: getAuthHeaders(),
                               body: JSON.stringify({
@@ -2331,7 +2331,7 @@ export default function CategoryDetailPage({
                                     ? "Appointment Consultation Fee"
                                     : "Table Booking Deposit";
 
-                                fetch("http://localhost:5000/api/transactions", {
+                                fetch(`${API_BASE_URL}/transactions`, {
                                   method: "POST",
                                   headers: getAuthHeaders(),
                                   body: JSON.stringify({
@@ -2396,14 +2396,14 @@ export default function CategoryDetailPage({
             )}
 
             {bookingStep === "success" && (
-              <div className="py-8 text-center flex flex-col items-center">
-                <div className="h-12 w-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
-                  <Check className="h-7 w-7" />
+              <div className="py-8 text-center flex flex-col items-center justify-center my-auto">
+                <div className="h-16 w-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 shadow-xs">
+                  <Check className="h-8 w-8 stroke-[3px]" />
                 </div>
-                <h3 className="font-serif text-lg font-bold text-foreground mb-1">
+                <h3 className="font-serif text-xl font-bold text-foreground mb-1.5">
                   Booking Confirmed!
                 </h3>
-                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">
                   Your booking has been placed with{" "}
                   <span className="font-semibold text-primary">{selectedBizForBooking.name}</span>. Booking ID:{" "}
                   <span className="font-bold text-foreground">
@@ -2411,6 +2411,13 @@ export default function CategoryDetailPage({
                   </span>
                   . You will receive an SMS confirmation shortly.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => dispatchBooking({ type: "CLOSE_MODAL" })}
+                  className="mt-6 w-full max-w-xs rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs py-2.5 shadow-md transition cursor-pointer"
+                >
+                  Done
+                </button>
               </div>
             )}
           </div>

@@ -70,6 +70,19 @@ const getRequests = async (req, res) => {
 // @access  Private
 const createRequest = async (req, res) => {
   try {
+    // FLOW-005: Prevent duplicate pending requests from the same user
+    const existingPending = await BusinessRequest.findOne({
+      userId: req.user._id,
+      paymentStatus: 'Pending'
+    });
+    if (existingPending) {
+      return res.status(400).json({
+        success: false,
+        message: 'You already have a pending business listing request. Please complete the payment or wait for approval.',
+        existingRequestId: existingPending._id
+      });
+    }
+
     // 1. Fetch current fee
     let fee = await ListingFee.findOne();
     const feeAmount = fee ? fee.amount : 500;

@@ -5,6 +5,7 @@ import {
   IndianRupee, Upload, X, Edit3, Loader2, RefreshCw, ImageIcon
 } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
+import { BACKEND_ORIGIN, API_BASE_URL } from "../config";
 
 interface AddProductProps {
   clientListings: BusinessListingData[];
@@ -17,8 +18,6 @@ interface Product {
   img?: string;
   addedDate?: string;
 }
-
-const API_BASE = "http://localhost:5000";
 
 const getPlaceholderImg = (category: string) => {
   const cat = category.toLowerCase();
@@ -73,7 +72,7 @@ export default function AddProduct({ clientListings }: AddProductProps) {
     const load = async () => {
       setLoadingProducts(true);
       try {
-        const res = await fetch(`${API_BASE}/api/businesses/${selectedBizId}`);
+        const res = await fetch(`${API_BASE_URL}/businesses/${selectedBizId}`);
         const data = await res.json();
         if (isMounted) {
           if (data.success && data.data?.products) {
@@ -202,7 +201,7 @@ export default function AddProduct({ clientListings }: AddProductProps) {
     setIsSaving(true);
     try {
       const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
-      const res = await fetch(`${API_BASE}/api/businesses/${selectedBizId}`, {
+      const res = await fetch(`${API_BASE_URL}/businesses/${selectedBizId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -236,7 +235,7 @@ export default function AddProduct({ clientListings }: AddProductProps) {
     setDeletingName(productName);
     try {
       const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
-      const res = await fetch(`${API_BASE}/api/businesses/${selectedBizId}`, {
+      const res = await fetch(`${API_BASE_URL}/businesses/${selectedBizId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -369,7 +368,7 @@ export default function AddProduct({ clientListings }: AddProductProps) {
               <tbody className="divide-y divide-slate-150 dark:divide-slate-850">
                 {products.map((prod, idx) => {
                   const imgSrc = prod.img?.startsWith("/uploads/")
-                    ? `${API_BASE}${prod.img}`
+                    ? `${BACKEND_ORIGIN}${prod.img}`
                     : prod.img || getPlaceholderImg(selectedBiz?.category || "");
 
                   return (
@@ -557,7 +556,7 @@ export default function AddProduct({ clientListings }: AddProductProps) {
                     <div className="p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 rounded-xl flex items-center gap-3">
                       <div className="h-20 w-20 bg-white dark:bg-slate-850 border border-slate-200/40 rounded-xl overflow-hidden shrink-0 shadow-sm">
                         <img
-                          src={imgPreview.startsWith("/uploads/") ? `${API_BASE}${imgPreview}` : imgPreview}
+                          src={imgPreview.startsWith("/uploads/") ? `${BACKEND_ORIGIN}${imgPreview}` : imgPreview}
                           alt="Preview"
                           className="h-full w-full object-cover"
                         />

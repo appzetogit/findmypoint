@@ -37,4 +37,10 @@ const BookingSchema = new mongoose.Schema({
   isReviewed: { type: Boolean, default: false }
 }, { timestamps: true });
 
+// PERF-003: Indexes for fast userId and businessId lookups
+BookingSchema.index({ userId: 1 });
+BookingSchema.index({ businessId: 1 });
+BookingSchema.index({ userId: 1, status: 1 });
+BookingSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model('Booking', BookingSchema);

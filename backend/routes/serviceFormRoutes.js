@@ -20,7 +20,7 @@ router.post('/:businessId', protect, saveFormConfig);
 
 // Submissions routes
 router.get('/:businessId/submissions', protect, getSubmissions);
-router.post('/:businessId/submissions', protect, createSubmission); // Requires logged-in customer
+router.post('/:businessId/submissions', createSubmission); // Public: customers can submit booking forms without login
 router.delete('/:businessId/submissions/:submissionId', protect, deleteSubmission);
 router.delete('/:businessId/submissions', protect, clearSubmissions);
 

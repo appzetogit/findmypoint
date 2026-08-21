@@ -1,5 +1,32 @@
+const mongoose = require('mongoose');
 const ServiceFormConfig = require('../models/ServiceFormConfig');
 const ServiceBookingSubmission = require('../models/ServiceBookingSubmission');
+const Business = require('../models/Business');
+const { slugify } = require('../utils/slugify');
+
+// Helper to verify caller owns the business listing or is an Admin
+const verifyBusinessAccess = async (req, businessId) => {
+  if (!req.user) return false;
+  if (req.user.isAdmin === true) return true;
+  if (req.user.isBusiness === true && req.user.businessId === businessId) return true;
+  if (req.user._id) {
+    const isObjectId = mongoose.isValidObjectId(businessId);
+    const business = await Business.findOne({
+      $or: [
+        { id: businessId },
+        { slug: slugify(businessId) },
+        ...(isObjectId ? [{ _id: businessId }] : [])
+      ]
+    });
+    if (business && (
+      (business.owner && business.owner.toString() === req.user._id.toString()) ||
+      (req.user.isBusiness && req.user.businessId === business.id)
+    )) {
+      return true;
+    }
+  }
+  return false;
+};
 
 // @desc    Get form configuration by businessId
 // @route   GET /api/service-forms/:businessId
@@ -18,11 +45,16 @@ const getFormConfig = async (req, res) => {
 
 // @desc    Save/Update form configuration by businessId
 // @route   POST /api/service-forms/:businessId
-// @access  Private (Client/Admin Auth)
+// @access  Private (Client Owner / Admin Auth)
 const saveFormConfig = async (req, res) => {
   try {
     const { fields, bookNowEnabled, formTitle, formDescription } = req.body;
     const businessId = req.params.businessId;
+
+    const hasAccess = await verifyBusinessAccess(req, businessId);
+    if (!hasAccess) {
+      return res.status(403).json({ success: false, message: 'Not authorized to configure forms for this business' });
+    }
 
     let config = await ServiceFormConfig.findOne({ businessId });
 
@@ -50,10 +82,16 @@ const saveFormConfig = async (req, res) => {
 
 // @desc    Get booking submissions for a businessId
 // @route   GET /api/service-forms/:businessId/submissions
-// @access  Private (Client/Admin Auth)
+// @access  Private (Client Owner / Admin Auth)
 const getSubmissions = async (req, res) => {
   try {
-    const submissions = await ServiceBookingSubmission.find({ businessId: req.params.businessId }).sort({ createdAt: -1 });
+    const { businessId } = req.params;
+    const hasAccess = await verifyBusinessAccess(req, businessId);
+    if (!hasAccess) {
+      return res.status(403).json({ success: false, message: 'Not authorized to view submissions for this business' });
+    }
+
+    const submissions = await ServiceBookingSubmission.find({ businessId }).sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: submissions });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -98,12 +136,18 @@ const createSubmission = async (req, res) => {
 
 // @desc    Delete a booking submission
 // @route   DELETE /api/service-forms/:businessId/submissions/:submissionId
-// @access  Private (Client/Admin Auth)
+// @access  Private (Client Owner / Admin Auth)
 const deleteSubmission = async (req, res) => {
   try {
+    const { businessId, submissionId } = req.params;
+    const hasAccess = await verifyBusinessAccess(req, businessId);
+    if (!hasAccess) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete submissions for this business' });
+    }
+
     const result = await ServiceBookingSubmission.findOneAndDelete({
-      id: req.params.submissionId,
-      businessId: req.params.businessId
+      id: submissionId,
+      businessId
     });
 
     if (!result) {
@@ -118,10 +162,16 @@ const deleteSubmission = async (req, res) => {
 
 // @desc    Clear all booking submissions for a businessId
 // @route   DELETE /api/service-forms/:businessId/submissions
-// @access  Private (Client/Admin Auth)
+// @access  Private (Client Owner / Admin Auth)
 const clearSubmissions = async (req, res) => {
   try {
-    await ServiceBookingSubmission.deleteMany({ businessId: req.params.businessId });
+    const { businessId } = req.params;
+    const hasAccess = await verifyBusinessAccess(req, businessId);
+    if (!hasAccess) {
+      return res.status(403).json({ success: false, message: 'Not authorized to clear submissions for this business' });
+    }
+
+    await ServiceBookingSubmission.deleteMany({ businessId });
     res.status(200).json({ success: true, message: 'All submissions cleared successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -133,7 +183,6 @@ const clearSubmissions = async (req, res) => {
 // @access  Private
 const getClientStats = async (req, res) => {
   try {
-    const Business = require('../models/Business');
     const Enquiry = require('../models/Enquiry');
 
     // Find businesses belonging to this user

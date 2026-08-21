@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { User, Phone, Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
+import { API_BASE_URL } from "../config";
 
 interface ClientSession {
   email: string;
@@ -44,7 +45,7 @@ export default function ProfileSettings({ session, onProfileUpdate }: ProfileSet
       setPhone(session.phone || "");
     }
     if (session?.businessId) {
-      fetch(`http://localhost:5000/api/businesses/${session.businessId}`)
+      fetch(`${API_BASE_URL}/businesses/${session.businessId}`)
         .then(res => res.json())
         .then(data => {
           if (data.success && data.data) {
@@ -92,7 +93,7 @@ export default function ProfileSettings({ session, onProfileUpdate }: ProfileSet
     try {
       // Step 1: If new password is set, change password via backend
       if (newPassword) {
-        const pwRes = await fetch("http://localhost:5000/api/businesses/change-password", {
+        const pwRes = await fetch(`${API_BASE_URL}/businesses/change-password`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -116,7 +117,7 @@ export default function ProfileSettings({ session, onProfileUpdate }: ProfileSet
       }
 
       // Step 2: Update profile info (name, phone) via backend
-      const profileRes = await fetch(`http://localhost:5000/api/businesses/${session.businessId}`, {
+      const profileRes = await fetch(`${API_BASE_URL}/businesses/${session.businessId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

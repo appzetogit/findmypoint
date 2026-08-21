@@ -3,6 +3,8 @@ dns.setDefaultResultOrder('ipv4first');
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 
@@ -12,10 +14,38 @@ const base64UploadMiddleware = require('./middleware/base64UploadMiddleware');
 // Load environment variables
 dotenv.config();
 
+// Abort startup if critical env vars are missing
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET is not set in environment variables. Exiting.');
+  process.exit(1);
+}
+
 // Connect to Database
 connectDB();
 
 const app = express();
+
+// ─── CORS Configuration ─────────────────────────────────────────────────────
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',  // Vite dev server
+  'http://localhost:4173',  // Vite preview
+  'http://localhost:3000',  // Alternative dev port
+  process.env.FRONTEND_URL  // Production frontend URL (set in .env)
+].filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked: origin ${origin} not allowed`));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+};
 
 // Initialize HTTP server and Socket.io server
 const http = require('http');
@@ -24,7 +54,7 @@ const { Server } = require('socket.io');
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: '*',
+    origin: ALLOWED_ORIGINS,
     methods: ['GET', 'POST', 'PUT', 'DELETE']
   }
 });
@@ -58,14 +88,79 @@ io.on('connection', (socket) => {
   });
 });
 
+// ─── Rate Limiters ───────────────────────────────────────────────────────────
+// OTP send: max 5 requests per 5 minutes per IP
+const otpSendLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 5,
+  message: { success: false, message: 'Too many OTP requests. Please wait 5 minutes before retrying.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// OTP verify + login: max 10 requests per 5 minutes per IP
+const authLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: 'Too many attempts. Please wait 5 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// General API limiter: allow generous operational throughput and skip authenticated tokens
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 1000 : 5000,
+  message: { success: false, message: 'Too many requests. Please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Skip general rate limiting for healthchecks and authenticated admin/client/user calls
+    if (req.path === '/api/health' || req.headers.authorization) {
+      return true;
+    }
+    return false;
+  }
+});
+
+app.set('otpSendLimiter', otpSendLimiter);
+app.set('authLimiter', authLimiter);
+
 // Serve static assets using strict absolute path
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Middleware
-app.use(cors());
+// ─── Security & Core Middleware ──────────────────────────────────────────────
+const mongoSanitize = require('mongo-sanitize');
+
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow serving uploaded images cross-origin
+}));
+app.use(cors(corsOptions));
+app.use(generalLimiter);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: false }));
-app.use(base64UploadMiddleware);
+
+// Sanitize user inputs against NoSQL injection
+app.use((req, res, next) => {
+  if (req.body) req.body = mongoSanitize(req.body);
+  if (req.params) req.params = mongoSanitize(req.params);
+  if (req.query) {
+    for (const key in req.query) {
+      if (Object.prototype.hasOwnProperty.call(req.query, key)) {
+        req.query[key] = mongoSanitize(req.query[key]);
+      }
+    }
+  }
+  next();
+});
+
+// Skip base64 middleware on GET/DELETE requests — only needed for mutating requests
+app.use((req, res, next) => {
+  if (req.method === 'GET' || req.method === 'DELETE' || req.method === 'HEAD') {
+    return next();
+  }
+  return base64UploadMiddleware(req, res, next);
+});
 
 // Import Routes
 const authRoutes = require('./routes/authRoutes');
@@ -97,6 +192,7 @@ const businessRequestRoutes = require('./routes/businessRequestRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const faqRoutes = require('./routes/faqRoutes');
 const seoRoutes = require('./routes/seoRoutes');
+const withdrawalRoutes = require('./routes/withdrawalRoutes');
 
 // API Healthcheck
 app.get('/api/health', (req, res) => {
@@ -139,6 +235,7 @@ app.use('/api/business-commissions', businessCommissionRoutes);
 app.use('/api/business-requests', businessRequestRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/faqs', faqRoutes);
+app.use('/api/withdrawals', withdrawalRoutes);
 
 
 // Fallback Route

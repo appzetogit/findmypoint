@@ -22,6 +22,7 @@ import {
   Tooltip
 } from "recharts";
 import { businessesData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 
 interface ActivityItem {
   type: "booking" | "enquiry";
@@ -64,7 +65,7 @@ export default function AllClientDashboard() {
     // 1. Gather all businesses
     let allBiz: any[] = [];
     try {
-      const resBiz = await fetch("http://localhost:5000/api/businesses");
+      const resBiz = await fetch(`${API_BASE_URL}/businesses`);
       const dataBiz = await resBiz.json();
       if (dataBiz.success && Array.isArray(dataBiz.data)) {
         allBiz = dataBiz.data;
@@ -91,7 +92,7 @@ export default function AllClientDashboard() {
     // 2. Loop and count
     let allBookingsList: any[] = [];
     try {
-      const resBook = await fetch("http://localhost:5000/api/bookings", {
+      const resBook = await fetch(`${API_BASE_URL}/bookings`, {
         headers: getAuthHeaders()
       });
       const dataBook = await resBook.json();
@@ -115,7 +116,7 @@ export default function AllClientDashboard() {
     try {
       await Promise.all(allBiz.map(async (biz) => {
         try {
-          const resEnq = await fetch(`http://localhost:5000/api/businesses/${biz.id}/enquiries`, {
+          const resEnq = await fetch(`${API_BASE_URL}/businesses/${biz.id}/enquiries`, {
             headers: getAuthHeaders()
           });
           const dataEnq = await resEnq.json();

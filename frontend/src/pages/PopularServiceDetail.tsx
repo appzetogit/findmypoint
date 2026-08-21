@@ -88,7 +88,7 @@ export default function PopularServiceDetailPage({
           (headers as any)["Authorization"] = `Bearer ${token}`;
         }
         // Send enquiry to backend API
-        fetch(`http://localhost:5000/api/businesses/${selectedBizForEnquiry.id}/enquire`, {
+        fetch(`${API_BASE_URL}/businesses/${selectedBizForEnquiry.id}/enquire`, {
           method: "POST",
           headers,
           body: JSON.stringify({

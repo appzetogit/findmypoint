@@ -3,6 +3,9 @@ const Business = require('../models/Business');
 const Enquiry = require('../models/Enquiry');
 const { slugify, generateBusinessSlugs } = require('../utils/slugify');
 
+// Escape special regex characters to prevent ReDoS attacks (SEC-009)
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // Helper to sanitize business object for public responses
 const sanitizePublicBusiness = (business) => {
   if (!business) return null;
@@ -18,32 +21,36 @@ const sanitizePublicBusiness = (business) => {
 // @access  Public
 const getBusinesses = async (req, res) => {
   try {
-    const { search, category, subcategory, location, status } = req.query;
+    const { search, category, subcategory, location, status, admin } = req.query;
     let query = {};
 
-    // Filter by status if provided, otherwise default to published for general queries
+    // Default to published for public queries; allow admin override with ?status=
     if (status) {
       query.status = status;
+    } else if (!admin) {
+      // Public listings: only show published businesses
+      query.status = 'published';
     }
 
     if (category) {
-      query.category = { $regex: new RegExp(category, 'i') };
+      query.category = { $regex: new RegExp(escapeRegex(category), 'i') };
     }
 
     if (subcategory) {
-      query.subCategoryLine = { $regex: new RegExp(subcategory, 'i') };
+      query.subCategoryLine = { $regex: new RegExp(escapeRegex(subcategory), 'i') };
     }
 
     if (location) {
-      query.location = { $regex: new RegExp(location, 'i') };
+      query.location = { $regex: new RegExp(escapeRegex(location), 'i') };
     }
 
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { name: { $regex: new RegExp(search, 'i') } },
-        { category: { $regex: new RegExp(search, 'i') } },
-        { location: { $regex: new RegExp(search, 'i') } },
-        { description: { $regex: new RegExp(search, 'i') } },
+        { name: { $regex: new RegExp(safeSearch, 'i') } },
+        { category: { $regex: new RegExp(safeSearch, 'i') } },
+        { location: { $regex: new RegExp(safeSearch, 'i') } },
+        { description: { $regex: new RegExp(safeSearch, 'i') } },
       ];
     }
 
@@ -151,6 +158,14 @@ const getBusinessById = async (req, res) => {
 
     if (!business) {
       return res.status(404).json({ success: false, message: 'Business listing not found' });
+    }
+
+    // Respect status — do not expose deleted or suspended businesses publicly (BUG-010)
+    if (business.status === 'deleted') {
+      return res.status(410).json({ success: false, message: 'This business listing has been permanently deleted.' });
+    }
+    if (business.status === 'suspended') {
+      return res.status(404).json({ success: false, message: 'Business profile is currently unavailable.' });
     }
 
     res.status(200).json({ success: true, data: sanitizePublicBusiness(business) });
@@ -299,7 +314,14 @@ const updateBusiness = async (req, res) => {
 // @access  Private
 const deleteBusiness = async (req, res) => {
   try {
-    const business = await Business.findOne({ id: req.params.id });
+    const isObjectId = mongoose.isValidObjectId(req.params.id);
+    const business = await Business.findOne({
+      $or: [
+        { id: req.params.id },
+        { slug: slugify(req.params.id) },
+        ...(isObjectId ? [{ _id: req.params.id }] : [])
+      ]
+    });
 
     if (!business) {
       return res.status(404).json({ success: false, message: 'Business listing not found' });
@@ -310,108 +332,21 @@ const deleteBusiness = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to delete this business' });
     }
 
-    await Business.deleteOne({ id: req.params.id });
+    await Business.findByIdAndDelete(business._id);
     res.status(200).json({ success: true, message: 'Business deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Add a review to a business
-// @route   POST /api/businesses/:id/reviews
-// @access  Public (or Private depending on policy, we will extract user information if logged in)
-const addBusinessReview = async (req, res) => {
-  const { userName, rating, reviewText, userEmail, bookingId } = req.body;
+const { addReview, deleteReview } = require('./reviewController');
 
-  if (!userName || !rating || !reviewText) {
-    return res.status(400).json({ success: false, message: 'Please provide name, rating, and review text' });
-  }
+// @desc    Add a review to a business (delegated to reviewController)
+const addBusinessReview = addReview;
 
-  try {
-    const business = await Business.findOne({ id: req.params.id });
+// @desc    Delete a business review (delegated to reviewController)
+const deleteBusinessReview = deleteReview;
 
-    if (!business) {
-      return res.status(404).json({ success: false, message: 'Business not found' });
-    }
-
-    // Extract colors/initials for aesthetic consistency
-    const initial = userName.charAt(0).toUpperCase();
-    const colors = [
-      'from-blue-500 to-indigo-600',
-      'from-purple-500 to-fuchsia-600',
-      'from-emerald-500 to-teal-600',
-      'from-rose-500 to-pink-600',
-      'from-amber-500 to-orange-600'
-    ];
-    const userColor = colors[Math.floor(Math.random() * colors.length)];
-
-    const newReview = {
-      userName,
-      userInitial: initial,
-      userColor,
-      rating: Number(rating),
-      date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-      reviewText,
-      userEmail: userEmail || ''
-    };
-
-    business.reviews.push(newReview);
-    
-    // Recalculate average rating and count
-    const totalReviews = business.reviews.length;
-    const totalRatingSum = business.reviews.reduce((sum, item) => sum + item.rating, 0);
-    
-    business.reviewCount = totalReviews;
-    business.rating = Number((totalRatingSum / totalReviews).toFixed(1));
-
-    await business.save();
-
-    if (bookingId) {
-      try {
-        const BookingModel = require('../models/Booking');
-        await BookingModel.findOneAndUpdate({ id: bookingId }, { isReviewed: true });
-      } catch (err) {
-        console.error('Failed to update booking isReviewed status:', err);
-      }
-    }
-
-    res.status(201).json({ success: true, rating: business.rating, reviewCount: business.reviewCount, data: business.reviews });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// @desc    Delete a business review
-// @route   DELETE /api/businesses/:id/reviews/:reviewId
-// @access  Private (Admin only)
-const deleteBusinessReview = async (req, res) => {
-  try {
-    const business = await Business.findOne({ id: req.params.id });
-
-    if (!business) {
-      return res.status(404).json({ success: false, message: 'Business not found' });
-    }
-
-    // Remove review
-    business.reviews = business.reviews.filter(rev => rev._id.toString() !== req.params.reviewId);
-
-    // Recalculate
-    const totalReviews = business.reviews.length;
-    if (totalReviews > 0) {
-      const totalRatingSum = business.reviews.reduce((sum, item) => sum + item.rating, 0);
-      business.reviewCount = totalReviews;
-      business.rating = Number((totalRatingSum / totalReviews).toFixed(1));
-    } else {
-      business.reviewCount = 0;
-      business.rating = 0;
-    }
-
-    await business.save();
-    res.status(200).json({ success: true, rating: business.rating, reviewCount: business.reviewCount, data: business.reviews });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
 
 // @desc    Toggle booking disabled status for a business
 // @route   POST /api/businesses/:id/booking-disable
@@ -420,7 +355,14 @@ const toggleBookingDisable = async (req, res) => {
   const { isDisabled } = req.body;
 
   try {
-    const business = await Business.findOne({ id: req.params.id });
+    const isObjectId = mongoose.isValidObjectId(req.params.id);
+    const business = await Business.findOne({
+      $or: [
+        { id: req.params.id },
+        { slug: slugify(req.params.id) },
+        ...(isObjectId ? [{ _id: req.params.id }] : [])
+      ]
+    });
 
     if (!business) {
       return res.status(404).json({ success: false, message: 'Business not found' });
@@ -451,7 +393,14 @@ const submitEnquiry = async (req, res) => {
   }
 
   try {
-    const business = await Business.findOne({ id: req.params.id });
+    const isObjectId = mongoose.isValidObjectId(req.params.id);
+    const business = await Business.findOne({
+      $or: [
+        { id: req.params.id },
+        { slug: slugify(req.params.id) },
+        ...(isObjectId ? [{ _id: req.params.id }] : [])
+      ]
+    });
 
     if (!business) {
       return res.status(404).json({ success: false, message: 'Business not found' });
@@ -506,10 +455,15 @@ const loginBusiness = async (req, res) => {
     }
 
     // Generate JWT token
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      return res.status(500).json({ success: false, message: 'Server configuration error: JWT secret missing' });
+    }
+
     const jwt = require('jsonwebtoken');
     const token = jwt.sign(
       { id: business._id, isBusiness: true, businessId: business.id },
-      process.env.JWT_SECRET || 'jwtsecret',
+      secret,
       { expiresIn: '30d' }
     );
 
@@ -586,7 +540,15 @@ const changeBusinessPassword = async (req, res) => {
 // @access  Private (Client/Admin Auth)
 const getEnquiries = async (req, res) => {
   try {
-    const enquiries = await Enquiry.find({ businessId: req.params.id }).sort({ createdAt: -1 });
+    const businessId = req.params.id;
+    const isAuthorizedAdmin = req.user && req.user.isAdmin;
+    const isAuthorizedBusiness = req.user && req.user.isBusiness && req.user.businessId === businessId;
+
+    if (!isAuthorizedAdmin && !isAuthorizedBusiness) {
+      return res.status(403).json({ success: false, message: 'Not authorized to view enquiries for this business' });
+    }
+
+    const enquiries = await Enquiry.find({ businessId }).sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: enquiries });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -598,7 +560,15 @@ const getEnquiries = async (req, res) => {
 // @access  Private (Client/Admin Auth)
 const updateEnquiryStatus = async (req, res) => {
   try {
-    const enquiry = await Enquiry.findById(req.params.enquiryId);
+    const businessId = req.params.id;
+    const isAuthorizedAdmin = req.user && req.user.isAdmin;
+    const isAuthorizedBusiness = req.user && req.user.isBusiness && req.user.businessId === businessId;
+
+    if (!isAuthorizedAdmin && !isAuthorizedBusiness) {
+      return res.status(403).json({ success: false, message: 'Not authorized to update enquiries for this business' });
+    }
+
+    const enquiry = await Enquiry.findOne({ _id: req.params.enquiryId, businessId });
     if (!enquiry) {
       return res.status(404).json({ success: false, message: 'Enquiry not found' });
     }
@@ -623,7 +593,15 @@ const updateEnquiryStatus = async (req, res) => {
 // @access  Private (Client/Admin Auth)
 const deleteEnquiry = async (req, res) => {
   try {
-    const result = await Enquiry.findByIdAndDelete(req.params.enquiryId);
+    const businessId = req.params.id;
+    const isAuthorizedAdmin = req.user && req.user.isAdmin;
+    const isAuthorizedBusiness = req.user && req.user.isBusiness && req.user.businessId === businessId;
+
+    if (!isAuthorizedAdmin && !isAuthorizedBusiness) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete enquiries for this business' });
+    }
+
+    const result = await Enquiry.findOneAndDelete({ _id: req.params.enquiryId, businessId });
     if (!result) {
       return res.status(404).json({ success: false, message: 'Enquiry not found' });
     }
@@ -638,7 +616,15 @@ const deleteEnquiry = async (req, res) => {
 // @access  Private (Client/Admin Auth)
 const clearEnquiries = async (req, res) => {
   try {
-    await Enquiry.deleteMany({ businessId: req.params.id });
+    const businessId = req.params.id;
+    const isAuthorizedAdmin = req.user && req.user.isAdmin;
+    const isAuthorizedBusiness = req.user && req.user.isBusiness && req.user.businessId === businessId;
+
+    if (!isAuthorizedAdmin && !isAuthorizedBusiness) {
+      return res.status(403).json({ success: false, message: 'Not authorized to clear enquiries for this business' });
+    }
+
+    await Enquiry.deleteMany({ businessId });
     res.status(200).json({ success: true, message: 'All enquiries cleared successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

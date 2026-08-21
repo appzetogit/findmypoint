@@ -12,11 +12,29 @@ const {
   updateUserFavorites
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
+const rateLimit = require('express-rate-limit');
 
-// Public routes
-router.post('/send-otp', sendOtp);
-router.post('/verify-otp', verifyOtp);
-router.post('/register', registerUser);
+// OTP-specific rate limiters
+const otpSendLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 5,
+  message: { success: false, message: 'Too many OTP requests. Please wait 5 minutes before retrying.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: 'Too many attempts. Please wait 5 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Public routes (with rate limiting)
+router.post('/send-otp', otpSendLimiter, sendOtp);
+router.post('/verify-otp', authLimiter, verifyOtp);
+router.post('/register', authLimiter, registerUser);
 
 // Protected routes
 router.get('/profile', protect, getUserProfile);

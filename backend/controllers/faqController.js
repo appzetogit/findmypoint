@@ -1,5 +1,7 @@
+const mongoose = require('mongoose');
 const FAQ = require('../models/FAQ');
 const Business = require('../models/Business');
+const { slugify } = require('../utils/slugify');
 
 // @desc    Sync (Overwrite) all FAQs for a business
 // @route   PUT /api/faqs/business/:businessId
@@ -13,14 +15,21 @@ const syncBusinessFAQs = async (req, res) => {
   }
 
   try {
-    const business = await Business.findOne({ id: businessId });
+    const isObjectId = mongoose.isValidObjectId(businessId);
+    const business = await Business.findOne({
+      $or: [
+        { id: businessId },
+        { slug: slugify(businessId) },
+        ...(isObjectId ? [{ _id: businessId }] : [])
+      ]
+    });
     if (!business) {
       return res.status(404).json({ success: false, message: 'Business listing not found' });
     }
 
     // Check permission: Admin or Business Owner allowed
     const isAdmin = req.user.isAdmin === true;
-    const isOwnBusiness = req.user.isBusiness === true && req.user.businessId === businessId;
+    const isOwnBusiness = req.user.isBusiness === true && (req.user.businessId === businessId || req.user.businessId === business.id);
     const isOwner = business.owner && business.owner.toString() === req.user._id.toString();
 
     if (!isAdmin && !isOwnBusiness && !isOwner) {

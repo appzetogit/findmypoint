@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { HelpCircle, Plus, Trash2, Edit3, Check, X, ChevronDown, ChevronUp, BookOpen } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 
 interface FAQManagementProps {
   clientListings: BusinessListingData[];
@@ -65,7 +66,7 @@ export default function FAQManagement({ clientListings }: FAQManagementProps) {
     }
 
     try {
-      const res = await fetch(`http://localhost:5000/api/faqs/business/${bizId}`, {
+      const res = await fetch(`${API_BASE_URL}/faqs/business/${bizId}`, {
         method: "PUT",
         headers,
         body: JSON.stringify({

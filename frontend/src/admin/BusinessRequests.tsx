@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, Eye, Trash2, Calendar, Clock, MapPin, Phone, Mail, User, ShieldCheck, Image as ImageIcon, X } from "lucide-react";
-import { API_BASE_URL } from "../config";
+import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
 
 interface BusinessRequest {
   id: string;
@@ -175,7 +175,7 @@ export default function BusinessRequests() {
     }
 
     const options = {
-      key: "rzp_test_S3IcSS1NbymL6D",
+      key: RAZORPAY_KEY_ID,
       amount: order.amount,
       currency: order.currency || "INR",
       name: "FindmyPoint",

@@ -161,6 +161,11 @@ export default function ArticleDetailPage({
     );
   }
 
+  const galleryImages = Array.isArray(currentArticle.galleryImages) ? currentArticle.galleryImages : [];
+  const introParagraphs = Array.isArray(currentArticle.introParagraphs) ? currentArticle.introParagraphs : [];
+  const businesses = Array.isArray(currentArticle.businesses) ? currentArticle.businesses : [];
+  const tags = Array.isArray(currentArticle.tags) ? currentArticle.tags : [];
+
   const handleEnquire = (businessName: string) => {
     alert(
       `Enquiry submitted for ${businessName}! A customer representative will contact you soon.`,
@@ -172,7 +177,7 @@ export default function ArticleDetailPage({
       navigator
         .share({
           title: currentArticle.title,
-          text: currentArticle.introParagraphs[0],
+          text: introParagraphs[0] || "",
           url: window.location.href,
         })
         .catch(console.error);
@@ -313,16 +318,16 @@ export default function ArticleDetailPage({
             <div className="relative rounded-2xl overflow-hidden bg-secondary border border-border shadow-sm">
               <div className="aspect-[16/9] w-full overflow-hidden relative">
                 <img
-                  src={currentArticle.galleryImages[activeImageIndex] || currentArticle.mainImage}
+                  src={galleryImages[activeImageIndex] || currentArticle.mainImage}
                   alt={currentArticle.title}
                   className="h-full w-full object-cover transition-all duration-500"
                 />
               </div>
 
               {/* Thumbnails list */}
-              {currentArticle.galleryImages.length > 0 && (
+              {galleryImages.length > 0 && (
                 <div className="flex gap-2.5 p-4 bg-card border-t border-border">
-                  {currentArticle.galleryImages.map((img, idx) => (
+                  {galleryImages.map((img, idx) => (
                     <button
                       key={idx}
                       onClick={() => setActiveImageIndex(idx)}
@@ -337,14 +342,14 @@ export default function ArticleDetailPage({
 
             {/* Intro Text */}
             <div className="prose max-w-none text-[13px] leading-relaxed text-muted-foreground/95 font-semibold space-y-4">
-              {currentArticle.introParagraphs.map((para, idx) => (
+              {introParagraphs.map((para, idx) => (
                 <p key={idx}>{para}</p>
               ))}
             </div>
 
             {/* List of Businesses details */}
             <div className="hidden sm:flex flex-col gap-12 mt-4">
-              {currentArticle.businesses.map((biz) => (
+              {businesses.map((biz) => (
                 <section
                   key={biz.id}
                   id={biz.id}
@@ -577,7 +582,7 @@ export default function ArticleDetailPage({
               </div>
 
               <ul className="flex flex-col gap-2.5">
-                {currentArticle.businesses.map((biz) => (
+                {businesses.map((biz) => (
                   <li key={biz.id}>
                     <a
                       href={`#${biz.id}`}
@@ -651,7 +656,7 @@ export default function ArticleDetailPage({
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {currentArticle.tags.map((tag, idx) => (
+                {tags.map((tag, idx) => (
                   <span
                     key={idx}
                     className="cursor-pointer text-[10px] font-bold text-muted-foreground border border-border/60 bg-secondary/25 px-2.5 py-1.5 rounded-lg hover:border-primary/20 hover:bg-card hover:text-primary transition-colors"

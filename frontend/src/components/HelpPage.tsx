@@ -11,7 +11,7 @@ import {
   Phone,
   Loader2,
 } from "lucide-react";
-import { BACKEND_ORIGIN } from "../config";
+import { API_BASE_URL } from "../config";
 
 interface FAQItem {
   _id: string;
@@ -42,7 +42,7 @@ export default function HelpPage() {
 
   useEffect(() => {
     // Load FAQs from backend
-    fetch(`${BACKEND_ORIGIN}/api/help/faqs`)
+    fetch(`${API_BASE_URL}/help/faqs`)
       .then((r) => r.json())
       .then((data) => {
         if (data.success) setFaqs(data.data);
@@ -51,7 +51,7 @@ export default function HelpPage() {
       .finally(() => setLoadingFaqs(false));
 
     // Load contact info from backend
-    fetch(`${BACKEND_ORIGIN}/api/help/contact`)
+    fetch(`${API_BASE_URL}/help/contact`)
       .then((r) => r.json())
       .then((data) => {
         if (data.success) setContactInfo({ email: data.data.email, phone: data.data.phone });
@@ -64,7 +64,7 @@ export default function HelpPage() {
     setIsSubmitting(true);
     setSubmitError("");
     try {
-      const res = await fetch(`${BACKEND_ORIGIN}/api/help/tickets`, {
+      const res = await fetch(`${API_BASE_URL}/help/tickets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

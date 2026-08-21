@@ -1,6 +1,21 @@
+const mongoose = require('mongoose');
 const Review = require('../models/Review');
 const Business = require('../models/Business');
 const Booking = require('../models/Booking');
+const { slugify } = require('../utils/slugify');
+
+// Helper to find a business by id, slug, or ObjectId
+const findBusinessByIdentifier = async (identifier) => {
+  if (!identifier) return null;
+  const isObjectId = mongoose.isValidObjectId(identifier);
+  return await Business.findOne({
+    $or: [
+      { id: identifier },
+      { slug: slugify(identifier) },
+      ...(isObjectId ? [{ _id: identifier }] : [])
+    ]
+  });
+};
 
 // @desc    Add a review to a business
 // @route   POST /api/reviews OR POST /api/businesses/:id/reviews
@@ -14,7 +29,7 @@ const addReview = async (req, res) => {
   }
 
   try {
-    const business = await Business.findOne({ id: businessId });
+    const business = await findBusinessByIdentifier(businessId);
     if (!business) {
       return res.status(404).json({ success: false, message: 'Business not found' });
     }
@@ -22,7 +37,7 @@ const addReview = async (req, res) => {
     // 1. Create a dedicated Review document in database
     const review = await Review.create({
       bookingId: bookingId || '',
-      businessId,
+      businessId: business.id,
       userId: req.user ? req.user._id : null,
       userName: userName.trim(),
       userEmail: userEmail || '',
@@ -107,7 +122,18 @@ const deleteReview = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Review not found' });
     }
 
-    const business = await Business.findOne({ id: review.businessId });
+    const business = await findBusinessByIdentifier(review.businessId);
+
+    // Authorization check: Admin, Review Author, or Business Owner (SEC-010)
+    const isAdmin = req.user && req.user.isAdmin;
+    const isAuthor = review.userId && req.user && req.user._id && review.userId.toString() === req.user._id.toString();
+    const isDirectBizToken = req.user && req.user.isBusiness && (req.user.businessId === review.businessId || (business && req.user.businessId === business.id));
+    const isOwnerUser = business && business.owner && req.user && req.user._id && business.owner.toString() === req.user._id.toString();
+
+    if (!isAdmin && !isAuthor && !isDirectBizToken && !isOwnerUser) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this review' });
+    }
+
     if (business) {
       // Remove from embedded business reviews array
       business.reviews = business.reviews.filter(rev => rev._id.toString() !== review._id.toString());
@@ -131,4 +157,51 @@ const deleteReview = async (req, res) => {
   }
 };
 
-module.exports = { addReview, getBusinessReviews, deleteReview };
+// @desc    Get all reviews authored by the currently logged-in user
+// @route   GET /api/reviews/my-reviews
+// @access  Private
+const getMyReviews = async (req, res) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: 'Not authorized' });
+    }
+
+    const query = {
+      $or: [
+        { userId: req.user._id },
+        ...(req.user.email ? [{ userEmail: req.user.email }] : [])
+      ]
+    };
+
+    const reviews = await Review.find(query).sort({ createdAt: -1 });
+
+    // Attach business details to each review for rich UI display
+    const enrichedReviews = await Promise.all(
+      reviews.map(async (rev) => {
+        const business = await findBusinessByIdentifier(rev.businessId);
+        return {
+          id: rev._id,
+          businessId: rev.businessId,
+          businessName: business ? business.name : rev.businessId,
+          category: business ? business.category : 'General',
+          rating: rev.rating,
+          reviewText: rev.reviewText,
+          userName: rev.userName,
+          date: rev.createdAt
+            ? new Date(rev.createdAt).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+              })
+            : 'Recent'
+        };
+      })
+    );
+
+    res.status(200).json({ success: true, count: enrichedReviews.length, data: enrichedReviews });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { addReview, getBusinessReviews, getMyReviews, deleteReview };

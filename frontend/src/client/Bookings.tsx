@@ -87,7 +87,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
       // 1. Fetch raw bookings to get status
       let rawBookings: any[] = [];
       try {
-        const res = await fetch(`http://localhost:5000/api/bookings`, { headers });
+        const res = await fetch(`${API_BASE_URL}/bookings`, { headers });
         const data = await res.json();
         if (data.success && Array.isArray(data.data)) {
           rawBookings = data.data;
@@ -100,7 +100,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
       let mergedSubmissions: Submission[] = [];
       let rawSubmissions: any[] = [];
       try {
-        const res = await fetch(`http://localhost:5000/api/service-forms/${selectedBizId}/submissions`, { headers });
+        const res = await fetch(`${API_BASE_URL}/service-forms/${selectedBizId}/submissions`, { headers });
         const data = await res.json();
         if (data.success && Array.isArray(data.data)) {
           rawSubmissions = data.data;
@@ -111,7 +111,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
 
       let rawOrders: any[] = [];
       try {
-        const res = await fetch(`http://localhost:5000/api/product-orders/${selectedBizId}`, { headers });
+        const res = await fetch(`${API_BASE_URL}/product-orders/${selectedBizId}`, { headers });
         const data = await res.json();
         if (data.success && Array.isArray(data.data)) {
           rawOrders = data.data;
@@ -271,7 +271,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
       const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_user_token");
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}/collect-payment`, {
+      const res = await fetch(`${API_BASE_URL}/bookings/${bookingId}/collect-payment`, {
         method: "PUT",
         headers
       });
@@ -392,8 +392,8 @@ export default function Bookings({ clientListings }: BookingsProps) {
       const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
       const isProductOrder = targetSub.data && targetSub.data["Order Type"] === "Product Order";
       const deleteUrl = isProductOrder
-        ? `http://localhost:5000/api/product-orders/${selectedBizId}/${subId}`
-        : `http://localhost:5000/api/service-forms/${selectedBizId}/submissions/${subId}`;
+        ? `${API_BASE_URL}/product-orders/${selectedBizId}/${subId}`
+        : `${API_BASE_URL}/service-forms/${selectedBizId}/submissions/${subId}`;
 
       const headers: HeadersInit = {};
       if (token) {
@@ -433,7 +433,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
     }
 
     try {
-      const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}/status`, {
+      const res = await fetch(`${API_BASE_URL}/bookings/${bookingId}/status`, {
         method: "PUT",
         headers,
         body: JSON.stringify({ status: "cancelled" })
@@ -459,7 +459,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
     }
 
     try {
-      const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}/status`, {
+      const res = await fetch(`${API_BASE_URL}/bookings/${bookingId}/status`, {
         method: "PUT",
         headers,
         body: JSON.stringify({ status: "completed" })
@@ -488,13 +488,13 @@ export default function Bookings({ clientListings }: BookingsProps) {
       
       try {
         // 1. Clear Service Form bookings
-        const res1 = await fetch(`http://localhost:5000/api/service-forms/${selectedBizId}/submissions`, {
+        const res1 = await fetch(`${API_BASE_URL}/service-forms/${selectedBizId}/submissions`, {
           method: "DELETE",
           headers
         });
         
         // 2. Clear Product Orders
-        const res2 = await fetch(`http://localhost:5000/api/product-orders/${selectedBizId}`, {
+        const res2 = await fetch(`${API_BASE_URL}/product-orders/${selectedBizId}`, {
           method: "DELETE",
           headers
         });

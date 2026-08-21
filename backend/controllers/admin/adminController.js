@@ -2,7 +2,11 @@ const Admin = require('../../models/admin/Admin');
 const jwt = require('jsonwebtoken');
 
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'super_secret_key_12345', {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('FATAL: JWT_SECRET environment variable is not set.');
+  }
+  return jwt.sign({ id }, secret, {
     expiresIn: '30d',
   });
 };

@@ -17,6 +17,7 @@ import {
   RotateCcw
 } from "lucide-react";
 import { businessesData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 
 interface BookingRecord {
   id: string;
@@ -51,7 +52,7 @@ export default function AllBookings() {
 
   const loadBookings = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/bookings", {
+      const res = await fetch(`${API_BASE_URL}/bookings`, {
         headers: getAuthHeaders()
       });
       const data = await res.json();
@@ -147,7 +148,7 @@ export default function AllBookings() {
   const handleCancelBooking = async (booking: BookingRecord) => {
     if (window.confirm(`Are you sure you want to cancel booking for ${booking.customerName}?`)) {
       try {
-        const res = await fetch(`http://localhost:5000/api/bookings/${booking.id}/status`, {
+        const res = await fetch(`${API_BASE_URL}/bookings/${booking.id}/status`, {
           method: "PUT",
           headers: getAuthHeaders(),
           body: JSON.stringify({ status: "cancelled" })
@@ -169,7 +170,7 @@ export default function AllBookings() {
   const handleRefundBooking = async (booking: BookingRecord) => {
     if (window.confirm(`Mark payment of ₹${booking.amount} as refunded for ${booking.customerName}?`)) {
       try {
-        const res = await fetch(`http://localhost:5000/api/bookings/${booking.id}/refund`, {
+        const res = await fetch(`${API_BASE_URL}/bookings/${booking.id}/refund`, {
           method: "PUT",
           headers: getAuthHeaders()
         });
@@ -190,7 +191,7 @@ export default function AllBookings() {
   const handleDeleteBooking = async (booking: BookingRecord) => {
     if (window.confirm(`Delete booking for ${booking.customerName} permanently? This cannot be undone.`)) {
       try {
-        const res = await fetch(`http://localhost:5000/api/bookings/${booking.id}`, {
+        const res = await fetch(`${API_BASE_URL}/bookings/${booking.id}`, {
           method: "DELETE",
           headers: getAuthHeaders()
         });

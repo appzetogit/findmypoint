@@ -27,7 +27,7 @@ router.get(['/sitemap.xml', '/api/sitemap.xml'], async (req, res) => {
     ).lean();
 
     // Fetch categories
-    const categories = await Category.find({}, 'name updatedAt').lean().catch(() => []);
+    const categories = await Category.find({}, 'label name updatedAt').lean().catch(() => []);
 
     // Fetch tourist places
     const places = await TouristPlace.find({}, 'name updatedAt').lean().catch(() => []);
@@ -60,10 +60,11 @@ router.get(['/sitemap.xml', '/api/sitemap.xml'], async (req, res) => {
 
     // Category URLs
     for (const cat of categories) {
-      if (cat.name) {
+      const categoryName = cat.label || cat.name;
+      if (categoryName) {
         const lastmod = cat.updatedAt ? new Date(cat.updatedAt).toISOString() : nowIso;
         xml += `  <url>\n`;
-        xml += `    <loc>${baseUrl}/category/${encodeURIComponent(cat.name)}</loc>\n`;
+        xml += `    <loc>${baseUrl}/category/${encodeURIComponent(categoryName)}</loc>\n`;
         xml += `    <lastmod>${lastmod}</lastmod>\n`;
         xml += `    <changefreq>weekly</changefreq>\n`;
         xml += `    <priority>0.8</priority>\n`;

@@ -30,6 +30,7 @@ import FAQManagement from "./FAQManagement";
 import PaymentManagement from "./PaymentManagement";
 import AddProduct from "./AddProduct";
 import Wallet from "./Wallet";
+import { API_BASE_URL } from "../config";
 
 interface ClientShellProps {
   onClose: () => void;
@@ -130,7 +131,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
 
   const loadBusinesses = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/businesses");
+      const res = await fetch(`${API_BASE_URL}/businesses`);
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setAllListings(data.data);
@@ -214,7 +215,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
         await Promise.all(clientListings.map(async (biz) => {
           // 1. Fetch bookings (custom submissions + product orders)
           try {
-            const resSub = await fetch(`http://localhost:5000/api/service-forms/${biz.id}/submissions`, { headers });
+            const resSub = await fetch(`${API_BASE_URL}/service-forms/${biz.id}/submissions`, { headers });
             const dataSub = await resSub.json();
             if (dataSub.success && Array.isArray(dataSub.data)) {
               totalBookings += dataSub.data.length;
@@ -233,7 +234,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
           } catch {}
 
           try {
-            const resOrder = await fetch(`http://localhost:5000/api/product-orders/${biz.id}`, { headers });
+            const resOrder = await fetch(`${API_BASE_URL}/product-orders/${biz.id}`, { headers });
             const dataOrder = await resOrder.json();
             if (dataOrder.success && Array.isArray(dataOrder.data)) {
               totalBookings += dataOrder.data.length;
@@ -253,7 +254,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
 
           // 2. Fetch enquiries
           try {
-            const resEnq = await fetch(`http://localhost:5000/api/businesses/${biz.id}/enquiries`, { headers });
+            const resEnq = await fetch(`${API_BASE_URL}/businesses/${biz.id}/enquiries`, { headers });
             const dataEnq = await resEnq.json();
             if (dataEnq.success && Array.isArray(dataEnq.data)) {
               totalEnquiries += dataEnq.data.length;
@@ -271,7 +272,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
 
           // 3. Fetch transactions
           try {
-            const resTxn = await fetch(`http://localhost:5000/api/transactions/business/${biz.id}`, { headers });
+            const resTxn = await fetch(`${API_BASE_URL}/transactions/business/${biz.id}`, { headers });
             const dataTxn = await resTxn.json();
             if (dataTxn.success && Array.isArray(dataTxn.data)) {
               dataTxn.data.forEach((txn: any) => {

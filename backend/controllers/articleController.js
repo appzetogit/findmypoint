@@ -1,4 +1,16 @@
+const mongoose = require('mongoose');
 const Article = require('../models/Article');
+
+const getArticleQuery = (param) => {
+  const isNum = !isNaN(Number(param)) && param !== '' && !isNaN(parseInt(param, 10));
+  const isObjectId = mongoose.isValidObjectId(param);
+  return {
+    $or: [
+      ...(isNum ? [{ id: Number(param) }] : []),
+      ...(isObjectId ? [{ _id: param }] : [])
+    ]
+  };
+};
 
 // @desc    Get all articles
 // @route   GET /api/articles
@@ -12,12 +24,16 @@ const getArticles = async (req, res) => {
   }
 };
 
-// @desc    Get single article by numeric ID
+// @desc    Get single article by numeric ID or ObjectId
 // @route   GET /api/articles/:id
 // @access  Public
 const getArticleById = async (req, res) => {
   try {
-    const article = await Article.findOne({ id: Number(req.params.id) });
+    const query = getArticleQuery(req.params.id);
+    if (!query.$or || query.$or.length === 0) {
+      return res.status(404).json({ success: false, message: 'Article not found' });
+    }
+    const article = await Article.findOne(query);
 
     if (!article) {
       return res.status(404).json({ success: false, message: 'Article not found' });
@@ -60,8 +76,13 @@ const updateArticle = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Only admins can perform this action' });
     }
 
+    const query = getArticleQuery(req.params.id);
+    if (!query.$or || query.$or.length === 0) {
+      return res.status(404).json({ success: false, message: 'Article not found' });
+    }
+
     const article = await Article.findOneAndUpdate(
-      { id: Number(req.params.id) },
+      query,
       { $set: req.body },
       { new: true, runValidators: true }
     );
@@ -85,7 +106,12 @@ const deleteArticle = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Only admins can perform this action' });
     }
 
-    const result = await Article.findOneAndDelete({ id: Number(req.params.id) });
+    const query = getArticleQuery(req.params.id);
+    if (!query.$or || query.$or.length === 0) {
+      return res.status(404).json({ success: false, message: 'Article not found' });
+    }
+
+    const result = await Article.findOneAndDelete(query);
 
     if (!result) {
       return res.status(404).json({ success: false, message: 'Article not found' });

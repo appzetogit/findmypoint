@@ -6,7 +6,11 @@ const smsService = require('../services/smsService');
 const otpCache = new Map();
 
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'super_secret_key_12345', {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('FATAL: JWT_SECRET environment variable is not set. Server cannot issue tokens.');
+  }
+  return jwt.sign({ id }, secret, {
     expiresIn: '30d',
   });
 };
@@ -16,7 +20,7 @@ const generateToken = (id) => {
 // @access  Public
 const sendOtp = async (req, res) => {
   const { phone } = req.body;
-  if (!phone || phone.replace(/\D/g, '').length !== 10) {
+  if (!phone || typeof phone !== 'string' || phone.replace(/\D/g, '').length !== 10) {
     return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit mobile number' });
   }
 
@@ -29,27 +33,30 @@ const sendOtp = async (req, res) => {
     expires: Date.now() + 5 * 60 * 1000
   });
 
-  console.log(`📱 Generated OTP for ${phone}: ${otpCode}`);
+  console.log(`\n======================================================`);
+  console.log(`📱 [AUTH OTP] Mobile: ${phone} | OTP Code: ${otpCode}`);
+  console.log(`======================================================\n`);
 
   try {
     if (smsService.isConfigured()) {
-      await smsService.sendOTP(phone, otpCode, 'register');
+      const smsResult = await smsService.sendOTP(phone, otpCode, 'register');
+      console.log(`📡 SMS Service Result for ${phone}:`, smsResult);
       res.status(200).json({
         success: true,
         message: 'OTP code sent successfully via SMS.',
       });
     } else {
-      console.warn(`⚠️ SMS Service credentials missing. Dynamic OTP code is ${otpCode}`);
+      console.warn(`⚠️ SMS Service credentials missing. OTP for ${phone}: ${otpCode}`);
       res.status(200).json({
         success: true,
-        message: `OTP sent successfully. (Testing mode enabled. Dynamic OTP: ${otpCode})`,
+        message: 'OTP sent successfully.',
       });
     }
   } catch (error) {
-    console.error('Error sending SMS via gateway:', error.message);
+    console.error(`❌ Error sending SMS to ${phone} via SMS gateway:`, error.message);
     res.status(200).json({
       success: true,
-      message: `OTP sent successfully. (Gateway failure fallback. Dynamic OTP: ${otpCode})`,
+      message: 'OTP sent successfully.',
     });
   }
 };
@@ -60,26 +67,21 @@ const sendOtp = async (req, res) => {
 const verifyOtp = async (req, res) => {
   const { phone, otp } = req.body;
   
-  if (!phone || !otp || otp.length !== 6) {
-    return res.status(400).json({ success: false, message: 'Please enter phone and 6-digit OTP' });
+  if (!phone || !otp || typeof phone !== 'string' || typeof otp !== 'string' || otp.length !== 6) {
+    return res.status(200).json({ success: false, message: 'Please enter phone and 6-digit OTP' });
   }
 
-  // Check OTP (allow 110211 as a default bypass OTP)
+  // Check OTP against in-memory cache
   let isOtpValid = false;
-  if (otp === "110211") {
+  const cachedOtp = otpCache.get(phone);
+  if (cachedOtp && cachedOtp.code === otp && Date.now() <= cachedOtp.expires) {
     isOtpValid = true;
-    console.log(`✅ OTP verified via bypass code (110211) for ${phone}`);
-  } else {
-    const cachedOtp = otpCache.get(phone);
-    if (cachedOtp && cachedOtp.code === otp && Date.now() <= cachedOtp.expires) {
-      isOtpValid = true;
-      otpCache.delete(phone); // Clear OTP on successful verification
-      console.log(`✅ OTP verified dynamically from cache for ${phone}`);
-    }
+    otpCache.delete(phone); // Clear OTP after successful verification (one-time use)
+    console.log(`✅ OTP verified for ${phone}`);
   }
 
   if (!isOtpValid) {
-    return res.status(400).json({ success: false, message: 'Invalid or expired OTP code.' });
+    return res.status(200).json({ success: false, message: 'Invalid or expired OTP code. Please enter the correct OTP.' });
   }
 
   try {
@@ -127,8 +129,14 @@ const verifyOtp = async (req, res) => {
 const registerUser = async (req, res) => {
   const { title, firstName, middleName, lastName, mobile1, mobile2, email } = req.body;
 
-  if (!firstName || !mobile1 || !email) {
+  if (!firstName || typeof firstName !== 'string' || !mobile1 || typeof mobile1 !== 'string' || !email || typeof email !== 'string') {
     return res.status(400).json({ success: false, message: 'First name, mobile number, and email are required' });
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ success: false, message: 'Please provide a valid email address' });
   }
 
   try {

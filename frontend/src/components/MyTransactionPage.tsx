@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Check, X, Download } from "lucide-react";
 import { jsPDF } from "jspdf";
+import { API_BASE_URL } from "../config";
 
 export default function MyTransactionPage() {
   const [bookings, setBookings] = useState<any[]>([]);
@@ -18,7 +19,7 @@ export default function MyTransactionPage() {
       }
 
       try {
-        const res = await fetch("http://localhost:5000/api/transactions", { headers });
+        const res = await fetch(`${API_BASE_URL}/transactions`, { headers });
         const data = await res.json();
         if (data.success && Array.isArray(data.data)) {
           const mapped = data.data.map((txn: any) => ({
@@ -26,11 +27,12 @@ export default function MyTransactionPage() {
             transactionId: txn.id,
             category: "Secure Booking",
             business: txn.businessName || "FindmyPoint Listing",
-            details: txn.details || txn.description || "Service Booking Payment",
+            details: txn.description || txn.details || "Service Booking Payment",
             amount: txn.amount,
-            date: txn.timestamp ? txn.timestamp.split(",")[0] : "",
-            status: txn.status === "Completed" ? "Success" : txn.status,
-            paymentMode: txn.paymentMethod || "UPI Gateway"
+            date: txn.timestamp || "",
+            status: txn.status || "Completed",
+            paymentMode: txn.paymentMethod || "Online",
+            type: txn.type || "debit"
           }));
           setBookings(mapped);
         }

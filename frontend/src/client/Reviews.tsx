@@ -18,6 +18,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { BusinessListingData, UserReview } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 
 interface ReviewsProps {
   clientListings: BusinessListingData[];
@@ -105,7 +106,7 @@ export default function Reviews({ clientListings }: ReviewsProps) {
     const bizId = clientListings[0]?.id;
     if (!bizId) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/reviews/business/${bizId}`);
+      const res = await fetch(`${API_BASE_URL}/reviews/business/${bizId}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setDbReviews(data.data);

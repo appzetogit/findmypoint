@@ -12,6 +12,7 @@ import {
   Tag
 } from "lucide-react";
 import { businessesData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 
 interface EnquiryRecord {
   id: string;
@@ -43,7 +44,7 @@ export default function AllEnquiries() {
     // 1. Gather all businesses
     let allBiz: any[] = [];
     try {
-      const resBiz = await fetch("http://localhost:5000/api/businesses");
+      const resBiz = await fetch(`${API_BASE_URL}/businesses`);
       const dataBiz = await resBiz.json();
       if (dataBiz.success && Array.isArray(dataBiz.data)) {
         allBiz = dataBiz.data;
@@ -72,7 +73,7 @@ export default function AllEnquiries() {
     try {
       await Promise.all(allBiz.map(async (biz) => {
         try {
-          const res = await fetch(`http://localhost:5000/api/businesses/${biz.id}/enquiries`, {
+          const res = await fetch(`${API_BASE_URL}/businesses/${biz.id}/enquiries`, {
             headers: getAuthHeaders()
           });
           const data = await res.json();

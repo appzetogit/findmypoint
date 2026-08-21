@@ -1,4 +1,31 @@
+const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
+const Business = require('../models/Business');
+const { slugify } = require('../utils/slugify');
+
+// Helper to verify caller owns the business listing or is an Admin
+const verifyBusinessAccess = async (req, businessId) => {
+  if (!req.user) return false;
+  if (req.user.isAdmin === true) return true;
+  if (req.user.isBusiness === true && req.user.businessId === businessId) return true;
+  if (req.user._id) {
+    const isObjectId = mongoose.isValidObjectId(businessId);
+    const business = await Business.findOne({
+      $or: [
+        { id: businessId },
+        { slug: slugify(businessId) },
+        ...(isObjectId ? [{ _id: businessId }] : [])
+      ]
+    });
+    if (business && (
+      (business.owner && business.owner.toString() === req.user._id.toString()) ||
+      (req.user.isBusiness && req.user.businessId === business.id)
+    )) {
+      return true;
+    }
+  }
+  return false;
+};
 
 // @desc    Get user transactions (All for Admin, user-specific for regular users)
 // @route   GET /api/transactions
@@ -8,6 +35,59 @@ const getTransactions = async (req, res) => {
     let query = {};
     if (!req.user.isAdmin) {
       query = { userId: req.user._id };
+
+      // Ensure any bookings by this user without a transaction entry are auto-synced
+      try {
+        const userBookings = await Booking.find({ userId: req.user._id });
+        if (userBookings && userBookings.length > 0) {
+          for (const booking of userBookings) {
+            let existing = await Transaction.findOne({ bookingId: booking.id });
+            if (!existing) {
+              const bDate = new Date(booking.createdAt || Date.now());
+              const dateStr = bDate.toISOString().slice(0, 10).replace(/-/g, '');
+              const txnId = `TXN-${dateStr}-${Math.floor(100 + Math.random() * 900)}`;
+              const timestamp = bDate.toLocaleDateString('en-GB', {
+                day: '2-digit', month: 'short', year: 'numeric'
+              }) + `, ` + bDate.toLocaleTimeString('en-US', {
+                hour: '2-digit', minute: '2-digit', hour12: true
+              });
+              const isPaid = booking.paymentId || booking.paymentStatus === 'paid';
+              const isRefunded = booking.paymentStatus === 'refunded';
+              await Transaction.create({
+                id: txnId,
+                timestamp,
+                description: booking.service ? `${booking.service}` : `Booking - ${booking.businessName}`,
+                businessName: booking.businessName || '',
+                businessId: booking.businessId || '',
+                bookingId: booking.id,
+                customerName: booking.customerName || 'Customer',
+                details: booking.service ? `${booking.service} at ${booking.businessName}` : `Payment for ${booking.businessName}`,
+                amount: booking.amount,
+                type: isRefunded ? 'credit' : 'debit',
+                paymentMethod: booking.paymentMethod || 'Online',
+                status: isRefunded ? 'Refunded' : (isPaid ? 'Completed' : 'Pending'),
+                userId: booking.userId,
+                createdAt: booking.createdAt || new Date()
+              });
+            } else {
+              let modified = false;
+              if (booking.paymentStatus === 'refunded' && existing.status !== 'Refunded') {
+                existing.status = 'Refunded';
+                modified = true;
+              }
+              if (existing.type === 'credit' && existing.status !== 'Refunded') {
+                existing.type = 'debit';
+                modified = true;
+              }
+              if (modified) {
+                await existing.save();
+              }
+            }
+          }
+        }
+      } catch (syncErr) {
+        console.error('Error auto-syncing bookings to transactions:', syncErr.message);
+      }
     }
 
     const transactions = await Transaction.find(query).sort({ createdAt: -1 });
@@ -43,6 +123,23 @@ const createTransaction = async (req, res) => {
       hour12: true
     });
 
+    // Prevent duplicates if a transaction for this bookingId already exists
+    if (bookingId) {
+      const existing = await Transaction.findOne({ bookingId });
+      if (existing) {
+        existing.status = status || existing.status;
+        existing.amount = amount !== undefined ? amount : existing.amount;
+        existing.paymentMethod = paymentMethod || existing.paymentMethod;
+        existing.description = description || existing.description;
+        existing.details = details || existing.details;
+        if (req.user && !existing.userId) {
+          existing.userId = req.user._id;
+        }
+        await existing.save();
+        return res.status(200).json({ success: true, data: existing });
+      }
+    }
+
     const transaction = await Transaction.create({
       id: txnId,
       timestamp,
@@ -53,7 +150,7 @@ const createTransaction = async (req, res) => {
       customerName: customerName || 'Guest',
       details: details || description || 'Booking Payment',
       amount,
-      type,
+      type: type || 'debit',
       paymentMethod,
       status: status || 'Completed',
       userId: req.user ? req.user._id : undefined
@@ -67,27 +164,59 @@ const createTransaction = async (req, res) => {
 
 // @desc    Get transactions by businessId
 // @route   GET /api/transactions/business/:businessId
-// @access  Private (Client/Admin Auth)
+// @access  Private (Client Owner / Admin Auth)
 const getTransactionsByBusiness = async (req, res) => {
   try {
-    const transactions = await Transaction.find({ businessId: req.params.businessId }).sort({ createdAt: -1 });
+    const { businessId } = req.params;
+    const hasAccess = await verifyBusinessAccess(req, businessId);
+    if (!hasAccess) {
+      return res.status(403).json({ success: false, message: 'Not authorized to view transactions for this business' });
+    }
+
+    const transactions = await Transaction.find({ businessId }).sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: transactions });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
+const Booking = require('../models/Booking');
+
 // @desc    Refund a transaction by txnId
 // @route   PUT /api/transactions/:txnId/refund
-// @access  Private (Client/Admin Auth)
+// @access  Private (Client Owner / Admin Auth)
 const refundTransaction = async (req, res) => {
   try {
     const transaction = await Transaction.findOne({ id: req.params.txnId });
     if (!transaction) {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
+
+    const hasAccess = await verifyBusinessAccess(req, transaction.businessId);
+    if (!hasAccess) {
+      return res.status(403).json({ success: false, message: 'Not authorized to refund this transaction' });
+    }
+
     transaction.status = 'Refunded';
     await transaction.save();
+
+    // BUG-002 fix: Synchronize matching booking if bookingId is attached
+    if (transaction.bookingId) {
+      try {
+        await Booking.findOneAndUpdate(
+          { id: transaction.bookingId },
+          {
+            $set: {
+              paymentStatus: 'refunded',
+              status: 'cancelled'
+            }
+          }
+        );
+      } catch (bkErr) {
+        console.error('Warning: Failed to sync refunded status to booking:', bkErr.message);
+      }
+    }
+
     res.status(200).json({ success: true, data: transaction });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

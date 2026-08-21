@@ -16,6 +16,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 
 interface PaymentManagementProps {
   clientListings: BusinessListingData[];
@@ -72,7 +73,7 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
           }
 
           try {
-            const res = await fetch("http://localhost:5000/api/bookings", { headers });
+            const res = await fetch(`${API_BASE_URL}/bookings`, { headers });
             const data = await res.json();
             if (data.success && Array.isArray(data.data)) {
               rawBookings = data.data;
@@ -81,7 +82,7 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
             console.error("Error loading bookings for payments:", err);
           }
 
-          const res = await fetch(`http://localhost:5000/api/transactions/business/${selectedBizId}`, {
+          const res = await fetch(`${API_BASE_URL}/transactions/business/${selectedBizId}`, {
             headers: getAuthHeaders()
           });
           const data = await res.json();
@@ -203,7 +204,7 @@ export default function PaymentManagement({ clientListings }: PaymentManagementP
   const handleRefund = async (txnId: string) => {
     if (window.confirm("Are you sure you want to issue a full refund for this transaction?")) {
       try {
-        const res = await fetch(`http://localhost:5000/api/transactions/${txnId}/refund`, {
+        const res = await fetch(`${API_BASE_URL}/transactions/${txnId}/refund`, {
           method: "PUT",
           headers: getAuthHeaders()
         });

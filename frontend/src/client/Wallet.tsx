@@ -18,6 +18,7 @@ import {
   Smartphone
 } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 
 interface WalletProps {
   clientListings: BusinessListingData[];
@@ -78,11 +79,24 @@ export default function Wallet({ clientListings }: WalletProps) {
     // 1. Load active payments across client businesses
     const allPayments: any[] = [];
 
-    // Fetch configured commissions from localStorage
+    // Fetch configured commissions from backend API with localStorage fallback
     let commissionMap: Record<string, number> = {};
     try {
+      const resComm = await fetch(`${API_BASE_URL}/business-commissions`);
+      const dataComm = await resComm.json();
+      if (dataComm.success && Array.isArray(dataComm.data)) {
+        dataComm.data.forEach((item: any) => {
+          commissionMap[item.businessId] = item.commissionRate;
+        });
+      }
+    } catch (e) { }
+
+    try {
       const savedCommissions = localStorage.getItem("fmp_business_commissions");
-      if (savedCommissions) commissionMap = JSON.parse(savedCommissions);
+      if (savedCommissions) {
+        const parsed = JSON.parse(savedCommissions);
+        commissionMap = { ...parsed, ...commissionMap };
+      }
     } catch (e) { }
 
     const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
@@ -94,7 +108,7 @@ export default function Wallet({ clientListings }: WalletProps) {
     // Fetch raw bookings first to verify booking status
     let rawBookings: any[] = [];
     try {
-      const res = await fetch("http://localhost:5000/api/bookings", { headers });
+      const res = await fetch(`${API_BASE_URL}/bookings`, { headers });
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         rawBookings = data.data;
@@ -107,7 +121,7 @@ export default function Wallet({ clientListings }: WalletProps) {
       await Promise.all(clientListings.map(async (biz) => {
         const commRate = commissionMap[biz.id] !== undefined ? commissionMap[biz.id] : 10; // defaults to 10%
         try {
-          const res = await fetch(`http://localhost:5000/api/transactions/business/${biz.id}`, { headers });
+          const res = await fetch(`${API_BASE_URL}/transactions/business/${biz.id}`, { headers });
           const data = await res.json();
           if (data.success && Array.isArray(data.data)) {
             data.data.forEach((txn: any) => {
@@ -140,15 +154,20 @@ export default function Wallet({ clientListings }: WalletProps) {
 
     setPaymentsList(allPayments);
 
-    // 2. Load withdrawal requests from localStorage
+    // 2. Load withdrawal requests from backend API (BUG-015 fix)
     try {
-      const savedWithdrawals = localStorage.getItem("fmp_client_withdrawals");
-      if (savedWithdrawals) {
-        setWithdrawals(JSON.parse(savedWithdrawals));
+      const wRes = await fetch(`${API_BASE_URL}/withdrawals`, { headers });
+      const wData = await wRes.json();
+      if (wData.success && Array.isArray(wData.data)) {
+        setWithdrawals(wData.data);
       } else {
-        setWithdrawals([]);
+        const savedWithdrawals = localStorage.getItem("fmp_client_withdrawals");
+        if (savedWithdrawals) setWithdrawals(JSON.parse(savedWithdrawals));
       }
-    } catch (e) { }
+    } catch (e) {
+      const savedWithdrawals = localStorage.getItem("fmp_client_withdrawals");
+      if (savedWithdrawals) setWithdrawals(JSON.parse(savedWithdrawals));
+    }
   };
 
   useEffect(() => {
@@ -180,7 +199,7 @@ export default function Wallet({ clientListings }: WalletProps) {
     resetWithdrawForm();
   };
 
-  const handleWithdrawSubmit = () => {
+  const handleWithdrawSubmit = async () => {
     setWithdrawError(null);
 
     const amountNum = Number(withdrawAmount);
@@ -210,20 +229,16 @@ export default function Wallet({ clientListings }: WalletProps) {
 
     setIsSubmittingWithdraw(true);
 
-    const newWithdrawal: WithdrawalRecord = {
-      id: `WD-${Date.now()}`,
-      timestamp: new Date().toLocaleString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true
-      }).replace(",", ""),
+    const primaryBiz = clientListings[0];
+    const bizId = primaryBiz ? primaryBiz.id : "biz_default";
+    const bizName = primaryBiz ? primaryBiz.name : "My Business";
+
+    const payload = {
+      businessId: bizId,
+      businessName: bizName,
       amount: amountNum,
       method: withdrawMethod,
       target,
-      status: "Processing",
       ...(withdrawMethod === "bank"
         ? {
             bankDetails: {
@@ -236,17 +251,42 @@ export default function Wallet({ clientListings }: WalletProps) {
         : { upiId: upiId.trim() })
     };
 
-    const updatedWithdrawals = [...withdrawals, newWithdrawal];
-    setWithdrawals(updatedWithdrawals);
     try {
-      localStorage.setItem("fmp_client_withdrawals", JSON.stringify(updatedWithdrawals));
-    } catch (e) { }
+      const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    setIsSubmittingWithdraw(false);
-    setShowWithdrawModal(false);
-    resetWithdrawForm();
-    setToastMessage(`Withdrawal request of ₹${amountNum.toLocaleString("en-IN")} via ${withdrawMethod === "bank" ? "Bank Transfer" : "UPI"} submitted successfully.`);
-    setTimeout(() => setToastMessage(null), 4000);
+      const res = await fetch(`${API_BASE_URL}/withdrawals`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data.success && data.data) {
+        setWithdrawals(prev => [data.data, ...prev]);
+      } else {
+        // Fallback local persistence
+        const newWithdrawal: WithdrawalRecord = {
+          id: `WD-${Date.now()}`,
+          timestamp: new Date().toLocaleString("en-GB", {
+            day: "2-digit", month: "2-digit", year: "numeric",
+            hour: "2-digit", minute: "2-digit", hour12: true
+          }).replace(",", ""),
+          status: "Processing",
+          ...payload
+        };
+        setWithdrawals(prev => [newWithdrawal, ...prev]);
+      }
+    } catch (err) {
+      console.error("Failed to post withdrawal to backend:", err);
+    } finally {
+      setIsSubmittingWithdraw(false);
+      setShowWithdrawModal(false);
+      resetWithdrawForm();
+      setToastMessage(`Withdrawal request of ₹${amountNum.toLocaleString("en-IN")} via ${withdrawMethod === "bank" ? "Bank Transfer" : "UPI"} submitted successfully.`);
+      setTimeout(() => setToastMessage(null), 4000);
+    }
   };
 
   // Combined ledger transactions sorting newest first

@@ -53,7 +53,7 @@ import {
 import logoImg from "@/assets/logo.png";
 import { BusinessListingData, UserReview } from "../data/businessesData";
 import Footer from "./Footer";
-import { API_BASE_URL } from "../config";
+import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
 import { useSEO } from "../hooks/useSEO";
 import { buildBusinessSchemas } from "../utils/seo";
 
@@ -613,7 +613,7 @@ export default function BusinessDetailPage({
       const { id: order_id, amount: order_amount, currency } = orderData.data;
 
       const options = {
-        key: "rzp_test_S3IcSS1NbymL6D",
+        key: RAZORPAY_KEY_ID,
         amount: order_amount,
         currency,
         name: "FindmyPoint",
@@ -874,12 +874,16 @@ export default function BusinessDetailPage({
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.data) {
-          setCurrentBiz((prev) => ({
-            ...prev,
-            reviews: data.data,
-            rating: data.rating,
-            reviewCount: data.reviewCount
-          }));
+          setCurrentBiz((prev) => {
+            const currentReviews = Array.isArray(prev.reviews) ? prev.reviews : [];
+            const newReviewsList = Array.isArray(data.data) ? data.data : [data.data, ...currentReviews];
+            return {
+              ...prev,
+              reviews: newReviewsList,
+              rating: typeof data.rating === "number" ? data.rating : prev.rating,
+              reviewCount: typeof data.reviewCount === "number" ? data.reviewCount : prev.reviewCount
+            };
+          });
         }
       })
       .catch((err) => {
@@ -2383,8 +2387,8 @@ export default function BusinessDetailPage({
 
       {/* Table Booking Modal */}
       {bookingModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 text-left animate-fade-in">
-          <div className="relative w-full h-full sm:h-auto max-w-none sm:max-w-md rounded-none sm:rounded-2xl border-0 sm:border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in-up max-h-full sm:max-h-[90vh] overflow-y-auto no-scrollbar">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left animate-fade-in">
+          <div className="relative w-full max-w-md my-auto rounded-3xl sm:rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in-up max-h-[90vh] overflow-y-auto no-scrollbar">
             <button
               onClick={() => dispatchBooking({ type: "SET_MODAL", open: false })}
               className="absolute right-4 top-4 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -2437,7 +2441,7 @@ export default function BusinessDetailPage({
                     }
 
                     try {
-                      const profRes = await fetch("http://localhost:5000/api/auth/profile", { headers: getAuthHeaders() });
+                      const profRes = await fetch(`${API_BASE_URL}/auth/profile`, { headers: getAuthHeaders() });
                       const profData = await profRes.json();
                       if (profData.success && profData.user) {
                         const prof = profData.user;
@@ -2451,7 +2455,7 @@ export default function BusinessDetailPage({
                     const bookingId = `BK${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
                     setConfirmedOrderId(bookingId);
 
-                    fetch(`http://localhost:5000/api/service-forms/${currentBiz.id}/submissions`, {
+                    fetch(`${API_BASE_URL}/service-forms/${currentBiz.id}/submissions`, {
                       method: "POST",
                       headers: getAuthHeaders(),
                       body: JSON.stringify({
@@ -2473,7 +2477,7 @@ export default function BusinessDetailPage({
                         ? "Appointment Consultation Fee"
                         : "Table Booking Deposit";
 
-                    fetch("http://localhost:5000/api/transactions", {
+                    fetch(`${API_BASE_URL}/transactions`, {
                       method: "POST",
                       headers: getAuthHeaders(),
                       body: JSON.stringify({
@@ -2498,7 +2502,7 @@ export default function BusinessDetailPage({
                     saveBookingToDb({
                       id: bookingId,
                       amount,
-                      paymentId: "COD",
+                      paymentId: "",
                       paymentMethod: "COD",
                       paymentStatus: "pending",
                       bookingType: currentBiz.category.includes("Hotel Point")
@@ -3137,7 +3141,7 @@ export default function BusinessDetailPage({
 
                           // Always inject logged-in customer details from backend
                           try {
-                            const profRes = await fetch("http://localhost:5000/api/auth/profile", { headers: getAuthHeaders() });
+                            const profRes = await fetch(`${API_BASE_URL}/auth/profile`, { headers: getAuthHeaders() });
                             const profData = await profRes.json();
                             if (profData.success && profData.user) {
                               const prof = profData.user;
@@ -3159,7 +3163,7 @@ export default function BusinessDetailPage({
                               : "Table Booking Deposit";
 
                           // API Submission
-                          fetch(`http://localhost:5000/api/service-forms/${currentBiz.id}/submissions`, {
+                          fetch(`${API_BASE_URL}/service-forms/${currentBiz.id}/submissions`, {
                             method: "POST",
                             headers: getAuthHeaders(),
                             body: JSON.stringify({
@@ -3175,7 +3179,7 @@ export default function BusinessDetailPage({
                             }).catch(err => console.error("API submission failed:", err));
 
                           // API Transaction Log POST call
-                          fetch("http://localhost:5000/api/transactions", {
+                          fetch(`${API_BASE_URL}/transactions`, {
                             method: "POST",
                             headers: getAuthHeaders(),
                             body: JSON.stringify({
@@ -3235,11 +3239,11 @@ export default function BusinessDetailPage({
             )}
 
             {bookingStep === "success" && (
-              <div className="py-8 text-center flex flex-col items-center">
-                <div className="h-12 w-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
-                  <Check className="h-6 w-6 stroke-[3px]" />
+              <div className="py-8 text-center flex flex-col items-center justify-center my-auto">
+                <div className="h-16 w-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 shadow-xs">
+                  <Check className="h-8 w-8 stroke-[3px]" />
                 </div>
-                <h3 className="font-serif text-lg font-bold text-foreground mb-1">
+                <h3 className="font-serif text-xl font-bold text-foreground mb-1.5">
                   {currentBiz.category.includes("Hotel Point")
                     ? "Room Stay Reserved!"
                     : currentBiz.category.includes("Health Care Point") ||
@@ -3247,7 +3251,7 @@ export default function BusinessDetailPage({
                       ? "Appointment Confirmed!"
                       : "Table Reserved!"}
                 </h3>
-                <div className="text-xs text-muted-foreground max-w-xs mx-auto space-y-2 text-center">
+                <div className="text-xs text-muted-foreground max-w-xs mx-auto space-y-2 text-center leading-relaxed">
                   {currentBiz.category.includes("Hotel Point") ? (
                     <p>
                       Your room stay reservation at{" "}
@@ -3274,6 +3278,13 @@ export default function BusinessDetailPage({
                     </p>
                   )}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => dispatchBooking({ type: "SET_MODAL", open: false })}
+                  className="mt-6 w-full max-w-xs rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs py-2.5 shadow-md transition cursor-pointer"
+                >
+                  Done
+                </button>
               </div>
             )}
           </div>
@@ -3282,8 +3293,8 @@ export default function BusinessDetailPage({
 
       {/* Checkout Modal */}
       {checkoutModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 text-left animate-fade-in">
-          <div className="relative w-full h-full sm:h-auto max-w-none sm:max-w-md rounded-none sm:rounded-2xl border-0 sm:border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in-up max-h-full sm:max-h-[90vh] overflow-y-auto no-scrollbar">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left animate-fade-in">
+          <div className="relative w-full max-w-md my-auto rounded-3xl sm:rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in-up max-h-[90vh] overflow-y-auto no-scrollbar">
             <button
               onClick={() => dispatchCheckout({ type: "SET_MODAL", open: false })}
               className="absolute right-4 top-4 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -3352,7 +3363,7 @@ export default function BusinessDetailPage({
                     let finalCustomerEmail = "";
 
                     try {
-                      const profRes = await fetch("http://localhost:5000/api/auth/profile", { headers: getAuthHeaders() });
+                      const profRes = await fetch(`${API_BASE_URL}/auth/profile`, { headers: getAuthHeaders() });
                       const profData = await profRes.json();
                       if (profData.success && profData.user) {
                         const prof = profData.user;
@@ -3367,7 +3378,7 @@ export default function BusinessDetailPage({
                     } catch (_) { }
 
                     const formattedOrderItems = Object.entries(cart).map(([name, qty]) => ({ name, quantity: qty }));
-                    fetch(`http://localhost:5000/api/product-orders/${currentBiz.id}`, {
+                    fetch(`${API_BASE_URL}/product-orders/${currentBiz.id}`, {
                       method: "POST",
                       headers: getAuthHeaders(),
                       body: JSON.stringify({
@@ -3386,7 +3397,7 @@ export default function BusinessDetailPage({
                           setConfirmedOrderId(orderId);
                           window.dispatchEvent(new Event("storage"));
 
-                          fetch(`http://localhost:5000/api/service-forms/${currentBiz.id}/submissions`, {
+                          fetch(`${API_BASE_URL}/service-forms/${currentBiz.id}/submissions`, {
                             method: "POST",
                             headers: getAuthHeaders(),
                             body: JSON.stringify({
@@ -3401,7 +3412,7 @@ export default function BusinessDetailPage({
                               }
                             }).catch(err => console.error("API submission failed:", err));
 
-                          fetch("http://localhost:5000/api/transactions", {
+                          fetch(`${API_BASE_URL}/transactions`, {
                             method: "POST",
                             headers: getAuthHeaders(),
                             body: JSON.stringify({
@@ -3426,7 +3437,7 @@ export default function BusinessDetailPage({
                           saveBookingToDb({
                             id: orderId,
                             amount,
-                            paymentId: "COD",
+                            paymentId: "",
                             paymentMethod: "COD",
                             paymentStatus: "pending",
                             bookingType: "product",
@@ -3978,7 +3989,7 @@ export default function BusinessDetailPage({
                           let finalCustomerEmail = "";
 
                           try {
-                            const profRes = await fetch("http://localhost:5000/api/auth/profile", { headers: getAuthHeaders() });
+                            const profRes = await fetch(`${API_BASE_URL}/auth/profile`, { headers: getAuthHeaders() });
                             const profData = await profRes.json();
                             if (profData.success && profData.user) {
                               const prof = profData.user;
@@ -3993,7 +4004,7 @@ export default function BusinessDetailPage({
                           } catch (_) { }
 
                           const formattedOrderItems = Object.entries(cart).map(([name, qty]) => ({ name, quantity: qty }));
-                          fetch(`http://localhost:5000/api/product-orders/${currentBiz.id}`, {
+                          fetch(`${API_BASE_URL}/product-orders/${currentBiz.id}`, {
                             method: "POST",
                             headers: getAuthHeaders(),
                             body: JSON.stringify({
@@ -4012,7 +4023,7 @@ export default function BusinessDetailPage({
                                 setConfirmedOrderId(orderId);
                                 window.dispatchEvent(new Event("storage"));
 
-                                fetch(`http://localhost:5000/api/service-forms/${currentBiz.id}/submissions`, {
+                                fetch(`${API_BASE_URL}/service-forms/${currentBiz.id}/submissions`, {
                                   method: "POST",
                                   headers: getAuthHeaders(),
                                   body: JSON.stringify({
@@ -4027,7 +4038,7 @@ export default function BusinessDetailPage({
                                     }
                                   }).catch(err => console.error("API submission failed:", err));
 
-                                fetch("http://localhost:5000/api/transactions", {
+                                fetch(`${API_BASE_URL}/transactions`, {
                                   method: "POST",
                                   headers: getAuthHeaders(),
                                   body: JSON.stringify({
@@ -4052,7 +4063,7 @@ export default function BusinessDetailPage({
                                 saveBookingToDb({
                                   id: orderId,
                                   amount,
-                                  paymentId: isCOD ? "COD" : paymentId,
+                                  paymentId: isCOD ? "" : paymentId,
                                   paymentMethod: isCOD ? "COD" : "Online",
                                   paymentStatus: isCOD ? "pending" : "paid",
                                   bookingType: "product",
@@ -4091,14 +4102,14 @@ export default function BusinessDetailPage({
             )}
 
             {checkoutStep === "success" && (
-              <div className="py-8 text-center flex flex-col items-center">
-                <div className="h-12 w-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
-                  <Check className="h-6 w-6 stroke-[3px]" />
+              <div className="py-8 text-center flex flex-col items-center justify-center my-auto">
+                <div className="h-16 w-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 shadow-xs">
+                  <Check className="h-8 w-8 stroke-[3px]" />
                 </div>
-                <h3 className="font-serif text-lg font-bold text-foreground mb-1">
+                <h3 className="font-serif text-xl font-bold text-foreground mb-1.5">
                   Order Confirmed!
                 </h3>
-                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">
                   Your order has been placed with{" "}
                   <span className="font-semibold text-primary">{currentBiz.name}</span>. Order ID:{" "}
                   <span className="font-bold text-foreground">
@@ -4106,6 +4117,13 @@ export default function BusinessDetailPage({
                   </span>
                   . You will receive an SMS confirmation shortly.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => dispatchCheckout({ type: "SET_MODAL", open: false })}
+                  className="mt-6 w-full max-w-xs rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs py-2.5 shadow-md transition cursor-pointer"
+                >
+                  Done
+                </button>
               </div>
             )}
           </div>
@@ -4143,11 +4161,11 @@ export default function BusinessDetailPage({
       {/* Enquiry Modal Popup */}
       {enquiryModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
           onClick={() => setUiState((prev) => ({ ...prev, enquiryModalOpen: false, enquirySubmitted: false }))}
         >
           <div
-            className="relative w-full h-full sm:h-auto max-w-none sm:max-w-md rounded-none sm:rounded-2xl border-0 sm:border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in-up max-h-full sm:max-h-[90vh] overflow-y-auto no-scrollbar"
+            className="relative w-full max-w-md my-auto rounded-3xl sm:rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in-up max-h-[90vh] overflow-y-auto no-scrollbar"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}

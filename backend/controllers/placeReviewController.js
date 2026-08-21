@@ -1,12 +1,16 @@
 const TouristPlaceReview = require('../models/TouristPlaceReview');
 const TouristPlace = require('../models/TouristPlace');
 
+// Escape special regex characters to prevent ReDoS attacks
+const escapeRegex = (str) => (str ? String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '');
+
 // @desc    Get all reviews for a place
 // @route   GET /api/place-reviews/:placeName
 // @access  Public
 const getReviews = async (req, res) => {
   try {
-    const reviews = await TouristPlaceReview.find({ placeName: req.params.placeName })
+    const safePlace = escapeRegex(req.params.placeName);
+    const reviews = await TouristPlaceReview.find({ placeName: { $regex: new RegExp(`^${safePlace}$`, 'i') } })
       .sort({ createdAt: -1 });
     res.status(200).json({ success: true, count: reviews.length, data: reviews });
   } catch (error) {
@@ -25,6 +29,8 @@ const addReview = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Name and review text are required.' });
     }
 
+    const safePlace = escapeRegex(req.params.placeName);
+
     const review = await TouristPlaceReview.create({
       placeName: req.params.placeName,
       userName,
@@ -36,10 +42,10 @@ const addReview = async (req, res) => {
 
     // Recalculate real avg rating + count and sync back to TouristPlace
     const stats = await TouristPlaceReview.aggregate([
-      { $match: { placeName: req.params.placeName } },
+      { $match: { placeName: { $regex: new RegExp(`^${safePlace}$`, 'i') } } },
       {
         $group: {
-          _id: '$placeName',
+          _id: null,
           avgRating: { $avg: '$rating' },
           count: { $sum: 1 },
         },
@@ -49,7 +55,7 @@ const addReview = async (req, res) => {
     if (stats.length > 0) {
       const { avgRating, count } = stats[0];
       await TouristPlace.findOneAndUpdate(
-        { name: req.params.placeName },
+        { name: { $regex: new RegExp(`^${safePlace}$`, 'i') } },
         {
           rating: Math.round(avgRating * 10) / 10, // round to 1 decimal
           reviewsCount: count,

@@ -17,6 +17,7 @@ import {
   Building,
   Smartphone
 } from "lucide-react";
+import { API_BASE_URL } from "../config";
 
 interface WithdrawalRecord {
   id: string;
@@ -26,6 +27,7 @@ interface WithdrawalRecord {
   target: string;
   status: "Completed" | "Processing" | "Failed";
   bizName?: string;
+  businessName?: string;
   bankDetails?: {
     holderName: string;
     bankName: string;
@@ -59,17 +61,28 @@ export default function AdminWithdrawals() {
   // Payout details modal state
   const [detailsRequest, setDetailsRequest] = useState<WithdrawalRecord | null>(null);
 
-  const loadRequests = () => {
+  const loadRequests = async () => {
+    const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_user_token") || "";
+    const headers: HeadersInit = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
     try {
+      const res = await fetch(`${API_BASE_URL}/withdrawals`, { headers });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setRequests(data.data);
+      } else {
+        const saved = localStorage.getItem("fmp_client_withdrawals");
+        const parsed: WithdrawalRecord[] = saved ? JSON.parse(saved) : [];
+        const cleaned = parsed.filter((r) => r.id !== "wth-1" && r.id !== "wth-2");
+        setRequests(cleaned);
+      }
+    } catch (e) {
       const saved = localStorage.getItem("fmp_client_withdrawals");
       const parsed: WithdrawalRecord[] = saved ? JSON.parse(saved) : [];
-      // Purge legacy seeded demo rows ("wth-1"/"wth-2") left in old browser storage
       const cleaned = parsed.filter((r) => r.id !== "wth-1" && r.id !== "wth-2");
-      if (cleaned.length !== parsed.length) {
-        localStorage.setItem("fmp_client_withdrawals", JSON.stringify(cleaned));
-      }
       setRequests(cleaned);
-    } catch (e) {}
+    }
   };
 
   useEffect(() => {
@@ -98,9 +111,10 @@ export default function AdminWithdrawals() {
   // Filtered requests
   const filteredRequests = useMemo(() => {
     return requests.filter((r) => {
+      const bizName = r.bizName || r.businessName || "";
       const matchesSearch =
         r.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (r.bizName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        bizName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.target.toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesStatus = selectedStatus === "All" || r.status === selectedStatus;
@@ -134,14 +148,29 @@ export default function AdminWithdrawals() {
         ];
 
     let currentStep = 0;
-    const runSimulation = () => {
+    const runSimulation = async () => {
       if (currentStep < steps.length) {
         setSimulationSteps(prev => [...prev, steps[currentStep]]);
         currentStep++;
         setTimeout(runSimulation, 800);
       } else {
-        // Apply status update
+        // Apply status update to backend
         const finalStatus = action === "approve" ? "Completed" : "Failed";
+        
+        try {
+          const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_user_token") || "";
+          const headers: HeadersInit = { "Content-Type": "application/json" };
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+
+          await fetch(`${API_BASE_URL}/withdrawals/${id}/status`, {
+            method: "PUT",
+            headers,
+            body: JSON.stringify({ status: finalStatus })
+          });
+        } catch (err) {
+          console.error("Failed to update status on backend:", err);
+        }
+
         const updated = requests.map((r) => {
           if (r.id === id) {
             return { ...r, status: finalStatus };
@@ -150,7 +179,9 @@ export default function AdminWithdrawals() {
         });
 
         setRequests(updated as any);
-        localStorage.setItem("fmp_client_withdrawals", JSON.stringify(updated));
+        try {
+          localStorage.setItem("fmp_client_withdrawals", JSON.stringify(updated));
+        } catch (e) {}
         
         // Trigger storage event so client pages know
         window.dispatchEvent(new Event("storage"));

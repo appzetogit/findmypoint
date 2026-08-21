@@ -28,8 +28,8 @@ const createTicket = async (req, res) => {
   }
 
   try {
-    // Generate simple ID TKT-xxxx
-    const ticketId = `TKT-${Math.floor(100 + Math.random() * 900)}`;
+    // Generate unique collision-resistant ID TKT-xxxxxx (BUG-017 fix)
+    const ticketId = `TKT-${Date.now().toString().slice(-4)}${Math.floor(100 + Math.random() * 900)}`;
 
     const ticket = await HelpTicket.create({
       id: ticketId,
@@ -73,7 +73,8 @@ const addTicketMessage = async (req, res) => {
     }
 
     // Check authorization (Must be ticket owner or Admin)
-    if (!req.user.isAdmin && ticket.userId.toString() !== req.user._id.toString()) {
+    const isOwner = ticket.userId && req.user && req.user._id && ticket.userId.toString() === req.user._id.toString();
+    if (!req.user.isAdmin && !isOwner) {
       return res.status(403).json({ success: false, message: 'Not authorized to comment on this ticket' });
     }
 
@@ -115,7 +116,8 @@ const updateTicketStatus = async (req, res) => {
     }
 
     // Check authorization (Must be ticket owner or Admin)
-    if (!req.user.isAdmin && ticket.userId.toString() !== req.user._id.toString()) {
+    const isOwner = ticket.userId && req.user && req.user._id && ticket.userId.toString() === req.user._id.toString();
+    if (!req.user.isAdmin && !isOwner) {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 

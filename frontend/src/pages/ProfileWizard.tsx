@@ -371,6 +371,7 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
           },
           body: JSON.stringify({
             addresses: finalAddresses.map(a => ({
+              ...(a.id && /^[0-9a-fA-F]{24}$/.test(a.id) ? { _id: a.id } : {}),
               name: a.name,
               phone: a.phone,
               email: a.email,

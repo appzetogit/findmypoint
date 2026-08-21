@@ -5,6 +5,7 @@ import {
   Plus, CheckSquare, Building, ToggleRight, AlertCircle
 } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -219,7 +220,7 @@ export default function ServiceForm({ clientListings = [], business, onClose, re
 
     const loadConfig = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/service-forms/${selectedBizId}`);
+        const res = await fetch(`${API_BASE_URL}/service-forms/${selectedBizId}`);
         const data = await res.json();
         if (data.success && data.data) {
           const config = data.data;
@@ -249,7 +250,7 @@ export default function ServiceForm({ clientListings = [], business, onClose, re
     const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_business_token") || "";
 
     try {
-      const res = await fetch(`http://localhost:5000/api/service-forms/${selectedBizId}`, {
+      const res = await fetch(`${API_BASE_URL}/service-forms/${selectedBizId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

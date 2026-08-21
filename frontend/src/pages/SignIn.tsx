@@ -2,6 +2,7 @@ import { useRef, useEffect, useReducer } from "react";
 import { Check, ShieldCheck, X } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { API_BASE_URL } from "../config";
+import { socketService } from "../services/socketService";
 
 interface SignInPageProps {
   onBack: () => void;
@@ -198,12 +199,16 @@ export default function SignInPage({ onBack, onSuccess, isMandatory }: SignInPag
           }, 1000);
         } else {
           const user = data.user;
+          const userId = user.id || user._id;
           dispatch({ type: "SET_SUCCESS", value: `Welcome back, ${user.firstName || "User"}!` });
           
           sessionStorage.removeItem("fmp_pending_reg_phone");
           sessionStorage.removeItem("fmp_pending_reg_otp_sent");
           sessionStorage.removeItem("fmp_pending_reg_show_name");
           localStorage.setItem("fmp_user_token", data.token);
+          localStorage.setItem("fmp_user", JSON.stringify({ _id: userId, id: userId, ...user }));
+          if (userId) socketService.registerUser(userId);
+
           const personalData = {
             title: user.title || "Mr",
             firstName: user.firstName,
@@ -268,12 +273,16 @@ export default function SignInPage({ onBack, onSuccess, isMandatory }: SignInPag
       dispatch({ type: "SET_LOADING", value: false });
       if (data.success) {
         const user = data.user;
+        const userId = user.id || user._id;
         dispatch({ type: "SET_SUCCESS", value: "Account created successfully!" });
         
         sessionStorage.removeItem("fmp_pending_reg_phone");
         sessionStorage.removeItem("fmp_pending_reg_otp_sent");
         sessionStorage.removeItem("fmp_pending_reg_show_name");
         localStorage.setItem("fmp_user_token", data.token);
+        localStorage.setItem("fmp_user", JSON.stringify({ _id: userId, id: userId, ...user }));
+        if (userId) socketService.registerUser(userId);
+
         const personalData = {
           title: user.title || "Mr",
           firstName: user.firstName,

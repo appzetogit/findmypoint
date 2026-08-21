@@ -15,6 +15,7 @@ import {
   X
 } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
+import { API_BASE_URL } from "../config";
 
 function formatTimestampDMY(tsStr: string): string {
   if (!tsStr) return "";
@@ -87,7 +88,7 @@ export default function Enquiries({ clientListings }: EnquiriesProps) {
     if (selectedBizId) {
       const loadEnquiries = async () => {
         try {
-          const res = await fetch(`http://localhost:5000/api/businesses/${selectedBizId}/enquiries`, {
+          const res = await fetch(`${API_BASE_URL}/businesses/${selectedBizId}/enquiries`, {
             headers: getAuthHeaders()
           });
           const data = await res.json();
@@ -152,7 +153,7 @@ export default function Enquiries({ clientListings }: EnquiriesProps) {
   const handleDelete = async (enqId: string) => {
     if (window.confirm("Are you sure you want to delete this enquiry?")) {
       try {
-        const res = await fetch(`http://localhost:5000/api/businesses/${selectedBizId}/enquiries/${enqId}`, {
+        const res = await fetch(`${API_BASE_URL}/businesses/${selectedBizId}/enquiries/${enqId}`, {
           method: "DELETE",
           headers: getAuthHeaders()
         });
@@ -174,7 +175,7 @@ export default function Enquiries({ clientListings }: EnquiriesProps) {
     if (!target) return;
     
     try {
-      const res = await fetch(`http://localhost:5000/api/businesses/${selectedBizId}/enquiries/${enqId}`, {
+      const res = await fetch(`${API_BASE_URL}/businesses/${selectedBizId}/enquiries/${enqId}`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify({ read: !target.read })
@@ -193,7 +194,7 @@ export default function Enquiries({ clientListings }: EnquiriesProps) {
   // Handle status change
   const handleStatusChange = async (enqId: string, newStatus: 'New' | 'Contacted' | 'Closed') => {
     try {
-      const res = await fetch(`http://localhost:5000/api/businesses/${selectedBizId}/enquiries/${enqId}`, {
+      const res = await fetch(`${API_BASE_URL}/businesses/${selectedBizId}/enquiries/${enqId}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify({ status: newStatus })
@@ -214,7 +215,7 @@ export default function Enquiries({ clientListings }: EnquiriesProps) {
     if (window.confirm(`Are you sure you want to delete the ${selectedEnquiryIds.length} selected enquiries?`)) {
       try {
         for (const id of selectedEnquiryIds) {
-          await fetch(`http://localhost:5000/api/businesses/${selectedBizId}/enquiries/${id}`, {
+          await fetch(`${API_BASE_URL}/businesses/${selectedBizId}/enquiries/${id}`, {
             method: "DELETE",
             headers: getAuthHeaders()
           });

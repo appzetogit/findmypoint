@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Star, X, Check, Loader2 } from "lucide-react";
+import { API_BASE_URL } from "../config";
 
 interface ReviewPromptModalProps {
   bookingId: string;
@@ -75,11 +76,17 @@ export default function ReviewPromptModal({
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/businesses/${businessId}/reviews`, {
+      const token = localStorage.getItem("fmp_user_token") || localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
+      const headers: HeadersInit = {
+        "Content-Type": "application/json"
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/businesses/${businessId}/reviews`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers,
         body: JSON.stringify({
           userName: finalUserName,
           userEmail: userEmail.trim(),

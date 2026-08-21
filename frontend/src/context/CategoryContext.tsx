@@ -54,17 +54,17 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const subcategoriesData = React.useMemo(() => {
     const data: Record<string, string[]> = {};
-    categories.forEach((cat) => {
-      data[cat.label] = cat.subcategories.map((sub) => sub.label);
+    (categories || []).forEach((cat) => {
+      data[cat.label] = Array.isArray(cat.subcategories) ? cat.subcategories.map((sub) => sub.label) : [];
     });
     return data;
   }, [categories]);
 
   const subcatIcons = React.useMemo(() => {
     const icons: Record<string, string> = {};
-    categories.forEach((cat) => {
-      cat.subcategories.forEach((sub) => {
-        if (sub.icon) {
+    (categories || []).forEach((cat) => {
+      (cat.subcategories || []).forEach((sub) => {
+        if (sub && sub.icon) {
           icons[sub.label] = sub.icon;
         }
       });

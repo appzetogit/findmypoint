@@ -30,7 +30,7 @@ interface BookingRecord {
   amount: number;
   paymentMethod: string;
   paymentStatus: string;
-  status: "Completed" | "Pending" | "Cancelled" | "Refunded";
+  status: "Confirmed" | "Completed" | "Pending" | "Cancelled" | "Refunded";
 }
 
 export default function AllBookings() {
@@ -68,7 +68,7 @@ export default function AllBookings() {
           amount: b.amount || 0,
           paymentMethod: b.paymentMethod || "N/A",
           paymentStatus: b.paymentStatus || "pending",
-          status: b.status === "confirmed" || b.status === "completed" ? "Completed" : b.status === "cancelled" ? "Cancelled" : "Pending",
+          status: b.status === "confirmed" ? "Confirmed" : b.status === "completed" ? "Completed" : b.status === "cancelled" ? "Cancelled" : "Pending",
         }));
         setBookings(list);
       } else {
@@ -124,7 +124,7 @@ export default function AllBookings() {
       : [];
 
     businessBookings.forEach((b) => {
-      if (b.status === "Completed") {
+      if (b.status === "Completed" || b.status === "Confirmed") {
         totalRevenue += b.amount;
         completedCount++;
       } else if (b.status === "Pending") {
@@ -230,9 +230,15 @@ export default function AllBookings() {
 
   const getStatusBadge = (status: BookingRecord["status"]) => {
     switch (status) {
-      case "Completed":
+      case "Confirmed":
         return (
           <span className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
+            <CheckCircle className="h-3 w-3" /> Confirmed
+          </span>
+        );
+      case "Completed":
+        return (
+          <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
             <CheckCircle className="h-3 w-3" /> Completed
           </span>
         );
@@ -254,13 +260,15 @@ export default function AllBookings() {
     }
   };
 
-  const getPaymentStatusBadge = (paymentStatus: string) => {
+  const getPaymentStatusBadge = (paymentStatus: string, paymentMethod?: string) => {
     const normalized = (paymentStatus || "pending").toLowerCase();
+    const pm = (paymentMethod || "").toUpperCase();
+    const isCOD = pm.includes("COD") || pm.includes("CASH");
     switch (normalized) {
       case "paid":
         return (
           <span className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
-            <CheckCircle className="h-3 w-3" /> Paid
+            <CheckCircle className="h-3 w-3" /> {isCOD ? "Paid (COD)" : "Paid (Online)"}
           </span>
         );
       case "refunded":
@@ -278,7 +286,7 @@ export default function AllBookings() {
       default:
         return (
           <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
-            <AlertCircle className="h-3 w-3" /> Pending
+            <AlertCircle className="h-3 w-3" /> {isCOD ? "Pending (COD)" : "Pending (Online)"}
           </span>
         );
     }
@@ -409,6 +417,7 @@ export default function AllBookings() {
               className="bg-slate-50 dark:bg-slate-950 text-xs px-3 py-2 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-bold"
             >
               <option value="All">All Statuses</option>
+              <option value="Confirmed">Confirmed</option>
               <option value="Completed">Completed</option>
               <option value="Pending">Pending</option>
               <option value="Cancelled">Cancelled</option>
@@ -471,7 +480,7 @@ export default function AllBookings() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      {getPaymentStatusBadge(b.paymentStatus)}
+                      {getPaymentStatusBadge(b.paymentStatus, b.paymentMethod)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       {getStatusBadge(b.status)}

@@ -363,8 +363,20 @@ export default function MyBookingsPage() {
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-muted-foreground">
-                      <span>Paid Amount</span>
-                      <span className="font-black text-emerald-600">
+                      <span>
+                        {b.paymentStatus === "refunded"
+                          ? "Refunded Amount"
+                          : ((b.paymentMethod || "").toUpperCase().includes("COD") && b.paymentStatus !== "paid"
+                              ? "Payable Amount (COD)"
+                              : "Paid Amount")}
+                      </span>
+                      <span className={`font-black ${
+                        b.paymentStatus === "refunded"
+                          ? "text-sky-600"
+                          : (b.paymentStatus === "paid"
+                              ? "text-emerald-600"
+                              : "text-amber-600")
+                      }`}>
                         ₹{b.amount.toLocaleString("en-IN")}.00
                       </span>
                     </div>
@@ -596,8 +608,20 @@ export default function MyBookingsPage() {
                     </div>
                   )}
                   <div className="flex justify-between items-center text-sm font-black text-slate-800 pt-2 border-t border-slate-200">
-                    <span>{selectedBooking.paymentStatus === "refunded" ? "Total Amount Refunded" : "Total Amount Paid"}</span>
-                    <span className={`text-base ${selectedBooking.paymentStatus === "refunded" ? "text-sky-600" : "text-emerald-600"}`}>
+                    <span>
+                      {selectedBooking.paymentStatus === "refunded"
+                        ? "Total Amount Refunded"
+                        : ((selectedBooking.paymentMethod || "").toUpperCase().includes("COD") && selectedBooking.paymentStatus !== "paid"
+                            ? "Amount Payable (COD)"
+                            : "Total Amount Paid")}
+                    </span>
+                    <span className={`text-base ${
+                      selectedBooking.paymentStatus === "refunded"
+                        ? "text-sky-600"
+                        : (selectedBooking.paymentStatus === "paid"
+                            ? "text-emerald-600"
+                            : "text-amber-600")
+                    }`}>
                       ₹{selectedBooking.amount.toLocaleString("en-IN")}.00
                     </span>
                   </div>

@@ -27,7 +27,6 @@ import catInterior from "@/assets/cat-interior.jpg";
 import catDining from "@/assets/cat-dining.jpg";
 import Footer from "./Footer";
 import { loadAboutData, AboutData } from "../data/aboutData";
-import { subcategoriesData } from "./CategoryDetail";
 import { useCategories } from "../context/CategoryContext";
 import { getCategoryImage } from "../utils/categoryImages";
 import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
@@ -864,6 +863,73 @@ export default function HomePage({
       </header>
 
       <main className="mx-auto max-w-7xl px-4 sm:px-6 pt-3 sm:pt-10 w-full pb-0 sm:pb-0">
+        {/* Promo Banner — mobile only */}
+        {allHeroSlides.length > 0 && (
+          <section className="block sm:hidden mb-4">
+            {/* Mobile Hero Slideshow */}
+            <div className="relative w-full overflow-hidden rounded-2xl shadow-lg" style={{ height: "160px" }}>
+              {allHeroSlides.map((slide, index) => {
+                const isActive = activeSlide === index;
+                return (
+                  <div
+                    key={index}
+                    className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                      isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+                    }`}
+                  >
+                    <img
+                      src={getImageUrl(slide.img)}
+                      alt={slide.tag}
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-tr from-primary/90 via-primary/40 to-transparent" />
+                    <div className="absolute inset-0 flex flex-col justify-end p-5 text-primary-foreground">
+                      {slide.tag && (
+                        <div className="mb-1.5 inline-flex w-fit items-center gap-1.5 rounded-full border border-accent/40 bg-accent/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.15em] text-accent">
+                          {slide.tag}
+                        </div>
+                      )}
+                      <h2 className="font-serif text-lg leading-tight whitespace-pre-line mb-1.5">
+                        {slide.title}
+                      </h2>
+                      <p className="text-[11px] text-primary-foreground/80 leading-relaxed line-clamp-2">
+                        {slide.description}
+                      </p>
+                      {slide.categoryName && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCategoryClick?.(slide.categoryName!);
+                          }}
+                          className="mt-3 w-fit bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-full text-[11px] font-bold transition shadow cursor-pointer"
+                        >
+                          Explore Now
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Navigation Dots */}
+              {allHeroSlides.length > 1 && (
+                <div className="absolute bottom-3 right-4 z-20 flex gap-1.5">
+                  {allHeroSlides.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setUiState((prev) => ({ ...prev, activeSlide: index }))}
+                      className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                        activeSlide === index ? "w-5 bg-accent" : "w-1.5 bg-white/50"
+                      }`}
+                      aria-label={`Go to slide ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* Hero */}
         {(allHeroSlides.length > 0 || allHeroCards.length > 0) && (
           <section className="hidden sm:grid grid-cols-12 gap-5 items-stretch">
@@ -1158,67 +1224,6 @@ export default function HomePage({
                   </div>
                 ))
               )}
-            </div>
-          </div>
-        </section>
-
-        {/* Promo Banner — mobile only */}
-        <section className="block sm:hidden mt-6">
-          {/* Mobile Hero Slideshow */}
-          <div className="relative w-full overflow-hidden rounded-2xl shadow-lg" style={{ height: "125px" }}>
-            {allHeroSlides.map((slide, index) => {
-              const isActive = activeSlide === index;
-              return (
-                <div
-                  key={index}
-                  className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                    isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
-                  }`}
-                >
-                  <img
-                    src={slide.img}
-                    alt={slide.tag}
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-tr from-primary/90 via-primary/40 to-transparent" />
-                  <div className="absolute inset-0 flex flex-col justify-end p-5 text-primary-foreground">
-                    <div className="mb-1.5 inline-flex w-fit items-center gap-1.5 rounded-full border border-accent/40 bg-accent/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.15em] text-accent">
-                      {slide.tag}
-                    </div>
-                    <h2 className="font-serif text-lg leading-tight whitespace-pre-line mb-1.5">
-                      {slide.title}
-                    </h2>
-                    <p className="text-[11px] text-primary-foreground/80 leading-relaxed line-clamp-2">
-                      {slide.description}
-                    </p>
-                    {slide.categoryName && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onCategoryClick?.(slide.categoryName!);
-                        }}
-                        className="mt-3 w-fit bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-full text-[11px] font-bold transition shadow cursor-pointer"
-                      >
-                        Explore Now
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Navigation Dots */}
-            <div className="absolute bottom-3 right-4 z-20 flex gap-1.5">
-              {allHeroSlides.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setUiState((prev) => ({ ...prev, activeSlide: index }))}
-                  className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                    activeSlide === index ? "w-5 bg-accent" : "w-1.5 bg-white/50"
-                  }`}
-                  aria-label={`Go to slide ${index + 1}`}
-                />
-              ))}
             </div>
           </div>
         </section>

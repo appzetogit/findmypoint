@@ -32,8 +32,8 @@ interface DashboardProps {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-slate-950 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/80 rounded-xl p-3 shadow-xl text-xs font-semibold text-left">
-        <p className="font-bold text-slate-400 dark:text-slate-500 mb-2">{label}</p>
+      <div className="bg-slate-950 dark:bg-slate-900 border border-slate-700/50 rounded-xl p-3 shadow-xl text-xs font-semibold text-left">
+        <p className="font-bold text-slate-300 dark:text-slate-400 mb-2">{label}</p>
         <div className="space-y-1.5">
           {payload.map((entry: any, index: number) => {
             const color = entry.color || entry.fill;
@@ -46,9 +46,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
               <div key={index} className="flex items-center justify-between gap-4">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                  <span className="text-slate-500 dark:text-slate-400">{name}:</span>
+                  <span className="text-slate-300 dark:text-slate-400">{name}:</span>
                 </span>
-                <span className="font-black text-slate-900 dark:text-white">{value}</span>
+                <span className="font-black text-white">{value}</span>
               </div>
             );
           })}
@@ -240,14 +240,18 @@ export default function Dashboard({ stats, isBookingDisabled }: DashboardProps) 
                 <span className="w-3.5 h-1 bg-red-500 rounded-full relative flex items-center justify-center">
                   <span className="w-1.5 h-1.5 bg-white border border-red-500 rounded-full" />
                 </span>
-                <span className="text-slate-655 dark:text-slate-400 font-semibold">Orders</span>
+                <span className="text-slate-600 dark:text-slate-400 font-semibold">
+                  Orders: <span className="font-bold text-slate-900 dark:text-white">{stats.totalBookings}</span>
+                </span>
               </div>
             )}
             <div className="flex items-center gap-1.5">
               <span className="w-3.5 h-1 bg-emerald-500 rounded-full relative flex items-center justify-center">
                 <span className="w-1.5 h-1.5 bg-white border border-emerald-500 rounded-full" />
               </span>
-              <span className="text-slate-655 dark:text-slate-400 font-semibold">Enquiries</span>
+              <span className="text-slate-600 dark:text-slate-400 font-semibold">
+                Enquiries: <span className="font-bold text-slate-900 dark:text-white">{stats.totalEnquiries}</span>
+              </span>
             </div>
           </div>
         </div>

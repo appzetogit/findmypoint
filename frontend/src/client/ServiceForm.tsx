@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Type, Hash, Mail, Phone, Calendar, Clock, List, AlignLeft, ToggleLeft,
   GripVertical, Trash2, Save, ChevronDown, ChevronUp, Eye, EyeOff,
@@ -46,997 +46,6 @@ const FIELD_PALETTE: { type: FieldType; label: string; icon: React.ReactNode; co
   { type: "select",   label: "Dropdown",    icon: <List className="h-4 w-4" />,       color: "bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-200 dark:border-pink-900/40" },
   { type: "checkbox", label: "Checkbox",    icon: <CheckSquare className="h-4 w-4" />,color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40" },
 ];
-
-// ─── Field Factory ─────────────────────────────────────────────────────────────
-
-function f(type: FieldType, label: string, placeholder: string, required = true, options: string[] = []): FormField {
-  return { id: `${type}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type, label, placeholder, required, options };
-}
-
-// ─── Comprehensive Template Map ────────────────────────────────────────────────
-// Keys: exact subcategory names from subcategoriesData (CategoryDetail.tsx)
-// Fallback: parent category name patterns
-
-const SUBCATEGORY_TEMPLATES: Record<string, FormField[]> = {
-
-  // ═══ SPA POINT ══════════════════════════════════════════════════════════════
-  "Ayurvedic Spa": [
-    f("text",   "Full Name",             "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Treatment Required",    "", true, ["Abhyanga Massage", "Shirodhara", "Panchakarma", "Herbal Steam Bath", "Nasya", "Other"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("number", "Session Duration (min)","e.g. 60", false),
-    f("textarea","Health Conditions / Notes","Any existing health concerns or preferences...", false),
-  ],
-  "Massage Center": [
-    f("text",   "Client Name",           "Your full name"),
-    f("phone",  "Phone Number",          "Mobile number"),
-    f("select", "Massage Type",          "", true, ["Swedish Massage", "Deep Tissue", "Sports Massage", "Hot Stone", "Couple Massage", "Full Body"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time Slot",   ""),
-    f("select", "Session Duration",      "", true, ["30 min", "60 min", "90 min", "120 min"]),
-    f("select", "Therapist Preference",  "", false, ["Male", "Female", "No Preference"]),
-  ],
-  "Beauty Spa": [
-    f("text",   "Client Name",           "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Service Required",      "", true, ["Facial", "Body Wrap", "Scrub", "Waxing", "Manicure", "Pedicure", "Full Package"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Special Requests",     "Skin type, allergies, preferences...", false),
-  ],
-  "Thai Massage": [
-    f("text",   "Client Name",           "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Service Type",          "", true, ["Traditional Thai", "Thai Foot Massage", "Thai Herbal Compress", "Oil + Thai Combo"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("select", "Session Duration",      "", true, ["60 min", "90 min", "120 min"]),
-  ],
-  "Luxury Spa": [
-    f("text",   "Guest Name",            "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com"),
-    f("select", "Package",               "", true, ["Signature Ritual", "Couples Retreat", "Royal Detox", "Anti-Aging Facial", "Custom Package"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("number", "Number of Guests",      "1", false),
-    f("textarea","Special Preferences",  "Aromatherapy preference, allergies, occasion...", false),
-  ],
-  "Unisex Salon": [
-    f("text",   "Client Name",           "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Service Required",      "", true, ["Haircut", "Hair Colour", "Smoothening", "Keratin", "Facial", "Waxing", "Manicure", "Pedicure", "Bridal Makeup"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Additional Notes",     "Hair type, skin type, specific preferences...", false),
-  ],
-  "Beauty Parlours": [
-    f("text",   "Client Name",           "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Service Type",          "", true, ["Facial", "Bleach", "Threading", "Waxing", "Makeup", "Hair Spa", "Mehendi"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-  ],
-  "Spa & Massages": [
-    f("text",   "Client Name",           "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Service",               "", true, ["Body Massage", "Head Massage", "Foot Massage", "Spa Package", "Steam Bath"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("select", "Duration",              "", true, ["30 min", "60 min", "90 min"]),
-  ],
-  "Salons": [
-    f("text",   "Client Name",           "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Service Required",      "", true, ["Haircut", "Shave", "Colour", "Facial", "Beard Trim", "Hair Spa"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-  ],
-
-  // ═══ TOUR POINT ═════════════════════════════════════════════════════════════
-  "India": [
-    f("text",   "Lead Traveller Name",   "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com"),
-    f("select", "Destination",           "", true, ["Goa", "Kerala", "Rajasthan", "Himachal Pradesh", "Uttarakhand", "Tamil Nadu", "Andaman", "Kashmir", "Other"]),
-    f("date",   "Departure Date",        ""),
-    f("date",   "Return Date",           ""),
-    f("number", "Number of Travellers",  "e.g. 2"),
-    f("select", "Package Type",          "", true, ["Budget", "Standard", "Premium", "Luxury"]),
-    f("select", "Hotel Preference",      "", false, ["Budget Hotel", "3-Star", "4-Star", "5-Star", "Homestay"]),
-    f("textarea","Special Requirements", "Dietary needs, accessibility, occasions...", false),
-  ],
-  "Dubai": [
-    f("text",   "Lead Traveller Name",   "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com"),
-    f("date",   "Departure Date",        ""),
-    f("date",   "Return Date",           ""),
-    f("number", "Number of Travellers",  "e.g. 2"),
-    f("select", "Package Type",          "", true, ["Budget", "Standard", "Premium", "Luxury"]),
-    f("checkbox","Visa Assistance Required","I need visa processing assistance", false),
-    f("textarea","Special Requests",     "Activities, dietary, accommodation preferences...", false),
-  ],
-  "Maldives": [
-    f("text",   "Lead Traveller Name",   "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email",                 "your@email.com"),
-    f("date",   "Departure Date",        ""),
-    f("number", "Duration (nights)",     "e.g. 5"),
-    f("number", "Number of Travellers",  "e.g. 2"),
-    f("select", "Resort Type",           "", true, ["Overwater Villa", "Beach Villa", "Budget Resort", "Premium Resort"]),
-    f("checkbox","Honeymoon Package",    "This is a honeymoon trip", false),
-    f("textarea","Special Requests",     "Activities, dietary, special celebrations...", false),
-  ],
-
-  // ═══ JOB POINT ══════════════════════════════════════════════════════════════
-  "Accounting": [
-    f("text",   "Applicant Name",        "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com"),
-    f("select", "Experience Level",      "", true, ["Fresher", "1-2 Years", "3-5 Years", "5-10 Years", "10+ Years"]),
-    f("select", "Qualification",         "", true, ["B.Com", "M.Com", "CA", "CPA", "MBA Finance", "Other"]),
-    f("text",   "Resume / LinkedIn Link","Paste your Drive/LinkedIn link"),
-    f("textarea","Skills & Summary",     "Tally, GST, Excel, audit experience...", false),
-  ],
-  "IT": [
-    f("text",   "Applicant Name",        "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com"),
-    f("select", "Role Applied For",      "", true, ["Frontend Developer", "Backend Developer", "Full Stack", "Data Analyst", "DevOps", "QA Engineer", "Other"]),
-    f("select", "Experience Level",      "", true, ["Fresher", "1-2 Years", "3-5 Years", "5+ Years"]),
-    f("text",   "Tech Stack / Skills",   "React, Node.js, Python, etc."),
-    f("text",   "GitHub / Portfolio",    "Paste your link here"),
-    f("textarea","Brief About You",      "Short bio or cover note...", false),
-  ],
-  "Marketing": [
-    f("text",   "Applicant Name",        "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com"),
-    f("select", "Role",                  "", true, ["Digital Marketing", "Sales Executive", "Brand Manager", "SEO Specialist", "Content Writer", "Social Media Manager"]),
-    f("select", "Experience",            "", true, ["Fresher", "1-2 Years", "3-5 Years", "5+ Years"]),
-    f("text",   "Resume / Portfolio Link","Paste your link here"),
-  ],
-  "Health Care": [
-    f("text",   "Applicant Name",        "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com"),
-    f("select", "Role Applied For",      "", true, ["Doctor", "Nurse", "Pharmacist", "Lab Technician", "Radiologist", "Admin Staff"]),
-    f("select", "Qualification",         "", true, ["MBBS", "BDS", "B.Pharm", "GNM", "B.Sc Nursing", "Other"]),
-    f("select", "Experience",            "", true, ["Fresher", "1-3 Years", "3-5 Years", "5+ Years"]),
-    f("text",   "Resume Link",           "Paste your Drive/LinkedIn link"),
-  ],
-  "Government": [
-    f("text",   "Applicant Name",        "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com"),
-    f("select", "Exam / Post",           "", true, ["SSC", "UPSC", "State PSC", "Railway", "Banking", "Defence", "Police", "Teacher"]),
-    f("select", "Qualification",         "", true, ["10th", "12th", "Graduation", "Post Graduation"]),
-    f("textarea","Brief Note",           "Additional details or preparation status...", false),
-  ],
-  "Security": [
-    f("text",   "Applicant Name",        "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Role",                  "", true, ["Security Guard", "Supervisor", "CCTV Operator", "Armed Security"]),
-    f("select", "Experience",            "", true, ["Fresher", "1-2 Years", "3-5 Years", "5+ Years"]),
-    f("checkbox","Ex-Serviceman",        "I am an ex-army/police/paramilitary person", false),
-    f("text",   "Location Preference",   "Preferred work city/area"),
-  ],
-  "Teacher": [
-    f("text",   "Applicant Name",        "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com"),
-    f("select", "Subject Expertise",     "", true, ["Maths", "Science", "English", "Hindi", "Social Studies", "Computers", "Commerce", "Arts", "Other"]),
-    f("select", "Level Taught",          "", true, ["Primary (1-5)", "Middle (6-8)", "High School (9-10)", "Senior Secondary (11-12)", "College Level"]),
-    f("select", "Experience",            "", true, ["Fresher", "1-2 Years", "3-5 Years", "5+ Years"]),
-    f("text",   "Qualification",         "B.Ed, M.Ed, B.Sc, etc."),
-  ],
-  "Delivery": [
-    f("text",   "Applicant Name",        "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Vehicle Type",          "", true, ["Bicycle", "Two-Wheeler", "Three-Wheeler", "Four-Wheeler"]),
-    f("checkbox","Own Vehicle",          "I have my own vehicle", false),
-    f("select", "Availability",          "", true, ["Full Time", "Part Time", "Weekends Only"]),
-    f("text",   "Area Preference",       "Preferred delivery zone or city"),
-  ],
-
-  // ═══ SERVICE POINT ══════════════════════════════════════════════════════════
-  "AC Repair": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Service Address",       "Full address for service visit"),
-    f("select", "AC Brand",              "", true, ["Voltas", "Daikin", "LG", "Samsung", "Carrier", "Hitachi", "Blue Star", "Other"]),
-    f("select", "AC Type",               "", true, ["Split AC", "Window AC", "Cassette AC", "Tower AC"]),
-    f("select", "Problem",               "", true, ["Not Cooling", "Water Leakage", "Gas Refill", "No Power", "Noise", "Annual Servicing"]),
-    f("date",   "Preferred Visit Date",  ""),
-    f("time",   "Preferred Time Slot",   ""),
-  ],
-  "AC Service": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Service Address",       "Full address for service visit"),
-    f("select", "Service Type",          "", true, ["Regular Servicing", "Deep Cleaning", "Gas Top Up", "Full Maintenance"]),
-    f("number", "Number of AC Units",    "How many units to service?"),
-    f("date",   "Preferred Date",        ""),
-    f("time",   "Preferred Time",        ""),
-  ],
-  "Plumber Repair": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Service Address",       "Full address"),
-    f("select", "Problem Type",          "", true, ["Pipe Leakage", "Tap Repair", "Flush Tank", "Geyser Issue", "Drainage Block", "New Installation"]),
-    f("date",   "Preferred Date",        ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Additional Details",   "Describe the issue briefly...", false),
-  ],
-  "Carpenter": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Service Address",       "Full address"),
-    f("select", "Work Type",             "", true, ["Furniture Repair", "New Furniture", "Door/Window Fix", "Modular Kitchen", "Wardrobe", "Other"]),
-    f("date",   "Preferred Date",        ""),
-    f("textarea","Work Description",     "Describe the carpentry work needed...", false),
-  ],
-  "Electricians": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Service Address",       "Full address"),
-    f("select", "Problem Type",          "", true, ["Wiring Issue", "Fan/Light Fix", "Switchboard", "MCB/Fuse", "Short Circuit", "New Installation"]),
-    f("date",   "Preferred Date",        ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Details",              "Describe the electrical issue...", false),
-  ],
-  "Mobile & Computer Repair": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Device Type",           "", true, ["Smartphone", "Tablet", "Laptop", "Desktop", "Printer", "Other"]),
-    f("text",   "Device Brand & Model",  "e.g. Samsung Galaxy S21"),
-    f("select", "Issue",                 "", true, ["Screen Broken", "Battery", "Charging Port", "Water Damage", "Software Issue", "Camera", "Other"]),
-    f("textarea","Problem Description",  "Describe the issue in detail...", false),
-  ],
-  "Home interior & Decoration": [
-    f("text",   "Client Name",           "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com", false),
-    f("select", "Interior Type",         "", true, ["Full Home Interior", "Living Room", "Bedroom", "Kitchen", "Office Interior", "Commercial Space"]),
-    f("number", "Carpet Area (sq ft)",   "Approximate area in sq ft"),
-    f("select", "Budget Range",          "", true, ["Under ₹1L", "₹1L-₹3L", "₹3L-₹5L", "₹5L-₹10L", "Above ₹10L"]),
-    f("date",   "Expected Start Date",   "", false),
-    f("textarea","Design Preferences",   "Style, colours, specific requirements...", false),
-  ],
-  "Cook": [
-    f("text",   "Client Name",           "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Service Address",       "Full home address"),
-    f("select", "Cook Required For",     "", true, ["Daily Meals", "Party / Event", "Tiffin Service", "Weekly Basis"]),
-    f("select", "Cuisine Type",          "", true, ["North Indian", "South Indian", "Chinese", "Continental", "Jain", "All Types"]),
-    f("number", "Number of People",      "How many members?"),
-    f("date",   "Start Date",            ""),
-    f("textarea","Dietary Requirements", "Veg/Non-veg, allergies, special diet...", false),
-  ],
-  "Driver": [
-    f("text",   "Client Name",           "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Pickup Location",       "Full pickup address"),
-    f("select", "Service Type",          "", true, ["Daily Driver", "Outstation Trip", "Airport Drop/Pickup", "One-Time Hire"]),
-    f("date",   "Start Date",            ""),
-    f("select", "Vehicle Type",          "", true, ["Hatchback", "Sedan", "SUV", "Luxury Car", "Any"]),
-    f("textarea","Additional Notes",     "Trip details, timing preferences...", false),
-  ],
-  "Builder": [
-    f("text",   "Client Name",           "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com", false),
-    f("select", "Construction Type",     "", true, ["New Home Construction", "Commercial Building", "Renovation", "Extension / Addition", "Plot Development"]),
-    f("number", "Plot Area (sq ft)",     "Approximate plot size"),
-    f("select", "Budget Range",          "", true, ["Under ₹10L", "₹10L-₹25L", "₹25L-₹50L", "₹50L-₹1Cr", "Above ₹1Cr"]),
-    f("text",   "Plot Location",         "City/area of construction"),
-    f("textarea","Project Details",      "Floors, rooms, specific requirements...", false),
-  ],
-  "Washing Machine Repair": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Service Address",       "Full address"),
-    f("select", "Machine Type",          "", true, ["Front Load", "Top Load", "Semi-Automatic"]),
-    f("text",   "Brand",                 "e.g. LG, Samsung, Whirlpool"),
-    f("select", "Problem",               "", true, ["Not Starting", "Not Spinning", "Water Leakage", "Noise", "Door Lock Issue", "Other"]),
-    f("date",   "Preferred Visit Date",  ""),
-  ],
-  "Refrigerator Repair": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Service Address",       "Full address"),
-    f("text",   "Brand",                 "e.g. Whirlpool, LG, Samsung"),
-    f("select", "Problem",               "", true, ["Not Cooling", "Ice Maker Issue", "Water Leakage", "Noise", "Door Seal", "Other"]),
-    f("date",   "Preferred Visit Date",  ""),
-  ],
-  "TV Repair": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Service Address",       "Full address"),
-    f("select", "TV Type",               "", true, ["LED", "OLED", "LCD", "Smart TV", "CRT"]),
-    f("text",   "Brand & Model",         "e.g. Sony Bravia 43 inch"),
-    f("select", "Problem",               "", true, ["No Display", "No Sound", "Flickering", "No Power", "HDMI Issue", "Remote Issue"]),
-    f("date",   "Preferred Date",        ""),
-  ],
-  "Dry Cleaners": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Pickup Address",        "Full address for pickup"),
-    f("select", "Items Type",            "", true, ["Suits", "Sarees", "Blankets", "Curtains", "Leather Jackets", "Bridal Wear", "Mixed Items"]),
-    f("number", "Approximate Pieces",    "Number of garments"),
-    f("select", "Service Type",          "", true, ["Regular Dry Clean", "Express (Same Day)", "Stain Removal", "Ironing Only"]),
-    f("date",   "Pickup Date",           ""),
-  ],
-  "House Cleaner": [
-    f("text",   "Client Name",           "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Service Address",       "Full home address"),
-    f("select", "Cleaning Type",         "", true, ["Regular Cleaning", "Deep Cleaning", "Move-in/Move-out", "Post-Construction", "Office Cleaning"]),
-    f("number", "Home Size (sq ft)",     "Approximate area"),
-    f("date",   "Preferred Date",        ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Special Instructions", "Areas to focus, materials to avoid...", false),
-  ],
-  "Car Service": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Car Brand & Model",     "e.g. Maruti Swift VXI"),
-    f("text",   "Registration Number",   "Car registration plate"),
-    f("select", "Service Type",          "", true, ["General Servicing", "Oil Change", "Wheel Alignment", "Brake Service", "Full Inspection", "Denting & Painting"]),
-    f("date",   "Preferred Date",        ""),
-    f("time",   "Preferred Time",        ""),
-    f("checkbox","Pickup & Drop Required","I need pickup and drop facility", false),
-  ],
-  "Bike Service": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Bike Brand & Model",    "e.g. Honda Activa 6G"),
-    f("text",   "Registration Number",   "Bike plate number"),
-    f("select", "Service Type",          "", true, ["General Service", "Oil Change", "Chain Lubrication", "Brake Adjustment", "Full Checkup"]),
-    f("date",   "Preferred Date",        ""),
-    f("time",   "Preferred Time",        ""),
-  ],
-  "CCTV Repair & Installation": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Installation Address",  "Full address"),
-    f("select", "Service Type",          "", true, ["New Installation", "Repair", "Camera Replacement", "DVR/NVR Setup", "Maintenance"]),
-    f("number", "Number of Cameras",     "How many cameras?"),
-    f("select", "Camera Type",           "", false, ["Dome Camera", "Bullet Camera", "PTZ Camera", "IP Camera", "Any"]),
-    f("date",   "Preferred Date",        ""),
-    f("textarea","Additional Details",   "Location type (home/shop/office), any preferences...", false),
-  ],
-
-  // ═══ EDUCATION POINT ════════════════════════════════════════════════════════
-  "Coaching Center": [
-    f("text",   "Student Name",          "Full name"),
-    f("phone",  "Parent Contact",        "Mobile number"),
-    f("select", "Class / Grade",         "", true, ["Class 6", "Class 7", "Class 8", "Class 9", "Class 10", "Class 11 PCM", "Class 11 PCB", "Class 12", "Graduation"]),
-    f("select", "Subjects Required",     "", true, ["Maths", "Science", "English", "All Subjects", "Physics", "Chemistry", "Biology"]),
-    f("select", "Batch Preference",      "", false, ["Morning", "Afternoon", "Evening", "Weekend"]),
-    f("date",   "Admission Date",        "", false),
-    f("textarea","Special Requirements", "Learning goals, weak subjects, exam targets...", false),
-  ],
-  "School": [
-    f("text",   "Student Name",          "Full name of student"),
-    f("text",   "Parent/Guardian Name",  "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com", false),
-    f("select", "Admission For Class",   "", true, ["Nursery", "LKG", "UKG", "Class 1", "Class 2", "Class 3", "Class 4", "Class 5", "Class 6-10", "Class 11-12"]),
-    f("select", "Stream (if 11-12)",     "", false, ["Science PCM", "Science PCB", "Commerce", "Arts", "N/A"]),
-    f("date",   "Date of Birth",         ""),
-    f("textarea","Additional Notes",     "Previous school, transfer certificate status...", false),
-  ],
-  "College": [
-    f("text",   "Applicant Name",        "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com"),
-    f("select", "Program Applied",       "", true, ["B.A.", "B.Sc.", "B.Com", "BBA", "B.Tech", "M.A.", "M.Sc.", "M.Com", "MBA", "Other"]),
-    f("select", "Stream / Specialization","", true, ["Arts", "Science", "Commerce", "Engineering", "Management", "Other"]),
-    f("number", "12th Percentage",       "e.g. 85"),
-    f("textarea","Why This College",     "Statement of purpose or additional notes...", false),
-  ],
-  "Computer Center": [
-    f("text",   "Student Name",          "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Course Interested In",  "", true, ["MS Office", "Tally", "DTP", "Web Design", "Programming", "Graphic Design", "Video Editing", "Data Entry", "Other"]),
-    f("select", "Duration Preference",   "", true, ["1 Month", "3 Months", "6 Months", "1 Year"]),
-    f("select", "Batch Preference",      "", false, ["Morning", "Evening", "Weekend"]),
-  ],
-
-  // ═══ HEALTH CARE POINT ══════════════════════════════════════════════════════
-  "Clinic": [
-    f("text",   "Patient Name",          "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Consultation Type",     "", true, ["General Checkup", "Follow-up Visit", "Vaccination", "Child Health", "Women's Health", "Other"]),
-    f("date",   "Preferred Appointment Date", ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Symptoms / Concern",   "Briefly describe your symptoms...", false),
-  ],
-  "Doctors": [
-    f("text",   "Patient Name",          "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Consultation Type",     "", true, ["First Visit", "Follow-up", "Emergency", "Report Discussion"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Symptoms / Chief Complaint","Describe your symptoms briefly...", false),
-  ],
-  "Hospital": [
-    f("text",   "Patient Name",          "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Service Required",      "", true, ["OPD Appointment", "Emergency", "IPD Admission", "Surgery Enquiry", "Diagnostic / Scan", "Second Opinion"]),
-    f("select", "Department",            "", true, ["General Medicine", "Cardiology", "Orthopaedics", "Gynaecology", "Paediatrics", "ENT", "Dermatology", "Neurology", "Other"]),
-    f("date",   "Preferred Date",        ""),
-    f("textarea","Medical Details",      "Brief history, symptoms, reports available...", false),
-  ],
-  "Medicine Store": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("textarea","Medicine Names",       "List of medicines or prescription details..."),
-    f("checkbox","Upload Prescription",  "I have a valid prescription", false),
-    f("select", "Delivery Required",     "", true, ["Home Delivery", "Store Pickup"]),
-    f("text",   "Delivery Address",      "Full address", false),
-  ],
-  "Pathology": [
-    f("text",   "Patient Name",          "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Tests Required",        "", true, ["CBC (Blood Count)", "Blood Sugar", "Thyroid (T3/T4/TSH)", "Lipid Profile", "Liver Function", "Kidney Function", "Urine Test", "COVID RT-PCR", "Other"]),
-    f("date",   "Preferred Date",        ""),
-    f("time",   "Preferred Time",        ""),
-    f("select", "Home Collection",       "", true, ["Yes - Home Collection", "No - Visit Lab"]),
-    f("text",   "Address (if home)",     "Full address for sample collection", false),
-  ],
-  "Animal Care": [
-    f("text",   "Pet Owner Name",        "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Pet Name",              "Name of your pet"),
-    f("select", "Animal Type",           "", true, ["Dog", "Cat", "Bird", "Rabbit", "Fish", "Other"]),
-    f("select", "Service Required",      "", true, ["Vaccination", "Grooming", "General Checkup", "Emergency", "Deworming", "Surgery"]),
-    f("date",   "Appointment Date",      ""),
-    f("textarea","Health Concern",       "Describe symptoms or requirements...", false),
-  ],
-
-  // ═══ DOCTOR POINT ═══════════════════════════════════════════════════════════
-  "Cardiologist": [
-    f("text",   "Patient Name",          "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("number", "Patient Age",           "Age in years"),
-    f("select", "Consultation",          "", true, ["First Visit", "Follow-up", "ECG Review", "Report Discussion"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Symptoms / Reports",   "Chest pain, BP readings, previous reports...", false),
-  ],
-  "Dentist": [
-    f("text",   "Patient Name",          "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Treatment Required",    "", true, ["Checkup & Cleaning", "Tooth Extraction", "Root Canal", "Braces / Aligners", "Whitening", "Filling", "Crown / Cap", "Implant"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Dental Concern",       "Describe pain, swelling or cosmetic concern...", false),
-  ],
-  "Dermatologist": [
-    f("text",   "Patient Name",          "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Concern",               "", true, ["Acne / Pimples", "Pigmentation", "Hair Loss", "Skin Allergy", "Eczema / Psoriasis", "Anti-aging", "Laser Treatment", "Other"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Brief Description",    "Duration, current medications, specific areas...", false),
-  ],
-  "Gynecologist": [
-    f("text",   "Patient Name",          "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Consultation Type",     "", true, ["Routine Checkup", "Pregnancy Related", "Period Issues", "Family Planning", "PCOD / PCOS", "Other"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Brief Medical Note",   "Current concern or medical history...", false),
-  ],
-  "Pediatrician": [
-    f("text",   "Child's Name",          "Full name of child"),
-    f("text",   "Parent / Guardian Name","Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("number", "Child's Age",           "Age in years or months"),
-    f("select", "Visit Reason",          "", true, ["Routine Checkup", "Vaccination", "Fever / Cold", "Growth Assessment", "Emergency", "Other"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-  ],
-  "General Physician": [
-    f("text",   "Patient Name",          "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Visit Type",            "", true, ["General Checkup", "Fever / Cold", "Follow-up", "Certificate Required", "Other"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Symptoms",             "Describe your symptoms...", false),
-  ],
-  "Orthopedic": [
-    f("text",   "Patient Name",          "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Issue",                 "", true, ["Joint Pain", "Back Pain", "Fracture", "Sports Injury", "Spine Issue", "Post-Surgery Follow-up", "Other"]),
-    f("select", "Body Part Affected",    "", true, ["Knee", "Hip", "Shoulder", "Spine", "Ankle", "Wrist", "Other"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Medical History",      "Previous surgeries, X-ray/MRI reports...", false),
-  ],
-
-  // ═══ HOTEL POINT ════════════════════════════════════════════════════════════
-  "5 Star Hotels": [
-    f("text",   "Guest Name",            "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com"),
-    f("date",   "Check-in Date",         ""),
-    f("date",   "Check-out Date",        ""),
-    f("number", "Number of Guests",      "Total guests"),
-    f("select", "Room Type",             "", true, ["Deluxe Room", "Suite", "Presidential Suite", "Sea View Room", "Connecting Rooms"]),
-    f("select", "Meal Plan",             "", false, ["Room Only", "Breakfast Included", "Half Board", "Full Board", "All Inclusive"]),
-    f("textarea","Special Requests",     "Anniversary, honeymoon, dietary needs, accessibility...", false),
-  ],
-  "Budget Hotels": [
-    f("text",   "Guest Name",            "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("date",   "Check-in Date",         ""),
-    f("date",   "Check-out Date",        ""),
-    f("number", "Number of Guests",      "Total guests"),
-    f("select", "Room Type",             "", true, ["Single Room", "Double Room", "Triple Room", "Dormitory"]),
-    f("textarea","Any Requirements",     "Early check-in, late checkout, etc.", false),
-  ],
-  "Resorts": [
-    f("text",   "Guest Name",            "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com", false),
-    f("date",   "Check-in Date",         ""),
-    f("date",   "Check-out Date",        ""),
-    f("number", "Number of Adults",      ""),
-    f("number", "Number of Children",    "", false),
-    f("select", "Cottage / Villa Type",  "", true, ["Standard Cottage", "Deluxe Villa", "Pool Villa", "Treehouse", "Luxury Suite"]),
-    f("select", "Activities",            "", false, ["Trekking", "Waterpark", "Bonfire", "Kayaking", "All Activities"]),
-    f("textarea","Occasion / Notes",     "Honeymoon, birthday, family trip details...", false),
-  ],
-  "Banquet Halls": [
-    f("text",   "Contact Person Name",   "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com", false),
-    f("select", "Event Type",            "", true, ["Wedding", "Reception", "Birthday Party", "Corporate Event", "Engagement", "Anniversary", "Seminar"]),
-    f("date",   "Event Date",            ""),
-    f("number", "Expected Guests",       "Approximate guest count"),
-    f("select", "Catering Required",     "", true, ["Yes - Full Catering", "Yes - Partial", "No - Self Catering"]),
-    f("select", "Time Duration",         "", true, ["Half Day (4 hrs)", "Full Day (8 hrs)", "Evening (5 hrs)", "Custom"]),
-    f("textarea","Special Requirements", "Decoration, DJ, stage setup, menu preferences...", false),
-  ],
-  "Guest House": [
-    f("text",   "Guest Name",            "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("date",   "Check-in Date",         ""),
-    f("date",   "Check-out Date",        ""),
-    f("number", "Number of Guests",      ""),
-    f("select", "Room Type",             "", true, ["Single", "Double", "Triple", "Dormitory"]),
-    f("textarea","Requirements",         "Any special needs or notes...", false),
-  ],
-
-  // ═══ FOOD POINT ═════════════════════════════════════════════════════════════
-  "Restaurants": [
-    f("text",   "Guest Name",            "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("date",   "Reservation Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("number", "Number of Guests",      "Party size"),
-    f("select", "Seating Preference",    "", false, ["Indoor", "Outdoor", "Private Cabin", "Bar Area"]),
-    f("textarea","Special Requests",     "Anniversary, dietary restrictions, occasion...", false),
-  ],
-  "Cafes": [
-    f("text",   "Name",                  "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Order Type",            "", true, ["Dine-in Reservation", "Takeaway Pre-order", "Home Delivery"]),
-    f("date",   "Date",                  ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Order / Requirements", "Pre-order items, dietary preferences...", false),
-  ],
-  "Caterers": [
-    f("text",   "Client Name",           "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com", false),
-    f("select", "Event Type",            "", true, ["Wedding", "Birthday Party", "Corporate Lunch", "Engagement", "Social Gathering", "Other"]),
-    f("date",   "Event Date",            ""),
-    f("text",   "Event Venue / Address", "Location where food is needed"),
-    f("number", "Expected Guests",       "Approximate count"),
-    f("select", "Menu Type",             "", true, ["Veg Only", "Non-Veg", "Both Veg & Non-Veg", "Jain", "Saatvik"]),
-    f("select", "Meal Type",             "", true, ["Breakfast", "Lunch", "Dinner", "All Day", "Snacks"]),
-    f("textarea","Menu Preferences",     "Specific dishes, budget per plate, themes...", false),
-  ],
-  "Bakeries": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Order Type",            "", true, ["Custom Cake", "Ready Items", "Bulk Order", "Wedding Cake", "Birthday Cake"]),
-    f("date",   "Required By Date",      ""),
-    f("textarea","Order Details",        "Flavour, design, weight, message on cake...", false),
-    f("select", "Delivery Required",     "", true, ["Home Delivery", "Store Pickup"]),
-    f("text",   "Delivery Address",      "Full address", false),
-  ],
-  "Fast Food": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Order Type",            "", true, ["Home Delivery", "Takeaway", "Dine-in"]),
-    f("textarea","Items Required",       "List the items you want to order..."),
-    f("text",   "Delivery Address",      "Full address (if delivery)", false),
-  ],
-  "Cloud Kitchens": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Delivery Address",      "Full delivery address"),
-    f("select", "Meal Type",             "", true, ["Breakfast", "Lunch", "Dinner", "Snacks"]),
-    f("textarea","Order Details",        "Items, quantity, special instructions..."),
-    f("time",   "Preferred Delivery Time",""),
-  ],
-  "Sweet Shops": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("textarea","Items Required",       "List of sweets & quantities..."),
-    f("select", "Order Purpose",         "", false, ["Festival Gift", "Bulk Order", "Wedding", "Regular Purchase"]),
-    f("select", "Packaging",             "", false, ["Standard Box", "Gift Wrapped", "Premium Box"]),
-    f("date",   "Required By",           "", false),
-    f("select", "Delivery",              "", true, ["Home Delivery", "Store Pickup"]),
-  ],
-
-  // ═══ COURIER POINT ══════════════════════════════════════════════════════════
-  "Domestic Courier": [
-    f("text",   "Sender Name",           "Your full name"),
-    f("phone",  "Sender Contact",        "Mobile number"),
-    f("text",   "Pickup Address",        "Full pickup address with pincode"),
-    f("text",   "Delivery Address",      "Full delivery address with pincode"),
-    f("text",   "Recipient Name",        "Receiver full name"),
-    f("phone",  "Recipient Contact",     "Receiver mobile number"),
-    f("select", "Package Type",          "", true, ["Document", "Small Parcel (Under 1 kg)", "Medium Parcel (1-5 kg)", "Large Parcel (5-20 kg)", "Fragile Item"]),
-    f("number", "Approximate Weight (kg)","e.g. 2"),
-    f("select", "Delivery Speed",        "", true, ["Standard (3-5 days)", "Express (1-2 days)", "Same Day", "Next Day"]),
-    f("textarea","Special Instructions", "Fragile, handle with care, open delivery...", false),
-  ],
-  "International Courier": [
-    f("text",   "Sender Name",           "Your full name"),
-    f("phone",  "Sender Contact",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com"),
-    f("text",   "Pickup Address",        "Full address with pincode"),
-    f("text",   "Destination Country",   "Country of delivery"),
-    f("text",   "Delivery Address",      "Full international address"),
-    f("text",   "Recipient Name",        "Receiver full name"),
-    f("select", "Shipment Type",         "", true, ["Documents", "Commercial Goods", "Personal Items", "Electronics", "Gifts"]),
-    f("number", "Weight (kg)",           "Approximate weight"),
-    f("checkbox","Customs Declaration Required","Items need customs declaration", false),
-    f("textarea","Additional Details",   "Contents, value, special handling...", false),
-  ],
-  "Cargo Services": [
-    f("text",   "Company / Client Name", "Business or full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email",                 "your@email.com", false),
-    f("text",   "Pickup Location",       "Full address with pincode"),
-    f("text",   "Destination",           "Delivery city/address"),
-    f("number", "Total Weight (kg)",     "Approximate total weight"),
-    f("select", "Cargo Type",            "", true, ["Industrial Goods", "FMCG", "Electronics", "Machinery", "Raw Materials", "Perishables"]),
-    f("select", "Transport Mode",        "", true, ["Road", "Rail", "Air", "Sea"]),
-    f("textarea","Special Requirements", "Temperature control, hazmat, documentation...", false),
-  ],
-  "Express Delivery": [
-    f("text",   "Sender Name",           "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Pickup Address",        "Full address with pincode"),
-    f("text",   "Delivery Address",      "Full delivery address"),
-    f("text",   "Recipient Name",        "Receiver's full name"),
-    f("phone",  "Recipient Number",      "Receiver mobile"),
-    f("select", "Package Size",          "", true, ["Envelope", "Small Box", "Medium Box", "Large Box"]),
-    f("select", "Delivery Time",         "", true, ["2 Hours", "4 Hours", "Same Day", "Next Morning"]),
-  ],
-  "Local Parcel Service": [
-    f("text",   "Sender Name",           "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Pickup Address",        "Full local pickup address"),
-    f("text",   "Delivery Address",      "Full local delivery address"),
-    f("text",   "Recipient Name",        "Receiver name"),
-    f("phone",  "Recipient Number",      "Receiver mobile"),
-    f("select", "Parcel Type",           "", true, ["Documents", "Food", "Clothes", "Electronics", "Other"]),
-    f("select", "Time Preference",       "", true, ["ASAP", "Within 2 Hours", "Today", "Scheduled"]),
-  ],
-
-  // ═══ CAR RENTAL POINT ═══════════════════════════════════════════════════════
-  "Self-Drive Cars": [
-    f("text",   "Renter Name",           "Full name as per driving licence"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com"),
-    f("date",   "Pickup Date",           ""),
-    f("time",   "Pickup Time",           ""),
-    f("date",   "Return Date",           ""),
-    f("text",   "Pickup Location",       "City / address"),
-    f("select", "Car Type Preferred",    "", true, ["Hatchback", "Sedan", "SUV", "MUV", "Luxury"]),
-    f("checkbox","Valid DL Available",   "I have a valid driving licence", true),
-    f("textarea","Additional Notes",     "Any specific model, outstation needs...", false),
-  ],
-  "Chauffeur-Driven Cars": [
-    f("text",   "Client Name",           "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("date",   "Start Date",            ""),
-    f("time",   "Pickup Time",           ""),
-    f("text",   "Pickup Location",       "Full address"),
-    f("text",   "Destination",           "Drop address or city"),
-    f("select", "Trip Type",             "", true, ["One Way", "Round Trip", "Daily Hire", "Outstation"]),
-    f("select", "Vehicle Type",          "", true, ["Sedan", "SUV", "Tempo Traveller", "Luxury Car"]),
-    f("textarea","Itinerary / Notes",    "Stops, trip details, timing preferences...", false),
-  ],
-  "Airport Cab Service": [
-    f("text",   "Passenger Name",        "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Trip Type",             "", true, ["Airport Pickup", "Airport Drop"]),
-    f("text",   "Airport Name",          "e.g. Devi Ahilya Bai Holkar Airport"),
-    f("date",   "Travel Date",           ""),
-    f("time",   "Flight / Arrival Time", ""),
-    f("text",   "Pickup / Drop Address", "Full home or hotel address"),
-    f("select", "Vehicle Type",          "", true, ["Hatchback", "Sedan", "SUV", "Tempo Traveller"]),
-    f("number", "Number of Passengers",  ""),
-    f("textarea","Flight Details",       "Flight number, terminal, luggage...", false),
-  ],
-  "Wedding Car Rental": [
-    f("text",   "Client Name",           "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("date",   "Wedding Date",          ""),
-    f("text",   "Venue Address",         "Wedding / reception venue address"),
-    f("select", "Car Type",              "", true, ["Vintage Car", "Luxury Sedan", "SUV", "White Limousine", "Decorated Car"]),
-    f("number", "Number of Cars",        "How many cars required?"),
-    f("textarea","Special Decoration",   "Floral, theme, colour preferences...", false),
-  ],
-
-  // ═══ GARMENTS POINT ═════════════════════════════════════════════════════════
-  "Men's Wear": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Item Type",             "", true, ["Shirt", "Trousers", "Suit", "Ethnic (Kurta/Sherwani)", "Jeans", "T-Shirt", "Blazer"]),
-    f("select", "Occasion",              "", false, ["Casual", "Formal", "Wedding", "Party", "Festival"]),
-    f("text",   "Size / Measurements",   "Size or chest/waist measurements"),
-    f("select", "Delivery / Pickup",     "", true, ["Home Delivery", "Store Visit"]),
-  ],
-  "Women's Wear": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Item Type",             "", true, ["Saree", "Salwar Kameez", "Kurti", "Lehenga", "Western Dress", "Top & Jeans", "Co-ord Set"]),
-    f("select", "Occasion",              "", false, ["Casual", "Formal", "Wedding", "Party", "Festival"]),
-    f("text",   "Size / Measurements",   "Standard size or chest/waist/hip measurements"),
-    f("select", "Delivery / Pickup",     "", true, ["Home Delivery", "Store Visit"]),
-  ],
-  "Bridal Wear": [
-    f("text",   "Bride / Client Name",   "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("date",   "Wedding Date",          ""),
-    f("select", "Outfit Required",       "", true, ["Bridal Lehenga", "Saree", "Sharara", "Anarkali", "Custom Design"]),
-    f("select", "Budget Range",          "", false, ["Under ₹10,000", "₹10,000-₹25,000", "₹25,000-₹50,000", "₹50,000-₹1L", "Above ₹1L"]),
-    f("text",   "Measurements",          "Bust / Waist / Hip / Height"),
-    f("textarea","Design Preferences",   "Colour, embroidery, fabric, inspiration pics...", false),
-  ],
-  "Kids Wear": [
-    f("text",   "Parent Name",           "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Gender",                "", true, ["Boy", "Girl", "Both"]),
-    f("select", "Age Group",             "", true, ["0-1 Year", "1-3 Years", "3-6 Years", "6-10 Years", "10-14 Years"]),
-    f("select", "Occasion",              "", false, ["School Wear", "Casual", "Party", "Festival", "Sports"]),
-    f("text",   "Size / Measurements",   "Height or standard size"),
-  ],
-  "Boutique": [
-    f("text",   "Client Name",           "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Service Type",          "", true, ["Custom Stitching", "Blouse Stitching", "Alteration", "Ready-to-Wear Purchase"]),
-    f("text",   "Outfit Description",    "e.g. heavy embroidered lehenga blouse"),
-    f("text",   "Measurements",          "Bust / Waist / Hip / Height"),
-    f("date",   "Required By Date",      ""),
-    f("textarea","Design Details",       "Colour, fabric, neckline, sleeves, reference pics...", false),
-  ],
-
-  // ═══ ASTROLOGER POINT ═══════════════════════════════════════════════════════
-  "Vedic Astrologer": [
-    f("text",   "Client Name",           "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Date of Birth",         "DD/MM/YYYY"),
-    f("text",   "Time of Birth",         "e.g. 10:30 AM (if known)"),
-    f("text",   "Place of Birth",        "City and State"),
-    f("select", "Consultation Type",     "", true, ["Kundli Reading", "Marriage Compatibility", "Career & Finance", "Health", "Vastu + Kundli", "Annual Predictions"]),
-    f("select", "Mode",                  "", true, ["In-Person", "Phone Call", "Video Call", "Written Report"]),
-    f("textarea","Your Questions",       "Specific questions or areas of concern...", false),
-  ],
-  "Palm Reader": [
-    f("text",   "Client Name",           "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Session Type",          "", true, ["In-Person", "Photo Reading (WhatsApp)"]),
-    f("date",   "Appointment Date",      "", false),
-    f("textarea","Areas of Interest",    "Career, love, health, wealth, family...", false),
-  ],
-  "Numerologist": [
-    f("text",   "Client Name",           "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Date of Birth",         "DD/MM/YYYY"),
-    f("text",   "Full Name at Birth",    "As per birth certificate"),
-    f("select", "Service",               "", true, ["Personal Numerology", "Business Name Analysis", "Lucky Number", "Name Correction", "Annual Forecast"]),
-    f("textarea","Your Questions",       "Specific queries or concerns...", false),
-  ],
-  "Tarot Card Reader": [
-    f("text",   "Client Name",           "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Session Type",          "", true, ["In-Person", "Online (Video)", "Recorded Reading"]),
-    f("select", "Reading Type",          "", true, ["General Life Reading", "Love & Relationships", "Career & Finance", "Yes/No Reading", "Annual Forecast"]),
-    f("date",   "Appointment Date",      "", false),
-    f("textarea","Your Questions",       "Specific questions for the reading...", false),
-  ],
-  "Vastu Consultant": [
-    f("text",   "Client Name",           "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com", false),
-    f("select", "Property Type",         "", true, ["Home / Flat", "Office", "Factory / Warehouse", "Shop", "Plot / Under Construction"]),
-    f("select", "Service",               "", true, ["Full Vastu Inspection", "Floor Plan Analysis", "Report Only", "Online Consultation"]),
-    f("text",   "Property Address",      "Full address of property"),
-    f("textarea","Issues Faced",         "Problems like health, finance, relationship since moving...", false),
-  ],
-
-  // ═══ PRODUCT POINT ══════════════════════════════════════════════════════════
-  "Electronics": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Product Category",      "", true, ["Washing Machine", "Refrigerator", "AC", "Microwave", "TV", "Water Purifier", "Geyser", "Mixer/Grinder"]),
-    f("text",   "Brand Preference",      "e.g. LG, Samsung, Whirlpool", false),
-    f("select", "Budget Range",          "", false, ["Under ₹5,000", "₹5,000-₹15,000", "₹15,000-₹30,000", "₹30,000-₹50,000", "Above ₹50,000"]),
-    f("select", "Delivery Required",     "", true, ["Home Delivery", "Store Pickup"]),
-    f("textarea","Specifications",       "Size, colour, specific features needed...", false),
-  ],
-  "Mobile Phones": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Brand Preference",      "", false, ["Samsung", "Apple", "OnePlus", "Xiaomi / Redmi", "Realme", "Oppo", "Vivo", "Any"]),
-    f("select", "Budget Range",          "", true, ["Under ₹10,000", "₹10,000-₹20,000", "₹20,000-₹40,000", "₹40,000-₹70,000", "Above ₹70,000"]),
-    f("select", "Key Features Needed",   "", false, ["Good Camera", "Long Battery", "High Performance", "5G", "Slim Design"]),
-    f("select", "Purchase Mode",         "", true, ["Store Visit", "Home Delivery"]),
-  ],
-  "Furniture": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Delivery Address",      "Full address"),
-    f("select", "Furniture Type",        "", true, ["Sofa", "Bed", "Wardrobe", "Dining Table", "Office Chair", "Study Table", "Bookshelf", "Full Room Set"]),
-    f("select", "Material Preference",   "", false, ["Solid Wood", "Engineered Wood", "Metal", "Fabric", "Leather", "Any"]),
-    f("select", "Budget Range",          "", false, ["Under ₹10,000", "₹10,000-₹30,000", "₹30,000-₹60,000", "Above ₹60,000"]),
-    f("textarea","Design Preferences",   "Colour, dimensions, custom requirements...", false),
-  ],
-};
-
-// ─── Parent Category Fallbacks ────────────────────────────────────────────────
-
-const CATEGORY_FALLBACKS: Record<string, FormField[]> = {
-  "Food Point": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Order Type",            "", true, ["Dine-in", "Takeaway", "Home Delivery"]),
-    f("date",   "Preferred Date",        ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Order / Requirements", "Describe your order or requirements..."),
-  ],
-  "Spa Point": [
-    f("text",   "Client Name",           "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Service Required",      "", true, ["Massage", "Facial", "Spa Package", "Salon Service"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-  ],
-  "Tour Point": [
-    f("text",   "Lead Traveller Name",   "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email",                 "your@email.com"),
-    f("text",   "Destination",           "Where do you want to go?"),
-    f("date",   "Travel Date",           ""),
-    f("number", "Number of Travellers",  ""),
-    f("select", "Package Type",          "", true, ["Budget", "Standard", "Premium"]),
-  ],
-  "Job Point": [
-    f("text",   "Applicant Name",        "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("email",  "Email Address",         "your@email.com"),
-    f("select", "Role Applied For",      "", true, ["Full Time", "Part Time", "Internship", "Freelance"]),
-    f("select", "Experience",            "", true, ["Fresher", "1-3 Years", "3-5 Years", "5+ Years"]),
-    f("text",   "Resume / Portfolio",    "Paste your link here"),
-  ],
-  "Service Point": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Service Address",       "Full address for service visit"),
-    f("select", "Service Type",          "", true, ["Repair", "Installation", "Maintenance", "General Service"]),
-    f("date",   "Preferred Date",        ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Problem Description",  "Describe the issue...", false),
-  ],
-  "Education Point": [
-    f("text",   "Student Name",          "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Service Required",      "", true, ["Admission Enquiry", "Counselling", "Fee Enquiry", "Course Info"]),
-    f("textarea","Questions / Interests","What would you like to know?", false),
-  ],
-  "Health Care Point": [
-    f("text",   "Patient Name",          "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Service Required",      "", true, ["Appointment", "Test Booking", "Medicine Enquiry", "Emergency"]),
-    f("date",   "Preferred Date",        ""),
-    f("textarea","Symptoms / Notes",     "Brief description...", false),
-  ],
-  "Hotel Point": [
-    f("text",   "Guest Name",            "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("date",   "Check-in Date",         ""),
-    f("date",   "Check-out Date",        ""),
-    f("number", "Number of Guests",      ""),
-    f("select", "Room Type",             "", true, ["Single", "Double", "Suite"]),
-    f("textarea","Special Requests",     "Dietary, accessibility, occasion...", false),
-  ],
-  "Doctor Point": [
-    f("text",   "Patient Name",          "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Consultation Type",     "", true, ["First Visit", "Follow-up", "Emergency"]),
-    f("date",   "Appointment Date",      ""),
-    f("time",   "Preferred Time",        ""),
-    f("textarea","Symptoms",             "Describe your symptoms briefly...", false),
-  ],
-  "Garments Point": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Category",              "", true, ["Men's Wear", "Women's Wear", "Kids Wear", "Ethnic Wear", "Bridal"]),
-    f("text",   "Size / Measurements",   "Standard size or measurements"),
-    f("select", "Purchase Mode",         "", true, ["Home Delivery", "Store Visit"]),
-  ],
-  "Astrologer Point": [
-    f("text",   "Client Name",           "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("text",   "Date of Birth",         "DD/MM/YYYY"),
-    f("select", "Consultation",          "", true, ["In-Person", "Phone", "Video Call"]),
-    f("textarea","Your Questions",       "Specific areas or concerns...", false),
-  ],
-  "Product Point": [
-    f("text",   "Customer Name",         "Your full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("select", "Product Type",          "", true, ["Electronics", "Furniture", "Clothing", "Mobile", "Grocery", "Other"]),
-    f("textarea","Product Requirements", "Describe what you're looking for...", false),
-    f("select", "Purchase Mode",         "", true, ["Home Delivery", "Store Visit"]),
-  ],
-  "Courier Point": [
-    f("text",   "Sender Name",           "Your full name"),
-    f("phone",  "Sender Contact",        "Mobile number"),
-    f("text",   "Pickup Address",        "Full pickup address"),
-    f("text",   "Delivery Address",      "Full delivery address"),
-    f("select", "Package Type",          "", true, ["Document", "Small Parcel", "Large Parcel", "Fragile"]),
-    f("select", "Delivery Speed",        "", true, ["Standard", "Express", "Same Day"]),
-  ],
-  "Car Rental Point": [
-    f("text",   "Client Name",           "Full name"),
-    f("phone",  "Contact Number",        "Mobile number"),
-    f("date",   "Start Date",            ""),
-    f("time",   "Pickup Time",           ""),
-    f("text",   "Pickup Location",       "Full address"),
-    f("select", "Trip Type",             "", true, ["Local", "Outstation", "Airport", "Daily Hire"]),
-    f("select", "Vehicle Type",          "", true, ["Hatchback", "Sedan", "SUV", "Tempo Traveller", "Luxury"]),
-  ],
-};
-
-// ─── Template Resolver ─────────────────────────────────────────────────────────
-
-function getTemplateFields(category: string): FormField[] {
-  // 1. Exact subcategory match (strip "Category > Subcategory" format)
-  const subcat = category.includes(">") ? category.split(">")[1].trim() : category.trim();
-  if (SUBCATEGORY_TEMPLATES[subcat]) {
-    return SUBCATEGORY_TEMPLATES[subcat].map((f) => ({ ...f, id: `${f.type}-${Date.now()}-${Math.random().toString(36).slice(2,6)}` }));
-  }
-
-  // 2. Parent category fallback
-  const parentCat = category.includes(">") ? category.split(">")[0].trim() : category.trim();
-  if (CATEGORY_FALLBACKS[parentCat]) {
-    return CATEGORY_FALLBACKS[parentCat].map((f) => ({ ...f, id: `${f.type}-${Date.now()}-${Math.random().toString(36).slice(2,6)}` }));
-  }
-
-  // 3. Universal default
-  return [
-    f("text",   "Full Name",              "Enter your full name"),
-    f("phone",  "Phone Number",           "Enter mobile number"),
-    f("email",  "Email Address",          "your@email.com", false),
-    f("date",   "Preferred Date",         ""),
-    f("textarea","Message / Requirements","Describe what you need..."),
-  ];
-}
 
 // ─── Option Tag Editor ────────────────────────────────────────────────────────
 
@@ -1167,12 +176,20 @@ function MultiSelectDropdown({ placeholder, options }: { placeholder: string; op
 
 
 interface ServiceFormProps {
-  clientListings: BusinessListingData[];
+  clientListings?: BusinessListingData[];
+  business?: BusinessListingData;
+  onClose?: () => void;
+  readOnly?: boolean;
 }
 
-export default function ServiceForm({ clientListings }: ServiceFormProps) {
+export default function ServiceForm({ clientListings = [], business, onClose, readOnly = false }: ServiceFormProps) {
+  const listings = useMemo(() => {
+    if (business) return [business];
+    return clientListings;
+  }, [business, clientListings]);
+
   const [selectedBizId, setSelectedBizId] = useState<string>(
-    clientListings.length > 0 ? clientListings[0].id : ""
+    business ? business.id : (listings.length > 0 ? listings[0].id : "")
   );
   const [fields, setFields]             = useState<FormField[]>([]);
   const [bookNowEnabled, setBookNowEnabled] = useState(true);
@@ -1180,19 +197,21 @@ export default function ServiceForm({ clientListings }: ServiceFormProps) {
   const [formDescription, setFormDescription] = useState("Fill in the details below to book or enquire.");
   const [savedMsg, setSavedMsg]         = useState("");
   const [expandedId, setExpandedId]     = useState<string | null>(null);
-  const [previewMode, setPreviewMode]   = useState(false);
+  const [previewMode, setPreviewMode]   = useState(true);
 
   const dragIndex = useRef<number | null>(null);
   const dragOverIndex = useRef<number | null>(null);
 
-  const selectedBiz = clientListings.find((b) => b.id === selectedBizId);
+  const selectedBiz = listings.find((b) => b.id === selectedBizId);
 
-  // Sync selectedBizId when clientListings load
+  // Sync selectedBizId when listings load
   useEffect(() => {
-    if (clientListings.length > 0 && (!selectedBizId || !clientListings.some(b => b.id === selectedBizId))) {
-      setSelectedBizId(clientListings[0].id);
+    if (business) {
+      setSelectedBizId(business.id);
+    } else if (listings.length > 0 && (!selectedBizId || !listings.some(b => b.id === selectedBizId))) {
+      setSelectedBizId(listings[0].id);
     }
-  }, [clientListings, selectedBizId]);
+  }, [business, listings, selectedBizId]);
 
   // Load configuration from backend API
   useEffect(() => {
@@ -1209,21 +228,16 @@ export default function ServiceForm({ clientListings }: ServiceFormProps) {
           setFormTitle(config.formTitle || "Book Our Services");
           setFormDescription(config.formDescription || "Fill in the details below to book or enquire.");
         } else {
-          // Fallback to templates
-          if (selectedBiz) {
-            setFields(getTemplateFields(selectedBiz.category || ""));
-            setBookNowEnabled(true);
-            setFormTitle("Book Our Services");
-            setFormDescription("Fill in the details below to book or enquire.");
-          }
-        }
-      } catch (err) {
-        if (selectedBiz) {
-          setFields(getTemplateFields(selectedBiz.category || ""));
+          setFields([]);
           setBookNowEnabled(true);
           setFormTitle("Book Our Services");
           setFormDescription("Fill in the details below to book or enquire.");
         }
+      } catch (err) {
+        setFields([]);
+        setBookNowEnabled(true);
+        setFormTitle("Book Our Services");
+        setFormDescription("Fill in the details below to book or enquire.");
       }
     };
 
@@ -1232,7 +246,7 @@ export default function ServiceForm({ clientListings }: ServiceFormProps) {
 
   const handleSave = async () => {
     if (!selectedBizId) return;
-    const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || "";
+    const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_business_token") || "";
 
     try {
       const res = await fetch(`http://localhost:5000/api/service-forms/${selectedBizId}`, {
@@ -1301,11 +315,11 @@ export default function ServiceForm({ clientListings }: ServiceFormProps) {
   const paletteColor = (type: FieldType) => FIELD_PALETTE.find((p) => p.type === type)?.color || "";
   const paletteIcon  = (type: FieldType) => FIELD_PALETTE.find((p) => p.type === type)?.icon || <Type className="h-4 w-4" />;
 
-  if (clientListings.length === 0) {
+  if (listings.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-500 dark:text-slate-400 space-y-3">
         <Building className="h-12 w-12 text-slate-400" />
-        <p className="text-sm font-semibold">No businesses found linked to your account.</p>
+        <p className="text-sm font-semibold">No businesses found.</p>
       </div>
     );
   }
@@ -1321,48 +335,51 @@ export default function ServiceForm({ clientListings }: ServiceFormProps) {
 
   return (
     <div className="space-y-6 animate-fade-in-up text-left max-w-6xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h3 className="font-serif text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Service Form Builder</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Design a custom booking form. Drag fields to reorder.</p>
+      {!readOnly && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h3 className="font-serif text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Service Form Builder</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Design a custom booking form. Drag fields to reorder.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setPreviewMode(!previewMode)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${previewMode ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent" : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800"}`}>
+              {previewMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              <span>{previewMode ? "Exit Preview" : "Preview Form"}</span>
+            </button>
+            <button onClick={handleSave} className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md active:scale-[0.98] transition cursor-pointer">
+              <Save className="h-4 w-4" /><span>Save Form</span>
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Book Now Toggle Removed */}
-          <button onClick={() => setPreviewMode(!previewMode)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${previewMode ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent" : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800"}`}>
-            {previewMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            <span>{previewMode ? "Exit Preview" : "Preview Form"}</span>
-          </button>
-          <button onClick={handleSave} className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md active:scale-[0.98] transition cursor-pointer">
-            <Save className="h-4 w-4" /><span>Save Form</span>
-          </button>
-        </div>
-      </div>
+      )}
 
       {savedMsg && (
         <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-emerald-600 dark:text-emerald-400 p-3.5 rounded-xl text-xs font-bold text-center">{savedMsg}</div>
       )}
 
-      {clientListings.length > 1 && (
+      {!readOnly && !business && listings.length > 1 && (
         <div className="flex items-center gap-3">
           <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 shrink-0">Configuring For:</label>
           <select value={selectedBizId} onChange={(e) => setSelectedBizId(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-500 cursor-pointer">
-            {clientListings.map((b) => (<option key={b.id} value={b.id}>{b.name}</option>))}
+            {listings.map((b) => (<option key={b.id} value={b.id}>{b.name}</option>))}
           </select>
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl p-5 space-y-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 space-y-1.5">
-            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Form Title</label>
-            <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 font-semibold" placeholder="Book Our Services" />
-          </div>
-          <div className="flex-1 space-y-1.5">
-            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Form Subtitle / Description</label>
-            <input type="text" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 font-semibold" placeholder="Fill in the details below..." />
+      {!readOnly && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl p-5 space-y-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 space-y-1.5">
+              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Form Title</label>
+              <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 font-semibold" placeholder="Book Our Services" />
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Form Subtitle / Description</label>
+              <input type="text" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 font-semibold" placeholder="Fill in the details below..." />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {previewMode ? (
         <div className="max-w-xl mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-xl space-y-5">
@@ -1445,8 +462,8 @@ export default function ServiceForm({ clientListings }: ServiceFormProps) {
             {fields.length === 0 ? (
               <div className="bg-white dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-16 text-center text-slate-400 dark:text-slate-600">
                 <AlignLeft className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                <p className="text-sm font-semibold">Click a field type on the left to add it,</p>
-                <p className="text-xs mt-1">or use the Smart Template for a quick start.</p>
+                <p className="text-sm font-semibold">Click a field type on the left to add fields</p>
+                <p className="text-xs mt-1">to build your custom booking form.</p>
               </div>
             ) : (
               <div className="space-y-3">

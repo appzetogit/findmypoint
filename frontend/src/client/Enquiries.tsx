@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   MessageSquare,
   Search,
-  Trash2,
   Building,
   Clock,
   User,
@@ -284,17 +283,6 @@ export default function Enquiries({ clientListings }: EnquiriesProps) {
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-250 dark:border-slate-800 outline-none text-xs text-slate-800 dark:text-slate-200 focus:border-indigo-500 font-semibold"
               />
             </div>
-
-            {selectedEnquiryIds.length > 0 && (
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <button
-                  onClick={handleDeleteSelected}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 transition cursor-pointer shadow-sm border border-transparent"
-                >
-                  <Trash2 className="h-4 w-4" /> Delete Selected ({selectedEnquiryIds.length})
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Enquiries Table - Always Visible Headers */}
@@ -464,13 +452,6 @@ export default function Enquiries({ clientListings }: EnquiriesProps) {
                             <Mail className="h-4 w-4" />
                           </button>
                         )}
-                        <button
-                          onClick={() => handleDelete(enq.id)}
-                          className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition cursor-pointer"
-                          title="Delete enquiry record"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
                       </td>
                     </tr>
                   ))

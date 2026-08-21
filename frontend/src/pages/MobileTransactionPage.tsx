@@ -11,6 +11,7 @@ import {
   CreditCard,
   Smartphone,
   Landmark,
+  LogIn,
 } from "lucide-react";
 import { API_BASE_URL } from "../config";
 
@@ -24,8 +25,19 @@ export interface Transaction {
   paymentMethod: "upi" | "card" | "netbanking";
   status: "Completed" | "Refunded" | "Failed";
 }
-const STATUS_CONFIG: any = {
+const DEFAULT_STATUS_CONFIG = {
+  icon: CheckCircle2,
+  classes: "text-emerald-600",
+  badgeClasses: "bg-emerald-50 text-emerald-700 border-emerald-200",
+};
+
+const STATUS_CONFIG: Record<string, any> = {
   Completed: {
+    icon: CheckCircle2,
+    classes: "text-emerald-600",
+    badgeClasses: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  },
+  Success: {
     icon: CheckCircle2,
     classes: "text-emerald-600",
     badgeClasses: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -42,27 +54,41 @@ const STATUS_CONFIG: any = {
   },
 };
 
-const PAYMENT_ICONS: any = {
+const PAYMENT_ICONS: Record<string, any> = {
   upi: Smartphone,
   card: CreditCard,
   netbanking: Landmark,
 };
 
-const PAYMENT_LABELS: any = {
+const PAYMENT_LABELS: Record<string, any> = {
   upi: "UPI",
   card: "Card",
   netbanking: "Net Banking",
 };
 
-export default function MobileTransactionPage() {
+interface MobileTransactionPageProps {
+  onSignInClick?: () => void;
+}
+
+export default function MobileTransactionPage({ onSignInClick }: MobileTransactionPageProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [search, setSearch] = useState("");
+  const [hasToken, setHasToken] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !!localStorage.getItem("fmp_user_token");
+    }
+    return false;
+  });
 
   useEffect(() => {
     const loadUserTransactions = async () => {
       try {
         const userToken = localStorage.getItem("fmp_user_token");
-        if (!userToken) return;
+        if (!userToken) {
+          setHasToken(false);
+          return;
+        }
+        setHasToken(true);
         const res = await fetch(`${API_BASE_URL}/transactions`, {
           headers: {
             "Authorization": `Bearer ${userToken}`
@@ -116,9 +142,25 @@ export default function MobileTransactionPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-0">
-        {/* Transaction list */}
-        {filtered.length === 0 ? (
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-6">
+        {!hasToken ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center px-4">
+            <div className="w-16 h-16 rounded-3xl bg-primary/10 flex items-center justify-center mb-1">
+              <Receipt className="h-8 w-8 text-primary" />
+            </div>
+            <h2 className="text-base font-bold text-foreground">Sign In to View Transactions</h2>
+            <p className="text-xs text-muted-foreground max-w-xs">
+              Please sign in with your mobile number to check your payment history, receipts, and booking transactions.
+            </p>
+            <button
+              onClick={() => onSignInClick?.()}
+              className="mt-3 px-6 py-2.5 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold flex items-center gap-2 shadow-md transition cursor-pointer"
+            >
+              <LogIn className="h-4 w-4" />
+              <span>Sign In Now</span>
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
             <Inbox className="h-12 w-12 text-muted-foreground/40" />
             <p className="text-sm font-semibold text-muted-foreground">No transactions found</p>
@@ -126,51 +168,40 @@ export default function MobileTransactionPage() {
         ) : (
           <div className="space-y-2">
             {filtered.map((t) => {
-              const scfg = STATUS_CONFIG[t.status];
-              const StatusIcon = scfg.icon;
-              const PayIcon = PAYMENT_ICONS[t.paymentMethod];
+              const scfg = STATUS_CONFIG[t.status] || DEFAULT_STATUS_CONFIG;
+              const StatusIcon = scfg.icon || CheckCircle2;
+              const methodKey = (t.paymentMethod || "card").toLowerCase();
+              const PayIcon = PAYMENT_ICONS[methodKey] || CreditCard;
+              const payLabel = PAYMENT_LABELS[methodKey] || t.paymentMethod || "Payment";
 
               return (
                 <div
                   key={t.id}
                   className="bg-card border border-border rounded-2xl p-4 flex items-center gap-3"
                 >
-                  {/* Left icon */}
                   <div
-                    className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${
-                      t.type === "debit" ? "bg-rose-50" : "bg-emerald-50"
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      t.type === "debit" ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
                     }`}
                   >
                     {t.type === "debit" ? (
-                      <ArrowUpRight className="h-5 w-5 text-rose-500" />
+                      <ArrowUpRight className="h-5 w-5" />
                     ) : (
-                      <ArrowDownLeft className="h-5 w-5 text-emerald-500" />
+                      <ArrowDownLeft className="h-5 w-5" />
                     )}
                   </div>
 
-                  {/* Middle content */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate leading-snug">
-                      {t.description}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                      <PayIcon className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="text-[11px] text-muted-foreground">
-                        {PAYMENT_LABELS[t.paymentMethod]}
-                      </span>
-                      <span className="text-muted-foreground/50 text-[11px]">·</span>
-                      <span className="text-[11px] text-muted-foreground">{t.timestamp}</span>
+                    <p className="text-sm font-bold text-foreground truncate">{t.description}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
+                      <PayIcon className="h-3 w-3" />
+                      <span>{payLabel}</span>
+                      <span>•</span>
+                      <span>{t.timestamp}</span>
                     </div>
-                    <span
-                      className={`inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${scfg.badgeClasses}`}
-                    >
-                      <StatusIcon className="h-2.5 w-2.5" />
-                      {t.status}
-                    </span>
                   </div>
 
-                  {/* Amount */}
-                  <div className="shrink-0 text-right">
+                  <div className="text-right shrink-0">
                     <p
                       className={`text-sm font-bold ${
                         t.type === "debit" ? "text-foreground" : "text-emerald-600"
@@ -178,9 +209,12 @@ export default function MobileTransactionPage() {
                     >
                       {t.type === "debit" ? "-" : "+"}₹{t.amount.toLocaleString("en-IN")}
                     </p>
-                    <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
-                      {t.id.slice(-6)}
-                    </p>
+                    <span
+                      className={`inline-flex items-center gap-0.5 text-[10px] font-semibold mt-0.5 ${scfg.classes}`}
+                    >
+                      <StatusIcon className="h-3 w-3" />
+                      {t.status}
+                    </span>
                   </div>
                 </div>
               );

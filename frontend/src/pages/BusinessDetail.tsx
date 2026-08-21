@@ -40,11 +40,18 @@ import {
   Compass,
   Camera,
   ShoppingCart,
+  Facebook,
+  Instagram,
+  Youtube,
+  Linkedin,
+  Twitter,
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { BusinessListingData, UserReview } from "../data/businessesData";
 import Footer from "./Footer";
 import { API_BASE_URL } from "../config";
+import { useSEO } from "../hooks/useSEO";
+import { buildBusinessSchemas } from "../utils/seo";
 
 function formatDateTimeDMY(d: Date): string {
   const day = String(d.getDate()).padStart(2, "0");
@@ -163,7 +170,7 @@ function checkoutReducer(state: CheckoutState, action: CheckoutAction): Checkout
 
 // Types and Reducers for Payment
 interface PaymentState {
-  method: "upi" | "card" | "netbanking";
+  method: "upi" | "card" | "netbanking" | "cod";
   upiId: string;
   cardNumber: string;
   cardExpiry: string;
@@ -172,7 +179,7 @@ interface PaymentState {
 }
 
 type PaymentAction =
-  | { type: "SET_METHOD"; method: "upi" | "card" | "netbanking" }
+  | { type: "SET_METHOD"; method: "upi" | "card" | "netbanking" | "cod" }
   | { type: "SET_FIELD"; field: "upiId" | "cardNumber" | "cardExpiry" | "cardCvv"; value: string }
   | { type: "SET_PROCESSING"; value: boolean }
   | { type: "RESET" };
@@ -313,15 +320,59 @@ export default function BusinessDetailPage({
   const [bizLoading, setBizLoading] = useState(true);
   const [bizNotFound, setBizNotFound] = useState(false);
 
+  const isSocialVisible = (url?: string, show?: boolean | string) => {
+    if (!url || !url.trim()) return false;
+    if (show === false || show === "false") return false;
+    return true;
+  };
+
+  const hasAnySocial = useMemo(() => {
+    return (
+      isSocialVisible(currentBiz.facebookUrl, currentBiz.showFacebook) ||
+      isSocialVisible(currentBiz.instagramUrl, currentBiz.showInstagram) ||
+      isSocialVisible(currentBiz.youtubeUrl, currentBiz.showYouTube) ||
+      isSocialVisible(currentBiz.linkedinUrl, currentBiz.showLinkedIn) ||
+      isSocialVisible(currentBiz.xUrl, currentBiz.showX)
+    );
+  }, [
+    currentBiz.facebookUrl,
+    currentBiz.showFacebook,
+    currentBiz.instagramUrl,
+    currentBiz.showInstagram,
+    currentBiz.youtubeUrl,
+    currentBiz.showYouTube,
+    currentBiz.linkedinUrl,
+    currentBiz.showLinkedIn,
+    currentBiz.xUrl,
+    currentBiz.showX,
+  ]);
+
+  const [copiedToast, setCopiedToast] = useState(false);
+
   useEffect(() => {
     setBizLoading(true);
     setBizNotFound(false);
-    fetch(`http://localhost:5000/api/businesses/${businessId}`)
+
+    let url = `${API_BASE_URL}/businesses/${encodeURIComponent(businessId)}`;
+    const trimmedId = businessId.replace(/^\/+|\/+$/g, '');
+    const parts = trimmedId.split('/');
+
+    if (parts.length === 3) {
+      const [c, l, s] = parts;
+      url = `${API_BASE_URL}/businesses/public/${encodeURIComponent(c)}/${encodeURIComponent(l)}/${encodeURIComponent(s)}`;
+    }
+
+    fetch(url)
       .then((res) => {
         if (!res.ok) throw new Error("Not found");
         return res.json();
       })
       .then((data) => {
+        if (data.redirect && data.canonicalUrl) {
+          if (window.location.pathname !== data.canonicalUrl) {
+            window.history.replaceState(null, "", data.canonicalUrl);
+          }
+        }
         const raw = data.data || data;
         // Normalize: ensure all array fields default to [] when missing
         const normalized: BusinessListingData = {
@@ -344,6 +395,49 @@ export default function BusinessDetailPage({
         setBizLoading(false);
       });
   }, [businessId]);
+
+  // Dynamic SEO Metadata and Schema.org JSON-LD Structured Data
+  const seoTitle = useMemo(() => {
+    if (!currentBiz?.name) return "FindMyPoint — Premium Local Business Directory";
+    return currentBiz.seoTitle || `${currentBiz.name} in ${currentBiz.location || 'Vijay Nagar'}, ${currentBiz.cityTown || currentBiz.district || 'Indore'} - ${currentBiz.category || 'Business'} | FindMyPoint`;
+  }, [currentBiz?.name, currentBiz?.seoTitle, currentBiz?.location, currentBiz?.cityTown, currentBiz?.district, currentBiz?.category]);
+
+  const seoDescription = useMemo(() => {
+    if (!currentBiz?.name) return "Discover trusted businesses, verified professionals and curated services across your city.";
+    return currentBiz.seoDescription || `${currentBiz.name} in ${currentBiz.location || ''}, ${currentBiz.cityTown || currentBiz.district || ''}. ${Number(currentBiz.rating) > 0 ? `Rated ${currentBiz.rating}/5 (${currentBiz.reviewCount || 0} reviews). ` : ''}View contact info, services, photos, address, timings, reviews and send enquiries.`;
+  }, [currentBiz?.name, currentBiz?.seoDescription, currentBiz?.location, currentBiz?.cityTown, currentBiz?.district, currentBiz?.rating, currentBiz?.reviewCount]);
+
+  const canonicalPath = useMemo(() => {
+    if (!currentBiz?.name) return "";
+    return currentBiz.canonicalUrl || `/${currentBiz.citySlug || 'indore'}/${currentBiz.localitySlug || 'vijay-nagar'}/${currentBiz.slug || currentBiz.id}`;
+  }, [currentBiz?.name, currentBiz?.canonicalUrl, currentBiz?.citySlug, currentBiz?.localitySlug, currentBiz?.slug, currentBiz?.id]);
+
+  const seoSchemas = useMemo(() => {
+    if (!currentBiz?.name || typeof window === "undefined") return [];
+    return buildBusinessSchemas(currentBiz, window.location.origin);
+  }, [currentBiz]);
+
+  useSEO({
+    title: seoTitle,
+    description: seoDescription,
+    keywords: currentBiz?.seoKeywords || [currentBiz?.name, currentBiz?.category, currentBiz?.location, currentBiz?.cityTown].filter(Boolean) as string[],
+    canonicalUrl: canonicalPath,
+    robots: currentBiz?.status === 'published' && currentBiz?.isIndexable !== false ? "index, follow" : "noindex, nofollow",
+    og: {
+      title: seoTitle,
+      description: seoDescription,
+      image: (currentBiz?.images && currentBiz.images[0]) || "",
+      url: typeof window !== "undefined" ? `${window.location.origin}${canonicalPath}` : "",
+      type: "business.business"
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: seoTitle,
+      description: seoDescription,
+      image: (currentBiz?.images && currentBiz.images[0]) || ""
+    },
+    schemas: seoSchemas
+  }, [seoTitle, seoDescription, canonicalPath, seoSchemas, currentBiz?.status, currentBiz?.isIndexable]);
 
   const [bookingState, dispatchBooking] = useReducer(
     bookingReducer,
@@ -370,7 +464,7 @@ export default function BusinessDetailPage({
     if (currentBiz?.id) {
       const loadCustomForm = async () => {
         try {
-          const res = await fetch(`http://localhost:5000/api/service-forms/${currentBiz.id}`);
+          const res = await fetch(`${API_BASE_URL}/service-forms/${currentBiz.id}`);
           const data = await res.json();
           if (data.success && data.data) {
             const parsed = data.data;
@@ -444,6 +538,9 @@ export default function BusinessDetailPage({
   const [cartOpen, setCartOpen] = useState(false);
   const [cartCheckoutTotal, setCartCheckoutTotal] = useState<number | null>(null);
 
+  const [chosenPaymentChoice, setChosenPaymentChoice] = useState<"online" | "cod">("online");
+  const [chosenCartPaymentChoice, setChosenCartPaymentChoice] = useState<"online" | "cod">("online");
+
   const handleRazorpayPayment = async (
     amount: number,
     onSuccess: (paymentId: string) => void | Promise<void>
@@ -457,7 +554,7 @@ export default function BusinessDetailPage({
     }
 
     try {
-      const res = await fetch("http://localhost:5000/api/razorpay/order", {
+      const res = await fetch(`${API_BASE_URL}/razorpay/order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount })
@@ -481,7 +578,7 @@ export default function BusinessDetailPage({
         handler: async function (response: any) {
           dispatchPayment({ type: "SET_PROCESSING", value: true });
           try {
-            const verifyRes = await fetch("http://localhost:5000/api/razorpay/verify", {
+            const verifyRes = await fetch(`${API_BASE_URL}/razorpay/verify`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -542,6 +639,8 @@ export default function BusinessDetailPage({
     id?: string;
     amount: number;
     paymentId: string;
+    paymentMethod?: string;
+    paymentStatus?: string;
     bookingType?: "service" | "product" | "appointment" | "room";
     serviceName?: string;
     formData?: Record<string, any>;
@@ -581,8 +680,8 @@ export default function BusinessDetailPage({
         formData: opts.formData || {},
         bookingType: opts.bookingType || "service",
         paymentId: opts.paymentId,
-        paymentMethod: "Razorpay Gateway",
-        paymentStatus: "paid",
+        paymentMethod: opts.paymentMethod || "Razorpay Gateway",
+        paymentStatus: opts.paymentStatus || "paid",
       }),
     })
       .then((res) => res.json())
@@ -614,7 +713,7 @@ export default function BusinessDetailPage({
       } else {
         setDeletedReviews([]);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   if (businessId !== prevBusinessId) {
@@ -657,7 +756,7 @@ export default function BusinessDetailPage({
     const combined = [...customReviews, ...(currentBiz.reviews || [])];
     const unique: UserReview[] = [];
     const seen = new Set<string>();
-    
+
     combined.forEach(r => {
       const key = `${r.userName}-${r.reviewText}`;
       if (!seen.has(key)) {
@@ -695,7 +794,7 @@ export default function BusinessDetailPage({
       alert("Please fill in your name and review comment!");
       return;
     }
-    
+
     const colors = [
       "from-indigo-500 to-purple-600",
       "from-emerald-500 to-teal-650",
@@ -704,7 +803,7 @@ export default function BusinessDetailPage({
       "from-blue-500 to-indigo-600"
     ];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    
+
     const newReview: UserReview = {
       userName: newName.trim(),
       userInitial: newName.trim().charAt(0).toUpperCase() || "A",
@@ -728,30 +827,30 @@ export default function BusinessDetailPage({
         userEmail: newReview.userEmail
       })
     })
-    .then((res) => res.json())
-    .then((data) => {
-      if (data.success && data.data) {
-        setCurrentBiz((prev) => ({
-          ...prev,
-          reviews: data.data,
-          rating: data.rating,
-          reviewCount: data.reviewCount
-        }));
-      }
-    })
-    .catch((err) => {
-      console.error("Failed to submit review to backend:", err);
-    });
-    
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.data) {
+          setCurrentBiz((prev) => ({
+            ...prev,
+            reviews: data.data,
+            rating: data.rating,
+            reviewCount: data.reviewCount
+          }));
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to submit review to backend:", err);
+      });
+
     const updated = [newReview, ...customReviews];
     setCustomReviews(updated);
-    
+
     try {
       localStorage.setItem(`fmp_custom_reviews:${currentBiz.id}`, JSON.stringify(updated));
     } catch (err) {
       console.error("Failed to save custom review", err);
     }
-    
+
     // Reset Form
     setNewRating(0);
     setNewEmail("");
@@ -885,7 +984,7 @@ export default function BusinessDetailPage({
     setUiState((prev) => ({ ...prev, enquirySubmitted: true }));
 
     // Send enquiry to backend API
-    fetch(`http://localhost:5000/api/businesses/${currentBiz.id}/enquire`, {
+    fetch(`${API_BASE_URL}/businesses/${currentBiz.id}/enquire`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -912,18 +1011,29 @@ export default function BusinessDetailPage({
     }, 3000);
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
+    const canonical = currentBiz.canonicalUrl || `/${currentBiz.citySlug || 'indore'}/${currentBiz.localitySlug || 'vijay-nagar'}/${currentBiz.slug || currentBiz.id}`;
+    const shareUrl = `${window.location.origin}${canonical}`;
+
     if (navigator.share) {
-      navigator
-        .share({
+      try {
+        await navigator.share({
           title: currentBiz.name,
-          text: currentBiz.description,
-          url: window.location.href,
-        })
-        .catch(console.error);
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert("Business link copied to clipboard!");
+          text: `Check out ${currentBiz.name} on FindMyPoint: ${currentBiz.description || ''}`,
+          url: shareUrl,
+        });
+        return;
+      } catch (e) {
+        // user cancelled or share failed, fallback to copy
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedToast(true);
+      setTimeout(() => setCopiedToast(false), 2500);
+    } catch (e) {
+      alert("Business URL: " + shareUrl);
     }
   };
 
@@ -1132,6 +1242,17 @@ export default function BusinessDetailPage({
             <p className="text-muted-foreground text-sm font-semibold mt-2 flex items-center gap-1">
               <MapPin className="h-4 w-4 text-rose-500" /> {currentBiz.address}
             </p>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
+              <span>{currentBiz.location || currentBiz.cityTown || "Indore"}</span>
+              <span>•</span>
+              <span>{currentBiz.businessType || "Service Provider"}</span>
+              {currentBiz.establishedYear ? (
+                <>
+                  <span>•</span>
+                  <span>{currentBiz.establishedYear.includes("Year") ? currentBiz.establishedYear : `${currentBiz.establishedYear} Established`}</span>
+                </>
+              ) : null}
+            </p>
 
             {(currentBiz.categoryLine || currentBiz.subCategoryLine) && (
               <div className="flex flex-wrap gap-2 mt-2.5">
@@ -1160,22 +1281,34 @@ export default function BusinessDetailPage({
 
           {/* Quick Actions Panel */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto md:shrink-0">
-            {/* Buttons Row: Call, Enquire, Book */}
-            <div className="flex flex-row items-center gap-1.5 w-full sm:w-auto">
+            {/* Buttons Row: Call, WhatsApp, Enquire, Book */}
+            <div className="flex flex-row items-center gap-1.5 w-full sm:w-auto flex-wrap">
               <a
                 href={`tel:${currentBiz.phone.replace(/[^0-9+]/g, "")}`}
-                className="flex-1 inline-flex items-center justify-center gap-1 rounded-full border border-slate-200 dark:border-slate-800 bg-card py-2.5 px-2 text-[10px] sm:text-xs font-bold text-foreground hover:bg-secondary transition shadow-sm cursor-pointer whitespace-nowrap"
+                className="flex-1 min-w-[75px] inline-flex items-center justify-center gap-1 rounded-full border border-slate-200 dark:border-slate-800 bg-card py-2.5 px-3 text-[10px] sm:text-xs font-bold text-foreground hover:bg-secondary transition shadow-sm cursor-pointer whitespace-nowrap"
               >
                 <Phone className="h-3 w-3 text-accent shrink-0" />
                 Call
               </a>
+
+              {(currentBiz.whatsapp || currentBiz.phone) && (
+                <a
+                  href={`https://wa.me/${(currentBiz.whatsapp || currentBiz.phone || '').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${currentBiz.name}, I found your business listing on FindMyPoint.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 min-w-[85px] inline-flex items-center justify-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/30 py-2.5 px-3 text-[10px] sm:text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 transition shadow-sm cursor-pointer whitespace-nowrap"
+                >
+                  <MessageSquare className="h-3 w-3 text-emerald-600 shrink-0" />
+                  WhatsApp
+                </a>
+              )}
 
               <button
                 onClick={() => {
                   setEnquiryForm({ name: "", mobile: "", email: "", message: "Hi, I am interested in your services. Please contact me." });
                   setUiState((prev) => ({ ...prev, enquiryModalOpen: true, enquirySubmitted: false }));
                 }}
-                className="flex-1 inline-flex items-center justify-center gap-1 rounded-full bg-[#0f172a] dark:bg-slate-800 py-2.5 px-2 text-[10px] sm:text-xs font-bold text-white transition shadow-sm hover:scale-[1.02] cursor-pointer whitespace-nowrap"
+                className="flex-1 min-w-[90px] inline-flex items-center justify-center gap-1 rounded-full bg-[#0f172a] dark:bg-slate-800 py-2.5 px-3 text-[10px] sm:text-xs font-bold text-white transition shadow-sm hover:scale-[1.02] cursor-pointer whitespace-nowrap"
               >
                 Enquire Now
               </button>
@@ -1188,20 +1321,20 @@ export default function BusinessDetailPage({
                       element.scrollIntoView({ behavior: "smooth", block: "start" });
                     }
                   }}
-                  className="flex-1 inline-flex items-center justify-center gap-1 rounded-full bg-emerald-600 py-2.5 px-2 text-[10px] sm:text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm hover:scale-[1.02] cursor-pointer whitespace-nowrap"
+                  className="flex-1 min-w-[85px] inline-flex items-center justify-center gap-1 rounded-full bg-emerald-600 py-2.5 px-3 text-[10px] sm:text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm hover:scale-[1.02] cursor-pointer whitespace-nowrap"
                 >
                   <Check className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">
                     {currentBiz.bookingButtonLabel
                       ? currentBiz.bookingButtonLabel
                       : (customFormConfig
-                          ? (customFormConfig.formTitle || "Book Now")
-                          : (currentBiz.category.includes("Hotel Point")
-                              ? "Book Room"
-                              : currentBiz.category.includes("Health Care Point") ||
-                                  currentBiz.category.includes("Doctor Point")
-                                ? "Book Appointment"
-                                : "Book Table"))}
+                        ? (customFormConfig.formTitle || "Book Now")
+                        : (currentBiz.category.includes("Hotel Point")
+                          ? "Book Room"
+                          : currentBiz.category.includes("Health Care Point") ||
+                            currentBiz.category.includes("Doctor Point")
+                            ? "Book Appointment"
+                            : "Book Table"))}
                   </span>
                 </button>
               )}
@@ -1209,21 +1342,6 @@ export default function BusinessDetailPage({
 
             {/* Circular Social/Bookmark/Direction Row */}
             <div className="flex flex-row items-center gap-2 mt-1 sm:mt-0">
-              <a
-                href={`https://wa.me/${currentBiz.phone.replace(/[^0-9]/g, "")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-[#25d366]/30 bg-[#25d366]/5 hover:bg-[#25d366] hover:text-white transition-all shadow-sm cursor-pointer text-[#25d366]"
-                title="Chat on WhatsApp"
-              >
-                <svg
-                  className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 fill-current"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.717-1.456L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.97C16.379 1.968 13.91 .94 11.997.94c-5.442 0-9.867 4.371-9.871 9.8.001 1.83.483 3.61 1.398 5.183L2.5 21.082l5.147-1.33c-.007.005-.007.005 0 0zm9.967-6.758c-.31-.154-1.834-.894-2.115-.995-.28-.102-.485-.153-.687.154-.202.307-.783.995-.96 1.198-.177.205-.355.23-.665.077-1.127-.565-1.953-.972-2.73-1.637-.777-.665-1.28-1.488-1.433-1.753-.153-.307-.016-.473.138-.626.14-.138.31-.36.467-.538.153-.18.204-.307.307-.512.102-.205.05-.384-.025-.538-.077-.154-.687-1.637-.94-2.253-.247-.6-.5-.518-.688-.528-.178-.01-.383-.01-.588-.01-.205 0-.538.077-.82.384-.282.307-1.077 1.05-1.077 2.561 0 1.51 1.1 2.97 1.253 3.176.154.205 2.164 3.266 5.244 4.581.733.313 1.306.499 1.75.64.737.234 1.408.201 1.94.122.592-.088 1.834-.74 2.09-1.455.257-.717.257-1.332.18-1.456-.076-.124-.282-.201-.592-.356z" />
-                </svg>
-              </a>
               <button
                 onClick={handleShare}
                 className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-border bg-card hover:bg-secondary transition shadow-sm text-muted-foreground cursor-pointer"
@@ -1240,6 +1358,7 @@ export default function BusinessDetailPage({
                   className={`h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 ${bookmarked ? "fill-amber-500" : ""}`}
                 />
               </button>
+
               {/* Direction Button */}
               <a
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(currentBiz.name + ", " + currentBiz.address)}`}
@@ -1293,8 +1412,8 @@ export default function BusinessDetailPage({
                         ? currentBiz.videoLink.replace("watch?v=", "embed/").split("&")[0]
                         : currentBiz.videoLink.includes("youtu.be/")
                           ? currentBiz.videoLink
-                              .replace("youtu.be/", "youtube.com/embed/")
-                              .split("?")[0]
+                            .replace("youtu.be/", "youtube.com/embed/")
+                            .split("?")[0]
                           : currentBiz.videoLink
                     }
                     title={`${currentBiz.name} Video Tour`}
@@ -1402,12 +1521,78 @@ export default function BusinessDetailPage({
               </div>
             </div>
 
+            {/* Social Media & Official Profiles Section */}
+            {hasAnySocial && (
+              <div className="flex flex-col bg-transparent sm:bg-card border-none sm:border sm:border-border/60 p-2 sm:p-5 rounded-none sm:rounded-2xl shadow-none sm:shadow-sm mt-4">
+                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-3 uppercase tracking-wider text-left border-b border-border/40 pb-2 flex items-center gap-2">
+                  <Share2 className="h-5 w-5 text-indigo-500" /> Connect & Follow Us
+                </h3>
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  {isSocialVisible(currentBiz.facebookUrl, currentBiz.showFacebook) && (
+                    <a
+                      href={currentBiz.facebookUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-blue-500/10 hover:bg-blue-600 text-blue-600 hover:text-white dark:text-blue-400 transition-all cursor-pointer shadow-sm border border-blue-500/20 active:scale-95"
+                      title="Facebook"
+                    >
+                      <Facebook className="h-5 w-5" />
+                    </a>
+                  )}
+                  {isSocialVisible(currentBiz.instagramUrl, currentBiz.showInstagram) && (
+                    <a
+                      href={currentBiz.instagramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-pink-500/10 hover:bg-pink-600 text-pink-600 hover:text-white dark:text-pink-400 transition-all cursor-pointer shadow-sm border border-pink-500/20 active:scale-95"
+                      title="Instagram"
+                    >
+                      <Instagram className="h-5 w-5" />
+                    </a>
+                  )}
+                  {isSocialVisible(currentBiz.youtubeUrl, currentBiz.showYouTube) && (
+                    <a
+                      href={currentBiz.youtubeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-rose-500/10 hover:bg-rose-600 text-rose-600 hover:text-white dark:text-rose-400 transition-all cursor-pointer shadow-sm border border-rose-500/20 active:scale-95"
+                      title="YouTube"
+                    >
+                      <Youtube className="h-5 w-5" />
+                    </a>
+                  )}
+                  {isSocialVisible(currentBiz.linkedinUrl, currentBiz.showLinkedIn) && (
+                    <a
+                      href={currentBiz.linkedinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-sky-500/10 hover:bg-sky-600 text-sky-600 hover:text-white dark:text-sky-400 transition-all cursor-pointer shadow-sm border border-sky-500/20 active:scale-95"
+                      title="LinkedIn"
+                    >
+                      <Linkedin className="h-5 w-5" />
+                    </a>
+                  )}
+                  {isSocialVisible(currentBiz.xUrl, currentBiz.showX) && (
+                    <a
+                      href={currentBiz.xUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-500/10 hover:bg-slate-900 text-slate-800 hover:text-white dark:text-slate-200 dark:hover:bg-white dark:hover:text-black transition-all cursor-pointer shadow-sm border border-slate-500/20 active:scale-95"
+                      title="X (Twitter)"
+                    >
+                      <Twitter className="h-5 w-5" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Popular Products & Services Catalog */}
             <div id="menu-section" className="flex flex-col scroll-mt-28">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-3 mb-6">
                 <h3 className="text-lg font-black text-foreground uppercase tracking-wider text-left">
                   {currentBiz.category.includes("Food Point") ||
-                  currentBiz.category.toLowerCase().includes("restaurant")
+                    currentBiz.category.toLowerCase().includes("restaurant")
                     ? "Menu & Special Dishes"
                     : "Products & Services"}
                 </h3>
@@ -1426,7 +1611,7 @@ export default function BusinessDetailPage({
 
               {filteredProducts.length > 0 ? (
                 currentBiz.category.includes("Food Point") ||
-                currentBiz.category.toLowerCase().includes("restaurant") ? (
+                  currentBiz.category.toLowerCase().includes("restaurant") ? (
                   // Food List View
                   <div className="flex flex-col gap-4">
                     {filteredProducts.map((prod, idx) => {
@@ -1689,105 +1874,148 @@ export default function BusinessDetailPage({
             {(currentBiz.email ||
               currentBiz.website ||
               currentBiz.whatsapp ||
+              hasAnySocial ||
               (currentBiz.extraNumbers && currentBiz.extraNumbers.length > 0)) && (
-              <div className="bg-transparent sm:bg-card rounded-none sm:rounded-2xl border-none sm:border sm:border-border p-2 sm:p-6 shadow-none sm:shadow-[var(--shadow-card)] text-left">
-                <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-4">
-                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">
-                    Contact Information
-                  </h4>
-                  <Phone className="h-4.5 w-4.5 text-indigo-500" />
-                </div>
+                <div className="bg-transparent sm:bg-card rounded-none sm:rounded-2xl border-none sm:border sm:border-border p-2 sm:p-6 shadow-none sm:shadow-[var(--shadow-card)] text-left">
+                  <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-4">
+                    <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">
+                      Contact Information
+                    </h4>
+                    <Phone className="h-4.5 w-4.5 text-indigo-500" />
+                  </div>
 
-                <div className="space-y-4">
-                  {/* Website */}
-                  {currentBiz.website && (
-                    <div className="flex items-start gap-3">
-                      <Globe className="h-4.5 w-4.5 text-blue-500 shrink-0 mt-0.5" />
-                      <div className="min-w-0">
-                        <span className="block text-[10px] font-bold text-muted-foreground uppercase">
-                          Official Website
-                        </span>
-                        <a
-                          href={currentBiz.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary hover:underline font-bold break-all block mt-0.5 text-left"
-                        >
-                          {currentBiz.website}
-                        </a>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Email */}
-                  {currentBiz.email && (
-                    <div className="flex items-start gap-3">
-                      <Mail className="h-4.5 w-4.5 text-indigo-500 shrink-0 mt-0.5" />
-                      <div className="min-w-0 text-left">
-                        <span className="block text-[10px] font-bold text-muted-foreground uppercase">
-                          Email Address
-                        </span>
-                        <a
-                          href={`mailto:${currentBiz.email}`}
-                          className="text-xs text-slate-900 dark:text-white hover:text-primary font-bold break-all block mt-0.5 text-left"
-                        >
-                          {currentBiz.email}
-                        </a>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Whatsapp */}
-                  {currentBiz.whatsapp && (
-                    <div className="flex items-start gap-3">
-                      <svg
-                        className="h-4.5 w-4.5 text-[#25d366] fill-current shrink-0 mt-0.5"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.717-1.456L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.97C16.379 1.968 13.91 .94 11.997.94c-5.442 0-9.867 4.371-9.871 9.8.001 1.83.483 3.61 1.398 5.183L2.5 21.082l5.147-1.33c-.007.005-.007.005 0 0zm9.967-6.758c-.31-.154-1.834-.894-2.115-.995-.28-.102-.485-.153-.687.154-.202.307-.783.995-.96 1.198-.177.205-.355.23-.665.077-1.127-.565-1.953-.972-2.73-1.637-.777-.665-1.28-1.488-1.433-1.753-.153-.307-.016-.473.138-.626.14-.138.31-.36.467-.538.153-.18.204-.307.307-.512.102-.205.05-.384-.025-.538-.077-.154-.687-1.637-.94-2.253-.247-.6-.5-.518-.688-.528-.178-.01-.383-.01-.588-.01-.205 0-.538.077-.82.384-.282.307-1.077 1.05-1.077 2.561 0 1.51 1.1 2.97 1.253 3.176.154.205 2.164 3.266 5.244 4.581.733.313 1.306.499 1.75.64.737.234 1.408.201 1.94.122.592-.088 1.834-.74 2.09-1.455.257-.717.257-1.332.18-1.456-.076-.124-.282-.201-.592-.356z" />
-                      </svg>
-                      <div className="min-w-0 text-left">
-                        <span className="block text-[10px] font-bold text-muted-foreground uppercase">
-                          WhatsApp Us
-                        </span>
-                        <a
-                          href={`https://wa.me/${currentBiz.whatsapp.replace(/[^0-9]/g, "")}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-emerald-600 hover:underline font-bold block mt-0.5 text-left"
-                        >
-                          {currentBiz.whatsapp}
-                        </a>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Extra Numbers */}
-                  {currentBiz.extraNumbers && currentBiz.extraNumbers.length > 0 && (
-                    <div className="flex items-start gap-3">
-                      <Phone className="h-4.5 w-4.5 text-emerald-500 shrink-0 mt-0.5" />
-                      <div className="min-w-0 text-left">
-                        <span className="block text-[10px] font-bold text-muted-foreground uppercase">
-                          Extra Contact Numbers
-                        </span>
-                        <div className="flex flex-col gap-1.5 mt-1">
-                          {currentBiz.extraNumbers.map((num, idx) => (
-                            <a
-                              key={idx}
-                              href={`tel:${num}`}
-                              className="text-xs text-slate-950 dark:text-white hover:text-primary font-bold block text-left"
-                            >
-                              {num}
-                            </a>
-                          ))}
+                  <div className="space-y-4">
+                    {/* Website */}
+                    {currentBiz.website && (
+                      <div className="flex items-start gap-3">
+                        <Globe className="h-4.5 w-4.5 text-blue-500 shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <span className="block text-[10px] font-bold text-muted-foreground uppercase">
+                            Official Website
+                          </span>
+                          <a
+                            href={currentBiz.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline font-bold break-all block mt-0.5 text-left"
+                          >
+                            {currentBiz.website}
+                          </a>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+
+                    {/* Email */}
+                    {currentBiz.email && (
+                      <div className="flex items-start gap-3">
+                        <Mail className="h-4.5 w-4.5 text-indigo-500 shrink-0 mt-0.5" />
+                        <div className="min-w-0 text-left">
+                          <span className="block text-[10px] font-bold text-muted-foreground uppercase">
+                            Email Address
+                          </span>
+                          <a
+                            href={`mailto:${currentBiz.email}`}
+                            className="text-xs text-slate-900 dark:text-white hover:text-primary font-bold break-all block mt-0.5 text-left"
+                          >
+                            {currentBiz.email}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+
+
+                    {/* Extra Numbers */}
+                    {currentBiz.extraNumbers && currentBiz.extraNumbers.length > 0 && (
+                      <div className="flex items-start gap-3">
+                        <Phone className="h-4.5 w-4.5 text-emerald-500 shrink-0 mt-0.5" />
+                        <div className="min-w-0 text-left">
+                          <span className="block text-[10px] font-bold text-muted-foreground uppercase">
+                            Extra Contact Numbers
+                          </span>
+                          <div className="flex flex-col gap-1.5 mt-1">
+                            {currentBiz.extraNumbers.map((num, idx) => (
+                              <a
+                                key={idx}
+                                href={`tel:${num}`}
+                                className="text-xs text-slate-950 dark:text-white hover:text-primary font-bold block text-left"
+                              >
+                                {num}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Social Profiles List */}
+                    {hasAnySocial && (
+                      <div className="pt-3.5 border-t border-border/30">
+                        <span className="block text-[10px] font-bold text-muted-foreground uppercase mb-2.5 tracking-wider">
+                          Official Social Profiles
+                        </span>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          {isSocialVisible(currentBiz.facebookUrl, currentBiz.showFacebook) && (
+                            <a
+                              href={currentBiz.facebookUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 hover:bg-blue-600 text-blue-600 hover:text-white dark:text-blue-400 transition-all cursor-pointer border border-blue-500/20 shadow-sm active:scale-95"
+                              title="Facebook"
+                            >
+                              <Facebook className="h-4.5 w-4.5" />
+                            </a>
+                          )}
+                          {isSocialVisible(currentBiz.instagramUrl, currentBiz.showInstagram) && (
+                            <a
+                              href={currentBiz.instagramUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-pink-500/10 hover:bg-pink-600 text-pink-600 hover:text-white dark:text-pink-400 transition-all cursor-pointer border border-pink-500/20 shadow-sm active:scale-95"
+                              title="Instagram"
+                            >
+                              <Instagram className="h-4.5 w-4.5" />
+                            </a>
+                          )}
+                          {isSocialVisible(currentBiz.youtubeUrl, currentBiz.showYouTube) && (
+                            <a
+                              href={currentBiz.youtubeUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-rose-500/10 hover:bg-rose-600 text-rose-600 hover:text-white dark:text-rose-400 transition-all cursor-pointer border border-rose-500/20 shadow-sm active:scale-95"
+                              title="YouTube"
+                            >
+                              <Youtube className="h-4.5 w-4.5" />
+                            </a>
+                          )}
+                          {isSocialVisible(currentBiz.linkedinUrl, currentBiz.showLinkedIn) && (
+                            <a
+                              href={currentBiz.linkedinUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/10 hover:bg-sky-600 text-sky-600 hover:text-white dark:text-sky-400 transition-all cursor-pointer border border-sky-500/20 shadow-sm active:scale-95"
+                              title="LinkedIn"
+                            >
+                              <Linkedin className="h-4.5 w-4.5" />
+                            </a>
+                          )}
+                          {isSocialVisible(currentBiz.xUrl, currentBiz.showX) && (
+                            <a
+                              href={currentBiz.xUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-500/10 hover:bg-slate-900 text-slate-800 hover:text-white dark:text-slate-200 dark:hover:bg-white dark:hover:text-black transition-all cursor-pointer border border-slate-500/20 shadow-sm active:scale-95"
+                              title="X (Twitter)"
+                            >
+                              <Twitter className="h-4.5 w-4.5" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* People Also Viewed Widget */}
             {currentBiz.similarListings.length > 0 && (
@@ -1839,7 +2067,7 @@ export default function BusinessDetailPage({
                   <Star className="h-4 w-4 text-amber-500 fill-amber-500/10" /> Write a Review
                 </h4>
               </div>
-              
+
               {reviewSubmittedSuccess ? (
                 <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250/30 dark:border-emerald-900/40 rounded-2xl p-5 text-center text-emerald-600 dark:text-emerald-400 text-xs font-bold animate-pulse">
                   Review submitted successfully!
@@ -1866,11 +2094,10 @@ export default function BusinessDetailPage({
                               className="p-0.5 focus:outline-none transition-transform hover:scale-110 cursor-pointer"
                             >
                               <Star
-                                className={`h-5 w-5 transition-all ${
-                                  isLit 
-                                    ? "text-amber-500 fill-amber-500" 
-                                    : "text-muted-foreground/35 hover:text-amber-500/70"
-                                }`}
+                                className={`h-5 w-5 transition-all ${isLit
+                                  ? "text-amber-500 fill-amber-500"
+                                  : "text-muted-foreground/35 hover:text-amber-500/70"
+                                  }`}
                               />
                             </button>
                           );
@@ -2011,8 +2238,8 @@ export default function BusinessDetailPage({
 
       {/* Table Booking Modal */}
       {bookingModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left animate-fade-in">
-          <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-fade-in-up">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 text-left animate-fade-in">
+          <div className="relative w-full h-full sm:h-auto max-w-none sm:max-w-md rounded-none sm:rounded-2xl border-0 sm:border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in-up max-h-full sm:max-h-[90vh] overflow-y-auto no-scrollbar">
             <button
               onClick={() => dispatchBooking({ type: "SET_MODAL", open: false })}
               className="absolute right-4 top-4 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -2022,7 +2249,7 @@ export default function BusinessDetailPage({
 
             {bookingStep === "form" && (
               <form
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   if (customFormConfig) {
                     let valid = true;
@@ -2046,7 +2273,7 @@ export default function BusinessDetailPage({
                   }
 
                   const amount = getBookingPrice();
-                  handleRazorpayPayment(amount, async (paymentId) => {
+                  if (chosenPaymentChoice === "cod") {
                     dispatchBooking({ type: "SET_STEP", step: "success" });
                     dispatchBooking({ type: "SET_SUBMITTED", value: true });
                     setCart({});
@@ -2064,7 +2291,6 @@ export default function BusinessDetailPage({
                       };
                     }
 
-                    // Always inject logged-in customer details from backend
                     try {
                       const profRes = await fetch("http://localhost:5000/api/auth/profile", { headers: getAuthHeaders() });
                       const profData = await profRes.json();
@@ -2075,16 +2301,10 @@ export default function BusinessDetailPage({
                         if (!dataToSave["Phone Number"] && !dataToSave["Phone"] && !dataToSave["Mobile"] && !dataToSave["Mobile Number"] && prof.mobile1) dataToSave["Phone Number"] = prof.mobile1;
                         if (!dataToSave["Email"] && !dataToSave["Email Address"] && prof.email) dataToSave["Email"] = prof.email;
                       }
-                    } catch (_) {}
+                    } catch (_) { }
 
                     const bookingId = `BK${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
                     setConfirmedOrderId(bookingId);
-
-                    const newSub = {
-                      id: bookingId,
-                      timestamp: formatDateTimeDMY(new Date()),
-                      data: dataToSave
-                    };
 
                     fetch(`http://localhost:5000/api/service-forms/${currentBiz.id}/submissions`, {
                       method: "POST",
@@ -2101,8 +2321,6 @@ export default function BusinessDetailPage({
                         }
                       }).catch(err => console.error("API submission failed:", err));
 
-
-
                     const customerNameField = dataToSave["Full Name"] || customFormValues["Full Name"] || customFormValues["Your Name"] || bookingForm.name || username || "Guest";
                     const details = currentBiz.category.includes("Hotel Point")
                       ? "Room Stay Reservation Deposit"
@@ -2110,7 +2328,6 @@ export default function BusinessDetailPage({
                         ? "Appointment Consultation Fee"
                         : "Table Booking Deposit";
 
-                    // API Transaction Log POST call
                     fetch("http://localhost:5000/api/transactions", {
                       method: "POST",
                       headers: getAuthHeaders(),
@@ -2123,8 +2340,8 @@ export default function BusinessDetailPage({
                         details,
                         amount,
                         type: "credit",
-                        paymentMethod: "Razorpay Gateway",
-                        status: "Completed"
+                        paymentMethod: "COD",
+                        status: "Pending"
                       })
                     }).then(res => res.json())
                       .then(data => {
@@ -2133,11 +2350,12 @@ export default function BusinessDetailPage({
                         }
                       }).catch(err => console.error("API transaction failed:", err));
 
-                    // Persist to the Booking DB model (shows in customer's My Bookings)
                     saveBookingToDb({
                       id: bookingId,
                       amount,
-                      paymentId,
+                      paymentId: "COD",
+                      paymentMethod: "COD",
+                      paymentStatus: "pending",
                       bookingType: currentBiz.category.includes("Hotel Point")
                         ? "room"
                         : currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point")
@@ -2151,30 +2369,28 @@ export default function BusinessDetailPage({
                       date: customFormValues["Date"] || bookingForm.date || "",
                       time: bookingForm.time || customFormValues["Time/Check-out/Slot"] || customFormValues["Time"] || "",
                     });
-
-                    setCart({});
-                  });
+                  }
                 }}
               >
                 <h3 className="font-serif text-xl font-bold text-foreground mb-1">
                   {customFormConfig
                     ? (customFormConfig.formTitle || "Book Services")
                     : (currentBiz.category.includes("Hotel Point")
-                        ? "Book a Room"
-                        : currentBiz.category.includes("Health Care Point") ||
-                            currentBiz.category.includes("Doctor Point")
-                          ? "Book an Appointment"
-                          : "Book a Table")}
+                      ? "Book a Room"
+                      : currentBiz.category.includes("Health Care Point") ||
+                        currentBiz.category.includes("Doctor Point")
+                        ? "Book an Appointment"
+                        : "Book a Table")}
                 </h3>
                 <p className="text-xs text-muted-foreground mb-4">
                   {customFormConfig
                     ? (customFormConfig.formDescription || "Fill in the details to book our services at ")
                     : (currentBiz.category.includes("Hotel Point")
-                        ? "Reserve your room stay at "
-                        : currentBiz.category.includes("Health Care Point") ||
-                            currentBiz.category.includes("Doctor Point")
-                          ? "Schedule your consultation at "
-                          : "Reserve your table at ")}
+                      ? "Reserve your room stay at "
+                      : currentBiz.category.includes("Health Care Point") ||
+                        currentBiz.category.includes("Doctor Point")
+                        ? "Schedule your consultation at "
+                        : "Reserve your table at ")}
                   <span className="font-bold text-primary">{currentBiz.name}</span>
                 </p>
 
@@ -2351,7 +2567,7 @@ export default function BusinessDetailPage({
                             {currentBiz.category.includes("Hotel Point")
                               ? "Check-in Date*"
                               : currentBiz.category.includes("Health Care Point") ||
-                                  currentBiz.category.includes("Doctor Point")
+                                currentBiz.category.includes("Doctor Point")
                                 ? "Appointment Date*"
                                 : "Preferred Date*"}
                           </label>
@@ -2374,7 +2590,7 @@ export default function BusinessDetailPage({
                             {currentBiz.category.includes("Hotel Point")
                               ? "Room Standard Preferred*"
                               : currentBiz.category.includes("Health Care Point") ||
-                                  currentBiz.category.includes("Doctor Point")
+                                currentBiz.category.includes("Doctor Point")
                                 ? "Patient Age*"
                                 : "No. of Guests*"}
                           </label>
@@ -2448,7 +2664,7 @@ export default function BusinessDetailPage({
                           {currentBiz.category.includes("Hotel Point")
                             ? "Stay Check-out Date*"
                             : currentBiz.category.includes("Health Care Point") ||
-                                currentBiz.category.includes("Doctor Point")
+                              currentBiz.category.includes("Doctor Point")
                               ? "Appointment Slot*"
                               : "Time Slot*"}
                         </label>
@@ -2508,12 +2724,24 @@ export default function BusinessDetailPage({
                   )}
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full mt-6 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md"
-                >
-                  Proceed to Pay ₹{getBookingPrice()}
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-6">
+                  <button
+                    type="submit"
+                    onClick={() => setChosenPaymentChoice("online")}
+                    className="w-full rounded-xl bg-emerald-600 py-3.5 px-3 text-[11px] sm:text-xs font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md flex items-center justify-between gap-1.5 whitespace-nowrap overflow-hidden"
+                  >
+                    <span className="whitespace-nowrap truncate">💳 Pay Online</span>
+                    <span className="opacity-90 whitespace-nowrap shrink-0">₹{getBookingPrice()}</span>
+                  </button>
+                  <button
+                    type="submit"
+                    onClick={() => setChosenPaymentChoice("cod")}
+                    className="w-full rounded-xl bg-amber-600 py-3.5 px-3 text-[11px] sm:text-xs font-bold text-white hover:bg-amber-700 transition-all cursor-pointer shadow-md flex items-center justify-between gap-1.5 whitespace-nowrap overflow-hidden"
+                  >
+                    <span className="whitespace-nowrap truncate">💵 Cash on Delivery</span>
+                    <span className="opacity-90 whitespace-nowrap shrink-0">₹{getBookingPrice()}</span>
+                  </button>
+                </div>
               </form>
             )}
 
@@ -2561,7 +2789,7 @@ export default function BusinessDetailPage({
                       <span className="block text-[10px] font-bold text-muted-foreground uppercase mb-2">
                         Select Payment Method
                       </span>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         <button
                           type="button"
                           onClick={() => dispatchPayment({ type: "SET_METHOD", method: "upi" })}
@@ -2585,8 +2813,24 @@ export default function BusinessDetailPage({
                         >
                           Net Banking
                         </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            dispatchPayment({ type: "SET_METHOD", method: "cod" })
+                          }
+                          className={`py-2 text-[10px] sm:text-[10.5px] font-bold border rounded-xl cursor-pointer whitespace-nowrap ${paymentMethod === "cod" ? "bg-amber-600 border-amber-600 text-white" : "bg-background border-border text-foreground hover:bg-secondary"}`}
+                        >
+                          <span className="whitespace-nowrap">💵 Cash on Delivery</span>
+                        </button>
                       </div>
                     </div>
+
+                    {paymentMethod === "cod" && (
+                      <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-xl p-3.5 text-xs text-amber-800 dark:text-amber-300 font-semibold space-y-1">
+                        <p className="font-bold">Pay Cash on Service (COD)</p>
+                        <p className="text-[11px] opacity-90">Pay ₹{getBookingPrice()} directly in cash when you arrive or receive the service.</p>
+                      </div>
+                    )}
 
                     {paymentMethod === "upi" && (
                       <div className="space-y-3">
@@ -2633,18 +2877,14 @@ export default function BusinessDetailPage({
                           <input
                             id="bookingCardNumber"
                             type="text"
-                            maxLength={19}
-                            placeholder="4111 2222 3333 4444"
+                            placeholder="4532 •••• •••• ••••"
                             required
                             value={cardNumber}
                             onChange={(e) =>
                               dispatchPayment({
                                 type: "SET_FIELD",
                                 field: "cardNumber",
-                                value: e.target.value
-                                  .replace(/\s?/g, "")
-                                  .replace(/(\d{4})/g, "$1 ")
-                                  .trim(),
+                                value: e.target.value,
                               })
                             }
                             className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
@@ -2729,7 +2969,9 @@ export default function BusinessDetailPage({
                     <button
                       onClick={() => {
                         const amount = getBookingPrice();
-                        handleRazorpayPayment(amount, async (paymentId) => {
+                        const isCOD = paymentMethod === "cod";
+
+                        const completeBookingFlow = async (paymentId: string) => {
                           dispatchBooking({ type: "SET_STEP", step: "success" });
                           dispatchBooking({ type: "SET_SUBMITTED", value: true });
                           setCart({}); // Empty the cart on successful checkout
@@ -2759,16 +3001,17 @@ export default function BusinessDetailPage({
                               if (!dataToSave["Phone Number"] && !dataToSave["Phone"] && !dataToSave["Mobile"] && !dataToSave["Mobile Number"] && prof.mobile1) dataToSave["Phone Number"] = prof.mobile1;
                               if (!dataToSave["Email"] && !dataToSave["Email Address"] && prof.email) dataToSave["Email"] = prof.email;
                             }
-                          } catch (_) {}
+                          } catch (_) { }
 
                           const bookingId = `BK${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
                           setConfirmedOrderId(bookingId);
 
-                          const newSub = {
-                            id: bookingId,
-                            timestamp: formatDateTimeDMY(new Date()),
-                            data: dataToSave
-                          };
+                          const customerNameVal = dataToSave["Full Name"] || customFormValues["Full Name"] || customFormValues["Your Name"] || bookingForm.name || username || "Guest";
+                          const details = currentBiz.category.includes("Hotel Point")
+                            ? "Room Stay Reservation Deposit"
+                            : currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point")
+                              ? "Appointment Consultation Fee"
+                              : "Table Booking Deposit";
 
                           // API Submission
                           fetch(`http://localhost:5000/api/service-forms/${currentBiz.id}/submissions`, {
@@ -2786,13 +3029,6 @@ export default function BusinessDetailPage({
                               }
                             }).catch(err => console.error("API submission failed:", err));
 
-                          const customerNameVal = dataToSave["Full Name"] || customFormValues["Full Name"] || customFormValues["Your Name"] || bookingForm.name || username || "Guest";
-                          const details = currentBiz.category.includes("Hotel Point")
-                            ? "Room Stay Reservation Deposit"
-                            : currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point")
-                              ? "Appointment Consultation Fee"
-                              : "Table Booking Deposit";
-
                           // API Transaction Log POST call
                           fetch("http://localhost:5000/api/transactions", {
                             method: "POST",
@@ -2806,21 +3042,23 @@ export default function BusinessDetailPage({
                               details,
                               amount,
                               type: "credit",
-                              paymentMethod: "Razorpay Gateway",
-                              status: "Completed"
+                              paymentMethod: isCOD ? "COD" : "Razorpay Gateway",
+                              status: isCOD ? "Pending" : "Completed"
                             })
                           }).then(res => res.json())
                             .then(data => {
                               if (data.success) {
-                                  window.dispatchEvent(new Event("storage"));
+                                window.dispatchEvent(new Event("storage"));
                               }
                             }).catch(err => console.error("API transaction failed:", err));
 
-                          // Persist to the Booking DB model (shows in customer's My Bookings)
+                          // Persist to the Booking DB model
                           saveBookingToDb({
                             id: bookingId,
                             amount,
-                            paymentId,
+                            paymentId: isCOD ? "COD" : paymentId,
+                            paymentMethod: isCOD ? "COD" : "Online",
+                            paymentStatus: isCOD ? "pending" : "paid",
                             bookingType: currentBiz.category.includes("Hotel Point")
                               ? "room"
                               : currentBiz.category.includes("Health Care Point") || currentBiz.category.includes("Doctor Point")
@@ -2834,11 +3072,17 @@ export default function BusinessDetailPage({
                             date: customFormValues["Date"] || bookingForm.date || "",
                             time: bookingForm.time || customFormValues["Time/Check-out/Slot"] || customFormValues["Time"] || "",
                           });
-                        });
+                        };
+
+                        if (isCOD) {
+                          completeBookingFlow("COD");
+                        } else {
+                          handleRazorpayPayment(amount, completeBookingFlow);
+                        }
                       }}
                       className="w-full mt-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md text-center"
                     >
-                      Pay ₹{getBookingPrice()} & Complete Booking
+                      {paymentMethod === "cod" ? "Confirm Booking (Pay on Service / COD)" : `Pay ₹${getBookingPrice()} & Complete Booking`}
                     </button>
                   </div>
                 )}
@@ -2854,7 +3098,7 @@ export default function BusinessDetailPage({
                   {currentBiz.category.includes("Hotel Point")
                     ? "Room Stay Reserved!"
                     : currentBiz.category.includes("Health Care Point") ||
-                        currentBiz.category.includes("Doctor Point")
+                      currentBiz.category.includes("Doctor Point")
                       ? "Appointment Confirmed!"
                       : "Table Reserved!"}
                 </h3>
@@ -2893,8 +3137,8 @@ export default function BusinessDetailPage({
 
       {/* Checkout Modal */}
       {checkoutModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left animate-fade-in">
-          <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-fade-in-up max-h-[90vh] overflow-y-auto no-scrollbar">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 text-left animate-fade-in">
+          <div className="relative w-full h-full sm:h-auto max-w-none sm:max-w-md rounded-none sm:rounded-2xl border-0 sm:border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in-up max-h-full sm:max-h-[90vh] overflow-y-auto no-scrollbar">
             <button
               onClick={() => dispatchCheckout({ type: "SET_MODAL", open: false })}
               className="absolute right-4 top-4 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -2904,7 +3148,7 @@ export default function BusinessDetailPage({
 
             {checkoutStep === "form" && (
               <form
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   const customerName = customFormValues["Full Name"] || customFormValues["Your Name"] || customFormValues["Name"] || checkoutForm.name || "Guest";
                   const customerPhone = customFormValues["Phone Number"] || customFormValues["Phone"] || customFormValues["Mobile"] || customFormValues["Mobile Number"] || checkoutForm.phone || "";
@@ -2933,7 +3177,7 @@ export default function BusinessDetailPage({
                   }
 
                   const amount = totalCartPrice;
-                  handleRazorpayPayment(amount, async (paymentId) => {
+                  if (chosenCartPaymentChoice === "cod") {
                     const tempId = `FMP-${Math.floor(1000 + Math.random() * 9000)}`;
                     setConfirmedOrderId(tempId);
                     dispatchCheckout({ type: "SET_STEP", step: "success" });
@@ -2944,20 +3188,19 @@ export default function BusinessDetailPage({
 
                     const dataToSave: Record<string, any> = customFormConfig
                       ? {
-                          ...customFormValues,
-                          "Order Items": itemNames || "No items",
-                          "Total Amount": `₹${amount}`,
-                        }
+                        ...customFormValues,
+                        "Order Items": itemNames || "No items",
+                        "Total Amount": `₹${amount}`,
+                      }
                       : {
-                          "Full Name": customerName,
-                          "Phone Number": customerPhone,
-                          "Address": customerAddress,
-                          "Order Items": itemNames || "No items",
-                          "Total Amount": `₹${amount}`,
-                          "Notes/Requirements": customerNotes || "None"
-                        };
+                        "Full Name": customerName,
+                        "Phone Number": customerPhone,
+                        "Address": customerAddress,
+                        "Order Items": itemNames || "No items",
+                        "Total Amount": `₹${amount}`,
+                        "Notes/Requirements": customerNotes || "None"
+                      };
 
-                    // Always inject logged-in customer details from backend
                     let finalCustomerName = customerName;
                     let finalCustomerPhone = customerPhone;
                     let finalCustomerAddress = customerAddress;
@@ -2969,20 +3212,14 @@ export default function BusinessDetailPage({
                       if (profData.success && profData.user) {
                         const prof = profData.user;
                         const fullName = [prof.firstName, prof.lastName].filter(Boolean).join(" ");
-                        if (fullName) {
-                          finalCustomerName = fullName;
-                        }
-                        if (prof.mobile1) {
-                          finalCustomerPhone = prof.mobile1;
-                        }
-                        if (prof.email) {
-                          finalCustomerEmail = prof.email;
-                        }
+                        if (fullName) finalCustomerName = fullName;
+                        if (prof.mobile1) finalCustomerPhone = prof.mobile1;
+                        if (prof.email) finalCustomerEmail = prof.email;
                         if (!dataToSave["Full Name"] && !dataToSave["Customer Name"] && !dataToSave["Your Name"] && !dataToSave["Name"] && fullName) dataToSave["Full Name"] = fullName;
                         if (!dataToSave["Phone Number"] && !dataToSave["Phone"] && !dataToSave["Mobile"] && !dataToSave["Mobile Number"] && prof.mobile1) dataToSave["Phone Number"] = prof.mobile1;
                         if (!dataToSave["Email"] && !dataToSave["Email Address"] && prof.email) dataToSave["Email"] = prof.email;
                       }
-                    } catch (_) {}
+                    } catch (_) { }
 
                     const formattedOrderItems = Object.entries(cart).map(([name, qty]) => ({ name, quantity: qty }));
                     fetch(`http://localhost:5000/api/product-orders/${currentBiz.id}`, {
@@ -3004,9 +3241,6 @@ export default function BusinessDetailPage({
                           setConfirmedOrderId(orderId);
                           window.dispatchEvent(new Event("storage"));
 
-                          // Also persist the full dynamic form payload so the client
-                          // dashboard can display every field the business's custom
-                          // form collected (previously this only ever hit localStorage).
                           fetch(`http://localhost:5000/api/service-forms/${currentBiz.id}/submissions`, {
                             method: "POST",
                             headers: getAuthHeaders(),
@@ -3022,12 +3256,11 @@ export default function BusinessDetailPage({
                               }
                             }).catch(err => console.error("API submission failed:", err));
 
-                          // API Transaction Log POST call
                           fetch("http://localhost:5000/api/transactions", {
                             method: "POST",
                             headers: getAuthHeaders(),
                             body: JSON.stringify({
-                              description: details,
+                              description: `Product Order: ${details}`,
                               businessName: currentBiz.name,
                               businessId: currentBiz.id,
                               bookingId: orderId,
@@ -3035,8 +3268,8 @@ export default function BusinessDetailPage({
                               details,
                               amount,
                               type: "credit",
-                              paymentMethod: "Razorpay Gateway",
-                              status: "Completed"
+                              paymentMethod: "COD",
+                              status: "Pending"
                             })
                           }).then(res => res.json())
                             .then(txData => {
@@ -3045,11 +3278,12 @@ export default function BusinessDetailPage({
                               }
                             }).catch(err => console.error("API transaction failed:", err));
 
-                          // Persist to the Booking DB model (shows in customer's My Bookings)
                           saveBookingToDb({
                             id: orderId,
                             amount,
-                            paymentId,
+                            paymentId: "COD",
+                            paymentMethod: "COD",
+                            paymentStatus: "pending",
                             bookingType: "product",
                             serviceName: itemNames || "Product Order",
                             formData: dataToSave,
@@ -3067,8 +3301,7 @@ export default function BusinessDetailPage({
                         }
                       }).catch(err => console.error("API product order failed:", err));
 
-                    setCart({});
-                  });
+                  }
                 }}
               >
                 <h3 className="font-serif text-xl font-bold text-foreground mb-1">
@@ -3315,12 +3548,24 @@ export default function BusinessDetailPage({
                   )}
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full mt-6 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md"
-                >
-                  Proceed to Pay ₹{totalCartPrice}
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-6">
+                  <button
+                    type="submit"
+                    onClick={() => setChosenCartPaymentChoice("online")}
+                    className="w-full rounded-xl bg-emerald-600 py-3.5 px-3 text-[11px] sm:text-xs font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md flex items-center justify-between gap-1.5 whitespace-nowrap overflow-hidden"
+                  >
+                    <span className="whitespace-nowrap truncate">💳 Pay Online</span>
+                    <span className="opacity-90 whitespace-nowrap shrink-0">₹{totalCartPrice}</span>
+                  </button>
+                  <button
+                    type="submit"
+                    onClick={() => setChosenCartPaymentChoice("cod")}
+                    className="w-full rounded-xl bg-amber-600 py-3.5 px-3 text-[11px] sm:text-xs font-bold text-white hover:bg-amber-700 transition-all cursor-pointer shadow-md flex items-center justify-between gap-1.5 whitespace-nowrap overflow-hidden"
+                  >
+                    <span className="whitespace-nowrap truncate">💵 Cash on Delivery</span>
+                    <span className="opacity-90 whitespace-nowrap shrink-0">₹{totalCartPrice}</span>
+                  </button>
+                </div>
               </form>
             )}
 
@@ -3368,7 +3613,7 @@ export default function BusinessDetailPage({
                       <span className="block text-[10px] font-bold text-muted-foreground uppercase mb-2">
                         Select Payment Method
                       </span>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         <button
                           type="button"
                           onClick={() => dispatchPayment({ type: "SET_METHOD", method: "upi" })}
@@ -3392,8 +3637,24 @@ export default function BusinessDetailPage({
                         >
                           Net Banking
                         </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            dispatchPayment({ type: "SET_METHOD", method: "cod" })
+                          }
+                          className={`py-2 text-[10px] sm:text-[10.5px] font-bold border rounded-xl cursor-pointer whitespace-nowrap ${paymentMethod === "cod" ? "bg-amber-600 border-amber-600 text-white" : "bg-background border-border text-foreground hover:bg-secondary"}`}
+                        >
+                          <span className="whitespace-nowrap">💵 Cash on Delivery</span>
+                        </button>
                       </div>
                     </div>
+
+                    {paymentMethod === "cod" && (
+                      <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-xl p-3.5 text-xs text-amber-800 dark:text-amber-300 font-semibold space-y-1">
+                        <p className="font-bold">Pay Cash on Delivery (COD)</p>
+                        <p className="text-[11px] opacity-90">Pay ₹{totalCartPrice} directly in cash upon receiving your order.</p>
+                      </div>
+                    )}
 
                     {paymentMethod === "upi" && (
                       <div className="space-y-3">
@@ -3536,7 +3797,9 @@ export default function BusinessDetailPage({
                     <button
                       onClick={() => {
                         const amount = totalCartPrice;
-                        handleRazorpayPayment(amount, async (paymentId) => {
+                        const isCOD = paymentMethod === "cod";
+
+                        const completeCartCheckoutFlow = async (paymentId: string) => {
                           const tempId = `FMP-${Math.floor(1000 + Math.random() * 9000)}`;
                           setConfirmedOrderId(tempId);
                           dispatchCheckout({ type: "SET_STEP", step: "success" });
@@ -3549,23 +3812,21 @@ export default function BusinessDetailPage({
                           const itemNames = Object.entries(cart).map(([name, qty]) => `${name} (x${qty})`).join(", ");
                           const details = itemNames || "Product Order Checkout";
 
-                          // Prepare data for booking/order record
                           const dataToSave: Record<string, any> = customFormConfig
                             ? {
-                                ...customFormValues,
-                                "Order Items": itemNames || "No items",
-                                "Total Amount": `₹${amount}`,
-                              }
+                              ...customFormValues,
+                              "Order Items": itemNames || "No items",
+                              "Total Amount": `₹${amount}`,
+                            }
                             : {
-                                "Full Name": customerName,
-                                "Phone Number": customerPhone,
-                                "Address": customerAddress,
-                                "Order Items": itemNames || "No items",
-                                "Total Amount": `₹${amount}`,
-                                "Notes/Requirements": customerNotes || "None"
-                              };
+                              "Full Name": customerName,
+                              "Phone Number": customerPhone,
+                              "Address": customerAddress,
+                              "Order Items": itemNames || "No items",
+                              "Total Amount": `₹${amount}`,
+                              "Notes/Requirements": customerNotes || "None"
+                            };
 
-                          // Always inject logged-in customer details from backend
                           let finalCustomerName = customerName;
                           let finalCustomerPhone = customerPhone;
                           let finalCustomerAddress = customerAddress;
@@ -3577,22 +3838,15 @@ export default function BusinessDetailPage({
                             if (profData.success && profData.user) {
                               const prof = profData.user;
                               const fullName = [prof.firstName, prof.lastName].filter(Boolean).join(" ");
-                              if (fullName) {
-                                finalCustomerName = fullName;
-                              }
-                              if (prof.mobile1) {
-                                finalCustomerPhone = prof.mobile1;
-                              }
-                              if (prof.email) {
-                                finalCustomerEmail = prof.email;
-                              }
+                              if (fullName) finalCustomerName = fullName;
+                              if (prof.mobile1) finalCustomerPhone = prof.mobile1;
+                              if (prof.email) finalCustomerEmail = prof.email;
                               if (!dataToSave["Full Name"] && !dataToSave["Customer Name"] && !dataToSave["Your Name"] && !dataToSave["Name"] && fullName) dataToSave["Full Name"] = fullName;
                               if (!dataToSave["Phone Number"] && !dataToSave["Phone"] && !dataToSave["Mobile"] && !dataToSave["Mobile Number"] && prof.mobile1) dataToSave["Phone Number"] = prof.mobile1;
                               if (!dataToSave["Email"] && !dataToSave["Email Address"] && prof.email) dataToSave["Email"] = prof.email;
                             }
-                          } catch (_) {}
+                          } catch (_) { }
 
-                          // API Product Order POST call
                           const formattedOrderItems = Object.entries(cart).map(([name, qty]) => ({ name, quantity: qty }));
                           fetch(`http://localhost:5000/api/product-orders/${currentBiz.id}`, {
                             method: "POST",
@@ -3613,7 +3867,6 @@ export default function BusinessDetailPage({
                                 setConfirmedOrderId(orderId);
                                 window.dispatchEvent(new Event("storage"));
 
-                                // Also persist the submission with the correct order ID
                                 fetch(`http://localhost:5000/api/service-forms/${currentBiz.id}/submissions`, {
                                   method: "POST",
                                   headers: getAuthHeaders(),
@@ -3629,12 +3882,11 @@ export default function BusinessDetailPage({
                                     }
                                   }).catch(err => console.error("API submission failed:", err));
 
-                                // API Transaction Log POST call
                                 fetch("http://localhost:5000/api/transactions", {
                                   method: "POST",
                                   headers: getAuthHeaders(),
                                   body: JSON.stringify({
-                                    description: details,
+                                    description: `Product Order: ${details}`,
                                     businessName: currentBiz.name,
                                     businessId: currentBiz.id,
                                     bookingId: orderId,
@@ -3642,8 +3894,8 @@ export default function BusinessDetailPage({
                                     details,
                                     amount,
                                     type: "credit",
-                                    paymentMethod: "Razorpay Gateway",
-                                    status: "Completed"
+                                    paymentMethod: isCOD ? "COD" : "Razorpay Gateway",
+                                    status: isCOD ? "Pending" : "Completed"
                                   })
                                 }).then(res => res.json())
                                   .then(txData => {
@@ -3652,11 +3904,12 @@ export default function BusinessDetailPage({
                                     }
                                   }).catch(err => console.error("API transaction failed:", err));
 
-                                // Persist to the Booking DB model (shows in My Bookings)
                                 saveBookingToDb({
                                   id: orderId,
                                   amount,
-                                  paymentId,
+                                  paymentId: isCOD ? "COD" : paymentId,
+                                  paymentMethod: isCOD ? "COD" : "Online",
+                                  paymentStatus: isCOD ? "pending" : "paid",
                                   bookingType: "product",
                                   serviceName: itemNames || "Product Order",
                                   formData: dataToSave,
@@ -3675,11 +3928,17 @@ export default function BusinessDetailPage({
                             }).catch(err => console.error("API product order failed:", err));
 
                           setCart({});
-                        });
+                        };
+
+                        if (isCOD) {
+                          completeCartCheckoutFlow("COD");
+                        } else {
+                          handleRazorpayPayment(amount, completeCartCheckoutFlow);
+                        }
                       }}
                       className="w-full mt-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md text-center"
                     >
-                      Pay ₹{totalCartPrice} & Complete Order
+                      {paymentMethod === "cod" ? "Confirm Order (Pay on Delivery / COD)" : `Pay ₹${totalCartPrice} & Complete Order`}
                     </button>
                   </div>
                 )}
@@ -3694,14 +3953,14 @@ export default function BusinessDetailPage({
                 <h3 className="font-serif text-lg font-bold text-foreground mb-1">
                   Order Confirmed!
                 </h3>
-                 <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                   Your order has been placed with{" "}
-                   <span className="font-semibold text-primary">{currentBiz.name}</span>. Order ID:{" "}
-                   <span className="font-bold text-foreground">
-                     #{confirmedOrderId || "FMP-7689"}
-                   </span>
-                   . You will receive an SMS confirmation shortly.
-                 </p>
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                  Your order has been placed with{" "}
+                  <span className="font-semibold text-primary">{currentBiz.name}</span>. Order ID:{" "}
+                  <span className="font-bold text-foreground">
+                    #{confirmedOrderId || "FMP-7689"}
+                  </span>
+                  . You will receive an SMS confirmation shortly.
+                </p>
               </div>
             )}
           </div>
@@ -3739,11 +3998,11 @@ export default function BusinessDetailPage({
       {/* Enquiry Modal Popup */}
       {enquiryModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
           onClick={() => setUiState((prev) => ({ ...prev, enquiryModalOpen: false, enquirySubmitted: false }))}
         >
           <div
-            className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-fade-in-up"
+            className="relative w-full h-full sm:h-auto max-w-none sm:max-w-md rounded-none sm:rounded-2xl border-0 sm:border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in-up max-h-full sm:max-h-[90vh] overflow-y-auto no-scrollbar"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}
@@ -3831,6 +4090,16 @@ export default function BusinessDetailPage({
               </form>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Link Copied Floating Toast Notification */}
+      {copiedToast && (
+        <div className="fixed bottom-20 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-2xl backdrop-blur-md flex items-center gap-2 border border-slate-700/50">
+          <div className="h-4 w-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <Check className="h-3 w-3" />
+          </div>
+          <span>Link copied to clipboard</span>
         </div>
       )}
 

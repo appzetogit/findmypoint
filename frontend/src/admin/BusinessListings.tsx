@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
-import { Search, Plus, Eye, EyeOff, Edit2, Trash2, MapPin, Tag, Phone, ShieldCheck, Calendar, QrCode, Download, X, Lock } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Search, Plus, Eye, EyeOff, Edit2, Trash2, MapPin, Tag, Phone, ShieldCheck, Calendar, QrCode, Download, X, Lock, ClipboardList, Globe, ArrowRight } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
 import { API_BASE_URL } from "../config";
+import ServiceForm from "../client/ServiceForm";
 
 interface BusinessListingsProps {
   onAddNew: () => void;
@@ -17,6 +19,7 @@ export default function BusinessListings({
   const [listings, setListings] = useState<BusinessListingData[]>([]);
   const [viewingBusiness, setViewingBusiness] = useState<BusinessListingData | null>(null);
   const [qrBusiness, setQrBusiness] = useState<BusinessListingData | null>(null);
+  const [formModalBusiness, setFormModalBusiness] = useState<BusinessListingData | null>(null);
   const [showClientPassword, setShowClientPassword] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -307,6 +310,15 @@ export default function BusinessListings({
                           </button>
 
                           <button
+                            onClick={() => setFormModalBusiness(item)}
+                            title="Make Form"
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/60 dark:bg-indigo-950/40 hover:bg-indigo-600 hover:border-indigo-600 hover:text-white text-indigo-600 dark:text-indigo-400 text-[11px] font-bold transition cursor-pointer shadow-xs shrink-0"
+                          >
+                            <ClipboardList className="h-3.5 w-3.5" />
+                            <span>Make form</span>
+                          </button>
+
+                          <button
                             onClick={() => handleToggleVerify(item.id)}
                             title={item.isVerified ? "Unverify Listing" : "Verify Listing"}
                             className={`p-1.5 rounded-lg border transition cursor-pointer ${
@@ -418,6 +430,44 @@ export default function BusinessListings({
 
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
+              {/* Public SEO Profile & Canonical URL Box */}
+              {(() => {
+                const canonicalPath = viewingBusiness.canonicalUrl || `/${viewingBusiness.citySlug || 'indore'}/${viewingBusiness.localitySlug || 'vijay-nagar'}/${viewingBusiness.slug || viewingBusiness.id}`;
+                return (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-900/50 p-4.5 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <h3 className="text-xs font-black uppercase text-blue-900 dark:text-blue-300 tracking-wider">
+                          Public SEO Profile & Google Indexing
+                        </h3>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${viewingBusiness.status === 'published' && viewingBusiness.isIndexable !== false ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300' : 'bg-amber-100 text-amber-700'}`}>
+                        {viewingBusiness.status === 'published' && viewingBusiness.isIndexable !== false ? 'Indexed & Live' : (viewingBusiness.status || 'Draft')}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Canonical Public URL</span>
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs font-mono bg-white dark:bg-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 flex-1 truncate text-blue-600 dark:text-blue-400 select-all">
+                          {window.location.origin}{canonicalPath}
+                        </code>
+                        <a
+                          href={canonicalPath}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shrink-0"
+                        >
+                          <span>View Public Profile</span>
+                          <ArrowRight className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Image Grid/Carousel */}
               {viewingBusiness.images && viewingBusiness.images.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -758,6 +808,45 @@ export default function BusinessListings({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Service Form Modal */}
+      {formModalBusiness && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl w-full max-w-5xl max-h-[88vh] overflow-hidden shadow-2xl flex flex-col my-auto animate-scale-in text-left">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-150 dark:border-slate-855 flex items-center justify-between bg-slate-50 dark:bg-slate-900/60 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 shadow-sm">
+                  <ClipboardList className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">
+                      {formModalBusiness.category.split(" > ")[0]}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-bold">• {formModalBusiness.location}</span>
+                  </div>
+                  <h2 className="text-lg font-bold font-serif text-slate-900 dark:text-white uppercase tracking-tight">
+                    Service Form Builder — {formModalBusiness.name}
+                  </h2>
+                </div>
+              </div>
+              <button
+                onClick={() => setFormModalBusiness(null)}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 no-scrollbar">
+              <ServiceForm business={formModalBusiness} onClose={() => setFormModalBusiness(null)} />
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </>
   );

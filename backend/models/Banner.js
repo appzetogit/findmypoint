@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const BannerSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['slide', 'card'],
+    enum: ['slide', 'card', 'category'],
     required: true
   },
   title: {

@@ -272,11 +272,6 @@ export default function PopularServiceDetailPage({
                         className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
-                      {biz.isVerified && (
-                        <span className="absolute top-2 right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm">
-                          <Check className="h-3 w-3 stroke-[3.5px]" />
-                        </span>
-                      )}
                     </div>
 
                     {/* Right: Info details */}

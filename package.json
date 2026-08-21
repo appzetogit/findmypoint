@@ -1,0 +1,9 @@
+{
+  "name": "findmypoint-root",
+  "private": true,
+  "reactDoctor": {
+    "ignore": {
+      "files": ["src/**", "frontend/src/**"]
+    }
+  }
+}

@@ -1,13 +1,30 @@
+const mongoose = require('mongoose');
 const Business = require('../models/Business');
 const Enquiry = require('../models/Enquiry');
+const { slugify, generateBusinessSlugs } = require('../utils/slugify');
+
+// Helper to sanitize business object for public responses
+const sanitizePublicBusiness = (business) => {
+  if (!business) return null;
+  const obj = business.toObject ? business.toObject() : { ...business };
+  delete obj.password;
+  delete obj.clientPassword;
+  delete obj.__v;
+  return obj;
+};
 
 // @desc    Get all businesses with optional search and filters
 // @route   GET /api/businesses
 // @access  Public
 const getBusinesses = async (req, res) => {
   try {
-    const { search, category, subcategory, location } = req.query;
+    const { search, category, subcategory, location, status } = req.query;
     let query = {};
+
+    // Filter by status if provided, otherwise default to published for general queries
+    if (status) {
+      query.status = status;
+    }
 
     if (category) {
       query.category = { $regex: new RegExp(category, 'i') };
@@ -31,24 +48,112 @@ const getBusinesses = async (req, res) => {
     }
 
     const businesses = await Business.find(query);
-    res.status(200).json({ success: true, count: businesses.length, data: businesses });
+    const sanitized = businesses.map(sanitizePublicBusiness);
+    res.status(200).json({ success: true, count: sanitized.length, data: sanitized });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Get single business by slug ID
+// @desc    Get public business by SEO path: /{city}/{locality}/{slug}
+// @route   GET /api/businesses/public/:city/:locality/:slug
+// @access  Public
+const getPublicBusinessByPath = async (req, res) => {
+  try {
+    const citySlug = slugify(req.params.city);
+    const localitySlug = slugify(req.params.locality);
+    const slug = slugify(req.params.slug);
+
+    // 1. Direct match on current slugs
+    const business = await Business.findOne({
+      citySlug,
+      localitySlug,
+      slug
+    });
+
+    if (business) {
+      if (business.status === 'deleted') {
+        return res.status(410).json({
+          success: false,
+          statusCode: 410,
+          message: 'This business listing has been permanently deleted.'
+        });
+      }
+
+      if (business.status === 'draft' || business.status === 'suspended') {
+        return res.status(404).json({
+          success: false,
+          statusCode: 404,
+          message: 'Business profile is not publicly available.'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: sanitizePublicBusiness(business)
+      });
+    }
+
+    // 2. Search in previousSlugs (for 301 redirection)
+    const oldBusiness = await Business.findOne({
+      'previousSlugs.citySlug': citySlug,
+      'previousSlugs.localitySlug': localitySlug,
+      'previousSlugs.slug': slug
+    });
+
+    if (oldBusiness && oldBusiness.canonicalUrl) {
+      return res.status(200).json({
+        success: true,
+        redirect: true,
+        statusCode: 301,
+        canonicalUrl: oldBusiness.canonicalUrl,
+        data: sanitizePublicBusiness(oldBusiness)
+      });
+    }
+
+    // 3. Fallback: Search by business slug only
+    const slugOnlyMatch = await Business.findOne({ slug, status: 'published' });
+    if (slugOnlyMatch && slugOnlyMatch.canonicalUrl) {
+      return res.status(200).json({
+        success: true,
+        redirect: true,
+        statusCode: 301,
+        canonicalUrl: slugOnlyMatch.canonicalUrl,
+        data: sanitizePublicBusiness(slugOnlyMatch)
+      });
+    }
+
+    return res.status(404).json({
+      success: false,
+      statusCode: 404,
+      message: 'Business listing not found.'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get single business by slug ID or _id
 // @route   GET /api/businesses/:id
 // @access  Public
 const getBusinessById = async (req, res) => {
   try {
-    const business = await Business.findOne({ id: req.params.id });
+    const idParam = req.params.id;
+    const isObjectId = mongoose.isValidObjectId(idParam);
+
+    const business = await Business.findOne({
+      $or: [
+        { id: idParam },
+        { slug: slugify(idParam) },
+        ...(isObjectId ? [{ _id: idParam }] : [])
+      ]
+    });
 
     if (!business) {
       return res.status(404).json({ success: false, message: 'Business listing not found' });
     }
 
-    res.status(200).json({ success: true, data: business });
+    res.status(200).json({ success: true, data: sanitizePublicBusiness(business) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -59,25 +164,38 @@ const getBusinessById = async (req, res) => {
 // @access  Private
 const createBusiness = async (req, res) => {
   try {
-    // Generate slug ID if not provided
-    if (!req.body.id) {
-      req.body.id = req.body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-    }
+    const slugInfo = generateBusinessSlugs(req.body);
+    let { citySlug, localitySlug, slug, canonicalUrl } = slugInfo;
 
-    // Check if ID is unique
-    const existing = await Business.findOne({ id: req.body.id });
-    if (existing) {
-      req.body.id = `${req.body.id}-${Date.now().toString().slice(-4)}`;
+    // Check duplicate slug collision in same city and locality
+    let uniqueSlug = slug;
+    let counter = 1;
+    while (await Business.findOne({ citySlug, localitySlug, slug: uniqueSlug })) {
+      uniqueSlug = `${slug}-${counter}`;
+      counter++;
+    }
+    slug = uniqueSlug;
+    canonicalUrl = `/${citySlug}/${localitySlug}/${slug}`;
+
+    if (!req.body.id) {
+      req.body.id = slug;
     }
 
     const business = new Business({
       ...req.body,
-      clientPassword: req.body.password || undefined, // Store plain text for admin reference
+      citySlug,
+      localitySlug,
+      slug,
+      canonicalUrl,
+      status: req.body.status || 'published',
+      isIndexable: req.body.isIndexable !== undefined ? req.body.isIndexable : true,
+      businessType: req.body.businessType || 'LocalBusiness',
+      clientPassword: req.body.password || undefined,
       owner: req.user ? req.user._id : undefined
     });
 
     const createdBusiness = await business.save();
-    res.status(201).json({ success: true, data: createdBusiness });
+    res.status(201).json({ success: true, data: sanitizePublicBusiness(createdBusiness) });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -88,35 +206,89 @@ const createBusiness = async (req, res) => {
 // @access  Private
 const updateBusiness = async (req, res) => {
   try {
-    const business = await Business.findOne({ id: req.params.id });
+    const isObjectId = mongoose.isValidObjectId(req.params.id);
+    const business = await Business.findOne({
+      $or: [
+        { id: req.params.id },
+        { slug: slugify(req.params.id) },
+        ...(isObjectId ? [{ _id: req.params.id }] : [])
+      ]
+    });
 
     if (!business) {
       return res.status(404).json({ success: false, message: 'Business listing not found' });
     }
 
-    // Check permission: Admin always allowed. Business owner allowed for their own business. Regular users blocked.
+    // Check permission: Admin always allowed. Business owner allowed for their own business.
     const isAdmin = req.user.isAdmin === true;
-    const isOwnBusiness = req.user.isBusiness === true && req.user.businessId === req.params.id;
+    const isOwnBusiness = req.user.isBusiness === true && req.user.businessId === business.id;
     const isOwner = business.owner && business.owner.toString() === req.user._id.toString();
 
     if (!isAdmin && !isOwnBusiness && !isOwner) {
       return res.status(403).json({ success: false, message: 'Not authorized to update this business' });
     }
 
-    if (req.body.password) {
-      req.body.clientPassword = req.body.password; // Store plain text before hashing
-      const bcrypt = require('bcryptjs');
-      const salt = await bcrypt.genSalt(10);
-      req.body.password = await bcrypt.hash(req.body.password, salt);
+    // Check if location/name changed to update slug & canonicalUrl
+    const updatedData = { ...req.body };
+    const mergedData = {
+      name: updatedData.name || business.name,
+      location: updatedData.location || business.location,
+      cityTown: updatedData.cityTown || business.cityTown,
+      district: updatedData.district || business.district,
+      state: updatedData.state || business.state,
+      id: business.id
+    };
+
+    const newSlugs = generateBusinessSlugs(mergedData);
+    let newCanonicalUrl = newSlugs.canonicalUrl;
+
+    if (newCanonicalUrl !== business.canonicalUrl && business.canonicalUrl) {
+      // Store current slug in previousSlugs
+      if (!business.previousSlugs) business.previousSlugs = [];
+      business.previousSlugs.push({
+        citySlug: business.citySlug,
+        localitySlug: business.localitySlug,
+        slug: business.slug,
+        fullPath: business.canonicalUrl,
+        changedAt: new Date()
+      });
+
+      // Ensure new slug is unique
+      let uniqueSlug = newSlugs.slug;
+      let counter = 1;
+      while (await Business.findOne({
+        _id: { $ne: business._id },
+        citySlug: newSlugs.citySlug,
+        localitySlug: newSlugs.localitySlug,
+        slug: uniqueSlug
+      })) {
+        uniqueSlug = `${newSlugs.slug}-${counter}`;
+        counter++;
+      }
+      newSlugs.slug = uniqueSlug;
+      newCanonicalUrl = `/${newSlugs.citySlug}/${newSlugs.localitySlug}/${newSlugs.slug}`;
+
+      updatedData.citySlug = newSlugs.citySlug;
+      updatedData.localitySlug = newSlugs.localitySlug;
+      updatedData.slug = newSlugs.slug;
+      updatedData.canonicalUrl = newCanonicalUrl;
+      updatedData.previousSlugs = business.previousSlugs;
     }
 
-    const updatedBusiness = await Business.findOneAndUpdate(
-      { id: req.params.id },
-      { $set: req.body },
+    if (req.body.password) {
+      updatedData.clientPassword = req.body.password;
+      const bcrypt = require('bcryptjs');
+      const salt = await bcrypt.genSalt(10);
+      updatedData.password = await bcrypt.hash(req.body.password, salt);
+    }
+
+    const updatedBusiness = await Business.findByIdAndUpdate(
+      business._id,
+      { $set: updatedData },
       { new: true, runValidators: true }
     );
 
-    res.status(200).json({ success: true, data: updatedBusiness });
+    res.status(200).json({ success: true, data: sanitizePublicBusiness(updatedBusiness) });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -475,6 +647,7 @@ const clearEnquiries = async (req, res) => {
 
 module.exports = {
   getBusinesses,
+  getPublicBusinessByPath,
   getBusinessById,
   createBusiness,
   updateBusiness,

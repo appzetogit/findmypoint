@@ -14,9 +14,10 @@ import {
   Heart,
   HelpCircle,
   BookOpen,
-  Settings,
   BadgeCheck,
   Trash2,
+  LogIn,
+  Sparkles,
 } from "lucide-react";
 
 interface MobileProfilePageProps {
@@ -40,38 +41,27 @@ interface MobileProfilePageProps {
   onTermsConditionsClick?: () => void;
 }
 
-const MOCK_USER = {
-  name: "Rahul Sharma",
-  email: "rahul.sharma@gmail.com",
-  phone: "+91 98765 43210",
-  city: "Ujjain, Madhya Pradesh",
-  memberSince: "January 2025",
-  totalBookings: 12,
-  reviews: 5,
-  savedBusinesses: 8,
-};
-
 const MENU_SECTIONS = [
   {
     title: "Account",
     items: [
-      { icon: Edit2, label: "Edit Profile", sub: "Update personal details" },
-      { icon: Bell, label: "Notifications", sub: "Manage alerts & updates" },
+      { icon: Edit2, label: "Edit Profile", sub: "Update personal details", requiresAuth: true },
+      { icon: Bell, label: "Notifications", sub: "Manage alerts & updates", requiresAuth: true },
     ],
   },
   {
     title: "Activity",
     items: [
-      { icon: Heart, label: "Saved Businesses", sub: `${MOCK_USER.savedBusinesses} saved` },
-      { icon: Star, label: "My Reviews", sub: `${MOCK_USER.reviews} reviews posted` },
+      { icon: Heart, label: "Saved Businesses", sub: "View saved places", requiresAuth: true },
+      { icon: Star, label: "My Reviews", sub: "Manage your ratings & reviews", requiresAuth: true },
     ],
   },
   {
     title: "Support",
     items: [
-      { icon: HelpCircle, label: "Help & Support", sub: "FAQs, contact us" },
-      { icon: ShieldCheck, label: "Privacy Policy", sub: "View our privacy policy" },
-      { icon: BookOpen, label: "Terms & Conditions", sub: "View our terms of service" },
+      { icon: HelpCircle, label: "Help & Support", sub: "FAQs, contact us", requiresAuth: false },
+      { icon: ShieldCheck, label: "Privacy Policy", sub: "View our privacy policy", requiresAuth: false },
+      { icon: BookOpen, label: "Terms & Conditions", sub: "View our terms of service", requiresAuth: false },
     ],
   },
 ];
@@ -91,144 +81,174 @@ export default function MobileProfilePage({
 }: MobileProfilePageProps) {
   const isLoggedIn = !!username;
   const displayName = userProfile
-    ? `${userProfile.firstName} ${userProfile.lastName || ""}`.trim()
-    : (username || MOCK_USER.name);
+    ? `${userProfile.firstName || ""} ${userProfile.lastName || ""}`.trim() || username || "User"
+    : (username || "Guest User");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   return (
     <div className="h-[calc(100vh-64px)] h-[calc(100dvh-64px)] flex flex-col overflow-hidden bg-background text-foreground">
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto pb-0">
-        {/* Profile Card */}
-        <div className="mx-4 mt-4 bg-card border border-border rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-4">
-          {/* Avatar */}
-          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shrink-0 shadow-md">
-            <span className="text-primary-foreground font-serif text-2xl font-bold">
-              {displayName.charAt(0).toUpperCase()}
-            </span>
+      <div className="flex-1 overflow-y-auto pb-6">
+        {/* Profile / Guest Card */}
+        {isLoggedIn ? (
+          <div className="mx-4 mt-4 bg-card border border-border rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-4">
+              {/* Avatar */}
+              <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shrink-0 shadow-md">
+                <span className="text-primary-foreground font-serif text-2xl font-bold">
+                  {displayName.charAt(0).toUpperCase()}
+                </span>
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-base font-bold text-foreground truncate">{displayName}</p>
+                  <BadgeCheck className="h-4 w-4 text-primary shrink-0" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                  {userProfile?.email || "No email address"}
+                </p>
+                <div className="flex items-center gap-1 mt-1">
+                  <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <span className="text-[11px] text-muted-foreground truncate">
+                    Madhya Pradesh, India
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact row */}
+            <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                  <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">Phone</p>
+                  <p className="text-xs font-semibold text-foreground truncate">
+                    {userProfile?.mobile1 ? "+91 " + userProfile.mobile1 : "Registered"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                  <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">Status</p>
+                  <p className="text-xs font-semibold text-emerald-600">
+                    Active Member
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mx-4 mt-4 relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card via-card to-secondary/30 p-6 shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                <User className="h-7 w-7 text-primary" />
+              </div>
+              <div className="flex-1">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold mb-1.5">
+                  <Sparkles className="h-3 w-3" />
+                  <span>Welcome to FindMyPoint</span>
+                </div>
+                <h2 className="text-lg font-bold text-foreground">Sign In to Your Account</h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Access your personalized bookings, reviews, saved places and exclusive local deals.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => onSignInClick?.()}
+              className="mt-4 w-full py-3 px-4 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <LogIn className="h-4 w-4" />
+              <span>Login / Register with OTP</span>
+            </button>
+          </div>
+        )}
+
+        {/* Menu Sections */}
+        <div className="px-4 mt-4">
+          <div className="divide-y divide-border/50 bg-card rounded-2xl border border-border px-4 py-1">
+            {MENU_SECTIONS.flatMap((section) => section.items).map(({ icon: Icon, label, sub, requiresAuth }) => (
+              <div key={label} className="w-full">
+                <button
+                  onClick={() => {
+                    if (requiresAuth && !isLoggedIn) {
+                      onSignInClick?.();
+                      return;
+                    }
+                    if (label === "Edit Profile" && onEditProfileClick) {
+                      onEditProfileClick();
+                    } else if (label === "Notifications" && onNotificationsClick) {
+                      onNotificationsClick();
+                    } else if (label === "Help & Support" && onHelpClick) {
+                      onHelpClick();
+                    } else if (label === "My Reviews" && onMyReviewsClick) {
+                      onMyReviewsClick();
+                    } else if (label === "Saved Businesses" && onSavedBusinessesClick) {
+                      onSavedBusinessesClick();
+                    } else if (label === "Privacy Policy" && onPrivacyPolicyClick) {
+                      onPrivacyPolicyClick();
+                    } else if (label === "Terms & Conditions" && onTermsConditionsClick) {
+                      onTermsConditionsClick();
+                    }
+                  }}
+                  className="w-full flex items-center gap-3 py-3 transition cursor-pointer text-left hover:bg-secondary/20 rounded-xl"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-secondary flex items-center justify-center shrink-0">
+                    <Icon className="h-4 w-4 text-foreground/70" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground">{label}</p>
+                    <p className="text-[11px] text-muted-foreground">{sub}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                </button>
+              </div>
+            ))}
           </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className="text-base font-bold text-foreground truncate">{displayName}</p>
-              {isLoggedIn && (
-                <BadgeCheck className="h-4 w-4 text-primary shrink-0" />
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">
-              {userProfile?.email || (isLoggedIn ? "No email address" : MOCK_USER.email)}
-            </p>
-            <div className="flex items-center gap-1 mt-1">
-              <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-              <span className="text-[11px] text-muted-foreground truncate">
-                {isLoggedIn ? "Madhya Pradesh, India" : MOCK_USER.city}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Contact row */}
-        <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-              <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">Phone</p>
-              <p className="text-xs font-semibold text-foreground">
-                {userProfile?.mobile1 ? "+91 " + userProfile.mobile1 : (isLoggedIn ? "No phone number" : MOCK_USER.phone)}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-              <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">Member Since</p>
-              <p className="text-xs font-semibold text-foreground">
-                {isLoggedIn ? "July 2026" : MOCK_USER.memberSince}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-
-
-      {/* Menu Sections */}
-      <div className="px-4 mt-3">
-        <div className="divide-y divide-border/50">
-          {MENU_SECTIONS.flatMap((section) => section.items).map(({ icon: Icon, label, sub }) => (
-            <div key={label} className="w-full">
+          {/* Log Out / Delete Account (Only for logged in users) */}
+          {isLoggedIn && (
+            <div className="mt-4 bg-card rounded-2xl border border-border px-4 divide-y divide-border/30">
               <button
+                className="w-full flex items-center gap-3 py-3.5 transition cursor-pointer text-left hover:bg-rose-50/50"
+                onClick={() => setShowLogoutConfirm(true)}
+              >
+                <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center shrink-0">
+                  <LogOut className="h-4 w-4 text-rose-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-rose-600">Log Out</p>
+                </div>
+              </button>
+
+              <button
+                className="w-full flex items-center gap-3 py-3.5 transition cursor-pointer text-left hover:bg-red-50/50"
                 onClick={() => {
-                  if (label === "Edit Profile" && onEditProfileClick) {
-                    onEditProfileClick();
-                  } else if (label === "Notifications" && onNotificationsClick) {
-                    onNotificationsClick();
-                  } else if (label === "Help & Support" && onHelpClick) {
-                    onHelpClick();
-                  } else if (label === "My Reviews" && onMyReviewsClick) {
-                    onMyReviewsClick();
-                  } else if (label === "Saved Businesses" && onSavedBusinessesClick) {
-                    onSavedBusinessesClick();
-                  } else if (label === "Privacy Policy" && onPrivacyPolicyClick) {
-                    onPrivacyPolicyClick();
-                  } else if (label === "Terms & Conditions" && onTermsConditionsClick) {
-                    onTermsConditionsClick();
+                  const confirmDelete = window.confirm("Are you sure you want to delete your account? This action is permanent.");
+                  if (confirmDelete) {
+                    alert("Account deletion request submitted.");
+                    onLogout?.();
                   }
                 }}
-                className="w-full flex items-center gap-3 py-3 transition cursor-pointer text-left hover:bg-secondary/20"
               >
-                <div className="w-8 h-8 rounded-xl bg-secondary flex items-center justify-center shrink-0">
-                  <Icon className="h-4 w-4 text-foreground/70" />
+                <div className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-950/40 flex items-center justify-center shrink-0">
+                  <Trash2 className="h-4 w-4 text-red-600" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground">{label}</p>
-                  <p className="text-[11px] text-muted-foreground">{sub}</p>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-red-600">Delete Account</p>
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />
               </button>
             </div>
-          ))}
+          )}
         </div>
-
-        {/* Sign In / Log Out / Delete Account */}
-        <div className="border-t border-border/50 mb-0">
-            <button
-              className="w-full flex items-center gap-3 py-3 transition cursor-pointer text-left hover:bg-rose-50/50"
-              onClick={() => setShowLogoutConfirm(true)}
-            >
-              <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
-                <LogOut className="h-4 w-4 text-rose-500" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-rose-600">Log Out</p>
-              </div>
-            </button>
-
-            <button
-              className="w-full flex items-center gap-3 py-3 border-t border-border/30 transition cursor-pointer text-left hover:bg-red-50/50"
-              onClick={() => {
-                const confirmDelete = window.confirm("Are you sure you want to delete your account? This action is permanent.");
-                if (confirmDelete) {
-                  alert("Account deletion request submitted.");
-                  onLogout?.();
-                }
-              }}
-            >
-              <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
-                <Trash2 className="h-4 w-4 text-red-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-red-600">Delete Account</p>
-              </div>
-            </button>
-        </div>
-      </div>
       </div>
 
       {/* Logout Confirmation Modal */}
@@ -252,7 +272,6 @@ export default function MobileProfilePage({
                 onClick={() => {
                   setShowLogoutConfirm(false);
                   if (onLogout) onLogout();
-                  if (onSignInClick) onSignInClick();
                 }}
                 className="w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold transition cursor-pointer"
               >

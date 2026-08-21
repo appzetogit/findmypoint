@@ -96,6 +96,7 @@ const businessCommissionRoutes = require('./routes/businessCommissionRoutes');
 const businessRequestRoutes = require('./routes/businessRequestRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const faqRoutes = require('./routes/faqRoutes');
+const seoRoutes = require('./routes/seoRoutes');
 
 // API Healthcheck
 app.get('/api/health', (req, res) => {
@@ -105,6 +106,9 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date()
   });
 });
+
+// Root-level SEO routes for sitemap.xml and robots.txt
+app.use('/', seoRoutes);
 
 // Register Router Middlewares
 app.use('/api/auth', authRoutes);

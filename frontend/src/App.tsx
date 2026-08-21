@@ -19,6 +19,7 @@ import MobileProfilePage from "./pages/MobileProfilePage";
 import { Home, CalendarDays, Receipt, User } from "lucide-react";
 import { socketService } from "./services/socketService";
 import ReviewPromptModal from "./components/ReviewPromptModal";
+import { isApkEnvironment } from "./utils/apkDetection";
 
 
 interface AppViewState {
@@ -166,15 +167,18 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
 }
 
 // ---------------------------------------------------------------------------
-// Path-based URL helpers (Clean URLs without Hash)
-// ---------------------------------------------------------------------------
+const RESERVED_ROUTES = ["admin", "client", "advertise", "sidebar", "business", "article", "place", "service", "category", "categories", "tab"];
 
 function buildPath(state: AppViewState, mobileTab: string): string {
   if (state.showAdminPanel) return "/admin";
   if (state.showClientPanel) return "/client";
   if (state.showAdvertise) return "/advertise";
   if (state.activeSidebarPage) return `/sidebar/${encodeURIComponent(state.activeSidebarPage)}`;
-  if (state.selectedBusinessId) return `/business/${encodeURIComponent(state.selectedBusinessId)}`;
+  if (state.selectedBusinessId) {
+    if (state.selectedBusinessId.startsWith("/")) return state.selectedBusinessId;
+    if (state.selectedBusinessId.includes("/")) return `/${state.selectedBusinessId}`;
+    return `/business/${encodeURIComponent(state.selectedBusinessId)}`;
+  }
   if (state.selectedArticleId !== null) return `/article/${state.selectedArticleId}`;
   if (state.selectedPlaceName) return `/place/${encodeURIComponent(state.selectedPlaceName)}`;
   if (state.selectedPopularServiceId) return `/service/${encodeURIComponent(state.selectedPopularServiceId)}`;
@@ -195,6 +199,22 @@ function parsePath(): {
   const segments = path.split("/").filter(Boolean);
   const page = segments[0] || "";
   const params: Record<string, string> = {};
+
+  // Check 3-segment SEO path: /{city}/{locality}/{slug} (e.g. /indore/vijay-nagar/appzeto)
+  if (segments.length === 3 && !RESERVED_ROUTES.includes(segments[0])) {
+    const city = decodeURIComponent(segments[0]);
+    const locality = decodeURIComponent(segments[1]);
+    const slug = decodeURIComponent(segments[2]);
+    return {
+      page: "business",
+      params: {
+        city,
+        locality,
+        slug,
+        businessId: `/${city}/${locality}/${slug}`
+      }
+    };
+  }
 
   if (page === "business" && segments[1]) params.businessId = decodeURIComponent(segments[1]);
   if (page === "article" && segments[1]) params.articleId = segments[1];
@@ -260,6 +280,7 @@ export default function App() {
     }
     return false;
   });
+  const [isApk, setIsApk] = useState(() => isApkEnvironment());
   const [mobileTab, setMobileTab] = useState<"home" | "booking" | "transactions" | "profile">("home");
   const [isNavVisible, setIsNavVisible] = useState(true);
   const lastScrollY = useRef(0);
@@ -460,9 +481,9 @@ export default function App() {
 
   if (isMobile && mobileTab !== "home" && !state.showAdminPanel && !state.showClientPanel && !state.showSignIn && !state.showProfileWizard) {
     if (mobileTab === "booking") {
-      content = <MobileBookingPage />;
+      content = <MobileBookingPage onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })} />;
     } else if (mobileTab === "transactions") {
-      content = <MobileTransactionPage />;
+      content = <MobileTransactionPage onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })} />;
     } else if (mobileTab === "profile") {
       content = (
         <MobileProfilePage
@@ -633,7 +654,17 @@ export default function App() {
     );
   }
 
-  if (isMobile && !username && !state.showAdminPanel && !state.showClientPanel) {
+  // Public directory pages (business profile, articles, places, categories, advertise) MUST ALWAYS be accessible publicly
+  const isPublicRoute =
+    state.selectedBusinessId !== null ||
+    state.selectedArticleId !== null ||
+    state.selectedPlaceName !== null ||
+    state.selectedCategoryName !== null ||
+    state.selectedPopularServiceId !== null ||
+    state.showAllCategoriesPage ||
+    state.showAdvertise;
+
+  if (isApk && !username && !state.showAdminPanel && !state.showClientPanel && !isPublicRoute) {
     return (
       <SignInPage
         onBack={() => {}}

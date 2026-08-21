@@ -4,6 +4,7 @@ const {
   getBookings,
   createBooking,
   updateBookingStatus,
+  collectPayment,
   refundBooking,
   deleteBooking
 } = require('../controllers/bookingController');
@@ -14,6 +15,7 @@ router.use(protect); // All booking routes require authentication
 router.get('/', getBookings);
 router.post('/', createBooking);
 router.put('/:id/status', updateBookingStatus);
+router.put('/:id/collect-payment', collectPayment);
 router.put('/:id/refund', refundBooking);
 router.delete('/:id', deleteBooking);
 

@@ -34,105 +34,10 @@ import { BusinessListingData } from "../data/businessesData";
 import Footer from "./Footer";
 import { useCategories } from "../context/CategoryContext";
 import { API_BASE_URL } from "../config";
+import { getSubcategoryEmoji } from "../utils/categoryImages";
 
-function formatDateTimeDMY(d: Date): string {
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  let hours = d.getHours();
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  hours = hours ? hours : 12;
-  const strHours = String(hours).padStart(2, "0");
-  return `${day}/${month}/${year} ${strHours}:${minutes} ${ampm}`;
-}
 
-const getSubcategoryEmoji = (category: string, subcatName: string): string => {
-  const name = subcatName.toLowerCase();
-  const cat = category.toLowerCase();
 
-  if (name.includes("massage")) return "💆";
-  if (name.includes("salon")) return "💇";
-  if (name.includes("parlour")) return "💄";
-
-  if (name.includes("india")) return "🇮🇳";
-  if (name.includes("nepal")) return "🇳🇵";
-  if (name.includes("sri lanka")) return "🇱🇰";
-  if (name.includes("bangladesh")) return "🇧🇩";
-  if (name.includes("indonesia")) return "🇮🇩";
-  if (name.includes("dubai")) return "🇦🇪";
-  if (name.includes("uk")) return "🇬🇧";
-  if (name.includes("usa")) return "🇺🇸";
-  if (name.includes("australia")) return "🇦🇺";
-  if (name.includes("japan")) return "🇯🇵";
-  if (name.includes("china")) return "🇨🇳";
-  if (name.includes("russia")) return "🇷🇺";
-  if (name.includes("thailand")) return "🇹🇭";
-  if (name.includes("france")) return "🇫🇷";
-  if (name.includes("germany")) return "🇩🇪";
-  if (name.includes("switzerland")) return "🇨🇭";
-
-  if (name.includes("accounting") || name.includes("bank")) return "💰";
-  if (name.includes("fresher") || name.includes("student")) return "👶";
-  if (name.includes("government")) return "🏛️";
-  if (name.includes("it") || name.includes("computer")) return "💻";
-  if (name.includes("marketing") || name.includes("sales")) return "📈";
-  if (name.includes("delivery")) return "🛵";
-
-  if (name.includes("ac repair") || name.includes("ac service")) return "❄️";
-  if (name.includes("carpenter")) return "🪚";
-  if (name.includes("plumber")) return "🪠";
-  if (name.includes("electrician")) return "⚡";
-  if (name.includes("cleaner") || name.includes("cleaning")) return "🧹";
-
-  if (name.includes("school") || name.includes("college") || name.includes("university"))
-    return "🏫";
-  if (name.includes("coaching") || name.includes("institute")) return "📚";
-
-  if (name.includes("medicine") || name.includes("pharmacy")) return "💊";
-  if (name.includes("clinic") || name.includes("hospital") || name.includes("nursing")) return "🏥";
-  if (name.includes("doctor")) return "🩺";
-
-  if (name.includes("resort")) return "🏖️";
-  if (name.includes("banquet")) return "🏰";
-
-  if (name.includes("women")) return "👚";
-  if (name.includes("men")) return "👕";
-  if (name.includes("kids")) return "🧒";
-
-  if (
-    name.includes("vedic") ||
-    name.includes("palm") ||
-    name.includes("horoscope") ||
-    name.includes("tarot")
-  )
-    return "🔮";
-
-  if (name.includes("restaurant") || name.includes("cafe")) return "🍲";
-  if (name.includes("sweet") || name.includes("bakery")) return "🍰";
-
-  if (name.includes("courier") || name.includes("parcel")) return "📦";
-
-  if (cat.includes("spa")) return "💆";
-  if (cat.includes("tour")) return "✈️";
-  if (cat.includes("job")) return "💼";
-  if (cat.includes("service")) return "🛠️";
-  if (cat.includes("education")) return "🎓";
-  if (cat.includes("health")) return "🏥";
-  if (cat.includes("hotel")) return "🏨";
-  if (cat.includes("doctor")) return "🩺";
-  if (cat.includes("garment")) return "👗";
-  if (cat.includes("astrologer")) return "🔮";
-  if (cat.includes("product")) return "🛒";
-  if (cat.includes("food")) return "🍲";
-  if (cat.includes("courier")) return "📦";
-  if (cat.includes("car")) return "🚗";
-
-  return "🏷️";
-};
-
-export const subcategoriesData: Record<string, string[]> = {};
 
 interface CategoryDetailPageProps {
   categoryName: string;
@@ -152,7 +57,7 @@ interface BookingState {
   submitted: boolean;
   step: "form" | "payment" | "success";
   form: Record<string, string>;
-  paymentMethod: "upi" | "card" | "netbanking";
+  paymentMethod: "upi" | "card" | "netbanking" | "cod";
   upiId: string;
   cardNumber: string;
   cardExpiry: string;
@@ -166,12 +71,12 @@ type BookingAction =
   | { type: "SET_SUBMITTED"; value: boolean }
   | { type: "SET_STEP"; step: "form" | "payment" | "success" }
   | { type: "UPDATE_FORM"; fields: Record<string, string> }
-  | { type: "SET_PAYMENT_METHOD"; method: "upi" | "card" | "netbanking" }
+  | { type: "SET_PAYMENT_METHOD"; method: "upi" | "card" | "netbanking" | "cod" }
   | {
-      type: "SET_PAYMENT_FIELD";
-      field: "upiId" | "cardNumber" | "cardExpiry" | "cardCvv";
-      value: string;
-    }
+    type: "SET_PAYMENT_FIELD";
+    field: "upiId" | "cardNumber" | "cardExpiry" | "cardCvv";
+    value: string;
+  }
   | { type: "SET_PROCESSING"; value: boolean }
   | { type: "RESET" };
 
@@ -290,18 +195,31 @@ export default function CategoryDetailPage({
   username,
 }: CategoryDetailPageProps) {
   const { subcategoriesData, subcatIcons } = useCategories();
-  // Get all subcategories for this category, fallback to empty array
-  const subcategories = subcategoriesData[categoryName] || ["General Services"];
+  // Get all subcategories for this category dynamically from context/database
+  const subcategories = useMemo(
+    () => subcategoriesData[categoryName] || [],
+    [subcategoriesData, categoryName]
+  );
 
   const [prevCategory, setPrevCategory] = useState(categoryName);
   const [prevInitialSubcat, setPrevInitialSubcat] = useState(initialSubcategory);
   const [confirmedOrderId, setConfirmedOrderId] = useState<string>("");
-  // Set the first subcategory as active initially
+  // Set active subcategory dynamically
   const [activeSubcategory, setActiveSubcategory] = useState<string>(
     initialSubcategory && subcategories.includes(initialSubcategory)
       ? initialSubcategory
-      : subcategories[0],
+      : subcategories[0] || "",
   );
+
+  useEffect(() => {
+    if (subcategories.length > 0 && (!activeSubcategory || !subcategories.includes(activeSubcategory))) {
+      if (initialSubcategory && subcategories.includes(initialSubcategory)) {
+        setActiveSubcategory(initialSubcategory);
+      } else {
+        setActiveSubcategory(subcategories[0]);
+      }
+    }
+  }, [subcategories, initialSubcategory]);
 
   if (categoryName !== prevCategory || initialSubcategory !== prevInitialSubcat) {
     setPrevCategory(categoryName);
@@ -309,7 +227,7 @@ export default function CategoryDetailPage({
     setActiveSubcategory(
       initialSubcategory && subcategories.includes(initialSubcategory)
         ? initialSubcategory
-        : subcategories[0],
+        : subcategories[0] || "",
     );
   }
 
@@ -318,11 +236,12 @@ export default function CategoryDetailPage({
 
   // Fetch real businesses from API whenever category or subcategory changes
   useEffect(() => {
-    if (!activeSubcategory) return;
     setListingsLoading(true);
-    fetch(
-      `${API_BASE_URL}/businesses?category=${encodeURIComponent(categoryName)}&subcategory=${encodeURIComponent(activeSubcategory)}`
-    )
+    let url = `${API_BASE_URL}/businesses?category=${encodeURIComponent(categoryName)}`;
+    if (activeSubcategory) {
+      url += `&subcategory=${encodeURIComponent(activeSubcategory)}`;
+    }
+    fetch(url)
       .then((r) => r.json())
       .then((data) => {
         if (data.success && Array.isArray(data.data)) {
@@ -566,17 +485,19 @@ export default function CategoryDetailPage({
 
   // Persist a booking/order into the Booking DB model so it shows up in customer's My Bookings
   const saveBookingToDb = (opts: {
-    id?: string;
+    id: string;
     amount: number;
     paymentId: string;
-    bookingType?: "service" | "product" | "appointment" | "room";
+    paymentMethod?: string;
+    paymentStatus?: string;
+    bookingType?: string;
     serviceName?: string;
     formData?: Record<string, any>;
-    items?: Array<{ name: string; quantity: number; price?: number }>;
     customerName?: string;
     customerPhone?: string;
     customerEmail?: string;
     customerAddress?: string;
+    items?: Array<{ name: string; quantity: number; price: number }>;
     date?: string;
     time?: string;
   }) => {
@@ -607,8 +528,8 @@ export default function CategoryDetailPage({
         formData: opts.formData || {},
         bookingType: opts.bookingType || "service",
         paymentId: opts.paymentId,
-        paymentMethod: "Razorpay Gateway",
-        paymentStatus: "paid",
+        paymentMethod: opts.paymentMethod || "Razorpay Gateway",
+        paymentStatus: opts.paymentStatus || "paid",
       }),
     })
       .then((res) => res.json())
@@ -647,6 +568,111 @@ export default function CategoryDetailPage({
     });
   };
 
+  const [chosenPaymentChoice, setChosenPaymentChoice] = useState<"online" | "cod">("online");
+
+  const executeDirectCodBooking = async () => {
+    if (!selectedBizForBooking) return;
+
+    const amount = getBookingPrice();
+    dispatchBooking({ type: "SET_STEP", step: "success" });
+    dispatchBooking({ type: "SET_SUBMITTED", value: true });
+
+    const dataToSave: Record<string, any> = {
+      "Full Name": bookingForm.name,
+      "Phone Number": bookingForm.phone,
+      "Date": bookingForm.date || new Date().toISOString().split("T")[0],
+      "Persons/Guests/Travelers": bookingForm.persons || bookingForm.guests || bookingForm.travelers || "1",
+      "Room/Timeslot/Package": bookingForm.roomType || bookingForm.timeslot || bookingForm.package || "General Selection",
+    };
+
+    try {
+      const profRes = await fetch("http://localhost:5000/api/auth/profile", { headers: getAuthHeaders() });
+      const profData = await profRes.json();
+      if (profData.success && profData.user) {
+        const prof = profData.user;
+        const fullName = [prof.firstName, prof.lastName].filter(Boolean).join(" ");
+        if (!dataToSave["Full Name"] && !dataToSave["Customer Name"] && !dataToSave["Your Name"] && !dataToSave["Name"] && fullName) dataToSave["Full Name"] = fullName;
+        if (!dataToSave["Phone Number"] && !dataToSave["Phone"] && !dataToSave["Mobile"] && !dataToSave["Mobile Number"] && prof.mobile1) dataToSave["Phone Number"] = prof.mobile1;
+        if (!dataToSave["Email"] && !dataToSave["Email Address"] && prof.email) dataToSave["Email"] = prof.email;
+      }
+    } catch (_) { }
+
+    const formatDateTimeDMY = (date: Date) => {
+      const d = String(date.getDate()).padStart(2, "0");
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const y = date.getFullYear();
+      const hrs = String(date.getHours()).padStart(2, "0");
+      const mins = String(date.getMinutes()).padStart(2, "0");
+      return `${d}/${m}/${y} ${hrs}:${mins}`;
+    };
+
+    const bookingId = `BK${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
+    setConfirmedOrderId(bookingId);
+
+    fetch(`http://localhost:5000/api/service-forms/${selectedBizForBooking.id}/submissions`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        id: bookingId,
+        businessName: selectedBizForBooking.name,
+        data: dataToSave
+      })
+    }).then(res => res.json())
+      .then(data => {
+        const details = selectedBizForBooking.category.includes("Hotel Point")
+          ? "Room Stay Reservation Deposit"
+          : selectedBizForBooking.category.includes("Health Care Point") || selectedBizForBooking.category.includes("Doctor Point")
+            ? "Appointment Consultation Fee"
+            : "Table Booking Deposit";
+
+        fetch("http://localhost:5000/api/transactions", {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            description: details,
+            businessName: selectedBizForBooking.name,
+            businessId: selectedBizForBooking.id,
+            bookingId: bookingId,
+            customerName: dataToSave["Full Name"] || bookingForm.name || "Guest",
+            details,
+            amount,
+            type: "credit",
+            paymentMethod: "COD",
+            status: "Pending"
+          })
+        }).then(res => res.json())
+          .then(txData => {
+            if (txData.success) {
+              window.dispatchEvent(new Event("storage"));
+            }
+          }).catch(err => console.error("API transaction failed:", err));
+
+        saveBookingToDb({
+          id: bookingId,
+          amount,
+          paymentId: "COD",
+          paymentMethod: "COD",
+          paymentStatus: "pending",
+          bookingType: selectedBizForBooking.category.includes("Hotel Point")
+            ? "room"
+            : selectedBizForBooking.category.includes("Health Care Point") || selectedBizForBooking.category.includes("Doctor Point")
+              ? "appointment"
+              : "service",
+          serviceName: selectedBizForBooking.category.includes("Hotel Point")
+            ? "Room Stay Reservation"
+            : selectedBizForBooking.category.includes("Health Care Point") || selectedBizForBooking.category.includes("Doctor Point")
+              ? "Appointment Consultation"
+              : "Table Booking",
+          formData: dataToSave,
+          customerName: dataToSave["Full Name"] || bookingForm.name || "Guest",
+          customerPhone: dataToSave["Phone Number"] || bookingForm.phone || "",
+          customerEmail: dataToSave["Email"] || "",
+          date: bookingForm.date || "",
+          time: bookingForm.time || "",
+        });
+      }).catch(err => console.error("API booking submission failed:", err));
+  };
+
   // Handle submitting booking
   const handleBookingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -654,7 +680,12 @@ export default function CategoryDetailPage({
       alert("Please fill in your Name and Phone Number.");
       return;
     }
-    dispatchBooking({ type: "SET_STEP", step: "payment" });
+    if (chosenPaymentChoice === "cod") {
+      executeDirectCodBooking();
+    } else {
+      dispatchBooking({ type: "SET_STEP", step: "payment" });
+      dispatchBooking({ type: "SET_PAYMENT_METHOD", method: "upi" });
+    }
   };
 
   // Custom fields renderer for booking based on category
@@ -1490,11 +1521,10 @@ export default function CategoryDetailPage({
                       <button
                         key={subcat}
                         onClick={() => handleSubcategorySelect(subcat)}
-                        className={`relative transition-all duration-300 cursor-pointer border-b border-border/20 lg:border lg:rounded-xl shrink-0 flex flex-col lg:flex-row items-center lg:items-start justify-center lg:justify-start text-center lg:text-left ${
-                          isSelected
+                        className={`relative transition-all duration-300 cursor-pointer border-b border-border/20 lg:border lg:rounded-xl shrink-0 flex flex-col lg:flex-row items-center lg:items-start justify-center lg:justify-start text-center lg:text-left ${isSelected
                             ? "text-accent bg-background lg:bg-primary lg:border-primary lg:text-primary-foreground font-black lg:font-bold shadow-none lg:shadow-sm"
                             : "text-muted-foreground lg:text-foreground/80 bg-transparent lg:bg-background border-transparent lg:border-border hover:bg-secondary/10 lg:hover:bg-secondary lg:hover:text-primary"
-                        } px-2 py-4 lg:px-4 lg:py-2.5 gap-2 lg:gap-2 text-[10px] sm:text-[11px] lg:text-[13px]`}
+                          } px-2 py-4 lg:px-4 lg:py-2.5 gap-2 lg:gap-2 text-[10px] sm:text-[11px] lg:text-[13px]`}
                       >
                         {/* Active vertical indicator line on mobile */}
                         {isSelected && (
@@ -1557,8 +1587,8 @@ export default function CategoryDetailPage({
                 </p>
               </div>
             ) : (
-            <div key={activeSubcategory} className="flex flex-col gap-4 sm:gap-6 animate-fade-in-up">
-              {filteredListings.map((biz) => {
+              <div key={activeSubcategory} className="flex flex-col gap-4 sm:gap-6 animate-fade-in-up">
+                {filteredListings.map((biz) => {
                   return (
                     <div key={biz.id}>
                       {/* Mobile View Compact Card */}
@@ -1577,11 +1607,6 @@ export default function CategoryDetailPage({
                               className="h-full w-full object-cover"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                            {biz.isVerified && (
-                              <span className="absolute top-1 right-1 z-10 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
-                                <Check className="h-2.5 w-2.5 stroke-[3.5px]" />
-                              </span>
-                            )}
                           </div>
 
                           {/* Info */}
@@ -1810,8 +1835,8 @@ export default function CategoryDetailPage({
 
       {/* Enquiry Modal */}
       {enquiryModalOpen && selectedBizForEnquiry && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-fade-in-up">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
+          <div className="relative w-full h-full sm:h-auto max-w-none sm:max-w-md rounded-none sm:rounded-2xl border-0 sm:border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in-up max-h-full sm:max-h-[90vh] overflow-y-auto no-scrollbar">
             <button
               onClick={() => dispatchEnquiry({ type: "CLOSE_MODAL" })}
               className="absolute right-4 top-4 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -1936,8 +1961,8 @@ export default function CategoryDetailPage({
 
       {/* Booking Modal */}
       {bookingModalOpen && selectedBizForBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-fade-in-up">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
+          <div className="relative w-full h-full sm:h-auto max-w-none sm:max-w-md rounded-none sm:rounded-2xl border-0 sm:border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in-up max-h-full sm:max-h-[90vh] overflow-y-auto no-scrollbar">
             <button
               onClick={() => dispatchBooking({ type: "CLOSE_MODAL" })}
               className="absolute right-4 top-4 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -1998,12 +2023,24 @@ export default function CategoryDetailPage({
                   {renderBookingFields()}
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full mt-6 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md"
-                >
-                  Proceed to Pay ₹{getBookingPrice()}
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-6">
+                  <button
+                    type="submit"
+                    onClick={() => setChosenPaymentChoice("online")}
+                    className="w-full rounded-xl bg-emerald-600 py-3.5 px-3 text-[11px] sm:text-xs font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md flex items-center justify-between gap-1.5 whitespace-nowrap overflow-hidden"
+                  >
+                    <span className="whitespace-nowrap truncate">💳 Pay Online</span>
+                    <span className="opacity-90 whitespace-nowrap shrink-0">₹{getBookingPrice()}</span>
+                  </button>
+                  <button
+                    type="submit"
+                    onClick={() => setChosenPaymentChoice("cod")}
+                    className="w-full rounded-xl bg-amber-600 py-3.5 px-3 text-[11px] sm:text-xs font-bold text-white hover:bg-amber-700 transition-all cursor-pointer shadow-md flex items-center justify-between gap-1.5 whitespace-nowrap overflow-hidden"
+                  >
+                    <span className="whitespace-nowrap truncate">💵 Cash on Delivery</span>
+                    <span className="opacity-90 whitespace-nowrap shrink-0">₹{getBookingPrice()}</span>
+                  </button>
+                </div>
               </form>
             )}
 
@@ -2051,7 +2088,7 @@ export default function CategoryDetailPage({
                       <span className="block text-[10px] font-bold text-muted-foreground uppercase mb-2">
                         Select Payment Method
                       </span>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         <button
                           type="button"
                           onClick={() =>
@@ -2079,8 +2116,24 @@ export default function CategoryDetailPage({
                         >
                           Net Banking
                         </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            dispatchBooking({ type: "SET_PAYMENT_METHOD", method: "cod" })
+                          }
+                          className={`py-2 text-[10px] sm:text-[10.5px] font-bold border rounded-xl cursor-pointer whitespace-nowrap ${paymentMethod === "cod" ? "bg-amber-600 border-amber-600 text-white" : "bg-background border-border text-foreground hover:bg-secondary"}`}
+                        >
+                          <span className="whitespace-nowrap">💵 Cash on Delivery</span>
+                        </button>
                       </div>
                     </div>
+
+                    {paymentMethod === "cod" && (
+                      <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-xl p-3.5 text-xs text-amber-800 dark:text-amber-300 font-semibold space-y-1">
+                        <p className="font-bold">Pay Cash on Service (COD)</p>
+                        <p className="text-[11px] opacity-90">Pay ₹{getBookingPrice()} directly in cash when you arrive or receive the service.</p>
+                      </div>
+                    )}
 
                     {paymentMethod === "upi" && (
                       <div className="space-y-3">
@@ -2223,7 +2276,9 @@ export default function CategoryDetailPage({
                     <button
                       onClick={() => {
                         const amount = getBookingPrice();
-                        handleRazorpayPayment(amount, async (paymentId) => {
+                        const isCOD = paymentMethod === "cod";
+
+                        const completeBookingFlow = async (paymentId: string) => {
                           dispatchBooking({ type: "SET_STEP", step: "success" });
                           dispatchBooking({ type: "SET_SUBMITTED", value: true });
 
@@ -2236,7 +2291,6 @@ export default function CategoryDetailPage({
                               "Room/Timeslot/Package": bookingForm.roomType || bookingForm.timeslot || bookingForm.package || "General Selection",
                             };
 
-                            // Always inject logged-in customer details from backend
                             try {
                               const profRes = await fetch("http://localhost:5000/api/auth/profile", { headers: getAuthHeaders() });
                               const profData = await profRes.json();
@@ -2247,8 +2301,7 @@ export default function CategoryDetailPage({
                                 if (!dataToSave["Phone Number"] && !dataToSave["Phone"] && !dataToSave["Mobile"] && !dataToSave["Mobile Number"] && prof.mobile1) dataToSave["Phone Number"] = prof.mobile1;
                                 if (!dataToSave["Email"] && !dataToSave["Email Address"] && prof.email) dataToSave["Email"] = prof.email;
                               }
-                            } catch (_) {}
-
+                            } catch (_) { }
 
                             const formatDateTimeDMY = (date: Date) => {
                               const d = String(date.getDate()).padStart(2, "0");
@@ -2262,13 +2315,6 @@ export default function CategoryDetailPage({
                             const bookingId = `BK${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
                             setConfirmedOrderId(bookingId);
 
-                            const newSub = {
-                              id: bookingId,
-                              timestamp: formatDateTimeDMY(new Date()),
-                              data: dataToSave
-                            };
-
-                            // API Submission
                             fetch(`http://localhost:5000/api/service-forms/${selectedBizForBooking.id}/submissions`, {
                               method: "POST",
                               headers: getAuthHeaders(),
@@ -2285,7 +2331,6 @@ export default function CategoryDetailPage({
                                     ? "Appointment Consultation Fee"
                                     : "Table Booking Deposit";
 
-                                // API Transaction Log POST call
                                 fetch("http://localhost:5000/api/transactions", {
                                   method: "POST",
                                   headers: getAuthHeaders(),
@@ -2298,8 +2343,8 @@ export default function CategoryDetailPage({
                                     details,
                                     amount,
                                     type: "credit",
-                                    paymentMethod: "Razorpay Gateway",
-                                    status: "Completed"
+                                    paymentMethod: isCOD ? "COD" : "Razorpay Gateway",
+                                    status: isCOD ? "Pending" : "Completed"
                                   })
                                 }).then(res => res.json())
                                   .then(txData => {
@@ -2308,11 +2353,12 @@ export default function CategoryDetailPage({
                                     }
                                   }).catch(err => console.error("API transaction failed:", err));
 
-                                // Persist to the Booking DB model
                                 saveBookingToDb({
                                   id: bookingId,
                                   amount,
-                                  paymentId,
+                                  paymentId: isCOD ? "COD" : paymentId,
+                                  paymentMethod: isCOD ? "COD" : "Online",
+                                  paymentStatus: isCOD ? "pending" : "paid",
                                   bookingType: selectedBizForBooking.category.includes("Hotel Point")
                                     ? "room"
                                     : selectedBizForBooking.category.includes("Health Care Point") || selectedBizForBooking.category.includes("Doctor Point")
@@ -2332,11 +2378,17 @@ export default function CategoryDetailPage({
                                 });
                               }).catch(err => console.error("API booking submission failed:", err));
                           }
-                        });
+                        };
+
+                        if (isCOD) {
+                          completeBookingFlow("COD");
+                        } else {
+                          handleRazorpayPayment(amount, completeBookingFlow);
+                        }
                       }}
                       className="w-full mt-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-md text-center"
                     >
-                      Pay ₹{getBookingPrice()} & Complete Booking
+                      {paymentMethod === "cod" ? "Confirm Booking (Cash on Delivery)" : `Pay ₹${getBookingPrice()} & Complete Booking`}
                     </button>
                   </div>
                 )}
@@ -2346,23 +2398,19 @@ export default function CategoryDetailPage({
             {bookingStep === "success" && (
               <div className="py-8 text-center flex flex-col items-center">
                 <div className="h-12 w-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
-                  <Check className="h-6 w-6 stroke-[3px]" />
+                  <Check className="h-7 w-7" />
                 </div>
                 <h3 className="font-serif text-lg font-bold text-foreground mb-1">
                   Booking Confirmed!
                 </h3>
-                <div className="text-xs text-muted-foreground max-w-xs mx-auto space-y-2 text-center">
-                  <p>
-                    Your booking details have been sent successfully to{" "}
-                    <span className="font-semibold text-primary">{selectedBizForBooking.name}</span>.
-                    You will receive a verification call shortly.
-                  </p>
-                  {confirmedOrderId && (
-                    <p className="mt-2 text-xs">
-                      Booking ID: <span className="font-bold text-foreground">#{confirmedOrderId}</span>
-                    </p>
-                  )}
-                </div>
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                  Your booking has been placed with{" "}
+                  <span className="font-semibold text-primary">{selectedBizForBooking.name}</span>. Booking ID:{" "}
+                  <span className="font-bold text-foreground">
+                    #{confirmedOrderId || "BK-7689"}
+                  </span>
+                  . You will receive an SMS confirmation shortly.
+                </p>
               </div>
             )}
           </div>

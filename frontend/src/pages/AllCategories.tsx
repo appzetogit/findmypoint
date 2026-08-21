@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { ArrowLeft, ArrowUp } from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
-import { getCategoryImage } from "../utils/categoryImages";
+import { getCategoryImage, getSubcategoryEmoji } from "../utils/categoryImages";
+import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
+
 
 interface AllCategoriesPageProps {
   onBack: () => void;
@@ -9,92 +11,32 @@ interface AllCategoriesPageProps {
   initialCategory?: string | null;
 }
 
-const getSubcategoryEmoji = (category: string, subcatName: string): string => {
-  const name = subcatName.toLowerCase();
-  const cat = category.toLowerCase();
-
-  if (name.includes("massage")) return "💆";
-  if (name.includes("salon")) return "💇";
-  if (name.includes("parlour")) return "💄";
-
-  if (name.includes("india")) return "🇮🇳";
-  if (name.includes("nepal")) return "🇳🇵";
-  if (name.includes("sri lanka")) return "🇱🇰";
-  if (name.includes("bangladesh")) return "🇧🇩";
-  if (name.includes("indonesia")) return "🇮🇩";
-  if (name.includes("dubai")) return "🇦🇪";
-  if (name.includes("uk")) return "🇬🇧";
-  if (name.includes("usa")) return "🇺🇸";
-  if (name.includes("australia")) return "🇦🇺";
-  if (name.includes("japan")) return "🇯🇵";
-  if (name.includes("china")) return "🇨🇳";
-  if (name.includes("russia")) return "🇷🇺";
-  if (name.includes("thailand")) return "🇹🇭";
-  if (name.includes("france")) return "🇫🇷";
-  if (name.includes("germany")) return "🇩🇪";
-  if (name.includes("switzerland")) return "🇨🇭";
-
-  if (name.includes("accounting") || name.includes("bank")) return "💰";
-  if (name.includes("fresher") || name.includes("student")) return "👶";
-  if (name.includes("government")) return "🏛️";
-  if (name.includes("it") || name.includes("computer")) return "💻";
-  if (name.includes("marketing") || name.includes("sales")) return "📈";
-  if (name.includes("delivery")) return "🛵";
-
-  if (name.includes("ac repair") || name.includes("ac service")) return "❄️";
-  if (name.includes("carpenter")) return "🪚";
-  if (name.includes("plumber")) return "🪠";
-  if (name.includes("electrician")) return "⚡";
-  if (name.includes("cleaner") || name.includes("cleaning")) return "🧹";
-
-  if (name.includes("school") || name.includes("college") || name.includes("university"))
-    return "🏫";
-  if (name.includes("coaching") || name.includes("institute")) return "📚";
-
-  if (name.includes("medicine") || name.includes("pharmacy")) return "💊";
-  if (name.includes("clinic") || name.includes("hospital") || name.includes("nursing")) return "🏥";
-  if (name.includes("doctor")) return "🩺";
-
-  if (name.includes("resort")) return "🏖️";
-  if (name.includes("banquet")) return "🏰";
-
-  if (name.includes("women")) return "👚";
-  if (name.includes("men")) return "👕";
-  if (name.includes("kids")) return "🧒";
-
-  if (
-    name.includes("vedic") ||
-    name.includes("palm") ||
-    name.includes("horoscope") ||
-    name.includes("tarot")
-  )
-    return "🔮";
-
-  if (name.includes("restaurant") || name.includes("cafe")) return "🍲";
-  if (name.includes("sweet") || name.includes("bakery")) return "🍰";
-
-  if (name.includes("courier") || name.includes("parcel")) return "📦";
-
-  if (cat.includes("spa")) return "💆";
-  if (cat.includes("tour")) return "✈️";
-  if (cat.includes("job")) return "💼";
-  if (cat.includes("service")) return "🛠️";
-  if (cat.includes("education")) return "🎓";
-  if (cat.includes("health")) return "🏥";
-  if (cat.includes("hotel")) return "🏨";
-  if (cat.includes("doctor")) return "🩺";
-  if (cat.includes("garment")) return "👗";
-  if (cat.includes("astrologer")) return "🔮";
-  if (cat.includes("product")) return "🛒";
-  if (cat.includes("food")) return "🍲";
-  if (cat.includes("courier")) return "📦";
-  if (cat.includes("car")) return "🚗";
-
-  return "🏷️";
-};
-
 export default function AllCategoriesPage({ onBack, onCategoryClick, initialCategory }: AllCategoriesPageProps) {
   const { categories } = useCategories();
+  const [categoryBanners, setCategoryBanners] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchBanners = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/banners`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.categoryBanners)) {
+          setCategoryBanners(data.categoryBanners);
+        }
+      } catch (err) {
+        console.error("Failed to load category banners:", err);
+      }
+    };
+    fetchBanners();
+    window.addEventListener("fmp_banners_changed", fetchBanners);
+    return () => window.removeEventListener("fmp_banners_changed", fetchBanners);
+  }, []);
+
+  const getImageUrl = (img?: string) => {
+    if (!img) return "";
+    if (img.startsWith("data:") || img.startsWith("http")) return img;
+    return `${BACKEND_ORIGIN}${img}`;
+  };
 
   const categoryGroups = useMemo(() => {
     return categories.map((cat) => {
@@ -257,12 +199,12 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
         <div
           ref={containerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto px-4 py-4 bg-background"
+          className="flex-1 overflow-y-auto px-3.5 sm:px-4 pt-2 pb-4 bg-background"
         >
           {searchQuery.trim() !== "" ? (
             // Search Results View
             <div className="space-y-4">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 text-left">
+              <h3 className="text-sm font-extrabold text-foreground/90 uppercase tracking-wide mb-2 text-left">
                 Search Results
               </h3>
               {filteredSubcategories.length > 0 ? (
@@ -299,11 +241,39 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
             <div className="space-y-4">
               {categoryGroups.map((group) => {
                 if (group.id !== activeTab) return null;
+
+                const activeBanner = categoryBanners.find(
+                  (b) => b.categoryName?.toLowerCase() === group.label.toLowerCase()
+                );
+
                 return (
                   <div key={group.id} className="animate-in fade-in slide-in-from-bottom-2 duration-200 text-left">
-                    <h3 className="text-xs font-black text-muted-foreground uppercase tracking-wider mb-3.5 border-b border-border/40 pb-2">
+                    {/* Category Advertise Banner (rendered above heading) */}
+                    {activeBanner && activeBanner.img && (
+                      <div className="mb-3 relative w-full overflow-hidden rounded-xl shadow-sm aspect-[2.1/1] bg-secondary border border-border/40">
+                        <img
+                          src={getImageUrl(activeBanner.img)}
+                          alt={group.label}
+                          className="h-full w-full object-cover"
+                        />
+                        {(activeBanner.title || activeBanner.subtitle) && (
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex flex-col justify-end p-3.5 text-white">
+                            {activeBanner.title && (
+                              <div className="font-bold text-sm leading-tight">{activeBanner.title}</div>
+                            )}
+                            {activeBanner.subtitle && (
+                              <div className="text-xs opacity-90 mt-1 leading-tight">{activeBanner.subtitle}</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Category Heading (rendered below banner) */}
+                    <h3 className="text-sm sm:text-base font-extrabold text-foreground/90 uppercase tracking-wide mb-2.5 border-b border-border/40 pb-1.5 -mt-0.5">
                       {group.label}
                     </h3>
+
                     <div className="grid grid-cols-3 gap-2.5">
                       {group.subcategories.map((sub, idx) => (
                         <button

@@ -4,7 +4,6 @@ import {
   Plus,
   Trash2,
   Check,
-  Video,
   MapPin,
   User,
   ShieldCheck,
@@ -15,6 +14,14 @@ import {
   Tag,
   Clock,
   Upload,
+  Facebook,
+  Instagram,
+  Youtube,
+  Linkedin,
+  Twitter,
+  Share2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
 import { BusinessListingData } from "../data/businessesData";
@@ -283,6 +290,26 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
   const [bookingButtonLabel, setBookingButtonLabel] = useState("");
   const [ownerName, setOwnerName] = useState("");
 
+  // SEO & Visibility Fields
+  const [seoTitle, setSeoTitle] = useState("");
+  const [seoDescription, setSeoDescription] = useState("");
+  const [establishedYear, setEstablishedYear] = useState("");
+  const [businessType, setBusinessType] = useState("Service Provider");
+  const [status, setStatus] = useState<"published" | "draft" | "suspended" | "deleted">("published");
+  const [isIndexable, setIsIndexable] = useState(true);
+
+  // Social Media Links & Visibility Toggles
+  const [facebookUrl, setFacebookUrl] = useState("");
+  const [showFacebook, setShowFacebook] = useState(true);
+  const [instagramUrl, setInstagramUrl] = useState("");
+  const [showInstagram, setShowInstagram] = useState(true);
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [showYouTube, setShowYouTube] = useState(true);
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [showLinkedIn, setShowLinkedIn] = useState(true);
+  const [xUrl, setXUrl] = useState("");
+  const [showX, setShowX] = useState(true);
+
   // Subcategories matching active category
   const availableSubcategories = subcategoriesData[category] || [];
 
@@ -370,6 +397,22 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
     setSubCategoryLine(biz.subCategoryLine || "");
     setBookingButtonLabel(biz.bookingButtonLabel || "");
     setOwnerName(biz.ownerName || "");
+    setFacebookUrl(biz.facebookUrl || "");
+    setShowFacebook(biz.showFacebook !== false);
+    setInstagramUrl(biz.instagramUrl || "");
+    setShowInstagram(biz.showInstagram !== false);
+    setYoutubeUrl(biz.youtubeUrl || "");
+    setShowYouTube(biz.showYouTube !== false);
+    setLinkedinUrl(biz.linkedinUrl || "");
+    setShowLinkedIn(biz.showLinkedIn !== false);
+    setXUrl(biz.xUrl || "");
+    setShowX(biz.showX !== false);
+    setSeoTitle(biz.seoTitle || "");
+    setSeoDescription(biz.seoDescription || "");
+    setEstablishedYear(biz.establishedYear || "");
+    setBusinessType(biz.businessType || "Service Provider");
+    setStatus(biz.status || "published");
+    setIsIndexable(biz.isIndexable !== false);
   };
 
   // Load existing business details if in Edit Mode
@@ -563,6 +606,22 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
       pincode: pincode.trim(),
       password: password.trim() || undefined,
       ownerName: ownerName.trim() || undefined,
+      facebookUrl: facebookUrl.trim(),
+      showFacebook,
+      instagramUrl: instagramUrl.trim(),
+      showInstagram,
+      youtubeUrl: youtubeUrl.trim(),
+      showYouTube,
+      linkedinUrl: linkedinUrl.trim(),
+      showLinkedIn,
+      xUrl: xUrl.trim(),
+      showX,
+      seoTitle: seoTitle.trim() || undefined,
+      seoDescription: seoDescription.trim() || undefined,
+      establishedYear: establishedYear.trim() || undefined,
+      businessType: businessType.trim() || "Service Provider",
+      status,
+      isIndexable,
     };
 
     const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_user_token");
@@ -611,7 +670,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
           { id: "basic", label: "1. Basic Details", icon: Tag },
           { id: "contact", label: "2. Contact & Branches", icon: MapPin },
           { id: "timings", label: "3. Timings & Facilities", icon: Clock },
-          { id: "media", label: "4. Media & Videos", icon: ImageIcon },
+          { id: "media", label: "4. Media & Photos", icon: ImageIcon },
           { id: "extra", label: "5. Officers & Options", icon: User },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -973,8 +1032,94 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                   className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                 />
               </div>
-            </div>
 
+              {/* SEO & Public Profile Section Header */}
+              <div className="md:col-span-2 pt-4 border-t border-slate-200 dark:border-slate-800">
+                <h4 className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 mb-3">
+                  <Globe className="h-4 w-4" /> SEO & Google Search Indexing Settings
+                </h4>
+              </div>
+
+              {/* Business Type / Nature */}
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-wider">
+                  Business Nature / Type (Justdial Style)
+                </label>
+                <select
+                  value={businessType}
+                  onChange={(e) => setBusinessType(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
+                >
+                  <option value="Service Provider">Service Provider</option>
+                  <option value="Store / Retailer">Store / Retailer</option>
+                  <option value="Wholesaler / Distributor">Wholesaler / Distributor</option>
+                  <option value="Manufacturer">Manufacturer</option>
+                  <option value="Restaurant / Cafe">Restaurant / Cafe</option>
+                  <option value="Doctor / Clinic / Hospital">Doctor / Clinic / Hospital</option>
+                  <option value="Education / Coaching / Institute">Education / Coaching / Institute</option>
+                  <option value="Hotel / Resort / Stay">Hotel / Resort / Stay</option>
+                  <option value="LocalBusiness">General Local Business</option>
+                </select>
+              </div>
+
+              {/* Year Established / Experience */}
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-wider">
+                  Experience / Established (e.g. 12 Years in Business / 2012)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 12 Years in Business or Estd. 2012"
+                  value={establishedYear}
+                  onChange={(e) => setEstablishedYear(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                />
+              </div>
+
+              {/* Status & Indexing */}
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-wider">
+                  Publication Status
+                </label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as any)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
+                >
+                  <option value="published">Published (Public & Indexable)</option>
+                  <option value="draft">Draft (Private / Hidden)</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+              </div>
+
+              {/* SEO Title Override */}
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-xs uppercase tracking-wider">
+                  Custom SEO Title (Optional — auto-generated if left empty)
+                </label>
+                <input
+                  type="text"
+                  placeholder={`e.g. ${name || 'Business'} in ${cityTown || 'Indore'} - Best Services | FindMyPoint`}
+                  value={seoTitle}
+                  onChange={(e) => setSeoTitle(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                />
+              </div>
+
+              {/* SEO Meta Description */}
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-xs uppercase tracking-wider">
+                  Custom SEO Description (Optional — auto-generated if left empty)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder={`e.g. Contact ${name || 'Business'} in ${cityTown || 'Indore'}. View services, reviews, address, phone number and photos on FindMyPoint.`}
+                  value={seoDescription}
+                  onChange={(e) => setSeoDescription(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
+                />
+              </div>
+            </div>
 
           </div>
         )}
@@ -1160,7 +1305,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
         {activeTab === "media" && (
           <div className="space-y-6">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
-              <ImageIcon className="h-5 w-5 text-indigo-500" /> Business Photos & Video Embeds
+              <ImageIcon className="h-5 w-5 text-indigo-500" /> Business Photos
             </h3>
 
             {/* Business front photo */}
@@ -1300,20 +1445,6 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                 )}
               </div>
             </div>
-
-            {/* Business vido link */}
-            <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <label className="text-xs uppercase tracking-wider flex items-center gap-1.5">
-                <Video className="h-4 w-4 text-rose-500" /> Business Video Link (YouTube Share / Embed Link)
-              </label>
-              <input
-                type="url"
-                placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-                value={videoLink}
-                onChange={(e) => setVideoLink(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition-all"
-              />
-            </div>
           </div>
         )}
 
@@ -1392,7 +1523,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
 
             {/* Booking Button Custom Label */}
             <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <label className="text-xs uppercase tracking-wider">
+              <label className="text-xs uppercase tracking-wider font-bold text-slate-700 dark:text-slate-300">
                 Booking Button Name (e.g. Book Table, Book Appointment, Order Now)
               </label>
               <input
@@ -1400,8 +1531,169 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                 placeholder="Defaults to Book Now / Book Table / Book Room based on category"
                 value={bookingButtonLabel}
                 onChange={(e) => setBookingButtonLabel(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition-all"
+                className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition-all font-semibold"
               />
+            </div>
+
+            {/* Social Media Links & Visibility Controls */}
+            <div className="space-y-4 pt-6 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Share2 className="h-4.5 w-4.5 text-indigo-500" /> Social Media Links & Visibility
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+                    Add social profile links and toggle visibility on your public business profile.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 mt-3">
+                {/* Facebook */}
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-[140px]">
+                    <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                      <Facebook className="h-4.5 w-4.5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Facebook</span>
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="https://facebook.com/your-page"
+                    value={facebookUrl}
+                    onChange={(e) => setFacebookUrl(e.target.value)}
+                    className="flex-1 w-full bg-white dark:bg-slate-900 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition font-semibold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowFacebook(!showFacebook)}
+                    className={`px-3.5 py-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer shrink-0 ${
+                      showFacebook
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                        : "bg-slate-200 dark:bg-slate-800 text-slate-500 border border-transparent"
+                    }`}
+                  >
+                    {showFacebook ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                    <span>{showFacebook ? "Visible" : "Hidden"}</span>
+                  </button>
+                </div>
+
+                {/* Instagram */}
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-[140px]">
+                    <div className="p-2 rounded-xl bg-pink-500/10 text-pink-600 dark:text-pink-400">
+                      <Instagram className="h-4.5 w-4.5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Instagram</span>
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="https://instagram.com/your-handle"
+                    value={instagramUrl}
+                    onChange={(e) => setInstagramUrl(e.target.value)}
+                    className="flex-1 w-full bg-white dark:bg-slate-900 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition font-semibold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowInstagram(!showInstagram)}
+                    className={`px-3.5 py-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer shrink-0 ${
+                      showInstagram
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                        : "bg-slate-200 dark:bg-slate-800 text-slate-500 border border-transparent"
+                    }`}
+                  >
+                    {showInstagram ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                    <span>{showInstagram ? "Visible" : "Hidden"}</span>
+                  </button>
+                </div>
+
+                {/* YouTube */}
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-[140px]">
+                    <div className="p-2 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                      <Youtube className="h-4.5 w-4.5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">YouTube</span>
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="https://youtube.com/@your-channel"
+                    value={youtubeUrl}
+                    onChange={(e) => setYoutubeUrl(e.target.value)}
+                    className="flex-1 w-full bg-white dark:bg-slate-900 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition font-semibold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowYouTube(!showYouTube)}
+                    className={`px-3.5 py-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer shrink-0 ${
+                      showYouTube
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                        : "bg-slate-200 dark:bg-slate-800 text-slate-500 border border-transparent"
+                    }`}
+                  >
+                    {showYouTube ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                    <span>{showYouTube ? "Visible" : "Hidden"}</span>
+                  </button>
+                </div>
+
+                {/* LinkedIn */}
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-[140px]">
+                    <div className="p-2 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                      <Linkedin className="h-4.5 w-4.5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">LinkedIn</span>
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="https://linkedin.com/company/your-company"
+                    value={linkedinUrl}
+                    onChange={(e) => setLinkedinUrl(e.target.value)}
+                    className="flex-1 w-full bg-white dark:bg-slate-900 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition font-semibold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLinkedIn(!showLinkedIn)}
+                    className={`px-3.5 py-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer shrink-0 ${
+                      showLinkedIn
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                        : "bg-slate-200 dark:bg-slate-800 text-slate-500 border border-transparent"
+                    }`}
+                  >
+                    {showLinkedIn ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                    <span>{showLinkedIn ? "Visible" : "Hidden"}</span>
+                  </button>
+                </div>
+
+                {/* X (Twitter) */}
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-[140px]">
+                    <div className="p-2 rounded-xl bg-slate-500/10 text-slate-900 dark:text-slate-100">
+                      <Twitter className="h-4.5 w-4.5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">X (Twitter)</span>
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="https://x.com/your-handle"
+                    value={xUrl}
+                    onChange={(e) => setXUrl(e.target.value)}
+                    className="flex-1 w-full bg-white dark:bg-slate-900 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition font-semibold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowX(!showX)}
+                    className={`px-3.5 py-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer shrink-0 ${
+                      showX
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                        : "bg-slate-200 dark:bg-slate-800 text-slate-500 border border-transparent"
+                    }`}
+                  >
+                    {showX ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                    <span>{showX ? "Visible" : "Hidden"}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

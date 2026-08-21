@@ -1,4 +1,5 @@
 const Booking = require('../models/Booking');
+const Transaction = require('../models/Transaction');
 
 // @desc    Get all bookings (All for Admin, user-specific for regular users)
 // @route   GET /api/bookings
@@ -41,6 +42,7 @@ const createBooking = async (req, res) => {
   try {
     // Generate a collision-resistant ID BKxxxxxx if not passed in req.body
     const bookingId = id || `BK${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
+    const isCOD = paymentMethod === 'COD';
 
     const booking = await Booking.create({
       id: bookingId,
@@ -60,10 +62,10 @@ const createBooking = async (req, res) => {
       formData: formData && typeof formData === 'object' ? formData : {},
       bookingType: bookingType || 'service',
       paymentId: paymentId || '',
-      paymentMethod: paymentMethod || '',
-      paymentStatus: paymentStatus || (paymentId ? 'paid' : 'pending'),
+      paymentMethod: paymentMethod || (isCOD ? 'COD' : 'Online'),
+      paymentStatus: paymentStatus || (isCOD ? 'pending' : (paymentId ? 'paid' : 'pending')),
       userId: req.user._id,
-      status: paymentId ? 'confirmed' : 'pending'
+      status: isCOD ? 'pending' : (paymentId ? 'confirmed' : 'pending')
     });
 
     res.status(201).json({ success: true, data: booking });
@@ -83,15 +85,18 @@ const updateBookingStatus = async (req, res) => {
   }
 
   try {
-    const booking = await Booking.findOne({ id: req.params.id });
+    let booking = await Booking.findOne({ id: req.params.id });
+    if (!booking && req.params.id && req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      booking = await Booking.findById(req.params.id);
+    }
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
     // Check authorization (Must be booking owner, Admin, or the Business itself)
-    const isAuthorizedOwner = booking.userId.toString() === req.user._id.toString();
-    const isAuthorizedBusiness = req.user.isBusiness && booking.businessId === req.user.businessId;
+    const isAuthorizedOwner = (booking.userId && req.user && req.user._id) ? booking.userId.toString() === req.user._id.toString() : false;
+    const isAuthorizedBusiness = req.user && req.user.isBusiness && booking.businessId === req.user.businessId;
 
     if (!req.user.isAdmin && !isAuthorizedOwner && !isAuthorizedBusiness) {
       return res.status(403).json({ success: false, message: 'Not authorized to change this booking status' });
@@ -126,19 +131,95 @@ const updateBookingStatus = async (req, res) => {
   }
 };
 
-// @desc    Refund a cancelled booking's payment
-// @route   PUT /api/bookings/:id/refund
+// @desc    Collect payment for a COD booking and settle commission/transaction
+// @route   PUT /api/bookings/:id/collect-payment
 // @access  Private
-const refundBooking = async (req, res) => {
+const collectPayment = async (req, res) => {
   try {
-    const booking = await Booking.findOne({ id: req.params.id });
+    let booking = await Booking.findOne({ id: req.params.id });
+    if (!booking && req.params.id && req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      booking = await Booking.findById(req.params.id);
+    }
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    const isAuthorizedOwner = booking.userId.toString() === req.user._id.toString();
-    const isAuthorizedBusiness = req.user.isBusiness && booking.businessId === req.user.businessId;
+    const isAuthorizedOwner = (booking.userId && req.user && req.user._id) ? booking.userId.toString() === req.user._id.toString() : false;
+    const isAuthorizedBusiness = req.user && req.user.isBusiness && booking.businessId === req.user.businessId;
+
+    if (!req.user.isAdmin && !isAuthorizedOwner && !isAuthorizedBusiness) {
+      return res.status(403).json({ success: false, message: 'Not authorized to collect payment for this booking' });
+    }
+
+    // Mark booking payment status as paid
+    booking.paymentStatus = 'paid';
+    if (booking.status === 'pending') {
+      booking.status = 'confirmed';
+    }
+    await booking.save();
+
+    // Create / settle transaction record in DB
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const rand = Math.floor(100 + Math.random() * 900);
+    const txnId = `TXN-${today}-${rand}`;
+
+    const timestamp = new Date().toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    }) + `, ` + new Date().toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    let existingTxn = await Transaction.findOne({ bookingId: booking.id });
+    if (existingTxn) {
+      existingTxn.status = 'Completed';
+      existingTxn.paymentMethod = booking.paymentMethod || 'COD';
+      await existingTxn.save();
+    } else {
+      await Transaction.create({
+        id: txnId,
+        timestamp,
+        description: `COD Payment Collected - ${booking.service || booking.businessName}`,
+        businessName: booking.businessName,
+        businessId: booking.businessId,
+        bookingId: booking.id,
+        customerName: booking.customerName || 'Customer',
+        details: `Cash payment collected for ${booking.service || booking.businessName}`,
+        amount: booking.amount,
+        type: 'credit',
+        paymentMethod: booking.paymentMethod || 'COD',
+        status: 'Completed',
+        userId: booking.userId || (req.user ? req.user._id : undefined)
+      });
+    }
+
+    res.status(200).json({ success: true, data: booking });
+  } catch (error) {
+    console.error("collectPayment error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Refund a cancelled booking's payment
+// @route   PUT /api/bookings/:id/refund
+// @access  Private
+const refundBooking = async (req, res) => {
+  try {
+    let booking = await Booking.findOne({ id: req.params.id });
+    if (!booking && req.params.id && req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      booking = await Booking.findById(req.params.id);
+    }
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const isAuthorizedOwner = (booking.userId && req.user && req.user._id) ? booking.userId.toString() === req.user._id.toString() : false;
+    const isAuthorizedBusiness = req.user && req.user.isBusiness && booking.businessId === req.user.businessId;
 
     if (!req.user.isAdmin && !isAuthorizedOwner && !isAuthorizedBusiness) {
       return res.status(403).json({ success: false, message: 'Not authorized to refund this booking' });
@@ -166,15 +247,18 @@ const refundBooking = async (req, res) => {
 // @access  Private
 const deleteBooking = async (req, res) => {
   try {
-    const booking = await Booking.findOne({ id: req.params.id });
+    let booking = await Booking.findOne({ id: req.params.id });
+    if (!booking && req.params.id && req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      booking = await Booking.findById(req.params.id);
+    }
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
     // Must be admin, booking owner, or the Business itself
-    const isAuthorizedOwner = booking.userId.toString() === req.user._id.toString();
-    const isAuthorizedBusiness = req.user.isBusiness && booking.businessId === req.user.businessId;
+    const isAuthorizedOwner = (booking.userId && req.user && req.user._id) ? booking.userId.toString() === req.user._id.toString() : false;
+    const isAuthorizedBusiness = req.user && req.user.isBusiness && booking.businessId === req.user.businessId;
 
     if (!req.user.isAdmin && !isAuthorizedOwner && !isAuthorizedBusiness) {
       return res.status(403).json({ success: false, message: 'Not authorized to delete this booking' });
@@ -191,6 +275,7 @@ module.exports = {
   getBookings,
   createBooking,
   updateBookingStatus,
+  collectPayment,
   refundBooking,
   deleteBooking
 };

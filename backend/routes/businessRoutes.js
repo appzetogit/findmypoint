@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getBusinesses,
+  getPublicBusinessByPath,
   getBusinessById,
   createBusiness,
   updateBusiness,
@@ -21,6 +22,7 @@ const { protect } = require('../middleware/authMiddleware');
 // Public routes
 router.get('/', getBusinesses);
 router.post('/login', loginBusiness);
+router.get('/public/:city/:locality/:slug', getPublicBusinessByPath);
 router.get('/:id', getBusinessById);
 router.post('/:id/reviews', addReview);
 router.post('/:id/enquire', submitEnquiry);

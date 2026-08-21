@@ -305,14 +305,14 @@ export default function SignInPage({ onBack, onSuccess, isMandatory }: SignInPag
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-0 md:p-6 overflow-y-auto animate-in fade-in duration-300">
       <div className="relative w-full h-full md:h-auto md:max-h-[90vh] md:max-w-[420px] md:rounded-[36px] md:shadow-[0_20px_50px_rgba(0,0,0,0.15)] md:border md:border-slate-100/80 flex flex-col bg-white overflow-hidden animate-in zoom-in-95 duration-300">
 
-        {/* Close button - visible only on desktop and when not mandatory */}
+        {/* Close button - visible when not mandatory */}
         {!isMandatory && (
           <button
             onClick={onBack}
-            className="hidden md:flex absolute top-4 right-4 z-30 p-1.5 rounded-full bg-black/10 hover:bg-black/20 text-white transition cursor-pointer"
+            className="flex absolute top-4 right-4 z-30 p-2 rounded-full bg-black/20 hover:bg-black/30 active:scale-95 text-white transition cursor-pointer shadow-sm"
             aria-label="Close"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5 md:h-4 md:w-4" />
           </button>
         )}
 

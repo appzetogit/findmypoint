@@ -81,8 +81,40 @@ const BusinessSchema = new mongoose.Schema({
   password: { type: String },
   clientPassword: { type: String }, // Plain text — admin reference only
   ownerName: { type: String },
-  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  facebookUrl: { type: String, default: '' },
+  showFacebook: { type: Boolean, default: true },
+  instagramUrl: { type: String, default: '' },
+  showInstagram: { type: Boolean, default: true },
+  youtubeUrl: { type: String, default: '' },
+  showYouTube: { type: Boolean, default: true },
+  linkedinUrl: { type: String, default: '' },
+  showLinkedIn: { type: Boolean, default: true },
+  xUrl: { type: String, default: '' },
+  showX: { type: Boolean, default: true },
+  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  // SEO & Slug System
+  slug: { type: String, index: true },
+  citySlug: { type: String, index: true },
+  localitySlug: { type: String, index: true },
+  canonicalUrl: { type: String, index: true },
+  previousSlugs: [{
+    citySlug: { type: String },
+    localitySlug: { type: String },
+    slug: { type: String },
+    fullPath: { type: String },
+    changedAt: { type: Date, default: Date.now }
+  }],
+  status: { type: String, enum: ['published', 'draft', 'suspended', 'deleted'], default: 'published', index: true },
+  isIndexable: { type: Boolean, default: true, index: true },
+  seoTitle: { type: String, default: '' },
+  seoDescription: { type: String, default: '' },
+  seoKeywords: [{ type: String }],
+  establishedYear: { type: String, default: '' },
+  businessType: { type: String, default: 'LocalBusiness' }
 }, { timestamps: true });
+
+BusinessSchema.index({ citySlug: 1, localitySlug: 1, slug: 1 });
+BusinessSchema.index({ status: 1, isIndexable: 1 });
 
 const bcrypt = require('bcryptjs');
 

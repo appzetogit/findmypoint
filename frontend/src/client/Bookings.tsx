@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   Calendar,
   Search,
-  Trash2,
   Clock,
   User,
   Phone,
@@ -11,7 +10,8 @@ import {
   Eye,
   X,
   CheckCircle,
-  XCircle
+  XCircle,
+  Wallet
 } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
 import { API_BASE_URL } from "../config";
@@ -25,6 +25,7 @@ interface Submission {
   timestamp: string;
   status?: string;
   paymentStatus?: string;
+  paymentMethod?: string;
   data: Record<string, any>;
 }
 
@@ -143,6 +144,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
               timestamp: sub.timestamp,
               status: bookingMatch ? bookingMatch.status : (match.status || "pending"),
               paymentStatus: bookingMatch ? bookingMatch.paymentStatus : "paid",
+              paymentMethod: bookingMatch ? bookingMatch.paymentMethod : (sub.paymentMethod || match.paymentMethod || "Online"),
               data: {
                 ...sub.data,
                 "Order Type": "Product Order"
@@ -159,6 +161,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
           timestamp: sub.timestamp,
           status: bookingMatch ? bookingMatch.status : "pending",
           paymentStatus: bookingMatch ? bookingMatch.paymentStatus : "pending",
+          paymentMethod: bookingMatch ? bookingMatch.paymentMethod : (sub.paymentMethod || (sub.data && sub.data.paymentMethod) || "Online"),
           data: sub.data
         });
       });
@@ -171,6 +174,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
           timestamp: order.timestamp,
           status: bookingMatch ? bookingMatch.status : (order.status || "pending"),
           paymentStatus: bookingMatch ? bookingMatch.paymentStatus : "paid",
+          paymentMethod: bookingMatch ? bookingMatch.paymentMethod : (order.paymentMethod || "Online"),
           data: {
             "Full Name": order.customerName,
             "Phone Number": order.customerPhone,
@@ -259,26 +263,54 @@ export default function Bookings({ clientListings }: BookingsProps) {
     return parseFloat((amount - (amount * commissionRate) / 100).toFixed(2));
   };
 
-  const getPaymentStatusBadge = (paymentStatus: string) => {
+  const handleCollectPayment = async (bookingId: string) => {
+    if (!window.confirm(`Confirm collection of cash payment for booking ${bookingId}? This will mark the payment as Paid and settle platform commission.`)) return;
+
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const token = localStorage.getItem("fmp_business_token") || localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_user_token");
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}/collect-payment`, {
+        method: "PUT",
+        headers
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Payment collected successfully! Commission has been settled.");
+        setSubmissions(prev => prev.map(s => s.id === bookingId ? { ...s, paymentStatus: "paid", status: "confirmed" } : s));
+        window.dispatchEvent(new Event("storage"));
+      } else {
+        alert("Failed to collect payment: " + (data.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("Collect payment failed:", err);
+      alert("An error occurred while collecting payment.");
+    }
+  };
+
+  const getPaymentStatusBadge = (paymentStatus: string, paymentMethod?: string) => {
     const ps = (paymentStatus || "pending").toLowerCase();
+    const pm = (paymentMethod || "").toUpperCase();
+    const isCOD = pm.includes("COD") || pm.includes("CASH");
     switch (ps) {
       case "paid":
       case "success":
         return (
           <span className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full text-[10px] font-bold">
-            Paid
+            <CheckCircle className="h-3 w-3" /> {isCOD ? "Paid (COD)" : "Paid (Online)"}
           </span>
         );
       case "pending":
         return (
           <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-955/20 text-amber-600 dark:text-amber-450 px-2 py-0.5 rounded-full text-[10px] font-bold">
-            Pending
+            <AlertCircle className="h-3 w-3" /> {isCOD ? "Pending (COD)" : "Pending (Online)"}
           </span>
         );
       case "failed":
         return (
           <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-455 px-2 py-0.5 rounded-full text-[10px] font-bold">
-            Failed
+            <XCircle className="h-3 w-3" /> Failed
           </span>
         );
       default:
@@ -556,6 +588,7 @@ export default function Bookings({ clientListings }: BookingsProps) {
                     <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] min-w-[110px]">Your Profit</th>
                     <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] text-center min-w-[130px]">Payment Status</th>
                     <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] text-center min-w-[130px]">Booking Status</th>
+                    <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] text-center min-w-[140px]">Payment Collect</th>
                     <th className="p-4 font-black uppercase tracking-wider text-slate-400 text-[10px] text-right">Actions</th>
                   </tr>
                 </thead>
@@ -620,12 +653,29 @@ export default function Bookings({ clientListings }: BookingsProps) {
 
                         {/* Payment Status */}
                         <td className="p-4 whitespace-nowrap text-center">
-                          {getPaymentStatusBadge(sub.paymentStatus || "pending")}
+                          {getPaymentStatusBadge(sub.paymentStatus || "pending", sub.paymentMethod)}
                         </td>
 
                         {/* Booking Status */}
                         <td className="p-4 whitespace-nowrap text-center">
                           {getBookingStatusBadge(sub.status || "pending")}
+                        </td>
+
+                        {/* Payment Collect */}
+                        <td className="p-4 whitespace-nowrap text-center">
+                          {(sub.paymentStatus || "").toLowerCase() === "pending" &&
+                           (sub.status || "").toLowerCase() !== "cancelled" ? (
+                            <button
+                              onClick={() => handleCollectPayment(sub.id)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 text-[11px] font-bold transition cursor-pointer shrink-0"
+                              title="Collect Cash Payment from Customer"
+                            >
+                              <Wallet className="h-3.5 w-3.5" />
+                              <span>Collect Payment</span>
+                            </button>
+                          ) : (
+                            <span className="text-slate-400 font-semibold">-</span>
+                          )}
                         </td>
 
                         {/* Actions */}
@@ -660,13 +710,6 @@ export default function Bookings({ clientListings }: BookingsProps) {
                                 <X className="h-4 w-4" />
                               </button>
                             )}
-                            <button
-                              onClick={() => handleDelete(sub.id)}
-                              className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition cursor-pointer"
-                              title="Delete booking record"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
                           </div>
                         </td>
                       </tr>

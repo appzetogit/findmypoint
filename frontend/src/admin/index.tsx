@@ -30,6 +30,8 @@ import {
   Briefcase,
   FileText,
   Star,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import Dashboard from "./Dashboard";
 import AdminEntryForm from "./AdminEntryForm";
@@ -58,6 +60,7 @@ import BusinessRequests from "./BusinessRequests";
 import ArticleManagement from "./ArticleManagement";
 import HeroSubcategoriesManagement from "./HeroSubcategoriesManagement";
 import PopularServicesManagement from "./PopularServicesManagement";
+import CategoryBannerManagement from "./CategoryBannerManagement";
 import logoImg from "../assets/logo.png";
 
 interface AdminShellProps {
@@ -79,6 +82,7 @@ export type AdminView =
   | "about"
   | "footer"
   | "banner_management"
+  | "category_banners"
   | "employee_management"
   | "privacy_policy"
   | "terms_conditions"
@@ -105,6 +109,7 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
   });
   const [emailInput, setEmailInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [loginError, setLoginError] = useState("");
@@ -408,13 +413,26 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
                 <Lock className="absolute left-3.5 top-3.5 h-4.5 w-4.5 text-slate-400 dark:text-slate-500" />
                 <input
                   id="adminPassword"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   placeholder="••••••••"
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm pl-11 pr-11 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none transition-colors cursor-pointer"
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4.5 w-4.5" />
+                  ) : (
+                    <Eye className="h-4.5 w-4.5" />
+                  )}
+                </button>
               </div>
             </div>
 
@@ -898,6 +916,23 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
                     />
                     <span>Business Wallet</span>
                   </button>
+
+                  <button
+                    onClick={() => handleViewChange("category_banners")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "category_banners"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "category_banners" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <Megaphone
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "category_banners" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>Banner Advertise</span>
+                  </button>
                 </nav>
               </>
             )}
@@ -1070,6 +1105,8 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
           {currentView === "business_requests" && <BusinessRequests />}
 
           {currentView === "business_wallets" && <AdminBusinessWallets />}
+
+          {currentView === "category_banners" && <CategoryBannerManagement />}
 
           {currentView === "profile_settings" && (
             <AdminProfileSettings

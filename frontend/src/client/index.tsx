@@ -13,7 +13,6 @@ import {
   HelpCircle,
   CreditCard,
   PlusCircle,
-  Image as ImageIcon,
   Wallet as WalletIcon
 } from "lucide-react";
 import logoImg from "../assets/logo.png";
@@ -30,7 +29,6 @@ import Reviews from "./Reviews";
 import FAQManagement from "./FAQManagement";
 import PaymentManagement from "./PaymentManagement";
 import AddProduct from "./AddProduct";
-import PostMedia from "./PostMedia";
 import Wallet from "./Wallet";
 
 interface ClientShellProps {
@@ -48,10 +46,8 @@ export type ClientView =
   | "add"
   | "edit"
   | "settings"
-  | "serviceform"
   | "addproduct"
   | "reviews"
-  | "postmedia"
   | "faq";
 
 interface ClientSession {
@@ -70,7 +66,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
   // View States — persisted to localStorage so refresh keeps same page
   const [currentView, setCurrentView] = useState<ClientView>(() => {
     const saved = localStorage.getItem("fmp_client_view");
-    const validViews: ClientView[] = ["overview","listings","bookings","wallet","payments","enquiries","add","edit","settings","serviceform","addproduct","reviews","postmedia","faq"];
+    const validViews: ClientView[] = ["overview","listings","bookings","wallet","payments","enquiries","add","edit","settings","addproduct","reviews","faq"];
     return (saved && validViews.includes(saved as ClientView)) ? (saved as ClientView) : "overview";
   });
   const [editingBusinessId, setEditingBusinessId] = useState<string | null>(null);
@@ -326,7 +322,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
 
   useEffect(() => {
     if (allBookingsDisabled) {
-      if (currentView === "bookings" || currentView === "payments" || currentView === "serviceform") {
+      if (currentView === "bookings" || currentView === "payments") {
         setCurrentView("overview");
       }
     }
@@ -483,24 +479,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
                 <span>Enquiries</span>
               </button>
 
-              {!allBookingsDisabled && (
-                <button
-                  onClick={() => { navigateTo("serviceform"); }}
-                  className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
-                    currentView === "serviceform"
-                      ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
-                      : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
-                  }`}
-                >
-                  {currentView === "serviceform" && (
-                    <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
-                  )}
-                  <ClipboardList
-                    className={`h-4.5 w-4.5 transition-colors ${currentView === "serviceform" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
-                  />
-                  <span>Service Form</span>
-                </button>
-              )}
+
 
               <button
                 onClick={() => { navigateTo("addproduct"); }}
@@ -536,22 +515,6 @@ export default function ClientShell({ onClose }: ClientShellProps) {
                 <span>Reviews & Ratings</span>
               </button>
 
-              <button
-                onClick={() => { navigateTo("postmedia"); }}
-                className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
-                  currentView === "postmedia"
-                    ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
-                    : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
-                }`}
-              >
-                {currentView === "postmedia" && (
-                  <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
-                )}
-                <ImageIcon
-                  className={`h-4.5 w-4.5 transition-colors ${currentView === "postmedia" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
-                />
-                <span>Post Media</span>
-              </button>
 
               <button
                 onClick={() => { navigateTo("faq"); }}
@@ -654,9 +617,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
             <Enquiries clientListings={clientListings} />
           )}
 
-          {currentView === "serviceform" && (
-            <ServiceForm clientListings={clientListings} />
-          )}
+
 
           {currentView === "addproduct" && (
             <AddProduct clientListings={clientListings} />
@@ -666,9 +627,6 @@ export default function ClientShell({ onClose }: ClientShellProps) {
             <Reviews clientListings={clientListings} />
           )}
 
-          {currentView === "postmedia" && (
-            <PostMedia clientListings={clientListings} />
-          )}
 
           {currentView === "faq" && (
             <FAQManagement clientListings={clientListings} />

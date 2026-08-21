@@ -1,17 +1,19 @@
 const Banner = require('../models/Banner');
 
-// @desc    Get all slides and cards (Public)
+// @desc    Get all slides, cards, and category banners (Public)
 // @route   GET /api/banners
 // @access  Public
 const getBanners = async (req, res) => {
   try {
     const slides = await Banner.find({ type: 'slide' }).sort({ order: 1 });
     const cards = await Banner.find({ type: 'card' }).sort({ order: 1 });
+    const categoryBanners = await Banner.find({ type: 'category' }).sort({ order: 1 });
 
     res.status(200).json({
       success: true,
       slides,
-      cards
+      cards,
+      categoryBanners
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -24,8 +26,8 @@ const getBanners = async (req, res) => {
 const saveBanners = async (req, res) => {
   const { type, banners } = req.body;
 
-  if (!type || !['slide', 'card'].includes(type) || !Array.isArray(banners)) {
-    return res.status(400).json({ success: false, message: 'Please provide type ("slide" or "card") and banners array.' });
+  if (!type || !['slide', 'card', 'category'].includes(type) || !Array.isArray(banners)) {
+    return res.status(400).json({ success: false, message: 'Please provide type ("slide", "card", or "category") and banners array.' });
   }
 
   try {
@@ -36,7 +38,7 @@ const saveBanners = async (req, res) => {
     const bannerDocs = banners.map((b, idx) => {
       const doc = {
         type,
-        title: b.title,
+        title: b.title || '',
         img: b.img || '',
         categoryName: b.categoryName || null,
         order: idx
@@ -45,10 +47,12 @@ const saveBanners = async (req, res) => {
       if (type === 'slide') {
         doc.tag = b.tag || '';
         doc.description = b.description || '';
-      } else {
+      } else if (type === 'card') {
         doc.subtitle = b.subtitle || '';
         doc.gradient = b.gradient || '';
         doc.themeColor = b.themeColor || '';
+      } else if (type === 'category') {
+        doc.subtitle = b.subtitle || '';
       }
 
       return doc;
@@ -61,7 +65,7 @@ const saveBanners = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `${type === 'slide' ? 'Slides' : 'Cards'} saved successfully.`,
+      message: `${type} banners saved successfully.`,
       banners: updated
     });
   } catch (error) {

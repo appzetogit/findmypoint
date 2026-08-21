@@ -9,6 +9,7 @@ import {
   Search,
   ChevronRight,
   Inbox,
+  LogIn,
 } from "lucide-react";
 import { API_BASE_URL } from "../config";
 
@@ -23,6 +24,11 @@ interface Booking {
   amount: number;
   location: string;
 }
+
+interface MobileBookingPageProps {
+  onSignInClick?: () => void;
+}
+
 const STATUS_CONFIG: any = {
   confirmed: {
     label: "Confirmed",
@@ -50,15 +56,25 @@ const STATUS_CONFIG: any = {
   },
 };
 
-export default function MobileBookingPage() {
+export default function MobileBookingPage({ onSignInClick }: MobileBookingPageProps) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [hasToken, setHasToken] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !!localStorage.getItem("fmp_user_token");
+    }
+    return false;
+  });
 
   const loadUserBookings = async () => {
     try {
       const userToken = localStorage.getItem("fmp_user_token");
-      if (!userToken) return;
+      if (!userToken) {
+        setHasToken(false);
+        return;
+      }
+      setHasToken(true);
       const res = await fetch(`${API_BASE_URL}/bookings`, {
         headers: {
           "Authorization": `Bearer ${userToken}`
@@ -140,8 +156,25 @@ export default function MobileBookingPage() {
       </div>
 
       {/* Booking List */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-0">
-        {filtered.length === 0 ? (
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-6">
+        {!hasToken ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center px-4">
+            <div className="w-16 h-16 rounded-3xl bg-primary/10 flex items-center justify-center mb-1">
+              <CalendarDays className="h-8 w-8 text-primary" />
+            </div>
+            <h2 className="text-base font-bold text-foreground">Sign In to View Bookings</h2>
+            <p className="text-xs text-muted-foreground max-w-xs">
+              Please sign in with your mobile number to view and manage your booked appointments and services.
+            </p>
+            <button
+              onClick={() => onSignInClick?.()}
+              className="mt-3 px-6 py-2.5 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold flex items-center gap-2 shadow-md transition cursor-pointer"
+            >
+              <LogIn className="h-4 w-4" />
+              <span>Sign In Now</span>
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
             <Inbox className="h-12 w-12 text-muted-foreground/40" />
             <p className="text-sm font-semibold text-muted-foreground">No bookings found</p>
@@ -149,7 +182,7 @@ export default function MobileBookingPage() {
           </div>
         ) : (
           filtered.map((b) => {
-            const cfg = STATUS_CONFIG[b.status];
+            const cfg = STATUS_CONFIG[b.status] || STATUS_CONFIG.pending;
             const isOpen = expanded === b.id;
             const formattedDate = new Date(b.date).toLocaleDateString("en-IN", {
               day: "numeric",

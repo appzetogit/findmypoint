@@ -77,6 +77,27 @@ export interface BusinessListingData {
   password?: string;
   clientPassword?: string; // Plain text — admin reference only
   ownerName?: string;
+  facebookUrl?: string;
+  showFacebook?: boolean;
+  instagramUrl?: string;
+  showInstagram?: boolean;
+  youtubeUrl?: string;
+  showYouTube?: boolean;
+  linkedinUrl?: string;
+  showLinkedIn?: boolean;
+  xUrl?: string;
+  showX?: boolean;
+  slug?: string;
+  citySlug?: string;
+  localitySlug?: string;
+  canonicalUrl?: string;
+  status?: 'published' | 'draft' | 'suspended' | 'deleted';
+  isIndexable?: boolean;
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string[];
+  establishedYear?: string;
+  businessType?: string;
 }
 
 export const businessesData: BusinessListingData[] = [];

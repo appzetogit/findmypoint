@@ -1,4 +1,4 @@
-import { useState, useEffect, useReducer, useMemo } from "react";
+import { useState, useEffect, useReducer, useMemo, useRef } from "react";
 
 const loadRazorpayScript = (): Promise<boolean> => {
   return new Promise((resolve) => {
@@ -14,6 +14,7 @@ const loadRazorpayScript = (): Promise<boolean> => {
   });
 };
 import {
+  Search,
   MapPin,
   Clock,
   ArrowLeft,
@@ -56,6 +57,8 @@ import Footer from "./Footer";
 import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
 import { useSEO } from "../hooks/useSEO";
 import { buildBusinessSchemas } from "../utils/seo";
+import NearbyBusinessesSection from "../components/map/NearbyBusinessesSection";
+import { getDirectionsUrl } from "../utils/googleMaps";
 
 function formatDateTimeDMY(d: Date): string {
   const day = String(d.getDate()).padStart(2, "0");
@@ -352,6 +355,35 @@ export default function BusinessDetailPage({
   ]);
 
   const [copiedToast, setCopiedToast] = useState(false);
+
+  // Header Search State
+  const [headerSearchQuery, setHeaderSearchQuery] = useState("");
+  const [headerSearchFocused, setHeaderSearchFocused] = useState(false);
+  const [globalBusinesses, setGlobalBusinesses] = useState<any[]>([]);
+  const searchDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch all businesses for global search suggestions
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/businesses`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.data)) {
+          setGlobalBusinesses(data.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Close search dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchDropdownRef.current && !searchDropdownRef.current.contains(event.target as Node)) {
+        setHeaderSearchFocused(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Lightbox / Fullscreen Image Viewer Modal State
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -1023,6 +1055,95 @@ export default function BusinessDetailPage({
     }
   }, [scrollToMenu, businessId]);
 
+  // Header Search Results computation
+  const searchResults = useMemo(() => {
+    const q = headerSearchQuery.trim().toLowerCase();
+    if (!q) return null;
+
+    // 1. In this business: Products / Catalog
+    const matchingProducts = (currentBiz.products || [])
+      .filter((p: any) =>
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        (p.desc && p.desc.toLowerCase().includes(q)) ||
+        (p.price && String(p.price).toLowerCase().includes(q))
+      )
+      .slice(0, 5);
+
+    // 2. In this business: Customer Reviews
+    const matchingReviews = (allReviews || [])
+      .filter((r: any) =>
+        (r.reviewText && r.reviewText.toLowerCase().includes(q)) ||
+        (r.userName && r.userName.toLowerCase().includes(q))
+      )
+      .slice(0, 3);
+
+    // 3. In this business: Page Sections
+    const sections = [
+      { name: "Products & Services Catalog", targetId: "menu-section", keywords: ["product", "service", "menu", "catalog", "dishes", "item", "order", "price", "buy"] },
+      { name: "Photos & Gallery", targetId: "gallery-section", keywords: ["photo", "photos", "gallery", "image", "images", "picture", "pictures"] },
+      { name: "Ratings & Customer Reviews", targetId: "reviews-section", keywords: ["review", "reviews", "rating", "ratings", "feedback", "star", "comment"] },
+      { name: "Facilities & Amenities", targetId: "facilities-section", keywords: ["facility", "facilities", "amenity", "amenities", "wifi", "ac", "parking"] },
+      { name: "Key Management & Officers", targetId: "officers-section", keywords: ["officer", "officers", "manager", "staff", "management", "owner"] },
+      { name: "Business Branches", targetId: "branches-section", keywords: ["branch", "branches", "outlet", "outlets"] },
+      { name: "Video Tour & Promo", targetId: "video-section", keywords: ["video", "tour", "promo", "clip", "youtube"] },
+      { name: "Contact & Location", targetId: "contact-section", keywords: ["contact", "phone", "mobile", "address", "call", "whatsapp", "location", "timing", "hours"] },
+      { name: "Nearby Businesses", targetId: "nearby-section", keywords: ["near", "nearby", "similar", "other"] }
+    ];
+
+    const matchingSections = sections.filter((s) =>
+      s.name.toLowerCase().includes(q) || s.keywords.some((k) => k.includes(q) || q.includes(k))
+    );
+
+    // 4. Other businesses across platform
+    const matchingOtherBusinesses = globalBusinesses
+      .filter((b) =>
+        b.id !== currentBiz.id && (
+          (b.name && b.name.toLowerCase().includes(q)) ||
+          (b.category && b.category.toLowerCase().includes(q)) ||
+          (b.location && b.location.toLowerCase().includes(q))
+        )
+      )
+      .slice(0, 4);
+
+    return {
+      matchingProducts,
+      matchingReviews,
+      matchingSections,
+      matchingOtherBusinesses
+    };
+  }, [headerSearchQuery, currentBiz, allReviews, globalBusinesses]);
+
+  const scrollToSection = (sectionId: string, searchVal?: string) => {
+    if (searchVal !== undefined) {
+      setUiState((prev) => ({ ...prev, productSearch: searchVal }));
+    }
+    setHeaderSearchFocused(false);
+    setTimeout(() => {
+      const el = document.getElementById(sectionId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 50);
+  };
+
+  const handleHeaderSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = headerSearchQuery.trim();
+    if (!q) return;
+
+    if (searchResults?.matchingProducts && searchResults.matchingProducts.length > 0) {
+      scrollToSection("menu-section", q);
+    } else if (searchResults?.matchingSections && searchResults.matchingSections.length > 0) {
+      scrollToSection(searchResults.matchingSections[0].targetId);
+    } else if (searchResults?.matchingOtherBusinesses && searchResults.matchingOtherBusinesses.length > 0 && onBusinessSelect) {
+      onBusinessSelect(searchResults.matchingOtherBusinesses[0].id);
+      setHeaderSearchQuery("");
+      setHeaderSearchFocused(false);
+    } else {
+      scrollToSection("menu-section", q);
+    }
+  };
+
   const handleEnquirySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!enquiryForm.name || !enquiryForm.mobile) {
@@ -1140,12 +1261,180 @@ export default function BusinessDetailPage({
             />
           </a>
 
-          <div className="hidden md:flex ml-auto flex-1 max-w-md items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 shadow-[var(--shadow-card)]">
-            <input
-              type="text"
-              placeholder={`Search in ${currentBiz.name}...`}
-              className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-            />
+          {/* Interactive Header Search Bar with Live Suggestions Dropdown */}
+          <div ref={searchDropdownRef} className="relative hidden md:flex ml-auto flex-1 max-w-md">
+            <form
+              onSubmit={handleHeaderSearchSubmit}
+              className="w-full flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 shadow-[var(--shadow-card)] focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all"
+            >
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <input
+                type="text"
+                placeholder={`Search in ${currentBiz.name || "business"}...`}
+                value={headerSearchQuery}
+                onChange={(e) => {
+                  setHeaderSearchQuery(e.target.value);
+                  setHeaderSearchFocused(true);
+                }}
+                onFocus={() => setHeaderSearchFocused(true)}
+                className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground text-foreground font-medium"
+              />
+              {headerSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHeaderSearchQuery("");
+                    setUiState((prev) => ({ ...prev, productSearch: "" }));
+                  }}
+                  className="text-muted-foreground hover:text-foreground cursor-pointer p-0.5"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </form>
+
+            {/* Live Search Suggestions Dropdown */}
+            {headerSearchFocused && headerSearchQuery.trim().length > 0 && searchResults && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-50 animate-fade-in-up max-h-[420px] overflow-y-auto text-left">
+                {/* 1. In this business: Products / Services */}
+                {searchResults.matchingProducts.length > 0 && (
+                  <div className="p-3 border-b border-border/40">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-primary mb-2 flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" />
+                      In {currentBiz.name} (Products / Services)
+                    </div>
+                    <div className="space-y-1">
+                      {searchResults.matchingProducts.map((prod: any, idx: number) => (
+                        <div
+                          key={idx}
+                          onClick={() => scrollToSection("menu-section", prod.name)}
+                          className="flex items-center justify-between p-2 rounded-xl hover:bg-secondary/70 transition-colors cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {prod.img && (
+                              <img
+                                src={prod.img}
+                                alt={prod.name}
+                                className="h-8 w-8 rounded-lg object-cover bg-secondary shrink-0"
+                              />
+                            )}
+                            <div className="min-w-0">
+                              <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors block truncate">
+                                {prod.name}
+                              </span>
+                              {prod.desc && (
+                                <span className="text-[10px] text-muted-foreground block truncate">
+                                  {prod.desc}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {prod.price && (
+                            <span className="text-[11px] font-bold text-emerald-600 shrink-0 ml-2">
+                              {prod.price}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. In this business: Page Sections Jump */}
+                {searchResults.matchingSections.length > 0 && (
+                  <div className="p-3 border-b border-border/40">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
+                      <Compass className="h-3 w-3" />
+                      Jump to Section in {currentBiz.name}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {searchResults.matchingSections.map((sec, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => scrollToSection(sec.targetId)}
+                          className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
+                        >
+                          {sec.name} ➔
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. In this business: Reviews */}
+                {searchResults.matchingReviews.length > 0 && (
+                  <div className="p-3 border-b border-border/40">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-amber-500 mb-2 flex items-center gap-1">
+                      <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+                      Matching Reviews
+                    </div>
+                    <div className="space-y-1">
+                      {searchResults.matchingReviews.map((rev: any, idx: number) => (
+                        <div
+                          key={idx}
+                          onClick={() => scrollToSection("reviews-section")}
+                          className="p-2 rounded-xl hover:bg-secondary/70 transition-colors cursor-pointer text-xs"
+                        >
+                          <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground mb-0.5">
+                            <span>{rev.userName || "Verified User"}</span>
+                            <span className="text-amber-500">★ {rev.rating}/5</span>
+                          </div>
+                          <p className="text-xs text-foreground line-clamp-1 italic">
+                            "{rev.reviewText}"
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Other businesses */}
+                {searchResults.matchingOtherBusinesses.length > 0 && (
+                  <div className="p-3">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      Other Businesses on FindMyPoint
+                    </div>
+                    <div className="space-y-1">
+                      {searchResults.matchingOtherBusinesses.map((b: any) => (
+                        <div
+                          key={b.id || b._id}
+                          onClick={() => {
+                            if (onBusinessSelect) {
+                              onBusinessSelect(b.id || b._id);
+                            }
+                            setHeaderSearchQuery("");
+                            setHeaderSearchFocused(false);
+                          }}
+                          className="flex items-center justify-between p-2 rounded-xl hover:bg-secondary/70 transition-colors cursor-pointer group"
+                        >
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors block truncate">
+                              {b.name}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground block truncate">
+                              {b.category} • {b.location || b.cityTown}
+                            </span>
+                          </div>
+                          <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {searchResults.matchingProducts.length === 0 &&
+                  searchResults.matchingSections.length === 0 &&
+                  searchResults.matchingReviews.length === 0 &&
+                  searchResults.matchingOtherBusinesses.length === 0 && (
+                    <div className="p-6 text-center text-xs text-muted-foreground italic">
+                      No matching items found in {currentBiz.name} or other businesses.
+                    </div>
+                  )}
+              </div>
+            )}
           </div>
 
           <div className="hidden md:flex items-center gap-2.5 ml-auto md:ml-0 shrink-0">
@@ -1373,9 +1662,21 @@ export default function BusinessDetailPage({
             <h1 className="font-serif text-3xl sm:text-4xl text-slate-900 dark:text-white font-black tracking-tight leading-none">
               {currentBiz.name}
             </h1>
-            <p className="text-muted-foreground text-sm font-semibold mt-2 flex items-center gap-1">
-              <MapPin className="h-4 w-4 text-rose-500" /> {currentBiz.address}
-            </p>
+            <a
+              href={getDirectionsUrl({
+                lat: currentBiz.latitude,
+                lng: currentBiz.longitude,
+                name: currentBiz.name,
+                address: currentBiz.address,
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-primary transition-colors text-sm font-semibold mt-2 inline-flex items-center gap-1.5 cursor-pointer group"
+              title="View on Google Maps"
+            >
+              <MapPin className="h-4 w-4 text-rose-500 group-hover:scale-110 transition-transform shrink-0" />
+              <span className="group-hover:underline">{currentBiz.address}</span>
+            </a>
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
               <span>{currentBiz.location || currentBiz.cityTown || "Indore"}</span>
               <span>•</span>
@@ -1500,11 +1801,16 @@ export default function BusinessDetailPage({
 
               {/* Direction Button */}
               <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(currentBiz.name + ", " + currentBiz.address)}`}
+                href={getDirectionsUrl({
+                  lat: currentBiz.latitude,
+                  lng: currentBiz.longitude,
+                  name: currentBiz.name,
+                  address: currentBiz.address,
+                })}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-border bg-card hover:bg-secondary transition shadow-sm text-muted-foreground hover:text-primary cursor-pointer"
-                title="Directions"
+                className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-border bg-card hover:bg-secondary transition shadow-sm text-muted-foreground hover:text-primary cursor-pointer active:scale-95"
+                title="Get Directions on Google Maps"
               >
                 <Compass className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 text-blue-600 dark:text-blue-400" />
               </a>
@@ -1540,7 +1846,7 @@ export default function BusinessDetailPage({
 
             {/* Video Tour Section if present */}
             {currentBiz.videoLink && (
-              <div className="flex flex-col">
+              <div id="video-section" className="flex flex-col scroll-mt-28">
                 <h3 className="text-lg font-black text-slate-900 dark:text-white mb-4 uppercase tracking-wider text-left border-b border-border/40 pb-2 flex items-center gap-2">
                   <Video className="h-5 w-5 text-rose-500" /> Video Tour & Promo
                 </h3>
@@ -1560,178 +1866,6 @@ export default function BusinessDetailPage({
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                   ></iframe>
-                </div>
-              </div>
-            )}
-
-            {/* Business Officers if present */}
-            {currentBiz.officers && currentBiz.officers.length > 0 && (
-              <div className="flex flex-col">
-                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-4 uppercase tracking-wider text-left border-b border-border/40 pb-2 flex items-center gap-2">
-                  <User className="h-5 w-5 text-indigo-500" /> Key Management & Officers
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {currentBiz.officers.map((off, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-3.5 bg-transparent sm:bg-card border-none sm:border sm:border-border p-2 sm:p-3.5 rounded-none sm:rounded-2xl shadow-none sm:shadow-sm"
-                    >
-                      <div className="h-10 w-10 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-black text-xs uppercase flex items-center justify-center border border-indigo-100 dark:border-indigo-900 shrink-0">
-                        {off.name.charAt(0)}
-                      </div>
-                      <div className="text-left min-w-0">
-                        <span className="block font-bold text-sm text-slate-900 dark:text-white truncate">
-                          {off.name}
-                        </span>
-                        <span className="block text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-wider mt-0.5">
-                          {off.designation}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Business Branches if present */}
-            {currentBiz.branches && currentBiz.branches.length > 0 && (
-              <div className="flex flex-col">
-                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-4 uppercase tracking-wider text-left border-b border-border/40 pb-2 flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-rose-500" /> Business Branches
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {currentBiz.branches.map((branch, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-start gap-2.5 bg-transparent sm:bg-secondary/25 border-none sm:border sm:border-border/60 p-2 sm:p-3.5 rounded-none sm:rounded-2xl"
-                    >
-                      <span className="text-rose-500 mt-0.5 text-sm">📍</span>
-                      <div className="text-left">
-                        <span className="block text-xs font-bold text-slate-900 dark:text-white">
-                          Branch #{idx + 1}
-                        </span>
-                        <p className="text-xs text-muted-foreground mt-0.5 font-semibold">
-                          {branch}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Business Facilities if present */}
-            {currentBiz.facilities && currentBiz.facilities.length > 0 && (
-              <div className="flex flex-col">
-                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-4 uppercase tracking-wider text-left border-b border-border/40 pb-2 flex items-center gap-2">
-                  <Check className="h-5 w-5 text-emerald-500" /> Facilities & Amenities
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {currentBiz.facilities.map((fac, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-905 px-3.5 py-1.5 rounded-xl shadow-sm"
-                    >
-                      <span className="text-emerald-500 text-xs font-black">✓</span> {fac}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Photos Section */}
-            {validImages.length > 0 && (
-              <div className="flex flex-col">
-                <div className="flex items-center justify-between border-b border-border/40 pb-2 mb-3">
-                  <h3 className="text-lg font-black text-foreground uppercase tracking-wider text-left flex items-center gap-2">
-                    <ImageIcon className="h-5 w-5 text-indigo-500" /> Photos & Gallery ({validImages.length})
-                  </h3>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
-                  {validImages.map((img, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => setLightboxIndex(idx)}
-                      className="aspect-[4/3] rounded-2xl overflow-hidden border border-border shadow-sm bg-secondary group relative cursor-pointer"
-                    >
-                      <img
-                        src={img}
-                        alt={`${currentBiz.name} gallery ${idx + 1}`}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <span className="bg-white/90 text-slate-900 text-xs font-bold px-3 py-1.5 rounded-xl shadow-md flex items-center gap-1">
-                          <Maximize2 className="h-3.5 w-3.5" /> View
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Social Media & Official Profiles Section */}
-            {hasAnySocial && (
-              <div className="flex flex-col bg-transparent sm:bg-card border-none sm:border sm:border-border/60 p-2 sm:p-5 rounded-none sm:rounded-2xl shadow-none sm:shadow-sm mt-4">
-                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-3 uppercase tracking-wider text-left border-b border-border/40 pb-2 flex items-center gap-2">
-                  <Share2 className="h-5 w-5 text-indigo-500" /> Connect & Follow Us
-                </h3>
-                <div className="flex flex-wrap items-center gap-3 pt-1">
-                  {isSocialVisible(currentBiz.facebookUrl, currentBiz.showFacebook) && (
-                    <a
-                      href={currentBiz.facebookUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-blue-500/10 hover:bg-blue-600 text-blue-600 hover:text-white dark:text-blue-400 transition-all cursor-pointer shadow-sm border border-blue-500/20 active:scale-95"
-                      title="Facebook"
-                    >
-                      <Facebook className="h-5 w-5" />
-                    </a>
-                  )}
-                  {isSocialVisible(currentBiz.instagramUrl, currentBiz.showInstagram) && (
-                    <a
-                      href={currentBiz.instagramUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-pink-500/10 hover:bg-pink-600 text-pink-600 hover:text-white dark:text-pink-400 transition-all cursor-pointer shadow-sm border border-pink-500/20 active:scale-95"
-                      title="Instagram"
-                    >
-                      <Instagram className="h-5 w-5" />
-                    </a>
-                  )}
-                  {isSocialVisible(currentBiz.youtubeUrl, currentBiz.showYouTube) && (
-                    <a
-                      href={currentBiz.youtubeUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-rose-500/10 hover:bg-rose-600 text-rose-600 hover:text-white dark:text-rose-400 transition-all cursor-pointer shadow-sm border border-rose-500/20 active:scale-95"
-                      title="YouTube"
-                    >
-                      <Youtube className="h-5 w-5" />
-                    </a>
-                  )}
-                  {isSocialVisible(currentBiz.linkedinUrl, currentBiz.showLinkedIn) && (
-                    <a
-                      href={currentBiz.linkedinUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-sky-500/10 hover:bg-sky-600 text-sky-600 hover:text-white dark:text-sky-400 transition-all cursor-pointer shadow-sm border border-sky-500/20 active:scale-95"
-                      title="LinkedIn"
-                    >
-                      <Linkedin className="h-5 w-5" />
-                    </a>
-                  )}
-                  {isSocialVisible(currentBiz.xUrl, currentBiz.showX) && (
-                    <a
-                      href={currentBiz.xUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-500/10 hover:bg-slate-900 text-slate-800 hover:text-white dark:text-slate-200 dark:hover:bg-white dark:hover:text-black transition-all cursor-pointer shadow-sm border border-slate-500/20 active:scale-95"
-                      title="X (Twitter)"
-                    >
-                      <Twitter className="h-5 w-5" />
-                    </a>
-                  )}
                 </div>
               </div>
             )}
@@ -1904,6 +2038,112 @@ export default function BusinessDetailPage({
               )}
             </div>
 
+            {/* Business Officers if present */}
+            {currentBiz.officers && currentBiz.officers.length > 0 && (
+              <div id="officers-section" className="flex flex-col scroll-mt-28">
+                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-4 uppercase tracking-wider text-left border-b border-border/40 pb-2 flex items-center gap-2">
+                  <User className="h-5 w-5 text-indigo-500" /> Key Management & Officers
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {currentBiz.officers.map((off, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-3.5 bg-transparent sm:bg-card border-none sm:border sm:border-border p-2 sm:p-3.5 rounded-none sm:rounded-2xl shadow-none sm:shadow-sm"
+                    >
+                      <div className="h-10 w-10 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-black text-xs uppercase flex items-center justify-center border border-indigo-100 dark:border-indigo-900 shrink-0">
+                        {off.name.charAt(0)}
+                      </div>
+                      <div className="text-left min-w-0">
+                        <span className="block font-bold text-sm text-slate-900 dark:text-white truncate">
+                          {off.name}
+                        </span>
+                        <span className="block text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-wider mt-0.5">
+                          {off.designation}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Business Branches if present */}
+            {currentBiz.branches && currentBiz.branches.length > 0 && (
+              <div id="branches-section" className="flex flex-col scroll-mt-28">
+                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-4 uppercase tracking-wider text-left border-b border-border/40 pb-2 flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-rose-500" /> Business Branches
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {currentBiz.branches.map((branch, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-start gap-2.5 bg-transparent sm:bg-secondary/25 border-none sm:border sm:border-border/60 p-2 sm:p-3.5 rounded-none sm:rounded-2xl"
+                    >
+                      <span className="text-rose-500 mt-0.5 text-sm">📍</span>
+                      <div className="text-left">
+                        <span className="block text-xs font-bold text-slate-900 dark:text-white">
+                          Branch #{idx + 1}
+                        </span>
+                        <p className="text-xs text-muted-foreground mt-0.5 font-semibold">
+                          {branch}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Business Facilities if present */}
+            {currentBiz.facilities && currentBiz.facilities.length > 0 && (
+              <div id="facilities-section" className="flex flex-col scroll-mt-28">
+                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-4 uppercase tracking-wider text-left border-b border-border/40 pb-2 flex items-center gap-2">
+                  <Check className="h-5 w-5 text-emerald-500" /> Facilities & Amenities
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {currentBiz.facilities.map((fac, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-905 px-3.5 py-1.5 rounded-xl shadow-sm"
+                    >
+                      <span className="text-emerald-500 text-xs font-black">✓</span> {fac}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Photos Section */}
+            {validImages.length > 0 && (
+              <div id="gallery-section" className="flex flex-col scroll-mt-28">
+                <div className="flex items-center justify-between border-b border-border/40 pb-2 mb-3">
+                  <h3 className="text-lg font-black text-foreground uppercase tracking-wider text-left flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5 text-indigo-500" /> Photos & Gallery ({validImages.length})
+                  </h3>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
+                  {validImages.map((img, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => setLightboxIndex(idx)}
+                      className="aspect-[4/3] rounded-2xl overflow-hidden border border-border shadow-sm bg-secondary group relative cursor-pointer"
+                    >
+                      <img
+                        src={img}
+                        alt={`${currentBiz.name} gallery ${idx + 1}`}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="bg-white/90 text-slate-900 text-xs font-bold px-3 py-1.5 rounded-xl shadow-md flex items-center gap-1">
+                          <Maximize2 className="h-3.5 w-3.5" /> View
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Ratings & Reviews Section */}
             <div id="reviews-section" className="flex flex-col scroll-mt-28">
               <h3 className="text-lg font-black text-foreground uppercase tracking-wider text-left border-b border-border/40 pb-3 mb-6">
@@ -2010,6 +2250,18 @@ export default function BusinessDetailPage({
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Nearby Businesses Discovery Section */}
+            <div className="mt-4">
+              <NearbyBusinessesSection
+                currentBusinessId={currentBiz.id}
+                category={currentBiz.category}
+                latitude={currentBiz.latitude}
+                longitude={currentBiz.longitude}
+                cityTown={currentBiz.cityTown || currentBiz.location}
+                onBusinessSelect={onBusinessSelect}
+              />
             </div>
 
 

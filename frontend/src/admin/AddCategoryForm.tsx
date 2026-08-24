@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Save, Tag, Trash2, Upload, Search, Image as ImageIcon } from "lucide-react";
-import { useCategories } from "../context/CategoryContext";
+import { Save, Tag, Trash2, Upload, Search, Image as ImageIcon, Pencil, X, RotateCcw } from "lucide-react";
+import { useCategories, Category } from "../context/CategoryContext";
 import { getCategoryImage } from "../utils/categoryImages";
 import { API_BASE_URL } from "../config";
 
@@ -11,9 +11,24 @@ interface AddCategoryFormProps {
 
 export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryFormProps) {
   const { categories, refreshCategories } = useCategories();
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [label, setLabel] = useState("");
   const [imgUrl, setImgUrl] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const handleEditClick = (cat: Category) => {
+    setEditingCategory(cat);
+    setLabel(cat.label);
+    setImgUrl(cat.img || "");
+    // Scroll right side form into view on mobile
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCategory(null);
+    setLabel("");
+    setImgUrl("");
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -39,12 +54,20 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
 
     const finalImg =
       imgUrl.trim() ||
-      "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=300&q=80";
+      (editingCategory?.img
+        ? editingCategory.img
+        : "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=300&q=80");
 
     try {
       const token = localStorage.getItem("fmp_admin_token");
-      const res = await fetch(`${API_BASE_URL}/categories`, {
-        method: "POST",
+      const isEditing = Boolean(editingCategory);
+      const url = isEditing
+        ? `${API_BASE_URL}/categories/${editingCategory?._id}`
+        : `${API_BASE_URL}/categories`;
+      const method = isEditing ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
@@ -57,12 +80,13 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
 
       const data = await res.json();
       if (data.success) {
-        alert("Category added successfully!");
+        alert(isEditing ? `Category "${label.trim()}" updated successfully!` : "Category added successfully!");
+        setEditingCategory(null);
         setLabel("");
         setImgUrl("");
         await refreshCategories();
       } else {
-        alert(data.message || "Failed to add category.");
+        alert(data.message || (isEditing ? "Failed to update category." : "Failed to add category."));
       }
     } catch (error) {
       console.error(error);
@@ -87,6 +111,9 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
         const data = await res.json();
         if (data.success) {
           alert("Category deleted successfully!");
+          if (editingCategory?._id === catObj._id) {
+            handleCancelEdit();
+          }
           await refreshCategories();
         } else {
           alert(data.message || "Failed to delete category.");
@@ -154,6 +181,9 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
         if (data.success) {
           alert("Categories deleted successfully!");
           setSelectedCategoryIds([]);
+          if (editingCategory && selectedCategoryIds.includes(editingCategory._id)) {
+            handleCancelEdit();
+          }
           await refreshCategories();
         } else {
           alert(data.message || "Failed to delete categories.");
@@ -177,7 +207,7 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
             Category Management
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Manage categories, view existing lists, or register new main directories.
+            Manage categories, edit existing details, or register new main directories.
           </p>
         </div>
       </div>
@@ -242,13 +272,17 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
                 {filteredCats.map((cat, idx) => {
                   const subcount = cat.subcategories?.length || 0;
                   const isSelected = selectedCategoryIds.includes(cat._id);
+                  const isBeingEdited = editingCategory?._id === cat._id;
+
                   return (
                     <div
                       key={`${cat.label}-${idx}`}
                       className={`group relative flex items-center gap-3 p-3 rounded-2xl border transition-all duration-300 text-left ${
-                        isSelected
-                          ? "border-indigo-500/70 dark:border-indigo-500/70 bg-indigo-500/5 dark:bg-indigo-500/5 shadow-sm"
-                          : "border-slate-200/60 dark:border-slate-800/60 bg-slate-50/40 dark:bg-slate-950/20 hover:bg-white dark:hover:bg-slate-900 hover:shadow-md"
+                        isBeingEdited
+                          ? "border-indigo-600 dark:border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 ring-2 ring-indigo-500/30 shadow-md"
+                          : isSelected
+                            ? "border-indigo-500/70 dark:border-indigo-500/70 bg-indigo-500/5 dark:bg-indigo-500/5 shadow-sm"
+                            : "border-slate-200/60 dark:border-slate-800/60 bg-slate-50/40 dark:bg-slate-950/20 hover:bg-white dark:hover:bg-slate-900 hover:shadow-md"
                       }`}
                     >
                       {/* Selection Checkbox */}
@@ -274,23 +308,46 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
 
                       {/* Labels */}
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                          {cat.label}
-                        </p>
+                        <div className="flex items-center gap-1">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {cat.label}
+                          </p>
+                          {isBeingEdited && (
+                            <span className="text-[9px] font-black uppercase bg-indigo-600 text-white px-1.5 py-0.2 rounded shrink-0">
+                              Editing
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[10px] text-slate-400 font-semibold">
                           {subcount} Subcategories
                         </p>
                       </div>
 
-                      {/* Delete Action */}
-                      <button
-                        onClick={() => handleDeleteCategory(cat.label)}
-                        type="button"
-                        className="absolute top-2 right-2 p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer"
-                        title="Delete Category"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      {/* Action Buttons: Edit & Delete */}
+                      <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(cat);
+                          }}
+                          type="button"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-950/60 transition-colors cursor-pointer"
+                          title={`Edit ${cat.label}`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCategory(cat.label);
+                          }}
+                          type="button"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                          title={`Delete ${cat.label}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -299,15 +356,39 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
           </div>
         </div>
 
-        {/* Right Side: Add Category Panel (Col-span 1) */}
+        {/* Right Side: Add / Edit Category Panel (Col-span 1) */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl p-5 shadow-lg space-y-4 sticky top-6 [&_input]:py-2 [&_input]:px-3.5 [&_input]:text-xs [&_input]:rounded-lg [&_button]:py-2 [&_button]:px-4 [&_button]:text-xs [&_button]:rounded-lg">
           <div className="text-left">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-              <Tag className="h-4 w-4 text-indigo-500" />
-              Add Category
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                {editingCategory ? (
+                  <>
+                    <Pencil className="h-4 w-4 text-indigo-500" />
+                    <span>Edit Category</span>
+                  </>
+                ) : (
+                  <>
+                    <Tag className="h-4 w-4 text-indigo-500" />
+                    <span>Add Category</span>
+                  </>
+                )}
+              </h3>
+              {editingCategory && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title="Cancel Edit Mode"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  <span>Cancel</span>
+                </button>
+              )}
+            </div>
             <p className="text-xs text-slate-400 mt-1">
-              Register a new core point directory in the database.
+              {editingCategory
+                ? `Updating "${editingCategory.label}" details and icon.`
+                : "Register a new core point directory in the database."}
             </p>
           </div>
 
@@ -339,7 +420,7 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
                 />
                 <Upload className="h-5 w-5 text-slate-400 mb-1" />
                 <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">
-                  Click to upload icon
+                  {imgUrl ? "Click to change icon" : "Click to upload icon"}
                 </span>
                 <span className="text-[9px] text-slate-400">PNG, JPG, SVG up to 10MB</span>
               </div>
@@ -349,31 +430,49 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
             {imgUrl && (
               <div className="p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 rounded-xl flex items-center gap-3 text-left">
                 <div className="h-10 w-10 bg-white dark:bg-slate-850 border border-slate-200/30 rounded-xl p-1 flex items-center justify-center shadow-sm shrink-0">
-                  <img src={imgUrl} alt="Preview" className="h-full w-full object-contain" />
+                  <img
+                    src={getCategoryImage(label, imgUrl)}
+                    alt="Preview"
+                    className="h-full w-full object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src =
+                        "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=100&q=80";
+                    }}
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-bold text-slate-800 dark:text-slate-200">
                     Icon Selected
                   </p>
-                  <p className="text-[9px] text-slate-400 truncate">Uploaded Image File</p>
+                  <p className="text-[9px] text-slate-400 truncate">
+                    {imgUrl.startsWith("data:") ? "Uploaded Image" : "Custom/Existing Icon"}
+                  </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setImgUrl("")}
+                  className="text-slate-400 hover:text-rose-500 p-1 rounded-md text-xs cursor-pointer"
+                  title="Remove Icon"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </div>
             )}
 
             <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
-                onClick={onCancel}
+                onClick={editingCategory ? handleCancelEdit : onCancel}
                 className="w-1/2 px-4 py-3 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
               >
-                Cancel
+                {editingCategory ? "Cancel Edit" : "Cancel"}
               </button>
               <button
                 type="submit"
                 className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-650/10 flex items-center justify-center gap-2 hover:shadow-indigo-600/25 active:scale-[0.99] transition duration-200 cursor-pointer text-xs uppercase tracking-wider"
               >
                 <Save className="h-4 w-4" />
-                <span>Save Category</span>
+                <span>{editingCategory ? "Update" : "Save"}</span>
               </button>
             </div>
           </form>

@@ -110,11 +110,28 @@ const BusinessSchema = new mongoose.Schema({
   seoDescription: { type: String, default: '' },
   seoKeywords: [{ type: String }],
   establishedYear: { type: String, default: '' },
-  businessType: { type: String, default: 'LocalBusiness' }
+  businessType: { type: String, default: 'LocalBusiness' },
+
+  // Geospatial fields for Map API integration
+  latitude: { type: Number, default: null },
+  longitude: { type: Number, default: null },
+  placeId: { type: String, default: '' }, // Google Place ID
+  location_geo: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      default: undefined
+    }
+  }
 }, { timestamps: true });
 
 BusinessSchema.index({ citySlug: 1, localitySlug: 1, slug: 1 });
 BusinessSchema.index({ status: 1, isIndexable: 1 });
+BusinessSchema.index({ location_geo: '2dsphere' }); // Geospatial index for nearby queries
 
 const bcrypt = require('bcryptjs');
 

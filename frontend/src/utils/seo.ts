@@ -149,6 +149,14 @@ export function buildBusinessSchemas(biz: any, origin: string) {
       "postalCode": biz.pincode || "",
       "addressCountry": biz.country || "IN"
     },
+    ...(biz.latitude && biz.longitude ? {
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": Number(biz.latitude),
+        "longitude": Number(biz.longitude)
+      }
+    } : {}),
+    ...(biz.locationLink ? { "hasMap": biz.locationLink } : {}),
     ...(Number(biz.rating) > 0 && Number(biz.reviewCount) > 0 ? {
       "aggregateRating": {
         "@type": "AggregateRating",

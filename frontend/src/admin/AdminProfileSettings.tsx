@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { User, Lock, Mail, Check, Save, Eye, EyeOff } from "lucide-react";
+import { User, Lock, Mail, Check, Save, Eye, EyeOff, MapPin, Compass } from "lucide-react";
 import { API_BASE_URL } from "../config";
 
 interface AdminProfile {
   username: string;
   email: string;
   role: string;
+  nearbyRadiusKm?: number;
 }
 
 interface AdminProfileSettingsProps {
@@ -19,6 +20,14 @@ export default function AdminProfileSettings({ onCancel, onUpdate }: AdminProfil
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("");
+  const [nearbyRadiusKm, setNearbyRadiusKm] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem("fmp_nearby_radius_km:v1");
+      return saved ? parseFloat(saved) : 5;
+    } catch {
+      return 5;
+    }
+  });
   const [isSuccess, setIsSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -30,20 +39,24 @@ export default function AdminProfileSettings({ onCancel, onUpdate }: AdminProfil
 
     fetch(`${API_BASE_URL}/admin/profile`, {
       headers: {
-        "Authorization": `Bearer ${token}`
+        Authorization: `Bearer ${token}`
       }
     })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success && data.admin) {
-        setUsername(data.admin.name);
-        setEmail(data.admin.email);
-        setRole(data.admin.role || "System Administrator");
-      }
-    })
-    .catch(err => {
-      console.error("Failed to fetch admin profile", err);
-    });
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.admin) {
+          setUsername(data.admin.name);
+          setEmail(data.admin.email);
+          setRole(data.admin.role || "System Administrator");
+          if (data.admin.nearbyRadiusKm !== undefined) {
+            setNearbyRadiusKm(data.admin.nearbyRadiusKm);
+            localStorage.setItem("fmp_nearby_radius_km:v1", String(data.admin.nearbyRadiusKm));
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch admin profile", err);
+      });
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,6 +77,7 @@ export default function AdminProfileSettings({ onCancel, onUpdate }: AdminProfil
       const body: any = {
         name: username.trim(),
         email: email.trim(),
+        nearbyRadiusKm: Number(nearbyRadiusKm) || 5,
       };
       if (password) {
         body.password = password;
@@ -73,25 +87,27 @@ export default function AdminProfileSettings({ onCancel, onUpdate }: AdminProfil
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(body)
       });
-      
+
       const data = await res.json();
 
       if (data.success && data.admin) {
         const updatedProfile = {
           username: data.admin.name,
           email: data.admin.email,
-          role: data.admin.role || "System Administrator"
+          role: data.admin.role || "System Administrator",
+          nearbyRadiusKm: data.admin.nearbyRadiusKm || 5,
         };
+        localStorage.setItem("fmp_nearby_radius_km:v1", String(data.admin.nearbyRadiusKm || 5));
         onUpdate(updatedProfile);
         setIsSuccess(true);
         setTimeout(() => setIsSuccess(false), 3000);
         setPassword("");
         setConfirmPassword("");
-        alert("Admin profile updated successfully!");
+        alert("Admin profile & nearby radius updated successfully!");
       } else {
         alert(data.message || "Failed to update profile");
       }
@@ -100,6 +116,8 @@ export default function AdminProfileSettings({ onCancel, onUpdate }: AdminProfil
       alert("Failed to save admin profile.");
     }
   };
+
+  const presetDistances = [3, 5, 10, 15, 20, 30, 50];
 
   return (
     <div className="space-y-6 w-full animate-fade-in-up">
@@ -113,7 +131,7 @@ export default function AdminProfileSettings({ onCancel, onUpdate }: AdminProfil
             Admin Profile Settings
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Update your superuser credentials and details
+            Update your superuser credentials and platform configuration
           </p>
         </div>
       </div>
@@ -161,6 +179,63 @@ export default function AdminProfileSettings({ onCancel, onUpdate }: AdminProfil
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
               />
+            </div>
+          </div>
+
+          {/* Nearby Search Radius Setting */}
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                <Compass className="h-4 w-4 text-rose-500" />
+                "Near You" Business Search Radius
+              </label>
+              <span className="inline-flex items-center gap-1 text-xs font-mono font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 px-2.5 py-0.5 rounded-lg">
+                <MapPin className="h-3 w-3 text-rose-500" />
+                {nearbyRadiusKm} KM Selected
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Set the maximum distance range for businesses displayed in the <strong>"Near You"</strong> tab on the homepage.
+            </p>
+
+            {/* Clean Number Input with KM unit badge */}
+            <div className="relative">
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={nearbyRadiusKm}
+                onChange={(e) => setNearbyRadiusKm(Math.max(1, Number(e.target.value)))}
+                placeholder="e.g. 5"
+                className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono font-bold"
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400 dark:text-slate-500 pointer-events-none">
+                KM
+              </span>
+            </div>
+
+            {/* Preset Pills */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                Quick Presets:
+              </span>
+              {presetDistances.map((km) => {
+                const isSelected = nearbyRadiusKm === km;
+                return (
+                  <button
+                    key={km}
+                    type="button"
+                    onClick={() => setNearbyRadiusKm(km)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                      isSelected
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-sm scale-105"
+                        : "bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-indigo-400 hover:text-indigo-600"
+                    }`}
+                  >
+                    {km} KM {km === 5 ? "(Default)" : ""}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

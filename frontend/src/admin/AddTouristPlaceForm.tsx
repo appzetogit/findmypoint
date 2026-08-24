@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import { touristPlacesData, TouristPlaceDetailData } from "../data/touristPlacesData";
 import { API_BASE_URL } from "../config";
+import AddressAutocompleteInput, { PlaceResultData } from "../components/map/AddressAutocompleteInput";
+import MapLocationPicker from "../components/map/MapLocationPicker";
+import { getGoogleMapsEmbedUrl } from "../utils/googleMaps";
 
 interface AddTouristPlaceFormProps {
   onCancel: () => void;
@@ -39,6 +42,10 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
   const [idealDuration, setIdealDuration] = useState("");
   const [nearestAirport, setNearestAirport] = useState("");
   const [localTransport, setLocalTransport] = useState("");
+  const [locationAddress, setLocationAddress] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [locationLink, setLocationLink] = useState("");
 
   // Images Fields
   const [coverImage, setCoverImage] = useState("");
@@ -98,6 +105,17 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
 
     const newPlace = {
       name: name.trim(),
+      rating: parseFloat(rating) || 4.5,
+      reviewsCount: parseInt(reviewsCount) || 120,
+      tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+      description: description.trim(),
+      bestTime: bestTime.trim(),
+      idealDuration: idealDuration.trim(),
+      nearestAirport: nearestAirport.trim(),
+      localTransport: localTransport.trim(),
+      latitude: latitude ? parseFloat(latitude) : undefined,
+      longitude: longitude ? parseFloat(longitude) : undefined,
+      locationLink: locationLink.trim(),
       coverImage: coverImage.trim(),
       images: [
         coverImage.trim(),
@@ -105,17 +123,6 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
         image2.trim(),
         image3.trim(),
       ].filter((img) => img.length > 0),
-      rating: parseFloat(rating) || 0,
-      reviewsCount: parseInt(reviewsCount) || 0,
-      tags: tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter((t) => t.length > 0),
-      description: description.trim(),
-      bestTime: bestTime.trim(),
-      idealDuration: idealDuration.trim(),
-      nearestAirport: nearestAirport.trim(),
-      localTransport: localTransport.trim(),
       // Default placeholder structures
       categories: [
         { name: "Temples", icon: "🕌" },
@@ -162,6 +169,10 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
         setIdealDuration("");
         setNearestAirport("");
         setLocalTransport("");
+        setLocationAddress("");
+        setLatitude("");
+        setLongitude("");
+        setLocationLink("");
         setCoverImage("");
         setImage1("");
         setImage2("");
@@ -196,15 +207,19 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
   // Edit click handler
   const handleEditClick = (place: TouristPlaceDetailData) => {
     setEditingPlace(place);
-    setName(place.name);
-    setRating(String(place.rating));
-    setReviewsCount(String(place.reviewsCount));
-    setTags(place.tags.join(", "));
-    setDescription(place.description);
+    setName(place.name || "");
+    setRating(place.rating ? String(place.rating) : "");
+    setReviewsCount(place.reviewsCount ? String(place.reviewsCount) : "");
+    setTags((place.tags || []).join(", "));
+    setDescription(place.description || "");
     setBestTime(place.bestTime || "");
     setIdealDuration(place.idealDuration || "");
     setNearestAirport(place.nearestAirport || "");
     setLocalTransport(place.localTransport || "");
+    setLocationAddress(place.name ? `${place.name}, India` : "");
+    setLatitude(place.latitude !== undefined && place.latitude !== null ? String(place.latitude) : "");
+    setLongitude(place.longitude !== undefined && place.longitude !== null ? String(place.longitude) : "");
+    setLocationLink(place.locationLink || "");
     setCoverImage(place.coverImage || "");
     setImage1(place.images?.[1] || "");
     setImage2(place.images?.[2] || "");
@@ -396,6 +411,65 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
                     value={localTransport}
                     onChange={(e) => setLocalTransport(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 font-semibold"
+                  />
+                </div>
+              </div>
+
+              {/* Map & Coordinates Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="block text-indigo-500 font-black flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5 text-rose-500" /> Destination Location (Google Places Autocomplete)
+                  </label>
+                  <AddressAutocompleteInput
+                    placeholder="Search tourist place location or landmark..."
+                    value={locationAddress}
+                    onChange={(val) => setLocationAddress(val)}
+                    onPlaceSelected={(place: PlaceResultData) => {
+                      setLocationAddress(place.formattedAddress);
+                      if (place.lat && place.lng) {
+                        setLatitude(String(place.lat));
+                        setLongitude(String(place.lng));
+                      }
+                    }}
+                    className="bg-white dark:bg-slate-900 text-xs py-2.5 rounded-lg border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px]">Latitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 22.7196"
+                    value={latitude}
+                    onChange={(e) => setLatitude(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px]">Longitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 75.8577"
+                    value={longitude}
+                    onChange={(e) => setLongitude(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 font-mono"
+                  />
+                </div>
+
+                {/* Interactive Pin-Drop Map Picker */}
+                <div className="sm:col-span-2 mt-2">
+                  <MapLocationPicker
+                    latitude={latitude ? parseFloat(latitude) : null}
+                    longitude={longitude ? parseFloat(longitude) : null}
+                    address={locationAddress || name}
+                    height="200px"
+                    onLocationChange={(lat, lng) => {
+                      setLatitude(String(lat));
+                      setLongitude(String(lng));
+                    }}
                   />
                 </div>
               </div>

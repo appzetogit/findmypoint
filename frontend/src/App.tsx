@@ -629,6 +629,9 @@ export default function App() {
         onCategoryClick={(categoryName, subcategoryName) => {
           dispatch({ type: "SELECT_CATEGORY", name: categoryName, subcategoryName });
         }}
+        onBusinessSelect={(id) => {
+          dispatch({ type: "SELECT_BUSINESS", id });
+        }}
         onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
         onProfileClick={handleProfileClick}
         onAdvertiseClick={() => dispatch({ type: "SET_SHOW_ADVERTISE", show: true })}

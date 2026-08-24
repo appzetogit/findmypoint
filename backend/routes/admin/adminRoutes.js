@@ -6,6 +6,7 @@ const {
   loginAdmin,
   getAdminProfile,
   updateAdminProfile,
+  getPublicSettings,
   getAllUsers,
   deleteUser,
   updateUser
@@ -22,6 +23,7 @@ const adminLoginLimiter = rateLimit({
 
 // Public routes
 router.post('/login', adminLoginLimiter, loginAdmin);
+router.get('/public-settings', getPublicSettings);
 
 // Admin registration — DISABLED in production to prevent unauthorized admin creation.
 // Use `node scripts/seed-admin.js` to create admin accounts.

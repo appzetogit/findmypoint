@@ -29,6 +29,9 @@ export interface TouristPlaceDetailData {
   idealDuration?: string;
   nearestAirport?: string;
   localTransport?: string;
+  latitude?: number;
+  longitude?: number;
+  locationLink?: string;
 }
 
 export const touristPlacesData: Record<string, TouristPlaceDetailData> = {};

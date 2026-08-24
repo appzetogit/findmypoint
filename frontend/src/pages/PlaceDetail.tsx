@@ -506,6 +506,8 @@ export default function PlaceDetailPage({
           </div>
         </div>
 
+
+
         {/* Dynamic Category Lists / Carousels */}
 
         {/* Section 1: Places to Visit / Temples */}

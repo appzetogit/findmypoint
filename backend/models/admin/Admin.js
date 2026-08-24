@@ -5,7 +5,8 @@ const AdminSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, default: 'System Administrator' }
+  role: { type: String, default: 'System Administrator' },
+  nearbyRadiusKm: { type: Number, default: 5 }
 }, { timestamps: true });
 
 // Pre-save middleware to hash password

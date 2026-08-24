@@ -30,6 +30,9 @@ import { BusinessListingData } from "../data/businessesData";
 import { API_BASE_URL } from "../config";
 import statesData from "../data/states-and-districts.json";
 import countryCodesData from "../data/country-by-calling-code.json";
+import AddressAutocompleteInput, { PlaceResultData } from "../components/map/AddressAutocompleteInput";
+import MapLocationPicker from "../components/map/MapLocationPicker";
+import { getGoogleMapsEmbedUrl } from "../utils/googleMaps";
 
 interface CountryCodeItem {
   country: string;
@@ -286,6 +289,9 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
   const [frontPhoto, setFrontPhoto] = useState("");
   const [interiorPhotos, setInteriorPhotos] = useState<string[]>([]);
   const [locationLink, setLocationLink] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [placeId, setPlaceId] = useState("");
   const [othersDestination, setOthersDestination] = useState("");
   const [categoryLine, setCategoryLine] = useState("");
   const [subCategoryLine, setSubCategoryLine] = useState("");
@@ -398,6 +404,9 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
     setFrontPhoto(biz.images[0] || "");
     setInteriorPhotos(biz.images.slice(1) || []);
     setLocationLink(biz.locationLink || "");
+    setLatitude(biz.latitude !== undefined && biz.latitude !== null ? String(biz.latitude) : "");
+    setLongitude(biz.longitude !== undefined && biz.longitude !== null ? String(biz.longitude) : "");
+    setPlaceId(biz.placeId || "");
     setOthersDestination(biz.othersDestination || "");
     setCategoryLine(biz.categoryLine || "");
     setSubCategoryLine(biz.subCategoryLine || "");
@@ -599,6 +608,9 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
       email: email.trim(),
       videoLink: videoLink.trim(),
       locationLink: locationLink.trim(),
+      latitude: latitude ? parseFloat(latitude) : undefined,
+      longitude: longitude ? parseFloat(longitude) : undefined,
+      placeId: placeId.trim() || undefined,
       othersDestination: othersDestination.trim(),
       categoryLine: category.trim(),
       subCategoryLine: subCategory.trim(),
@@ -806,19 +818,108 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Business Address */}
+              {/* Business Address with Google Places Autocomplete */}
               <div className="space-y-2 md:col-span-2">
-                <label className="text-xs uppercase tracking-wider">
-                  Business Address *
-                </label>
-                <input
-                  type="text"
+                <div className="flex items-center justify-between">
+                  <label className="text-xs uppercase tracking-wider font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5 text-rose-500" />
+                    Business Address * (Google Places Autocomplete)
+                  </label>
+                  {latitude && longitude ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md">
+                      <Check className="h-3 w-3" /> Coordinates Detected
+                    </span>
+                  ) : null}
+                </div>
+                <AddressAutocompleteInput
                   required
-                  placeholder="e.g. Scheme 54, Near Tukoganj Square, South Tukoganj, Indore"
+                  placeholder="Start typing business address (e.g. Scheme 54, Vijay Nagar, Indore)..."
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  onChange={(val) => setAddress(val)}
+                  onPlaceSelected={(place: PlaceResultData) => {
+                    setAddress(place.formattedAddress);
+                    if (place.lat && place.lng) {
+                      setLatitude(String(place.lat));
+                      setLongitude(String(place.lng));
+                    }
+                    if (place.placeId) {
+                      setPlaceId(place.placeId);
+                    }
+                    if (place.city) {
+                      setCityTown(place.city);
+                    }
+                    if (place.pincode) {
+                      setPincode(place.pincode);
+                    }
+                    if (place.state) {
+                      const countryMap = GLOBAL_LOCATIONS_MAP[country || "India"] || {};
+                      const stateKeys = Object.keys(countryMap);
+                      if (stateKeys.includes(place.state)) {
+                        setSelectedState(place.state);
+                        setCustomState("");
+                      } else {
+                        setSelectedState("Other State");
+                        setCustomState(place.state);
+                      }
+                    }
+                    if (place.district) {
+                      setCustomDistrict(place.district);
+                    }
+                  }}
+                  className="bg-slate-50 dark:bg-slate-950 text-sm py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                 />
+              </div>
+
+              {/* Latitude and Longitude Coordinates Row & Interactive Pin Picker */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:col-span-2 bg-slate-50/80 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Latitude (Auto-filled by Pin / Map)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 22.7533"
+                    value={latitude}
+                    onChange={(e) => setLatitude(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 font-mono"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Longitude (Auto-filled by Pin / Map)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 75.8937"
+                    value={longitude}
+                    onChange={(e) => setLongitude(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 font-mono"
+                  />
+                </div>
+
+                {/* Compact Interactive Pin-Drop Map Picker */}
+                <div className="sm:col-span-2 mt-2">
+                  <div className="max-w-2xl mx-auto">
+                    <MapLocationPicker
+                      latitude={latitude ? parseFloat(latitude) : null}
+                      longitude={longitude ? parseFloat(longitude) : null}
+                      address={address}
+                      height="230px"
+                      onLocationChange={(lat, lng, info) => {
+                        setLatitude(String(lat));
+                        setLongitude(String(lng));
+                        if (info?.city && !cityTown) {
+                          setCityTown(info.city);
+                        }
+                        if (info?.formattedAddress && !address) {
+                          setAddress(info.formattedAddress);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Country Selection */}
@@ -1025,19 +1126,6 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                 />
               </div>
 
-              {/* Business Location link */}
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-xs uppercase tracking-wider">
-                  Business Location link (Google Maps Embed/Direction URL)
-                </label>
-                <input
-                  type="url"
-                  placeholder="e.g. https://maps.google.com/?q=indore"
-                  value={locationLink}
-                  onChange={(e) => setLocationLink(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                />
-              </div>
 
               {/* SEO & Public Profile Section Header */}
               <div className="md:col-span-2 pt-4 border-t border-slate-200 dark:border-slate-800">

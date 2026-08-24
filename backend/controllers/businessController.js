@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Business = require('../models/Business');
 const Enquiry = require('../models/Enquiry');
 const { slugify, generateBusinessSlugs } = require('../utils/slugify');
+const { geocodeAddress, buildGeoPoint } = require('../services/geocodingService');
 
 // Escape special regex characters to prevent ReDoS attacks (SEC-009)
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -208,6 +209,32 @@ const createBusiness = async (req, res) => {
       clientPassword: req.body.password || undefined,
       owner: req.user ? req.user._id : undefined
     });
+
+    // Auto-geocode: set lat/lng from coordinates if provided, otherwise geocode address
+    const lat = parseFloat(req.body.latitude);
+    const lng = parseFloat(req.body.longitude);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      business.latitude = lat;
+      business.longitude = lng;
+      business.location_geo = buildGeoPoint(lat, lng);
+    } else {
+      // Try to geocode from address in background (non-blocking)
+      const addressParts = [req.body.address, req.body.location, req.body.cityTown, req.body.district, req.body.state, 'India'].filter(Boolean);
+      if (addressParts.length > 0) {
+        geocodeAddress(addressParts.join(', ')).then(geoResult => {
+          if (geoResult) {
+            Business.findByIdAndUpdate(business._id, {
+              $set: {
+                latitude: geoResult.lat,
+                longitude: geoResult.lng,
+                placeId: geoResult.placeId,
+                location_geo: buildGeoPoint(geoResult.lat, geoResult.lng)
+              }
+            }).catch(err => console.error('[Geocoding] Auto-geocode update failed:', err.message));
+          }
+        }).catch(err => console.error('[Geocoding] Auto-geocode failed:', err.message));
+      }
+    }
 
     const createdBusiness = await business.save();
     res.status(201).json({ success: true, data: sanitizePublicBusiness(createdBusiness) });
@@ -631,6 +658,130 @@ const clearEnquiries = async (req, res) => {
   }
 };
 
+// @desc    Get nearby businesses by lat/lng
+// @route   GET /api/businesses/nearby
+// @access  Public
+const getNearbyBusinesses = async (req, res) => {
+  try {
+    const { lat, lng, radius = 5000, category, limit = 10, excludeId } = req.query;
+
+    if (!lat || !lng) {
+      return res.status(400).json({ success: false, message: 'lat and lng query parameters are required' });
+    }
+
+    const latNum = parseFloat(lat);
+    const lngNum = parseFloat(lng);
+    if (isNaN(latNum) || isNaN(lngNum)) {
+      return res.status(400).json({ success: false, message: 'Invalid lat/lng values' });
+    }
+
+    const matchQuery = { status: 'published' };
+    if (category) {
+      matchQuery.category = { $regex: new RegExp(escapeRegex(category), 'i') };
+    }
+    if (excludeId) {
+      matchQuery.id = { $ne: excludeId };
+    }
+
+    const businesses = await Business.aggregate([
+      {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [lngNum, latNum] },
+          distanceField: 'distance', // in metres
+          maxDistance: parseInt(radius),
+          spherical: true,
+          query: matchQuery
+        }
+      },
+      { $limit: parseInt(limit) },
+      {
+        $project: {
+          password: 0,
+          clientPassword: 0,
+          __v: 0
+        }
+      }
+    ]);
+
+    res.status(200).json({ success: true, count: businesses.length, data: businesses });
+  } catch (error) {
+    // If no 2dsphere index yet, fallback gracefully
+    if (error.code === 2 || error.message.includes('2dsphere')) {
+      return res.status(200).json({ success: true, count: 0, data: [], note: 'Geospatial index not ready yet' });
+    }
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Manually trigger geocoding for a business by ID
+// @route   POST /api/businesses/:id/geocode
+// @access  Private (Admin)
+const geocodeBusiness = async (req, res) => {
+  try {
+    const isObjectId = mongoose.isValidObjectId(req.params.id);
+    const business = await Business.findOne({
+      $or: [
+        { id: req.params.id },
+        { slug: slugify(req.params.id) },
+        ...(isObjectId ? [{ _id: req.params.id }] : [])
+      ]
+    });
+
+    if (!business) {
+      return res.status(404).json({ success: false, message: 'Business not found' });
+    }
+
+    // Allow explicit lat/lng override from request body
+    const lat = parseFloat(req.body.latitude);
+    const lng = parseFloat(req.body.longitude);
+
+    let geoData;
+    if (!isNaN(lat) && !isNaN(lng)) {
+      geoData = {
+        latitude: lat,
+        longitude: lng,
+        placeId: req.body.placeId || business.placeId || '',
+        location_geo: buildGeoPoint(lat, lng)
+      };
+    } else {
+      // Geocode from address
+      const addressParts = [business.address, business.location, business.cityTown, business.district, business.state, 'India'].filter(Boolean);
+      if (addressParts.length === 0) {
+        return res.status(400).json({ success: false, message: 'Business has no address to geocode' });
+      }
+      const result = await geocodeAddress(addressParts.join(', '));
+      if (!result) {
+        return res.status(404).json({ success: false, message: 'Could not geocode business address' });
+      }
+      geoData = {
+        latitude: result.lat,
+        longitude: result.lng,
+        placeId: result.placeId,
+        location_geo: buildGeoPoint(result.lat, result.lng)
+      };
+    }
+
+    const updated = await Business.findByIdAndUpdate(
+      business._id,
+      { $set: geoData },
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Business geocoded successfully',
+      data: {
+        latitude: updated.latitude,
+        longitude: updated.longitude,
+        placeId: updated.placeId,
+        location_geo: updated.location_geo
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getBusinesses,
   getPublicBusinessByPath,
@@ -647,5 +798,7 @@ module.exports = {
   getEnquiries,
   updateEnquiryStatus,
   deleteEnquiry,
-  clearEnquiries
+  clearEnquiries,
+  getNearbyBusinesses,
+  geocodeBusiness
 };

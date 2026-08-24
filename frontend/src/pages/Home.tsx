@@ -17,10 +17,11 @@ import {
   ChevronUp,
   ArrowLeft,
   ArrowUp,
-  Home,
-  CalendarDays,
-  Receipt,
   User,
+  Building2,
+  Tag,
+  Loader2,
+  Sparkles,
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import catInterior from "@/assets/cat-interior.jpg";
@@ -30,6 +31,7 @@ import { loadAboutData, AboutData } from "../data/aboutData";
 import { useCategories } from "../context/CategoryContext";
 import { getCategoryImage } from "../utils/categoryImages";
 import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
+import { getCurrentUserLocation, reverseGeocodeCoords, calculateDistanceKm, formatDistance } from "../utils/googleMaps";
 
 
 import beautySpa from "@/assets/beauty_spa.png";
@@ -69,6 +71,7 @@ interface HomePageProps {
   onPrivacyPolicyClick?: () => void;
   onTermsConditionsClick?: () => void;
   onPopularServiceClick?: (id: string) => void;
+  onBusinessSelect?: (id: string) => void;
 }
 
 // City-specific area data for location dropdown
@@ -158,8 +161,9 @@ export default function HomePage({
   onPrivacyPolicyClick,
   onTermsConditionsClick,
   onPopularServiceClick,
+  onBusinessSelect,
 }: HomePageProps) {
-  const { categories } = useCategories();
+  const { categories, subcategoriesData } = useCategories();
 
   const getImageUrl = (img: string) => {
     if (!img) return "";
@@ -177,6 +181,147 @@ export default function HomePage({
   const [recentReviews, setRecentReviews] = useState<any[]>([]);
   const [popularServices, setPopularServices] = useState<any[]>([]);
   const [selectedServiceForModal, setSelectedServiceForModal] = useState<any | null>(null);
+  const [allBusinesses, setAllBusinesses] = useState<any[]>([]);
+  const [nearbyRadiusKm, setNearbyRadiusKm] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem("fmp_nearby_radius_km:v1");
+      return saved ? parseFloat(saved) : 5;
+    } catch {
+      return 5;
+    }
+  });
+
+  // Real-time functional search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<{
+    businesses: any[];
+    categories: { category: string; subcategory?: string }[];
+    touristPlaces: any[];
+  }>({ businesses: [], categories: [], touristPlaces: [] });
+
+  const [recentSearchTerms, setRecentSearchTerms] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("fmp_recent_search_terms:v1") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const saveSearchTerm = (term: string) => {
+    if (!term || !term.trim()) return;
+    const clean = term.trim();
+    const updated = [clean, ...recentSearchTerms.filter((t) => t.toLowerCase() !== clean.toLowerCase())].slice(0, 6);
+    setRecentSearchTerms(updated);
+    localStorage.setItem("fmp_recent_search_terms:v1", JSON.stringify(updated));
+  };
+
+  const clearRecentSearches = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRecentSearchTerms([]);
+    localStorage.removeItem("fmp_recent_search_terms:v1");
+  };
+
+  // Perform live search when searchQuery changes
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setSearchResults({ businesses: [], categories: [], touristPlaces: [] });
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const handler = setTimeout(async () => {
+      const q = trimmed.toLowerCase();
+
+      // 1. Search Categories & Subcategories
+      const matchedCategories: { category: string; subcategory?: string }[] = [];
+      const catList = Array.isArray(categories) ? categories : [];
+      catList.forEach((catObj: any) => {
+        const catName = typeof catObj === "string" ? catObj : (catObj?.label || catObj?.title || catObj?.name || "");
+        if (!catName) return;
+
+        if (catName.toLowerCase().includes(q)) {
+          matchedCategories.push({ category: catName });
+        }
+
+        const subcats = subcategoriesData?.[catName] || [];
+        subcats.forEach((sub: string) => {
+          if (sub.toLowerCase().includes(q) && !matchedCategories.some(m => m.category === catName && m.subcategory === sub)) {
+            matchedCategories.push({ category: catName, subcategory: sub });
+          }
+        });
+      });
+
+      // 2. Search Tourist Places
+      const matchedPlaces = allPlaces.filter((p: any) =>
+        p.title && p.title.toLowerCase().includes(q)
+      ).slice(0, 4);
+
+      // 3. Search Real Businesses from Backend API
+      let matchedBusinesses: any[] = [];
+      try {
+        const res = await fetch(`${API_BASE_URL}/businesses?search=${encodeURIComponent(trimmed)}`);
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          matchedBusinesses = json.data.slice(0, 6);
+        }
+      } catch (e) {
+        console.error("Search API error:", e);
+      }
+
+      setSearchResults({
+        businesses: matchedBusinesses,
+        categories: matchedCategories.slice(0, 6),
+        touristPlaces: matchedPlaces,
+      });
+      setIsSearching(false);
+    }, 200);
+
+    return () => clearTimeout(handler);
+  }, [searchQuery, categories, subcategoriesData, allPlaces]);
+
+  const handleSearchResultClick = (type: "business" | "category" | "place", data: any) => {
+    setUiState((prev) => ({ ...prev, showSuggestions: false }));
+    if (type === "business") {
+      saveSearchTerm(data.name);
+      if (onBusinessSelect) {
+        onBusinessSelect(data.id);
+      }
+    } else if (type === "category") {
+      saveSearchTerm(data.subcategory ? `${data.category} - ${data.subcategory}` : data.category);
+      if (onCategoryClick) {
+        onCategoryClick(data.category, data.subcategory);
+      }
+    } else if (type === "place") {
+      saveSearchTerm(data.title);
+      if (onPlaceClick) {
+        onPlaceClick(data.title);
+      }
+    }
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    saveSearchTerm(searchQuery.trim());
+    setUiState((prev) => ({ ...prev, showSuggestions: false }));
+
+    if (searchResults.businesses.length > 0) {
+      handleSearchResultClick("business", searchResults.businesses[0]);
+    } else if (searchResults.categories.length > 0) {
+      handleSearchResultClick("category", searchResults.categories[0]);
+    } else if (searchResults.touristPlaces.length > 0) {
+      handleSearchResultClick("place", searchResults.touristPlaces[0]);
+    } else if (onCategoryClick && categories.length > 0) {
+      const firstCat =
+        typeof categories[0] === "string"
+          ? categories[0]
+          : ((categories[0] as any)?.label || (categories[0] as any)?.name || (categories[0] as any)?.title || "Hotel Point");
+      onCategoryClick(firstCat);
+    }
+  };
 
   const sectionsToRender = dynamicHeroSections;
 
@@ -330,6 +475,7 @@ export default function HomePage({
       .then((r) => r.json())
       .then((data) => {
         if (data.success && Array.isArray(data.data)) {
+          setAllBusinesses(data.data);
           const reviewsList: any[] = [];
           data.data.forEach((biz: any) => {
             // Get DB reviews
@@ -410,6 +556,19 @@ export default function HomePage({
       .catch((e) => console.error("Failed to load popular services:", e));
   }, []);
 
+  // Fetch public platform settings (dynamic nearbyRadiusKm)
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/admin/public-settings`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.settings?.nearbyRadiusKm) {
+          setNearbyRadiusKm(data.settings.nearbyRadiusKm);
+          localStorage.setItem("fmp_nearby_radius_km:v1", String(data.settings.nearbyRadiusKm));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     const checkIsMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -427,9 +586,30 @@ export default function HomePage({
   });
   const { showSuggestions, activeTab, activeSlide } = uiState;
 
+  // User GPS Coordinates
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(() => {
+    try {
+      const saved = localStorage.getItem("fmp_user_coords:v1");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   // Location state grouped to reduce useState count
   const [locationState, setLocationState] = useState({
-    selectedCity: "Mumbai",
+    selectedCity: (() => {
+      try {
+        const savedCity = localStorage.getItem("fmp_selected_city:v1");
+        if (savedCity) return savedCity;
+        const saved = localStorage.getItem("fmp_user_coords:v1");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return parsed.shortName || parsed.area || parsed.city || "Indore";
+        }
+      } catch {}
+      return "Indore";
+    })(),
     showLocationDropdown: false,
     recentLocations: (() => {
       try {
@@ -447,33 +627,71 @@ export default function HomePage({
       const updated = [area, ...recentLocations.filter((l) => l !== area)].slice(0, 5);
       setLocationState((prev) => ({
         ...prev,
+        selectedCity: area,
         recentLocations: updated,
         showLocationDropdown: false,
       }));
       localStorage.setItem("fmp_recent_locations:v1", JSON.stringify(updated));
+      localStorage.setItem("fmp_selected_city:v1", area);
     },
     [recentLocations],
   );
 
-  const handleDetectLocation = useCallback(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        () => {
-          setLocationState((prev) => ({
-            ...prev,
-            selectedCity: "Mumbai",
-            showLocationDropdown: false,
-          }));
-        },
-        () => {
-          setLocationState((prev) => ({
-            ...prev,
-            showLocationDropdown: false,
-          }));
-        },
+  const [detectingGps, setDetectingGps] = useState(false);
+
+  const handleDetectLocation = useCallback(async () => {
+    setDetectingGps(true);
+    try {
+      const pos = await getCurrentUserLocation();
+      if (!pos) {
+        setDetectingGps(false);
+        return;
+      }
+
+      const geocoded = await reverseGeocodeCoords(pos.lat, pos.lng);
+      const detectedCity = geocoded?.city || "Indore";
+      const detectedArea = geocoded?.area || "";
+      const shortName = geocoded?.shortName || (detectedArea ? `${detectedArea}, ${detectedCity}` : detectedCity);
+      const fullAddress = geocoded?.formattedAddress || shortName;
+
+      setUserCoords({ lat: pos.lat, lng: pos.lng });
+      localStorage.setItem(
+        "fmp_user_coords:v1",
+        JSON.stringify({
+          lat: pos.lat,
+          lng: pos.lng,
+          city: detectedCity,
+          area: detectedArea,
+          shortName,
+          formattedAddress: fullAddress,
+        })
       );
+
+      setLocationState((prev) => {
+        const updatedRecent = [shortName, ...prev.recentLocations.filter((l) => l !== shortName)].slice(0, 5);
+        localStorage.setItem("fmp_recent_locations:v1", JSON.stringify(updatedRecent));
+        localStorage.setItem("fmp_selected_city:v1", shortName);
+        return {
+          ...prev,
+          selectedCity: shortName,
+          recentLocations: updatedRecent,
+          showLocationDropdown: false,
+        };
+      });
+    } catch (err) {
+      console.error("[Home] Failed to detect location:", err);
+    } finally {
+      setDetectingGps(false);
     }
   }, []);
+
+  // Auto-detect live GPS location on initial visit
+  useEffect(() => {
+    const saved = localStorage.getItem("fmp_user_coords:v1");
+    if (!saved && typeof navigator !== "undefined" && navigator.geolocation) {
+      handleDetectLocation();
+    }
+  }, [handleDetectLocation]);
 
   // Close location dropdown on outside click
   useEffect(() => {
@@ -595,6 +813,50 @@ export default function HomePage({
     return popularServices.filter((s) => s.tab === activeTab);
   }, [popularServices, activeTab]);
 
+  // Compute businesses within dynamic radius (default 5 KM or admin configured)
+  const nearbyBusinesses = useMemo(() => {
+    if (!Array.isArray(allBusinesses) || allBusinesses.length === 0) return [];
+
+    const uLat = userCoords?.lat || (selectedCity.toLowerCase().includes("indore") ? 22.7196 : null);
+    const uLng = userCoords?.lng || (selectedCity.toLowerCase().includes("indore") ? 75.8577 : null);
+    const radiusLimit = nearbyRadiusKm || 5;
+
+    const withDistance = allBusinesses.map((biz) => {
+      const bLat = parseFloat(biz.latitude || biz.lat);
+      const bLng = parseFloat(biz.longitude || biz.lng);
+      let distanceKm = 999;
+      let hasExactDistance = false;
+
+      if (uLat && uLng && !isNaN(bLat) && !isNaN(bLng) && bLat !== 0 && bLng !== 0) {
+        distanceKm = calculateDistanceKm(uLat, uLng, bLat, bLng);
+        hasExactDistance = true;
+      } else {
+        const bizLoc = (biz.location || biz.address || biz.cityTown || "").toLowerCase();
+        const curLoc = (selectedCity || "").toLowerCase();
+        if (bizLoc && curLoc && (bizLoc.includes(curLoc) || curLoc.includes(bizLoc))) {
+          distanceKm = 1.8;
+          hasExactDistance = true;
+        }
+      }
+
+      return {
+        ...biz,
+        distanceKm,
+        hasExactDistance,
+        formattedDistance: hasExactDistance ? formatDistance(distanceKm) : "",
+      };
+    });
+
+    // Dynamic radius filter (e.g. 5 KM)
+    const withinRadius = withDistance.filter((biz) => biz.hasExactDistance && biz.distanceKm <= radiusLimit);
+    withinRadius.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    if (withinRadius.length === 0) {
+      return withDistance.slice(0, 8);
+    }
+    return withinRadius;
+  }, [allBusinesses, userCoords, selectedCity, nearbyRadiusKm]);
+
   const resolveServiceImage = (imgStr?: string) => {
     if (!imgStr) return "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80";
     if (imgStr.startsWith("data:") || imgStr.startsWith("http")) return imgStr;
@@ -634,9 +896,9 @@ export default function HomePage({
             </div>
           </div>
 
-          <div className="relative flex flex-1 w-full items-center gap-1.5 md:gap-2 rounded-full border border-border bg-card px-2 py-1 md:py-1.5 shadow-[var(--shadow-card)] max-w-2xl">
+          <div className="relative flex flex-1 w-full items-center gap-1.5 md:gap-2 rounded-full border border-border bg-card px-2 py-1 md:py-1.5 shadow-[var(--shadow-card)] max-w-3xl">
             {/* Clickable Location Selector */}
-            <div ref={locationRef} className="relative">
+            <div ref={locationRef} className="relative shrink-0 max-w-[55%] sm:max-w-none">
               <button
                 onClick={() =>
                   setLocationState((prev) => ({
@@ -644,10 +906,13 @@ export default function HomePage({
                     showLocationDropdown: !prev.showLocationDropdown,
                   }))
                 }
-                className="flex items-center gap-1 md:gap-2 border-r border-border pl-1 pr-2 md:px-3 py-1 text-xs md:text-sm hover:text-primary transition-colors cursor-pointer group"
+                title={`Current Location: ${selectedCity}`}
+                className="flex items-center gap-1.5 md:gap-2 border-r border-border pl-1.5 pr-2.5 md:px-3.5 py-1 text-xs md:text-sm hover:text-primary transition-colors cursor-pointer group max-w-[180px] sm:max-w-[280px] md:max-w-[340px]"
               >
                 <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 text-accent group-hover:text-primary transition-colors shrink-0" />
-                <span className="font-semibold whitespace-nowrap">{selectedCity}</span>
+                <span className="font-semibold truncate">
+                  {detectingGps ? "Detecting..." : selectedCity}
+                </span>
                 <ChevronRight
                   className={`h-3 w-3 md:h-3.5 md:w-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ${showLocationDropdown ? "rotate-90" : ""}`}
                 />
@@ -672,40 +937,26 @@ export default function HomePage({
                   </div>
 
                   <div className="p-3 space-y-1">
-                    {/* Detect Location */}
+
+                    {/* Detect Location Button */}
                     <button
                       onClick={handleDetectLocation}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-blue-50 transition cursor-pointer group"
+                      disabled={detectingGps}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-blue-50/70 hover:bg-blue-100/80 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 border border-blue-200/60 dark:border-blue-900/50 transition cursor-pointer group disabled:opacity-60"
                     >
-                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                        <Navigation className="h-4 w-4 text-blue-600" />
+                      <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 flex items-center justify-center shrink-0 shadow-xs">
+                        <Navigation className={`h-4 w-4 fill-current ${detectingGps ? "animate-spin" : ""}`} />
                       </div>
-                      <span className="text-sm font-bold text-blue-600">Detect My Location</span>
+                      <div className="flex flex-col text-left">
+                        <span className="text-xs font-black text-blue-700 dark:text-blue-300">
+                          {detectingGps ? "Detecting Live Location..." : "Refresh Live GPS Location"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-semibold">
+                          Auto-detects your current address & neighborhood
+                        </span>
+                      </div>
                     </button>
 
-                    {/* City Switcher */}
-                    <div className="pt-2 pb-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-2">
-                        Switch City
-                      </p>
-                      <div className="flex flex-wrap gap-1.5 px-2">
-                        {availableCities.map((city) => (
-                          <button
-                            key={city}
-                            onClick={() =>
-                              setLocationState((prev) => ({ ...prev, selectedCity: city }))
-                            }
-                            className={`px-3 py-1 rounded-full text-xs font-bold border transition cursor-pointer ${
-                              selectedCity === city
-                                ? "bg-primary text-white border-primary"
-                                : "bg-secondary border-border text-foreground hover:border-primary/40"
-                            }`}
-                          >
-                            {city}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
 
                     {/* Recent Locations */}
                     {(recentLocations.length > 0 ||
@@ -772,64 +1023,237 @@ export default function HomePage({
               )}
             </div>
 
-            <input
-              type="text"
-              placeholder={`Search in ${selectedCity}…`}
-              className="flex-1 bg-transparent px-2 py-1 text-xs md:text-sm outline-none placeholder:text-muted-foreground w-0 min-w-0"
-              onFocus={() => setUiState((prev) => ({ ...prev, showSuggestions: true }))}
-              onBlur={() =>
-                setTimeout(() => setUiState((prev) => ({ ...prev, showSuggestions: false })), 200)
-              }
-            />
-            <button className="flex h-7 w-7 md:h-9 md:w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90 shrink-0">
-              <Search className="h-3.5 w-3.5 md:h-4 md:w-4" />
-            </button>
+            {/* Search Input Form */}
+            <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center min-w-0">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={`Search businesses, categories, services in ${selectedCity}…`}
+                className="flex-1 bg-transparent px-2 py-1 text-xs md:text-sm outline-none placeholder:text-muted-foreground w-0 min-w-0"
+                onFocus={() => setUiState((prev) => ({ ...prev, showSuggestions: true }))}
+                onBlur={() =>
+                  setTimeout(() => setUiState((prev) => ({ ...prev, showSuggestions: false })), 250)
+                }
+              />
+              <button
+                type="submit"
+                className="flex h-7 w-7 md:h-9 md:w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90 shrink-0 cursor-pointer"
+                title="Search"
+              >
+                {isSearching ? (
+                  <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 animate-spin" />
+                ) : (
+                  <Search className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                )}
+              </button>
+            </form>
 
+            {/* Live Search Suggestions Dropdown */}
             {showSuggestions && (
-              <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-card border border-border rounded-2xl shadow-xl p-5 z-50 text-left max-h-[420px] overflow-y-auto">
-                <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 px-1">
-                  <span>Recent Searches</span>
-                  <button className="text-primary hover:underline lowercase font-semibold text-xs tracking-normal">
-                    Clear All
-                  </button>
-                </div>
+              <div
+                onMouseDown={(e) => e.preventDefault()}
+                className="absolute top-[calc(100%+8px)] left-0 right-0 bg-card border border-border rounded-2xl shadow-2xl p-4 z-50 text-left max-h-[460px] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-top-2 duration-200"
+              >
+                {/* CASE 1: Query is Active (Live Results) */}
+                {searchQuery.trim().length > 0 ? (
+                  <div className="space-y-4">
+                    {/* 1. Businesses Section */}
+                    {searchResults.businesses.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-1.5 text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-2 px-1">
+                          <Building2 className="h-3.5 w-3.5 text-indigo-500" />
+                          <span>Verified Businesses ({searchResults.businesses.length})</span>
+                        </div>
+                        <div className="space-y-1">
+                          {searchResults.businesses.map((biz) => (
+                            <div
+                              key={biz.id}
+                              onClick={() => handleSearchResultClick("business", biz)}
+                              className="flex items-center gap-3 p-2 hover:bg-secondary/70 rounded-xl cursor-pointer transition-colors group"
+                            >
+                              <div className="h-10 w-10 rounded-lg overflow-hidden bg-secondary shrink-0 border border-border/60">
+                                <img
+                                  src={biz.images?.[0] || "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=150&q=80"}
+                                  alt={biz.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                                    {biz.name}
+                                  </span>
+                                  {biz.isVerified && (
+                                    <BadgeCheck className="h-3 w-3 text-emerald-600 shrink-0" />
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-muted-foreground truncate">
+                                  {biz.category?.split(">")[0]?.trim()} · {biz.location || biz.address}
+                                </p>
+                              </div>
+                              {biz.rating ? (
+                                <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded shrink-0 flex items-center gap-0.5">
+                                  ★ {biz.rating}
+                                </span>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                {/* Recent search item */}
-                <div className="flex items-center gap-3 py-1.5 px-2 hover:bg-secondary/60 rounded-xl cursor-pointer transition-colors duration-200">
-                  <Search className="h-4 w-4 text-muted-foreground shrink-0 ml-1" />
-                  <div className="flex flex-col">
-                    <span className="text-[13px] font-semibold text-foreground">Car Rental</span>
-                    <span className="text-[11px] text-muted-foreground">Category</span>
+                    {/* 2. Categories & Subcategories Section */}
+                    {searchResults.categories.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-1.5 text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-2 px-1">
+                          <Tag className="h-3.5 w-3.5 text-blue-500" />
+                          <span>Categories & Services</span>
+                        </div>
+                        <div className="space-y-1">
+                          {searchResults.categories.map((c, idx) => (
+                            <div
+                              key={idx}
+                              onClick={() => handleSearchResultClick("category", c)}
+                              className="flex items-center gap-3 py-2 px-2.5 hover:bg-secondary/70 rounded-xl cursor-pointer transition-colors group"
+                            >
+                              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 shrink-0">
+                                <Search className="h-3.5 w-3.5" />
+                              </div>
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                                  {c.subcategory ? `${c.subcategory}` : c.category}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground truncate">
+                                  In {c.category}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3. Tourist Places Section */}
+                    {searchResults.touristPlaces.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-1.5 text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-2 px-1">
+                          <MapPin className="h-3.5 w-3.5 text-rose-500" />
+                          <span>Destinations</span>
+                        </div>
+                        <div className="space-y-1">
+                          {searchResults.touristPlaces.map((place, idx) => (
+                            <div
+                              key={idx}
+                              onClick={() => handleSearchResultClick("place", place)}
+                              className="flex items-center gap-3 p-2 hover:bg-secondary/70 rounded-xl cursor-pointer transition-colors group"
+                            >
+                              <div className="h-9 w-9 rounded-lg overflow-hidden bg-secondary shrink-0">
+                                <img
+                                  src={place.img}
+                                  alt={place.title}
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors truncate block">
+                                  {place.title}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  Tourist Destination
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* No results state */}
+                    {!isSearching &&
+                      searchResults.businesses.length === 0 &&
+                      searchResults.categories.length === 0 &&
+                      searchResults.touristPlaces.length === 0 && (
+                        <div className="py-8 text-center">
+                          <Search className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                          <p className="text-xs font-bold text-foreground">
+                            No matches found for "{searchQuery}"
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Try searching for a business name, service, or locality
+                          </p>
+                        </div>
+                      )}
                   </div>
-                </div>
+                ) : (
+                  /* CASE 2: Empty Query (Recent & Real Trending Categories) */
+                  <div className="space-y-3">
+                    {/* Recent Searches */}
+                    {recentSearchTerms.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-2 px-1">
+                          <span className="flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5 text-slate-400" /> Recent Searches
+                          </span>
+                          <button
+                            type="button"
+                            onClick={clearRecentSearches}
+                            className="text-primary hover:underline lowercase font-bold text-xs tracking-normal cursor-pointer"
+                          >
+                            clear all
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 px-1">
+                          {recentSearchTerms.map((term, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setSearchQuery(term)}
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary/80 hover:bg-secondary text-foreground text-xs font-bold transition border border-border/60 cursor-pointer"
+                            >
+                              <Search className="h-3 w-3 text-muted-foreground" />
+                              <span>{term}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mt-4 mb-2 px-1">
-                  Trending Searches
-                </div>
+                    {/* Real Dynamic Categories (Zero Dummy Data) */}
+                    <div>
+                      <div className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mt-2 mb-2 px-1 flex items-center gap-1.5">
+                        <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+                        <span>Explore Popular Categories</span>
+                      </div>
+                      <div className="space-y-1">
+                        {(Array.isArray(categories) ? categories.slice(0, 7) : []).map((catItem: any, idx: number) => {
+                          const catTitle = typeof catItem === "string" ? catItem : (catItem?.label || catItem?.title || catItem?.name || "");
+                          if (!catTitle) return null;
 
-                {/* Trending items */}
-                {[
-                  "Hostels For Women",
-                  "Hostels",
-                  "Gynaecologist & Obstetrician Doctors",
-                  "Real Estate Agents",
-                  "Dentists",
-                  "Banquet Halls",
-                  "Car Rental",
-                ].map((item) => (
-                  <div
-                    key={item}
-                    className="flex items-center gap-3 py-1.5 px-2 hover:bg-secondary/60 rounded-xl cursor-pointer transition-colors duration-200"
-                  >
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-secondary/80 text-muted-foreground shrink-0">
-                      <TrendingUp className="h-3.5 w-3.5" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[13px] font-semibold text-foreground">{item}</span>
-                      <span className="text-[11px] text-muted-foreground">Category</span>
+                          return (
+                            <div
+                              key={idx}
+                              onClick={() => handleSearchResultClick("category", { category: catTitle })}
+                              className="flex items-center gap-3 py-2 px-2 hover:bg-secondary/70 rounded-xl cursor-pointer transition-colors group"
+                            >
+                              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 shrink-0">
+                                <TrendingUp className="h-3.5 w-3.5" />
+                              </div>
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                                  {catTitle}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground truncate">
+                                  Browse verified listings
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>
@@ -1175,54 +1599,123 @@ export default function HomePage({
               className="flex sm:grid overflow-x-auto sm:overflow-x-visible scroll-smooth sm:scroll-auto gap-1.5 sm:gap-5 w-full no-scrollbar sm:grid-cols-2 lg:grid-cols-4 py-2 px-4 sm:px-0 sm:p-0 sm:m-0 animate-fade-in-up"
               style={{ scrollbarWidth: "none" }}
             >
-              {activeServices.length === 0 ? (
-                <div className="col-span-4 py-8 text-center text-muted-foreground italic text-xs w-full">
-                  No popular services available for this tab.
-                </div>
-              ) : (
-                activeServices.map((s: any) => (
-                  <div
-                    key={s._id}
-                    onClick={() => onPopularServiceClick ? onPopularServiceClick(s._id) : setSelectedServiceForModal(s)}
-                    className="group overflow-hidden rounded-xl sm:rounded-2xl border border-border bg-background transition hover:shadow-[var(--shadow-elegant)] shrink-0 w-[30.5%] sm:w-full cursor-pointer"
-                  >
-                    <div className="relative aspect-[16/10] overflow-hidden">
-                      <img
-                        src={resolveServiceImage(s.img)}
-                        alt={s.title}
-                        loading="lazy"
-                        width={800}
-                        height={500}
-                        className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                      />
-                      {/* Desktop View Overlay */}
-                      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/95 to-transparent hidden sm:block" />
-                      <div className="absolute bottom-3 left-4 right-4 text-primary-foreground hidden sm:block">
-                        <div className="font-serif text-lg leading-tight font-bold">{s.title}</div>
-                        <div className="text-xs opacity-85 mt-0.5">{s.desc}</div>
-                      </div>
-                    </div>
-                    <div className="p-2 sm:p-4 flex items-center justify-between">
-                      {/* Desktop View Bottom Bar */}
-                      <div className="hidden sm:flex items-center justify-between w-full">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <BadgeCheck className="h-3.5 w-3.5 text-accent shrink-0" />
-                          <span>Verified providers</span>
+              {activeTab === "Near You" ? (
+                nearbyBusinesses.length === 0 ? (
+                  <div className="col-span-4 py-10 text-center text-muted-foreground italic text-xs w-full flex flex-col items-center justify-center gap-2">
+                    <MapPin className="h-8 w-8 text-rose-500/40" />
+                    <span>No businesses found within {nearbyRadiusKm} km of your location.</span>
+                  </div>
+                ) : (
+                  nearbyBusinesses.map((biz: any) => (
+                    <div
+                      key={biz._id || biz.id}
+                      onClick={() => onBusinessSelect ? onBusinessSelect(biz.id || biz._id) : (onCategoryClick && onCategoryClick(biz.category))}
+                      className="group overflow-hidden rounded-xl sm:rounded-2xl border border-border bg-background transition hover:shadow-[var(--shadow-elegant)] shrink-0 w-[45%] sm:w-full cursor-pointer flex flex-col justify-between"
+                    >
+                      <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-900">
+                        <img
+                          src={resolveItemImage(biz.images?.[0])}
+                          alt={biz.name}
+                          loading="lazy"
+                          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src =
+                              "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80";
+                          }}
+                        />
+
+
+                        {/* Rating Badge on top right */}
+                        {biz.rating && (
+                          <div className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-md">
+                            <Star className="h-2.5 w-2.5 fill-white stroke-none" />
+                            <span>{biz.rating}</span>
+                          </div>
+                        )}
+
+                        {/* Desktop View Overlay */}
+                        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/95 to-transparent hidden sm:block" />
+                        <div className="absolute bottom-3 left-4 right-4 text-primary-foreground hidden sm:block">
+                          <div className="font-serif text-base lg:text-lg leading-tight font-bold truncate">{biz.name}</div>
+                          <div className="text-xs opacity-90 mt-0.5 truncate">{biz.categoryLine || biz.category || "Local Business"}</div>
                         </div>
-                        <button className="inline-flex items-center gap-0.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition group-hover:bg-accent group-hover:text-accent-foreground cursor-pointer shrink-0">
-                          <Phone className="h-3 w-3" /> Enquire
-                        </button>
                       </div>
 
-                      {/* Mobile View Bottom Bar (Title instead of Enquire button and description) */}
-                      <div className="flex sm:hidden flex-col items-center text-center w-full">
-                        <span className="text-[10px] font-bold text-foreground/95 leading-tight line-clamp-2">
-                          {s.title}
-                        </span>
+                      <div className="p-2 sm:p-4 flex items-center justify-between">
+                        {/* Desktop View Bottom Bar */}
+                        <div className="hidden sm:flex items-center justify-between w-full">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground truncate max-w-[140px]">
+                            <BadgeCheck className="h-3.5 w-3.5 text-accent shrink-0" />
+                            <span className="truncate">{biz.location || biz.cityTown || "Verified"}</span>
+                          </div>
+                          <button className="inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition group-hover:bg-accent group-hover:text-accent-foreground cursor-pointer shrink-0">
+                            <Phone className="h-3 w-3" /> View Detail
+                          </button>
+                        </div>
+
+                        {/* Mobile View Bottom Bar */}
+                        <div className="flex sm:hidden flex-col text-left w-full">
+                          <span className="text-[11px] font-bold text-foreground/95 leading-tight truncate">
+                            {biz.name}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground truncate mt-0.5">
+                            {biz.location || biz.category}
+                          </span>
+                        </div>
                       </div>
                     </div>
+                  ))
+                )
+              ) : (
+                activeServices.length === 0 ? (
+                  <div className="col-span-4 py-8 text-center text-muted-foreground italic text-xs w-full">
+                    No popular services available for this tab.
                   </div>
-                ))
+                ) : (
+                  activeServices.map((s: any) => (
+                    <div
+                      key={s._id}
+                      onClick={() => onPopularServiceClick ? onPopularServiceClick(s._id) : setSelectedServiceForModal(s)}
+                      className="group overflow-hidden rounded-xl sm:rounded-2xl border border-border bg-background transition hover:shadow-[var(--shadow-elegant)] shrink-0 w-[30.5%] sm:w-full cursor-pointer"
+                    >
+                      <div className="relative aspect-[16/10] overflow-hidden">
+                        <img
+                          src={resolveServiceImage(s.img)}
+                          alt={s.title}
+                          loading="lazy"
+                          width={800}
+                          height={500}
+                          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                        />
+                        {/* Desktop View Overlay */}
+                        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/95 to-transparent hidden sm:block" />
+                        <div className="absolute bottom-3 left-4 right-4 text-primary-foreground hidden sm:block">
+                          <div className="font-serif text-lg leading-tight font-bold">{s.title}</div>
+                          <div className="text-xs opacity-85 mt-0.5">{s.desc}</div>
+                        </div>
+                      </div>
+                      <div className="p-2 sm:p-4 flex items-center justify-between">
+                        {/* Desktop View Bottom Bar */}
+                        <div className="hidden sm:flex items-center justify-between w-full">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <BadgeCheck className="h-3.5 w-3.5 text-accent shrink-0" />
+                            <span>Verified providers</span>
+                          </div>
+                          <button className="inline-flex items-center gap-0.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition group-hover:bg-accent group-hover:text-accent-foreground cursor-pointer shrink-0">
+                            <Phone className="h-3 w-3" /> Enquire
+                          </button>
+                        </div>
+
+                        {/* Mobile View Bottom Bar */}
+                        <div className="flex sm:hidden flex-col items-center text-center w-full">
+                          <span className="text-[10px] font-bold text-foreground/95 leading-tight line-clamp-2">
+                            {s.title}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )
               )}
             </div>
           </div>

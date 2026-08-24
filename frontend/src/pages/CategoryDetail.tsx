@@ -28,6 +28,10 @@ import {
   Check,
   ShieldCheck,
   Loader2,
+  Map as MapIcon,
+  List as ListIcon,
+  Navigation,
+  SlidersHorizontal,
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { BusinessListingData } from "../data/businessesData";
@@ -35,6 +39,8 @@ import Footer from "./Footer";
 import { useCategories } from "../context/CategoryContext";
 import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
 import { getSubcategoryEmoji } from "../utils/categoryImages";
+import { calculateDistanceKm, formatDistance, getCurrentUserLocation } from "../utils/googleMaps";
+import CategoryMapView from "../components/map/CategoryMapView";
 
 
 
@@ -254,6 +260,18 @@ export default function CategoryDetailPage({
       .finally(() => setListingsLoading(false));
   }, [categoryName, activeSubcategory]);
 
+  // View mode and Sort state
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [sortBy, setSortBy] = useState<"default" | "distance" | "rating" | "reviews">("default");
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(() => {
+    try {
+      const saved = localStorage.getItem("fmp_user_coords:v1");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   // Search states grouped to reduce useState count
   const [searchFilters, setSearchFilters] = useState({
     query: "",
@@ -411,12 +429,43 @@ export default function CategoryDetailPage({
     setActiveSubcategory(subcat);
   };
 
-  // Filter listings based on search
-  const filteredListings = listings.filter(
-    (biz) =>
-      biz.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      biz.location.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  // Process listings with distance and sorting
+  const processedListings = useMemo(() => {
+    let list = listings.map((b) => {
+      if (userCoords && b.latitude && b.longitude) {
+        const dist = calculateDistanceKm(userCoords.lat, userCoords.lng, b.latitude, b.longitude);
+        return { ...b, distance: dist * 1000 };
+      }
+      return b;
+    });
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (biz) =>
+          biz.name.toLowerCase().includes(q) ||
+          (biz.location && biz.location.toLowerCase().includes(q)) ||
+          (biz.address && biz.address.toLowerCase().includes(q))
+      );
+    }
+
+    if (sortBy === "distance") {
+      list.sort((a, b) => {
+        if (a.distance && b.distance) return a.distance - b.distance;
+        if (a.distance) return -1;
+        if (b.distance) return 1;
+        return 0;
+      });
+    } else if (sortBy === "rating") {
+      list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    } else if (sortBy === "reviews") {
+      list.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
+    }
+
+    return list;
+  }, [listings, searchQuery, sortBy, userCoords]);
+
+  const filteredListings = processedListings;
 
   // Filter subcategories list based on user search
   const filteredSubcategories = subcategories.filter((sub) =>
@@ -1555,19 +1604,102 @@ export default function CategoryDetailPage({
 
           {/* Right Panel: Business Listings */}
           <section className="flex-1 overflow-y-auto lg:overflow-visible px-4 py-6 lg:p-0">
-            <div className="hidden lg:block mb-6">
-              <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight">
-                Top {activeSubcategory} in Mumbai
-              </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                {listingsLoading
-                  ? "Loading listings..."
-                  : `Showing ${filteredListings.length} verified listing${filteredListings.length !== 1 ? 's' : ''} ready to assist you.`}
-              </p>
+            <div className="hidden lg:flex items-center justify-between gap-4 mb-6">
+              <div>
+                <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight">
+                  Top {activeSubcategory} in {categoryName}
+                </h1>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  {listingsLoading
+                    ? "Loading listings..."
+                    : `Showing ${filteredListings.length} verified listing${filteredListings.length !== 1 ? 's' : ''} ready to assist you.`}
+                </p>
+              </div>
+
+              {/* View & Sort Controls */}
+              <div className="flex items-center gap-2.5 shrink-0">
+                {/* Sort Dropdown */}
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="bg-card border border-border text-foreground text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs outline-none cursor-pointer"
+                >
+                  <option value="default">Default Sort</option>
+                  <option value="distance">📍 Nearest to Me</option>
+                  <option value="rating">⭐ Highest Rated</option>
+                  <option value="reviews">💬 Most Reviewed</option>
+                </select>
+
+                {/* View Mode Toggle: List vs Map */}
+                <div className="flex items-center rounded-xl border border-border bg-card p-0.5 shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("list")}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      viewMode === "list"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <ListIcon className="h-3.5 w-3.5" />
+                    <span>List</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("map")}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      viewMode === "map"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <MapIcon className="h-3.5 w-3.5" />
+                    <span>Map View</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {/* Listings Grid */}
-            {listingsLoading ? (
+            {/* Mobile View Toggle Bar */}
+            <div className="flex lg:hidden items-center justify-between gap-2 mb-4 bg-card border border-border/80 rounded-xl p-1.5 shadow-xs">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="bg-transparent text-foreground text-[11px] font-bold px-2 py-1 outline-none cursor-pointer flex-1"
+              >
+                <option value="default">Sort By</option>
+                <option value="distance">📍 Nearest to Me</option>
+                <option value="rating">⭐ Top Rated</option>
+              </select>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("list")}
+                  className={`p-1.5 rounded-lg ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+                  title="List View"
+                >
+                  <ListIcon className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("map")}
+                  className={`p-1.5 rounded-lg ${viewMode === "map" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+                  title="Map View"
+                >
+                  <MapIcon className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Map View Mode Render */}
+            {viewMode === "map" ? (
+              <CategoryMapView
+                businesses={filteredListings}
+                onBusinessSelect={onBusinessSelect}
+                userCoords={userCoords}
+              />
+            ) : listingsLoading ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-sm text-muted-foreground font-medium">Loading listings...</p>
@@ -1589,6 +1721,8 @@ export default function CategoryDetailPage({
             ) : (
               <div key={activeSubcategory} className="flex flex-col gap-4 sm:gap-6 animate-fade-in-up">
                 {filteredListings.map((biz) => {
+                  const distKm = biz.distance ? biz.distance / 1000 : null;
+                  const distFormatted = distKm ? formatDistance(distKm) : null;
                   return (
                     <div key={biz.id}>
                       {/* Mobile View Compact Card */}
@@ -1607,6 +1741,13 @@ export default function CategoryDetailPage({
                               className="h-full w-full object-cover"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                            {distFormatted ? (
+                              <div className="absolute bottom-1 left-1">
+                                <span className="text-[8px] font-black bg-black/80 text-white px-1 py-0.5 rounded">
+                                  {distFormatted}
+                                </span>
+                              </div>
+                            ) : null}
                           </div>
 
                           {/* Info */}
@@ -1710,16 +1851,25 @@ export default function CategoryDetailPage({
                               <h2 className="font-serif text-xl font-bold text-foreground transition-colors leading-tight">
                                 {biz.name}
                               </h2>
-                              {biz.isVerified ? (
-                                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">
-                                  <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" />
-                                  Verified
-                                </span>
-                              ) : (
-                                <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full shrink-0">
-                                  Unverified
-                                </span>
-                              )}
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {distFormatted ? (
+                                  <span className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 px-2 py-0.5 rounded-full">
+                                    <MapPin className="h-3 w-3 text-rose-500" />
+                                    {distFormatted} away
+                                  </span>
+                                ) : null}
+
+                                {biz.isVerified ? (
+                                  <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                    <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" />
+                                    Verified
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                                    Unverified
+                                  </span>
+                                )}
+                              </div>
                             </div>
 
                             {/* Ratings */}

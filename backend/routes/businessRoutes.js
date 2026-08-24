@@ -14,13 +14,16 @@ const {
   getEnquiries,
   updateEnquiryStatus,
   deleteEnquiry,
-  clearEnquiries
+  clearEnquiries,
+  getNearbyBusinesses,
+  geocodeBusiness
 } = require('../controllers/businessController');
 const { addReview, deleteReview } = require('../controllers/reviewController');
 const { protect } = require('../middleware/authMiddleware');
 
 // Public routes
 router.get('/', getBusinesses);
+router.get('/nearby', getNearbyBusinesses);
 router.post('/login', loginBusiness);
 router.get('/public/:city/:locality/:slug', getPublicBusinessByPath);
 router.get('/:id', getBusinessById);
@@ -34,6 +37,7 @@ router.put('/:id', protect, updateBusiness);
 router.delete('/:id', protect, deleteBusiness);
 router.delete('/:id/reviews/:reviewId', protect, deleteReview);
 router.post('/:id/booking-disable', protect, toggleBookingDisable);
+router.post('/:id/geocode', protect, geocodeBusiness);
 
 // Enquiry routes for client dashboard
 router.get('/:id/enquiries', protect, getEnquiries);

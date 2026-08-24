@@ -40,7 +40,12 @@ const TouristPlaceSchema = new mongoose.Schema({
   bestTime: { type: String },
   idealDuration: { type: String },
   nearestAirport: { type: String },
-  localTransport: { type: String }
+  localTransport: { type: String },
+
+  // Map & Geolocation fields
+  latitude: { type: Number, default: null },
+  longitude: { type: Number, default: null },
+  locationLink: { type: String, default: '' } // Google Maps embed/direction URL
 }, { timestamps: true });
 
 module.exports = mongoose.model('TouristPlace', TouristPlaceSchema);

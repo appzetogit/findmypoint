@@ -18,6 +18,7 @@ import {
   ChevronRight,
   ArrowLeft,
 } from "lucide-react";
+import AddressAutocompleteInput, { PlaceResultData } from "../components/map/AddressAutocompleteInput";
 
 interface ProfileWizardProps {
   onClose: () => void;
@@ -1053,17 +1054,26 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                       htmlFor="addrDetails"
                       className="block text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1.5"
                     >
-                      Address Details
+                      Address Details (Google Places Autocomplete)
                     </label>
-                    <textarea
+                    <AddressAutocompleteInput
                       id="addrDetails"
-                      rows={2}
                       value={newAddr.address}
-                      onChange={(e) =>
-                        dispatch({ type: "UPDATE_NEW_ADDR", fields: { address: e.target.value } })
+                      onChange={(val) =>
+                        dispatch({ type: "UPDATE_NEW_ADDR", fields: { address: val } })
                       }
-                      placeholder="House No, Floor, Street, Landmark details..."
-                      className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-accent resize-none"
+                      onPlaceSelected={(place: PlaceResultData) => {
+                        dispatch({
+                          type: "UPDATE_NEW_ADDR",
+                          fields: {
+                            address: place.formattedAddress,
+                            city: place.city || newAddr.city,
+                            pincode: place.pincode || newAddr.pincode,
+                          },
+                        });
+                      }}
+                      placeholder="Start typing your address or locality..."
+                      className="rounded-xl border border-border bg-background py-2.5 text-xs font-semibold outline-none focus:border-accent"
                     />
                   </div>
 

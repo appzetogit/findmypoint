@@ -98,6 +98,10 @@ export interface BusinessListingData {
   seoKeywords?: string[];
   establishedYear?: string;
   businessType?: string;
+  latitude?: number;
+  longitude?: number;
+  placeId?: string;
+  distance?: number; // Distance in meters from user for nearby searches
 }
 
 export const businessesData: BusinessListingData[] = [];

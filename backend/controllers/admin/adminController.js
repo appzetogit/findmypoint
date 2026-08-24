@@ -99,7 +99,8 @@ const getAdminProfile = async (req, res) => {
           id: admin._id,
           name: admin.name,
           email: admin.email,
-          role: admin.role
+          role: admin.role,
+          nearbyRadiusKm: admin.nearbyRadiusKm ?? 5
         }
       });
     } else {
@@ -120,6 +121,9 @@ const updateAdminProfile = async (req, res) => {
     if (admin) {
       admin.name = req.body.name || admin.name;
       admin.email = req.body.email || admin.email;
+      if (req.body.nearbyRadiusKm !== undefined) {
+        admin.nearbyRadiusKm = Number(req.body.nearbyRadiusKm);
+      }
       
       if (req.body.password) {
         admin.password = req.body.password;
@@ -133,14 +137,32 @@ const updateAdminProfile = async (req, res) => {
           id: updatedAdmin._id,
           name: updatedAdmin.name,
           email: updatedAdmin.email,
-          role: updatedAdmin.role
+          role: updatedAdmin.role,
+          nearbyRadiusKm: updatedAdmin.nearbyRadiusKm ?? 5
         }
       });
-      } else {
+    } else {
       res.status(404).json({ success: false, message: 'Admin not found' });
     }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get public admin settings (e.g. dynamic nearbyRadiusKm)
+// @route   GET /api/admin/public-settings
+// @access  Public
+const getPublicSettings = async (req, res) => {
+  try {
+    const admin = await Admin.findOne().sort({ createdAt: 1 });
+    res.status(200).json({
+      success: true,
+      settings: {
+        nearbyRadiusKm: admin?.nearbyRadiusKm ?? 5
+      }
+    });
+  } catch (error) {
+    res.status(200).json({ success: true, settings: { nearbyRadiusKm: 5 } });
   }
 };
 
@@ -211,6 +233,7 @@ module.exports = {
   loginAdmin,
   getAdminProfile,
   updateAdminProfile,
+  getPublicSettings,
   getAllUsers,
   deleteUser,
   updateUser

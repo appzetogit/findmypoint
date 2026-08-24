@@ -10,8 +10,11 @@ import {
   ChevronRight,
   Inbox,
   LogIn,
+  Navigation,
+  ExternalLink,
 } from "lucide-react";
 import { API_BASE_URL } from "../config";
+import { getDirectionsUrl } from "../utils/googleMaps";
 
 interface Booking {
   id: string;
@@ -254,6 +257,21 @@ export default function MobileBookingPage({ onSignInClick }: MobileBookingPagePr
                       <span className="text-muted-foreground">Category</span>
                       <span className="font-semibold text-foreground">{b.category}</span>
                     </div>
+
+                    {b.location && (
+                      <div className="pt-1">
+                        <a
+                          href={getDirectionsUrl(`${b.businessName}, ${b.location}`)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60 text-xs font-bold hover:bg-indigo-100 transition"
+                        >
+                          <Navigation className="h-3.5 w-3.5 fill-current" />
+                          <span>Get Directions on Google Maps</span>
+                          <ExternalLink className="h-3 w-3 opacity-70" />
+                        </a>
+                      </div>
+                    )}
 
                     {(b.status === "confirmed" || b.status === "pending") && (
                       <div className="flex gap-2 pt-2">

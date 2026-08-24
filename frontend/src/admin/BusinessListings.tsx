@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Search, Plus, Eye, EyeOff, Edit2, Trash2, MapPin, Tag, Phone, ShieldCheck, Calendar, QrCode, Download, X, Lock, ClipboardList, Globe, ArrowRight, Maximize2, Image as ImageIcon } from "lucide-react";
+import { Search, Plus, Eye, EyeOff, Edit2, Trash2, MapPin, Tag, Phone, ShieldCheck, Calendar, QrCode, Download, X, Lock, ClipboardList, Globe, ArrowRight, Maximize2, Image as ImageIcon, Map as MapIcon, List as ListIcon } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
 import { API_BASE_URL } from "../config";
 import ServiceForm from "../client/ServiceForm";
+import CategoryMapView from "../components/map/CategoryMapView";
 
 interface BusinessListingsProps {
   onAddNew: () => void;
@@ -24,6 +25,7 @@ export default function BusinessListings({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [adminLightboxImg, setAdminLightboxImg] = useState<string | null>(null);
+  const [adminViewMode, setAdminViewMode] = useState<"table" | "map">("table");
 
   const loadListings = async () => {
     try {
@@ -224,10 +226,45 @@ export default function BusinessListings({
                 ))}
             </select>
           </div>
+
+          {/* Table / Map View Toggle */}
+          <div className="flex items-center rounded-xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 p-0.5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setAdminViewMode("table")}
+              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                adminViewMode === "table"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+              }`}
+            >
+              <ListIcon className="h-3.5 w-3.5" />
+              <span>Table</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setAdminViewMode("map")}
+              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                adminViewMode === "map"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+              }`}
+            >
+              <MapIcon className="h-3.5 w-3.5" />
+              <span>Map View</span>
+            </button>
+          </div>
         </div>
 
-        {/* Table List (Flat and transparent background, no card wrapper) */}
-        {filteredListings.length === 0 ? (
+        {/* Render Map View or Table */}
+        {adminViewMode === "map" ? (
+          <div className="pt-2">
+            <CategoryMapView
+              businesses={filteredListings}
+              onBusinessSelect={(id) => onEditBusiness(id)}
+            />
+          </div>
+        ) : filteredListings.length === 0 ? (
           <div className="text-center py-16 px-4 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl bg-white/50 dark:bg-slate-900/50">
             <p className="text-xs text-slate-500 dark:text-slate-400 italic">
               No business listings found matching your criteria.

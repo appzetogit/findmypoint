@@ -25,6 +25,9 @@ connectDB();
 
 const app = express();
 
+// Trust reverse proxy (Nginx) for accurate IP rate limiting and X-Forwarded-For headers
+app.set('trust proxy', 1);
+
 // ─── CORS Configuration ─────────────────────────────────────────────────────
 const rawFrontendUrls = process.env.FRONTEND_URL 
   ? process.env.FRONTEND_URL.split(',').map(s => s.trim()) 

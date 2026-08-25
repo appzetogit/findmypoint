@@ -424,27 +424,28 @@ export default function Footer() {
   }, []);
 
   return (
-    <footer className="mt-24 border-t border-border hidden sm:block">
-      <div className="mx-auto max-w-7xl px-6 py-16 w-full">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-10">
-          <div className="col-span-1 sm:col-span-2">
+    <footer className="mt-8 sm:mt-24 border-t border-border w-full bg-card/30 text-left">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-8 pb-6 sm:py-16 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 sm:gap-10">
+          {/* Brand & Socials column */}
+          <div className="md:col-span-2">
             <a href="/" className="flex items-center">
               <LazyImage
                 src={logoImg}
                 alt="FindMyPoint Logo"
                 priority={true}
                 showSkeleton={false}
-                className="h-8 w-auto"
-                imgClassName="h-8 w-auto object-contain"
+                className="h-7 sm:h-8 w-auto"
+                imgClassName="h-7 sm:h-8 w-auto object-contain"
                 style={{ mixBlendMode: "multiply" }}
               />
             </a>
             {footerData.tagline && (
-              <p className="mt-4 max-w-sm text-sm text-muted-foreground">{footerData.tagline}</p>
+              <p className="mt-2.5 sm:mt-4 max-w-sm text-xs sm:text-sm text-muted-foreground">{footerData.tagline}</p>
             )}
 
             {/* Dynamic Social Links */}
-            <div className="mt-6 flex gap-2.5">
+            <div className="mt-4 sm:mt-6 flex gap-2.5">
               {[
                 {
                   id: "facebook",
@@ -523,7 +524,7 @@ export default function Footer() {
                     href={socialConfig.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex h-9 w-9 items-center justify-center rounded-full transition-transform duration-300 shadow-sm ${item.color}`}
+                    className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-transform duration-300 shadow-sm ${item.color}`}
                   >
                     {item.svg}
                   </a>
@@ -533,16 +534,16 @@ export default function Footer() {
 
             {/* App Download Buttons */}
             {(footerData.playstoreUrl || footerData.appstoreUrl) && (
-              <div className="mt-6 flex flex-wrap items-center gap-3">
+              <div className="mt-4 sm:mt-6 flex flex-wrap items-center gap-2.5 sm:gap-3">
                 {/* Google Play Button */}
                 {footerData.playstoreUrl && (
                   <a
                     href={footerData.playstoreUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 rounded-xl bg-[#111111] hover:bg-black text-white px-3 py-1.5 transition-all duration-300 shadow-sm border border-white/10 cursor-pointer"
+                    className="flex items-center gap-2 rounded-xl bg-[#111111] hover:bg-black text-white px-2.5 py-1.5 transition-all duration-300 shadow-sm border border-white/10 cursor-pointer"
                   >
-                    <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <svg className="h-4 w-4 sm:h-4.5 sm:w-4.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path
                         d="M1.9 22.1l13.56-10.1L1.9 1.9c-.06.22-.09.46-.09.7v18.8c0 .24.03.48.09.7"
                         fill="#3bccff"
@@ -561,10 +562,10 @@ export default function Footer() {
                       />
                     </svg>
                     <div className="flex flex-col text-left">
-                      <span className="text-[8px] font-semibold text-white/70 uppercase tracking-widest leading-none">
+                      <span className="text-[7.5px] font-semibold text-white/70 uppercase tracking-widest leading-none">
                         GET IT ON
                       </span>
-                      <span className="text-[11px] font-bold leading-tight mt-0.5">Google Play</span>
+                      <span className="text-[10.5px] font-bold leading-tight mt-0.5">Google Play</span>
                     </div>
                   </a>
                 )}
@@ -575,20 +576,20 @@ export default function Footer() {
                     href={footerData.appstoreUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 rounded-xl bg-[#111111] hover:bg-black text-white px-3 py-1.5 transition-all duration-300 shadow-sm border border-white/10 cursor-pointer"
+                    className="flex items-center gap-2 rounded-xl bg-[#111111] hover:bg-black text-white px-2.5 py-1.5 transition-all duration-300 shadow-sm border border-white/10 cursor-pointer"
                   >
                     <svg
-                      className="h-4.5 w-4.5 fill-white"
+                      className="h-4 w-4 sm:h-4.5 sm:w-4.5 fill-white"
                       viewBox="0 0 24 24"
                       xmlns="http://www.w3.org/2000/svg"
                     >
                       <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.502 12.06 1.002 1.45 2.19 3.078 3.76 3.02 1.514-.06 2.09-.98 3.916-.98 1.81 0 2.333.98 3.917.948 1.606-.027 2.648-1.48 3.627-2.9 1.13-1.656 1.597-3.26 1.623-3.342-.03-.015-3.107-1.192-3.137-4.747-.025-2.978 2.443-4.41 2.56-4.484-1.393-2.04-3.548-2.27-4.316-2.32-2-.162-3.9 1.231-4.918 1.231zm2.33-4.57c.896-1.082 1.5-2.585 1.332-4.086-1.286.05-2.85.856-3.774 1.938-.796.918-1.492 2.455-1.304 3.925 1.438.113 2.875-.722 3.746-1.777z" />
                     </svg>
                     <div className="flex flex-col text-left">
-                      <span className="text-[8px] font-semibold text-white/70 leading-none">
+                      <span className="text-[7.5px] font-semibold text-white/70 leading-none">
                         Download on the
                       </span>
-                      <span className="text-[11px] font-bold leading-tight mt-0.5">App Store</span>
+                      <span className="text-[10.5px] font-bold leading-tight mt-0.5">App Store</span>
                     </div>
                   </a>
                 )}
@@ -596,93 +597,96 @@ export default function Footer() {
             )}
           </div>
 
-          {/* Static link segments remain unchanged */}
-          {[
-            ["Company", ["About", "Search Employee"]],
-            ["Business", ["Advertise", "Lead Generator"]],
-            ["Support", ["Help Centre", "Privacy Policy", "Terms & Conditions"]],
-          ].map(([h, items]) => (
-            <div key={h as string}>
-              <h5 className="text-sm font-semibold">{h as string}</h5>
-              <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                {(items as string[]).map((i) => (
-                  <li key={i}>
-                    {i === "Lead Generator" ? (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          const userToken = localStorage.getItem("fmp_user_token");
-                          if (!userToken) {
-                            window.dispatchEvent(new CustomEvent("fmp-open-signin"));
-                            return;
-                          }
-                          setShowLeadForm(true);
-                        }}
-                        className="transition hover:text-foreground text-left cursor-pointer bg-transparent border-none p-0 text-sm text-muted-foreground font-normal"
-                      >
-                        {i}
-                      </button>
-                    ) : i === "Search Employee" ? (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setShowIdInput(true);
-                        }}
-                        className="transition hover:text-foreground text-left cursor-pointer bg-transparent border-none p-0 text-sm text-muted-foreground font-normal"
-                      >
-                        {i}
-                      </button>
-                    ) : i === "Advertise" ? (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          window.dispatchEvent(new CustomEvent("fmp-open-advertise"));
-                        }}
-                        className="transition hover:text-foreground text-left cursor-pointer bg-transparent border-none p-0 text-sm text-muted-foreground font-normal"
-                      >
-                        {i}
-                      </button>
-                    ) : i === "Privacy Policy" || i === "Terms & Conditions" ? (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          window.dispatchEvent(
-                            new CustomEvent("fmp-open-page", { detail: "Policy" }),
-                          );
-                        }}
-                        className="transition hover:text-foreground text-left cursor-pointer bg-transparent border-none p-0 text-sm text-muted-foreground font-normal"
-                      >
-                        {i}
-                      </button>
-                    ) : i === "Help Centre" ? (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          window.dispatchEvent(
-                            new CustomEvent("fmp-open-page", { detail: "Help" }),
-                          );
-                        }}
-                        className="transition hover:text-foreground text-left cursor-pointer bg-transparent border-none p-0 text-sm text-muted-foreground font-normal"
-                      >
-                        {i}
-                      </button>
-                    ) : (
-                      <a href="#" className="transition hover:text-foreground">
-                        {i}
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {/* Links column: 2 columns on mobile (Company beside Business) and 3 columns on desktop */}
+          <div className="md:col-span-3 grid grid-cols-2 sm:grid-cols-3 gap-6 sm:gap-8">
+            {[
+              ["Company", ["About", "Search Employee"]],
+              ["Business", ["Advertise", "Lead Generator"]],
+              ["Support", ["Help Centre", "Privacy Policy", "Terms & Conditions"]],
+            ].map(([h, items]) => (
+              <div key={h as string} className={h === "Support" ? "col-span-2 sm:col-span-1" : ""}>
+                <h5 className="text-xs sm:text-sm font-bold text-foreground uppercase tracking-wider">{h as string}</h5>
+                <ul className="mt-2.5 sm:mt-4 space-y-2 text-xs sm:text-sm text-muted-foreground">
+                  {(items as string[]).map((i) => (
+                    <li key={i}>
+                      {i === "Lead Generator" ? (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            const userToken = localStorage.getItem("fmp_user_token");
+                            if (!userToken) {
+                              window.dispatchEvent(new CustomEvent("fmp-open-signin"));
+                              return;
+                            }
+                            setShowLeadForm(true);
+                          }}
+                          className="transition hover:text-foreground text-left cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm text-muted-foreground font-normal"
+                        >
+                          {i}
+                        </button>
+                      ) : i === "Search Employee" ? (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setShowIdInput(true);
+                          }}
+                          className="transition hover:text-foreground text-left cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm text-muted-foreground font-normal"
+                        >
+                          {i}
+                        </button>
+                      ) : i === "Advertise" ? (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            window.dispatchEvent(new CustomEvent("fmp-open-advertise"));
+                          }}
+                          className="transition hover:text-foreground text-left cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm text-muted-foreground font-normal"
+                        >
+                          {i}
+                        </button>
+                      ) : i === "Privacy Policy" || i === "Terms & Conditions" ? (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            window.dispatchEvent(
+                              new CustomEvent("fmp-open-page", { detail: "Policy" }),
+                            );
+                          }}
+                          className="transition hover:text-foreground text-left cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm text-muted-foreground font-normal"
+                        >
+                          {i}
+                        </button>
+                      ) : i === "Help Centre" ? (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            window.dispatchEvent(
+                              new CustomEvent("fmp-open-page", { detail: "Help" }),
+                            );
+                          }}
+                          className="transition hover:text-foreground text-left cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm text-muted-foreground font-normal"
+                        >
+                          {i}
+                        </button>
+                      ) : (
+                        <a href="#" className="transition hover:text-foreground">
+                          {i}
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Dynamic Copyright block */}
-        <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-border pt-8 text-xs text-muted-foreground md:flex-row md:items-center">
+        <div className="mt-6 sm:mt-12 flex flex-col items-center sm:items-start justify-between gap-2 border-t border-border pt-4 sm:pt-8 text-[11px] sm:text-xs text-muted-foreground md:flex-row md:items-center text-center sm:text-left">
           <p>{footerData.copyright || `© ${new Date().getFullYear()} FindmyPoint Directory Services. All rights reserved.`}</p>
         </div>
       </div>
+
       {/* Search Employee ID Modal */}
       {showIdInput && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-left">

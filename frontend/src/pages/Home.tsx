@@ -31,8 +31,10 @@ import { loadAboutData, AboutData } from "../data/aboutData";
 import { useCategories } from "../context/CategoryContext";
 import { getCategoryImage } from "../utils/categoryImages";
 import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
-import { getCurrentUserLocation, reverseGeocodeCoords, calculateDistanceKm, formatDistance } from "../utils/googleMaps";
+import { getCurrentUserLocation, reverseGeocodeCoords, calculateDistanceKm, formatDistance, loadGoogleMapsScript } from "../utils/googleMaps";
 import { LazyImage } from "../components/ui/LazyImage";
+import MobileSearchPage from "./MobileSearchPage";
+import MobileLocationPage from "./MobileLocationPage";
 
 
 import beautySpa from "@/assets/beauty_spa.png";
@@ -620,6 +622,174 @@ export default function HomePage({
       }
     })() as string[],
   });
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [showMobileLocation, setShowMobileLocation] = useState(false);
+  const [desktopLocationQuery, setDesktopLocationQuery] = useState("");
+  const [desktopOnlineLocations, setDesktopOnlineLocations] = useState<{ title: string; subtitle?: string; fullAddress: string }[]>([]);
+  const [isSearchingDesktopLocation, setIsSearchingDesktopLocation] = useState(false);
+  const desktopLocationDebounceRef = useRef<any>(null);
+
+  useEffect(() => {
+    const cleanQuery = desktopLocationQuery.trim();
+    if (!cleanQuery || cleanQuery.length < 2) {
+      setDesktopOnlineLocations([]);
+      setIsSearchingDesktopLocation(false);
+      return;
+    }
+
+    if (desktopLocationDebounceRef.current) {
+      clearTimeout(desktopLocationDebounceRef.current);
+    }
+
+    setIsSearchingDesktopLocation(true);
+
+    desktopLocationDebounceRef.current = setTimeout(async () => {
+      try {
+        const googleLoaded = await loadGoogleMapsScript();
+        if (googleLoaded && (window as any).google?.maps?.places?.AutocompleteService) {
+          const service = new (window as any).google.maps.places.AutocompleteService();
+          service.getPlacePredictions(
+            {
+              input: cleanQuery,
+              componentRestrictions: { country: "in" },
+            },
+            (predictions: any[], status: string) => {
+              if (status === "OK" && predictions && predictions.length > 0) {
+                const results = predictions.map((p) => ({
+                  title: p.structured_formatting?.main_text || p.description,
+                  subtitle: p.structured_formatting?.secondary_text || "",
+                  fullAddress: p.description || p.structured_formatting?.main_text,
+                }));
+                setDesktopOnlineLocations(results);
+                setIsSearchingDesktopLocation(false);
+                return;
+              }
+              fetchDesktopOsm(cleanQuery);
+            }
+          );
+          return;
+        }
+
+        await fetchDesktopOsm(cleanQuery);
+      } catch (err) {
+        console.warn("Desktop location search error:", err);
+        setIsSearchingDesktopLocation(false);
+      }
+    }, 280);
+
+    return () => {
+      if (desktopLocationDebounceRef.current) clearTimeout(desktopLocationDebounceRef.current);
+    };
+  }, [desktopLocationQuery]);
+
+  const fetchDesktopOsm = async (q: string) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          q
+        )}&countrycodes=in&addressdetails=1&limit=8`,
+        { headers: { "Accept-Language": "en" } }
+      );
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const results = data.map((item: any) => {
+          const addr = item.address || {};
+          const mainTitle =
+            addr.suburb ||
+            addr.neighbourhood ||
+            addr.city_district ||
+            addr.city ||
+            addr.town ||
+            addr.village ||
+            item.name ||
+            q;
+          const secondary = [
+            addr.city || addr.town || addr.county,
+            addr.state,
+          ]
+            .filter(Boolean)
+            .join(", ");
+
+          return {
+            title: mainTitle,
+            subtitle: secondary || item.display_name,
+            fullAddress: secondary ? `${mainTitle}, ${secondary}` : item.display_name,
+          };
+        });
+        setDesktopOnlineLocations(results);
+      } else {
+        setDesktopOnlineLocations([]);
+      }
+    } catch {
+      setDesktopOnlineLocations([]);
+    } finally {
+      setIsSearchingDesktopLocation(false);
+    }
+  };
+
+  const filteredDesktopLocations = useMemo(() => {
+    const q = desktopLocationQuery.trim().toLowerCase();
+    if (!q) return [];
+    const all = [
+      "Vijay Nagar, Indore",
+      "Bhawar Kuan, Indore",
+      "Khajrana, Indore",
+      "Sudama Nagar, Indore",
+      "Mhow, Indore",
+      "MG Road, Indore",
+      "New Palasia, Indore",
+      "Kanadia Road, Indore",
+      "Rau, Indore",
+      "Navlakha, Indore",
+      "Old Palasia, Indore",
+      "Annapurna, Indore",
+      "Rajwada, Indore",
+      "Geeta Bhawan, Indore",
+      "Sapna Sangeeta, Indore",
+      "AB Road, Indore",
+      "Scheme 54, Indore",
+      "Scheme 78, Indore",
+      "Mahalaxmi Nagar, Indore",
+      "Chhoti Gwaltoli, Indore",
+      "Bada Sarafa, Indore",
+      "LIG Colony, Indore",
+      "Bypass Road, Indore",
+      "Airport Road, Indore",
+      "Bicholi Mardana, Indore",
+      "Super Corridor, Indore",
+      "Khandwa Road, Indore",
+      "Indore, Madhya Pradesh",
+      "Bhopal, Madhya Pradesh",
+      "Ujjain, Madhya Pradesh",
+      "Dewas, Madhya Pradesh",
+      "Gwalior, Madhya Pradesh",
+      "Jabalpur, Madhya Pradesh",
+      "Ratlam, Madhya Pradesh",
+      "Khandwa, Madhya Pradesh",
+      "Pithampur, Madhya Pradesh",
+      "Sagar, Madhya Pradesh",
+      "Satna, Madhya Pradesh",
+      "Rewa, Madhya Pradesh",
+      "Mumbai, Maharashtra",
+      "Pune, Maharashtra",
+      "Nagpur, Maharashtra",
+      "Delhi, NCR",
+      "New Delhi, NCR",
+      "Noida, Uttar Pradesh",
+      "Gurgaon, Haryana",
+      "Bangalore, Karnataka",
+      "Hyderabad, Telangana",
+      "Chennai, Tamil Nadu",
+      "Kolkata, West Bengal",
+      "Ahmedabad, Gujarat",
+      "Surat, Gujarat",
+      "Jaipur, Rajasthan",
+      "Lucknow, Uttar Pradesh",
+      "Goa",
+    ];
+    return Array.from(new Set(all)).filter((loc) => loc.toLowerCase().includes(q)).slice(0, 8);
+  }, [desktopLocationQuery]);
+
   const { selectedCity, showLocationDropdown, recentLocations } = locationState;
   const locationRef = useRef<HTMLDivElement>(null);
 
@@ -864,6 +1034,44 @@ export default function HomePage({
     return `${BACKEND_ORIGIN}${imgStr}`;
   };
 
+  // Render Full-Screen Mobile Location Page (Priority so it opens from Search or Home)
+  if (showMobileLocation) {
+    return (
+      <MobileLocationPage
+        onBack={() => setShowMobileLocation(false)}
+        selectedCity={selectedCity}
+        onSelectLocation={(location) => {
+          handleSelectArea(location);
+          setShowMobileLocation(false);
+        }}
+      />
+    );
+  }
+
+  // Render Full-Screen Mobile Search Page
+  if (showMobileSearch) {
+    return (
+      <MobileSearchPage
+        onBack={() => setShowMobileSearch(false)}
+        selectedCity={selectedCity}
+        onOpenLocation={() => setShowMobileLocation(true)}
+        onBusinessSelect={(id) => {
+          setShowMobileSearch(false);
+          onBusinessSelect?.(id);
+        }}
+        onCategorySelect={(categoryName, subcategoryName) => {
+          setShowMobileSearch(false);
+          onCategoryClick?.(categoryName, subcategoryName);
+        }}
+        onPlaceSelect={(placeName) => {
+          setShowMobileSearch(false);
+          onPlaceClick?.(placeName);
+        }}
+        allBusinesses={allBusinesses}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden w-full">
       {/* Header */}
@@ -901,8 +1109,8 @@ export default function HomePage({
           </div>
 
           <div className="relative flex flex-1 w-full items-center gap-1.5 md:gap-2 rounded-full border border-border bg-card px-2 py-1 md:py-1.5 shadow-[var(--shadow-card)] max-w-3xl">
-            {/* Clickable Location Selector */}
-            <div ref={locationRef} className="relative shrink-0 max-w-[55%] sm:max-w-none">
+            {/* Clickable Location Selector (hidden on mobile, visible on tablet/desktop) */}
+            <div ref={locationRef} className="hidden sm:block relative shrink-0">
               <button
                 onClick={() =>
                   setLocationState((prev) => ({
@@ -924,122 +1132,209 @@ export default function HomePage({
 
               {/* Location Dropdown */}
               {showLocationDropdown && (
-                <div className="fixed inset-x-4 top-20 sm:absolute sm:top-[calc(100%+12px)] sm:left-0 sm:min-w-[340px] sm:w-auto bg-white border border-border rounded-2xl shadow-2xl z-[60] text-left overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border/60">
-                    <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
-                      Select Location
-                    </span>
-                    <button
-                      onClick={() =>
-                        setLocationState((prev) => ({ ...prev, showLocationDropdown: false }))
-                      }
-                      className="p-1 rounded-lg hover:bg-secondary transition cursor-pointer"
-                    >
-                      <X className="h-4 w-4 text-muted-foreground" />
-                    </button>
-                  </div>
-
-                  <div className="p-3 space-y-1">
-
-                    {/* Detect Location Button */}
-                    <button
-                      onClick={handleDetectLocation}
-                      disabled={detectingGps}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-blue-50/70 hover:bg-blue-100/80 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 border border-blue-200/60 dark:border-blue-900/50 transition cursor-pointer group disabled:opacity-60"
-                    >
-                      <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 flex items-center justify-center shrink-0 shadow-xs">
-                        <Navigation className={`h-4 w-4 fill-current ${detectingGps ? "animate-spin" : ""}`} />
-                      </div>
-                      <div className="flex flex-col text-left">
-                        <span className="text-xs font-black text-blue-700 dark:text-blue-300">
-                          {detectingGps ? "Detecting Live Location..." : "Refresh Live GPS Location"}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground font-semibold">
-                          Auto-detects your current address & neighborhood
-                        </span>
-                      </div>
-                    </button>
-
-
-                    {/* Recent Locations */}
-                    {(recentLocations.length > 0 ||
-                      (cityAreas[selectedCity]?.recent?.length ?? 0) > 0) && (
-                        <div className="pt-2">
-                          <div className="flex items-center justify-between px-3 mb-1">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                              Recent Locations
-                            </p>
-                            {recentLocations.length > 0 && (
-                              <button
-                                onClick={() => {
-                                  setLocationState((prev) => ({ ...prev, recentLocations: [] }));
-                                  localStorage.removeItem("fmp_recent_locations:v1");
-                                }}
-                                className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
-                              >
-                                Clear All
-                              </button>
-                            )}
-                          </div>
-                          {[...recentLocations, ...(cityAreas[selectedCity]?.recent || [])]
-                            .filter((v, i, a) => a.indexOf(v) === i)
-                            .slice(0, 3)
-                            .map((loc) => (
-                              <button
-                                key={loc}
-                                onClick={() => handleSelectArea(loc)}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer"
-                              >
-                                <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                <span className="text-[13px] font-semibold text-foreground">
-                                  {loc}
-                                </span>
-                              </button>
-                            ))}
-                        </div>
+                <div className="fixed inset-x-4 top-20 sm:absolute sm:top-[calc(100%+12px)] sm:left-0 sm:min-w-[360px] sm:w-auto bg-white border border-border rounded-2xl shadow-2xl z-[60] text-left overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  {/* Location Search Bar Header */}
+                  <div className="p-3 border-b border-border/60 bg-secondary/30">
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-card shadow-xs focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+                      <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <input
+                        type="text"
+                        value={desktopLocationQuery}
+                        onChange={(e) => setDesktopLocationQuery(e.target.value)}
+                        placeholder="Search city, area or locality..."
+                        className="flex-1 bg-transparent text-xs sm:text-sm outline-none placeholder:text-muted-foreground text-foreground min-w-0"
+                        autoFocus
+                      />
+                      {isSearchingDesktopLocation && (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
                       )}
-
-                    {/* Trending Areas */}
-                    <div className="pt-2 pb-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-1">
-                        Trending Areas
-                      </p>
-                      {(
-                        cityAreas[selectedCity]?.trending || [
-                          `Central ${selectedCity}`,
-                          `North ${selectedCity}`,
-                          `South ${selectedCity}`,
-                        ]
-                      ).map((area) => (
+                      {desktopLocationQuery && !isSearchingDesktopLocation && (
                         <button
-                          key={area}
-                          onClick={() => handleSelectArea(area)}
-                          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer"
+                          type="button"
+                          onClick={() => setDesktopLocationQuery("")}
+                          className="p-0.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition cursor-pointer shrink-0"
                         >
-                          <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="text-[13px] font-semibold text-foreground">{area}</span>
+                          <X className="h-3.5 w-3.5" />
                         </button>
-                      ))}
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLocationState((prev) => ({ ...prev, showLocationDropdown: false }));
+                          setDesktopLocationQuery("");
+                        }}
+                        className="p-1 rounded-lg hover:bg-secondary text-muted-foreground transition cursor-pointer shrink-0"
+                        title="Close"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
+
+                  {desktopLocationQuery.trim() ? (
+                    /* CASE 1: Query is Active (Live Filtered Locations) */
+                    <div className="p-2 max-h-[320px] overflow-y-auto no-scrollbar space-y-1">
+                      {/* Live API Results */}
+                      {desktopOnlineLocations.length > 0 &&
+                        desktopOnlineLocations.map((item, idx) => (
+                          <button
+                            key={`api-${idx}`}
+                            type="button"
+                            onClick={() => {
+                              handleSelectArea(item.fullAddress || item.title);
+                              setDesktopLocationQuery("");
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer text-left group"
+                          >
+                            <MapPin className="h-3.5 w-3.5 text-accent shrink-0 group-hover:text-primary" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                                {item.title}
+                              </p>
+                              {item.subtitle && (
+                                <p className="text-[10px] text-muted-foreground truncate">
+                                  {item.subtitle}
+                                </p>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+
+                      {/* Local Matches */}
+                      {filteredDesktopLocations.length > 0 &&
+                        filteredDesktopLocations.map((loc, idx) => (
+                          <button
+                            key={`loc-${idx}`}
+                            type="button"
+                            onClick={() => {
+                              handleSelectArea(loc);
+                              setDesktopLocationQuery("");
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer text-left group"
+                          >
+                            <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary" />
+                            <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                              {loc}
+                            </span>
+                          </button>
+                        ))}
+
+                      {!isSearchingDesktopLocation &&
+                        desktopOnlineLocations.length === 0 &&
+                        filteredDesktopLocations.length === 0 && (
+                          <div className="py-6 text-center text-xs text-muted-foreground">
+                            No locations found for "{desktopLocationQuery}"
+                          </div>
+                        )}
+                    </div>
+                  ) : (
+                    /* CASE 2: Query is Empty -> Detect Location, Recent & Trending */
+                    <div className="p-3 space-y-1 max-h-[380px] overflow-y-auto no-scrollbar">
+                      {/* Detect Location Button */}
+                      <button
+                        type="button"
+                        onClick={handleDetectLocation}
+                        disabled={detectingGps}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-blue-50/70 hover:bg-blue-100/80 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 border border-blue-200/60 dark:border-blue-900/50 transition cursor-pointer group disabled:opacity-60"
+                      >
+                        <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 flex items-center justify-center shrink-0 shadow-xs">
+                          <Navigation className={`h-4 w-4 fill-current ${detectingGps ? "animate-spin" : ""}`} />
+                        </div>
+                        <div className="flex flex-col text-left">
+                          <span className="text-xs font-black text-blue-700 dark:text-blue-300">
+                            {detectingGps ? "Detecting Live Location..." : "Refresh Live GPS Location"}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-semibold">
+                            Auto-detects your current address & neighborhood
+                          </span>
+                        </div>
+                      </button>
+
+                      {/* Recent Locations */}
+                      {(recentLocations.length > 0 ||
+                        (cityAreas[selectedCity]?.recent?.length ?? 0) > 0) && (
+                          <div className="pt-2">
+                            <div className="flex items-center justify-between px-3 mb-1">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                Recent Locations
+                              </p>
+                              {recentLocations.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setLocationState((prev) => ({ ...prev, recentLocations: [] }));
+                                    localStorage.removeItem("fmp_recent_locations:v1");
+                                  }}
+                                  className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                                >
+                                  Clear All
+                                </button>
+                              )}
+                            </div>
+                            {[...recentLocations, ...(cityAreas[selectedCity]?.recent || [])]
+                              .filter((v, i, a) => a.indexOf(v) === i)
+                              .slice(0, 3)
+                              .map((loc) => (
+                                <button
+                                  key={loc}
+                                  type="button"
+                                  onClick={() => handleSelectArea(loc)}
+                                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer"
+                                >
+                                  <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                  <span className="text-[13px] font-semibold text-foreground">
+                                    {loc}
+                                  </span>
+                                </button>
+                              ))}
+                          </div>
+                        )}
+
+                      {/* Trending Areas */}
+                      <div className="pt-2 pb-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-1">
+                          Trending Areas
+                        </p>
+                        {(
+                          cityAreas[selectedCity]?.trending || [
+                            `Central ${selectedCity}`,
+                            `North ${selectedCity}`,
+                            `South ${selectedCity}`,
+                          ]
+                        ).map((area) => (
+                          <button
+                            key={area}
+                            type="button"
+                            onClick={() => handleSelectArea(area)}
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer"
+                          >
+                            <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="text-[13px] font-semibold text-foreground">{area}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Search Input Form */}
-            <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center min-w-0">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={`Search businesses, categories, services in ${selectedCity}…`}
-                className="flex-1 bg-transparent px-2 py-1 text-xs md:text-sm outline-none placeholder:text-muted-foreground w-0 min-w-0"
-                onFocus={() => setUiState((prev) => ({ ...prev, showSuggestions: true }))}
-                onBlur={() =>
-                  setTimeout(() => setUiState((prev) => ({ ...prev, showSuggestions: false })), 250)
-                }
-              />
+            {/* Mobile Trigger Button (Clicking opens full-screen MobileSearchPage) */}
+            <button
+              type="button"
+              onClick={() => setShowMobileSearch(true)}
+              className="sm:hidden flex flex-1 items-center gap-2 px-1 py-1 text-xs text-muted-foreground w-full cursor-pointer text-left"
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
+                <Search className="h-3.5 w-3.5" />
+              </div>
+              <span className="truncate text-foreground/75">
+                Search businesses, categories, services in {selectedCity}…
+              </span>
+            </button>
+
+            {/* Desktop Search Input Form */}
+            <form onSubmit={handleSearchSubmit} className="hidden sm:flex flex-1 items-center min-w-0 gap-1.5 md:gap-2">
               <button
                 type="submit"
                 className="flex h-7 w-7 md:h-9 md:w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90 shrink-0 cursor-pointer"
@@ -1051,6 +1346,17 @@ export default function HomePage({
                   <Search className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 )}
               </button>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={`Search businesses, categories, services in ${selectedCity}…`}
+                className="flex-1 bg-transparent px-1 md:px-2 py-1 text-xs md:text-sm outline-none placeholder:text-muted-foreground w-0 min-w-0"
+                onFocus={() => setUiState((prev) => ({ ...prev, showSuggestions: true }))}
+                onBlur={() =>
+                  setTimeout(() => setUiState((prev) => ({ ...prev, showSuggestions: false })), 250)
+                }
+              />
             </form>
 
             {/* Live Search Suggestions Dropdown */}

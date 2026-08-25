@@ -13,12 +13,17 @@ export const resolveUploadsUrls = (obj: any, origin?: string): any => {
   const activeOrigin = (isBrowser && !isLocalhost) ? window.location.origin : (origin || 'http://localhost:5000');
 
   if (typeof obj === 'string') {
-    if (obj.startsWith('/uploads/') && !obj.startsWith('//') && !obj.startsWith('data:')) {
-      const baseOrigin = activeOrigin.endsWith('/') ? activeOrigin.slice(0, -1) : activeOrigin;
-      return `${baseOrigin}${obj}`;
+    let cleanStr = obj;
+    if (cleanStr.includes('http://localhost:5000/uploads/')) {
+      cleanStr = cleanStr.replace(/http:\/\/localhost:5000/g, '');
     }
-    return obj;
+    if (cleanStr.startsWith('/uploads/') && !cleanStr.startsWith('//') && !cleanStr.startsWith('data:')) {
+      const baseOrigin = activeOrigin.endsWith('/') ? activeOrigin.slice(0, -1) : activeOrigin;
+      return `${baseOrigin}${cleanStr}`;
+    }
+    return cleanStr;
   }
+
 
   
   if (Array.isArray(obj)) {

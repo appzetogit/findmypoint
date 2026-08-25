@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
-const { uploadImage } = require('../controllers/uploadController');
+const { uploadImage, directUpload } = require('../controllers/uploadController');
 
 const uploadLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 50, // max 50 uploads per 5 minutes per IP
+  max: 100, // max 100 uploads per 5 minutes per IP
   message: { success: false, message: 'Upload limit exceeded. Please wait a few minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -16,7 +16,7 @@ const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 25 * 1024 * 1024 // 25MB limit
   },
   fileFilter: (req, file, cb) => {
     const allowedMimeTypes = [
@@ -42,7 +42,7 @@ router.post('/', uploadLimiter, (req, res, next) => {
   upload.single('image')(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ success: false, message: 'File size exceeds the 10MB limit.' });
+        return res.status(400).json({ success: false, message: 'File size exceeds the 25MB limit.' });
       }
       return res.status(400).json({ success: false, message: err.message });
     } else if (err) {
@@ -52,4 +52,15 @@ router.post('/', uploadLimiter, (req, res, next) => {
   });
 }, uploadImage);
 
+// Direct / Sync upload route (used by local environment and scripts to save directly to server uploads folder)
+router.post('/direct', (req, res, next) => {
+  upload.single('image')(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    next();
+  });
+}, directUpload);
+
 module.exports = router;
+

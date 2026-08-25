@@ -26,18 +26,39 @@ connectDB();
 const app = express();
 
 // ─── CORS Configuration ─────────────────────────────────────────────────────
+const rawFrontendUrls = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.split(',').map(s => s.trim()) 
+  : [];
+
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',  // Vite dev server
   'http://localhost:4173',  // Vite preview
   'http://localhost:3000',  // Alternative dev port
-  process.env.FRONTEND_URL  // Production frontend URL (set in .env)
+  'https://findmypoint.app',
+  'https://www.findmypoint.app',
+  'http://findmypoint.app',
+  'http://www.findmypoint.app',
+  ...rawFrontendUrls
 ].filter(Boolean);
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  try {
+    const parsed = new URL(origin);
+    if (parsed.hostname === 'findmypoint.app' || parsed.hostname.endsWith('.findmypoint.app')) {
+      return true;
+    }
+  } catch {
+    // Ignore URL parse errors
+  }
+  return false;
+};
 
 const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, Postman)
-    if (!origin) return callback(null, true);
-    if (ALLOWED_ORIGINS.includes(origin)) {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
       callback(new Error(`CORS blocked: origin ${origin} not allowed`));
@@ -54,8 +75,11 @@ const { Server } = require('socket.io');
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ALLOWED_ORIGINS,
-    methods: ['GET', 'POST', 'PUT', 'DELETE']
+    origin: (origin, callback) => {
+      callback(null, isOriginAllowed(origin));
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
   }
 });
 
@@ -126,8 +150,33 @@ const generalLimiter = rateLimit({
 app.set('otpSendLimiter', otpSendLimiter);
 app.set('authLimiter', authLimiter);
 
-// Serve static assets using strict absolute path
+// ─── Uploads Static & Remote Fallback Serving ─────────────────────────────────
+const uploadsBaseDir = process.env.UPLOADS_DIR || 
+  (process.platform === 'linux' && fs.existsSync('/var/www/uploads') ? '/var/www/uploads' : path.join(__dirname, 'public', 'uploads'));
+const isProduction = process.env.NODE_ENV === 'production';
+const productionUploadsUrl = (process.env.PRODUCTION_UPLOADS_URL || 
+  (process.env.PRODUCTION_URL ? `${process.env.PRODUCTION_URL}/uploads` : 'https://findmypoint.app/uploads')).replace(/\/$/, '');
+
+// Serve local uploads if present
+if (isProduction || fs.existsSync(uploadsBaseDir)) {
+  app.use('/uploads', express.static(uploadsBaseDir));
+}
+
+// In local development: redirect any missing upload request to the live server
+app.use('/uploads', (req, res, next) => {
+  const localFilePath = path.join(uploadsBaseDir, req.path);
+  if (fs.existsSync(localFilePath) && fs.statSync(localFilePath).isFile()) {
+    return res.sendFile(localFilePath);
+  }
+  if (productionUploadsUrl) {
+    return res.redirect(302, `${productionUploadsUrl}${req.path}`);
+  }
+  next();
+});
+
+// Serve general static assets
 app.use(express.static(path.join(__dirname, 'public')));
+
 
 // ─── Security & Core Middleware ──────────────────────────────────────────────
 const mongoSanitize = require('mongo-sanitize');

@@ -1,29 +1,15 @@
+const sharp = require('sharp');
+
 const FOLDER_PROFILES = {
-  'profile-images': { maxWidth: 1200, maxHeight: 1200, quality: 88 },
-  'menu-items': { maxWidth: 2560, maxHeight: 2560, quality: 88 },
-  'banners': { maxWidth: 2560, maxHeight: 2560, quality: 88 },
-  'categories': { maxWidth: 1200, maxHeight: 1200, quality: 88 },
-  'tourist-places': { maxWidth: 2560, maxHeight: 2560, quality: 88 },
-  'articles': { maxWidth: 2560, maxHeight: 2560, quality: 88 },
-  'employees': { maxWidth: 1200, maxHeight: 1200, quality: 88 },
-  default: { maxWidth: 2560, maxHeight: 2560, quality: 88 },
+  'profile-images': { maxWidth: 1200, maxHeight: 1200, quality: 85 },
+  'menu-items': { maxWidth: 2560, maxHeight: 2560, quality: 85 },
+  'banners': { maxWidth: 2560, maxHeight: 2560, quality: 85 },
+  'categories': { maxWidth: 1200, maxHeight: 1200, quality: 85 },
+  'tourist-places': { maxWidth: 2560, maxHeight: 2560, quality: 85 },
+  'articles': { maxWidth: 2560, maxHeight: 2560, quality: 85 },
+  'employees': { maxWidth: 1200, maxHeight: 1200, quality: 85 },
+  default: { maxWidth: 2560, maxHeight: 2560, quality: 85 },
 };
-
-let JimpInstance = null;
-
-async function getJimp() {
-  if (!JimpInstance) {
-    try {
-      const jimpModule = await import('jimp');
-      JimpInstance = jimpModule.Jimp || jimpModule.default || jimpModule;
-    } catch (err) {
-      console.warn('⚠️ Dynamic import of jimp failed, trying require:', err.message);
-      // Fallback if require is possible/needed
-      JimpInstance = require('jimp');
-    }
-  }
-  return JimpInstance;
-}
 
 function detectMimeType(buffer) {
   if (!buffer || buffer.length < 4) return 'unknown';
@@ -35,81 +21,59 @@ function detectMimeType(buffer) {
   return 'unknown';
 }
 
+/**
+ * Optimizes and converts any input image to WebP format using Sharp.
+ * Preserves SVG and video formats.
+ */
 async function compressImage(inputBuffer, opts = {}) {
   const originalSize = inputBuffer.length;
   if (opts.isVideo) {
     return { buffer: inputBuffer, originalSize, compressedSize: originalSize, mimeType: 'video/mp4', extension: 'mp4' };
   }
 
-  // Parse clean extension from originalExtension option
   let clientExt = opts.originalExtension || 'jpg';
   if (clientExt.includes('svg')) {
-    clientExt = 'svg';
-  } else if (clientExt === 'jpeg') {
-    clientExt = 'jpg';
-  } else {
-    clientExt = clientExt.split('+')[0].split('/')[0];
+    return { buffer: inputBuffer, originalSize, compressedSize: originalSize, mimeType: 'image/svg+xml', extension: 'svg' };
   }
 
-  const mimeType = detectMimeType(inputBuffer);
-  
   const folderKey = opts.folder || 'default';
   const { maxWidth, maxHeight, quality } = FOLDER_PROFILES[folderKey] || FOLDER_PROFILES.default;
 
   try {
-    const Jimp = await getJimp();
-    const image = await Jimp.read(inputBuffer);
-    const origW = image.bitmap.width;
-    const origH = image.bitmap.height;
+    const pipeline = sharp(inputBuffer, { failOnError: false })
+      .rotate() // Automatically orient based on EXIF
+      .resize({
+        width: maxWidth,
+        height: maxHeight,
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .webp({
+        quality: quality || 85,
+        effort: 4,
+        lossless: false,
+        nearLossless: false
+      });
 
-    if (origW > maxWidth || origH > maxHeight) {
-      image.scaleToFit({ w: maxWidth, h: maxHeight });
-    }
-
-    if (mimeType === 'image/gif') {
-      const outBuffer = await image.getBuffer('image/gif');
-      return { buffer: outBuffer, originalSize, compressedSize: outBuffer.length, mimeType: 'image/gif', extension: 'gif' };
-    }
-
-    if (mimeType === 'image/webp') {
-      try {
-        const outBuffer = await image.getBuffer('image/webp');
-        return { buffer: outBuffer, originalSize, compressedSize: outBuffer.length, mimeType: 'image/webp', extension: 'webp' };
-      } catch (webpErr) {
-        return { buffer: inputBuffer, originalSize, compressedSize: originalSize, mimeType: 'image/webp', extension: 'webp' };
-      }
-    }
-
-    let outputMime = 'image/jpeg';
-    let outputExt = 'jpg';
-
-    // Preserve PNG transparency
-    const hasAlpha = mimeType === 'image/png' && image.bitmap.data.some((v, i) => i % 4 === 3 && v < 255);
-    if (hasAlpha) {
-      outputMime = 'image/png';
-      outputExt = 'png';
-    }
-
-    let outBuffer = outputMime === 'image/jpeg' 
-      ? await image.getBuffer('image/jpeg', { quality }) 
-      : await image.getBuffer('image/png');
+    const outBuffer = await pipeline.toBuffer();
 
     return {
       buffer: outBuffer,
       originalSize,
       compressedSize: outBuffer.length,
-      mimeType: outputMime,
-      extension: outputExt,
+      mimeType: 'image/webp',
+      extension: 'webp'
     };
-  } catch (err) {
-    console.error('❌ Jimp Error: Falling back to raw buffer:', err.message);
+  } catch (sharpErr) {
+    console.warn('⚠️ Sharp optimization error, falling back to raw buffer:', sharpErr.message);
+    const mimeType = detectMimeType(inputBuffer);
     const finalMime = mimeType !== 'unknown' ? mimeType : `image/${clientExt}`;
-    return { 
-      buffer: inputBuffer, 
-      originalSize, 
-      compressedSize: originalSize, 
-      mimeType: finalMime, 
-      extension: clientExt 
+    return {
+      buffer: inputBuffer,
+      originalSize,
+      compressedSize: originalSize,
+      mimeType: finalMime,
+      extension: clientExt === 'jpeg' ? 'jpg' : clientExt
     };
   }
 }
@@ -117,3 +81,4 @@ async function compressImage(inputBuffer, opts = {}) {
 module.exports = {
   compressImage
 };
+

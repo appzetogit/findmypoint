@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "sync:uploads": "node scripts/sync_uploads_to_server.js"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +27,7 @@
     "mongoose": "^9.7.4",
     "multer": "^2.2.0",
     "razorpay": "^2.9.6",
+    "sharp": "^0.35.3",
     "socket.io": "^4.8.3"
   },
   "devDependencies": {

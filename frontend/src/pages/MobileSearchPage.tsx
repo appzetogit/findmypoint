@@ -9,11 +9,13 @@ import {
   Building2,
   Tag,
   Compass,
+  BadgeCheck,
 } from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
 import { getCategoryImage } from "../utils/categoryImages";
 import { BusinessListingData } from "../data/businessesData";
 import { LazyImage } from "../components/ui/LazyImage";
+import { BACKEND_ORIGIN } from "../config";
 
 interface MobileSearchPageProps {
   onBack: () => void;
@@ -48,6 +50,15 @@ export default function MobileSearchPage({
   });
 
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const resolveBusinessImage = (biz: any) => {
+    const img = (Array.isArray(biz.images) && biz.images.length > 0 ? biz.images[0] : null) || biz.image || biz.logo || "";
+    if (img) {
+      if (img.startsWith("data:") || img.startsWith("http")) return img;
+      return `${BACKEND_ORIGIN}${img}`;
+    }
+    return getCategoryImage(biz.category || "") || "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=200&q=80";
+  };
 
   // Auto-focus search input on mount
   useEffect(() => {
@@ -141,11 +152,11 @@ export default function MobileSearchPage({
   return (
     <div className="fixed inset-0 z-[80] bg-background flex flex-col text-foreground overflow-hidden animate-in fade-in duration-200">
       {/* Top Header Bar */}
-      <header className="sticky top-0 z-10 bg-background border-b border-border px-3 py-2.5 flex items-center justify-between gap-2 shadow-xs">
+      <header className="sticky top-0 z-10 bg-background border-b border-border px-3.5 py-3 flex items-center justify-between gap-2.5 shadow-xs">
         {/* Back Button */}
         <button
           onClick={onBack}
-          className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-secondary text-foreground transition-colors cursor-pointer shrink-0"
+          className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-secondary text-foreground transition-colors cursor-pointer shrink-0"
           title="Back"
         >
           <ChevronLeft className="h-6 w-6" />
@@ -155,14 +166,14 @@ export default function MobileSearchPage({
         <button
           type="button"
           onClick={onOpenLocation}
-          className="flex-1 flex items-center justify-between gap-1.5 px-3.5 py-1.5 rounded-full hover:bg-secondary border border-border text-foreground transition-colors cursor-pointer shadow-xs min-w-0"
+          className="flex-1 h-10 sm:h-11 flex items-center justify-between gap-2 px-4 py-2 rounded-full hover:bg-secondary border border-border text-foreground transition-colors cursor-pointer shadow-xs min-w-0"
           title="Change Location"
         >
           <div className="flex items-center gap-2 min-w-0">
             <MapPin className="h-4 w-4 text-accent shrink-0" />
             <span className="text-xs sm:text-sm font-bold truncate">{selectedCity || "Indore"}</span>
           </div>
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
         </button>
       </header>
 
@@ -343,17 +354,33 @@ export default function MobileSearchPage({
                       onClick={() => handleSelectBusiness(biz)}
                       className="w-full py-3 flex items-center gap-3 hover:bg-secondary/50 transition-colors text-left cursor-pointer group"
                     >
-                      <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 font-bold text-sm">
-                        <Building2 className="h-5 w-5" />
+                      <div className="h-12 w-12 rounded-xl overflow-hidden shrink-0 border border-border/60 bg-muted">
+                        <LazyImage
+                          src={resolveBusinessImage(biz)}
+                          alt={biz.name}
+                          fallbackSrc={getCategoryImage(biz.category || "") || "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=200&q=80"}
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">
-                          {biz.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {biz.location || biz.address || (biz as any).city || "Indore"} • {biz.category}
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                            {biz.name}
+                          </p>
+                          {(biz as any).isVerified && (
+                            <BadgeCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                          {biz.location || biz.address || (biz as any).city || selectedCity || "Indore"} • {biz.category}
                         </p>
                       </div>
+                      {(biz as any).rating ? (
+                        <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-0.5">
+                          ★ {(biz as any).rating}
+                        </span>
+                      ) : null}
                     </button>
                   ))}
                 </div>

@@ -1,4 +1,9 @@
-const sharp = require('sharp');
+let sharp = null;
+try {
+  sharp = require('sharp');
+} catch (err) {
+  console.warn('⚠️ Sharp native binary not found or still installing:', err.message);
+}
 
 const FOLDER_PROFILES = {
   'profile-images': { maxWidth: 1200, maxHeight: 1200, quality: 85 },
@@ -40,6 +45,14 @@ async function compressImage(inputBuffer, opts = {}) {
   const { maxWidth, maxHeight, quality } = FOLDER_PROFILES[folderKey] || FOLDER_PROFILES.default;
 
   try {
+    if (!sharp) {
+      try { sharp = require('sharp'); } catch (e) {}
+    }
+
+    if (!sharp) {
+      throw new Error('Sharp is not installed or available');
+    }
+
     const pipeline = sharp(inputBuffer, { failOnError: false })
       .rotate() // Automatically orient based on EXIF
       .resize({

@@ -63,7 +63,9 @@ async function uploadFileToServer(fullFilePath) {
       'x-upload-secret': uploadSecret,
       'Content-Type': 'application/json'
     },
-    timeout: 45000
+    timeout: 45000,
+    maxBodyLength: Infinity,
+    maxContentLength: Infinity
   });
 
   return { success: true, folder, filename, data: response.data };

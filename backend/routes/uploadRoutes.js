@@ -54,13 +54,18 @@ router.post('/', uploadLimiter, (req, res, next) => {
 
 // Direct / Sync upload route (used by local environment and scripts to save directly to server uploads folder)
 router.post('/direct', (req, res, next) => {
+  // If incoming payload is JSON (e.g. from sync script), pass directly
+  if (req.is('json') || (req.headers['content-type'] && req.headers['content-type'].includes('application/json'))) {
+    return directUpload(req, res, next);
+  }
+  // Otherwise parse as multipart form data
   upload.single('image')(req, res, (err) => {
     if (err) {
       return res.status(400).json({ success: false, message: err.message });
     }
-    next();
+    directUpload(req, res, next);
   });
-}, directUpload);
+});
 
 module.exports = router;
 

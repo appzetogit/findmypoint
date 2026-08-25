@@ -203,9 +203,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// Skip base64 middleware on GET/DELETE requests — only needed for mutating requests
+// Skip base64 middleware on GET/DELETE requests or direct upload sync requests
 app.use((req, res, next) => {
   if (req.method === 'GET' || req.method === 'DELETE' || req.method === 'HEAD') {
+    return next();
+  }
+  if (req.path === '/api/upload/direct' || req.originalUrl?.includes('/api/upload/direct')) {
     return next();
   }
   return base64UploadMiddleware(req, res, next);

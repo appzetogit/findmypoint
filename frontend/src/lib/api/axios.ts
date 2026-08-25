@@ -5,16 +5,21 @@ import { API_BASE_URL, BACKEND_ORIGIN } from '../../config';
  * Recursively scans any API response payload and resolves relative /uploads paths
  * to absolute backend URLs. Bypasses File/Blob objects to protect frontend file uploading.
  */
-export const resolveUploadsUrls = (obj: any, origin: string): any => {
+export const resolveUploadsUrls = (obj: any, origin?: string): any => {
   if (obj === null || obj === undefined) return obj;
   
+  const isBrowser = typeof window !== 'undefined';
+  const isLocalhost = isBrowser && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const activeOrigin = (isBrowser && !isLocalhost) ? window.location.origin : (origin || 'http://localhost:5000');
+
   if (typeof obj === 'string') {
     if (obj.startsWith('/uploads/') && !obj.startsWith('//') && !obj.startsWith('data:')) {
-      const baseOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+      const baseOrigin = activeOrigin.endsWith('/') ? activeOrigin.slice(0, -1) : activeOrigin;
       return `${baseOrigin}${obj}`;
     }
     return obj;
   }
+
   
   if (Array.isArray(obj)) {
     return obj.map(item => resolveUploadsUrls(item, origin));

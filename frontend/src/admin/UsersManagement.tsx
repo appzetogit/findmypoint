@@ -22,6 +22,7 @@ import {
 import { UserProfile, AddressItem } from "../data/usersData";
 import { createPortal } from "react-dom";
 import { API_BASE_URL } from "../config";
+import { LazyImage } from "../components/ui/LazyImage";
 
 export default function UsersManagement() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -399,10 +400,11 @@ export default function UsersManagement() {
                       <div className="flex items-center gap-3">
                         <div className="h-9 w-9 rounded-full overflow-hidden border border-slate-200/50 bg-slate-100 flex items-center justify-center shrink-0">
                           {user.personal.avatar ? (
-                            <img
+                            <LazyImage
                               src={user.personal.avatar}
                               alt="Avatar"
-                              className="h-full w-full object-cover"
+                              className="h-full w-full"
+                              imgClassName="h-full w-full object-cover"
                             />
                           ) : (
                             <User className="h-4.5 w-4.5 text-slate-450" />
@@ -588,10 +590,11 @@ export default function UsersManagement() {
                   {/* Avatar Column */}
                   <div className="h-20 w-20 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center shrink-0 shadow-sm">
                     {viewingUser.personal.avatar ? (
-                      <img
+                      <LazyImage
                         src={viewingUser.personal.avatar}
                         alt="Avatar"
-                        className="h-full w-full object-cover"
+                        className="h-full w-full"
+                        imgClassName="h-full w-full object-cover"
                       />
                     ) : (
                       <User className="h-9 w-9 text-slate-300 dark:text-slate-700" />
@@ -855,10 +858,11 @@ export default function UsersManagement() {
                     <div className="flex items-center gap-4.5 bg-slate-50 dark:bg-slate-950/20 p-4.5 rounded-2xl border border-slate-150 dark:border-slate-850">
                       <div className="h-16 w-16 rounded-xl overflow-hidden border border-slate-250 bg-slate-100 flex items-center justify-center shrink-0">
                         {editingUser.personal.avatar ? (
-                          <img
+                          <LazyImage
                             src={editingUser.personal.avatar}
                             alt="Avatar"
-                            className="h-full w-full object-cover"
+                            className="h-full w-full"
+                            imgClassName="h-full w-full object-cover"
                           />
                         ) : (
                           <User className="h-7 w-7 text-slate-300" />

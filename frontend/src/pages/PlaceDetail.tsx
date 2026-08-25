@@ -18,6 +18,7 @@ import { touristPlacesData, TouristPlaceDetailData } from "../data/touristPlaces
 import { businessesData } from "../data/businessesData";
 import { API_BASE_URL } from "../config";
 import Footer from "./Footer";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface PlaceDetailPageProps {
   placeName: string;
@@ -297,10 +298,13 @@ export default function PlaceDetailPage({
             }}
             className="hidden md:flex items-center"
           >
-            <img
+            <LazyImage
               src={logoImg}
               alt="FindMyPoint Logo"
-              className="h-8 w-auto object-contain"
+              priority={true}
+              showSkeleton={false}
+              className="h-8 w-auto"
+              imgClassName="h-8 w-auto object-contain"
               style={{ mixBlendMode: "multiply" }}
             />
           </a>
@@ -348,13 +352,15 @@ export default function PlaceDetailPage({
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[190px] md:h-[380px] overflow-hidden rounded-3xl border border-border/80 shadow-md">
           {/* Main Large Image */}
           <div className={`col-span-1 ${placeData.images.slice(1, 4).length > 0 ? "md:col-span-8" : "md:col-span-12"} h-full relative group overflow-hidden`}>
-            <img
+            <LazyImage
               src={placeData.coverImage}
               alt={placeData.name}
-              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+              priority={true}
+              className="h-full w-full"
+              imgClassName="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-            <div className="absolute bottom-5 left-6 text-white pointer-events-none">
+            <div className="absolute bottom-5 left-6 text-white pointer-events-none z-10">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-primary/95 text-primary-foreground backdrop-blur-md mb-2 shadow-sm">
                 Explore Destination
               </span>
@@ -372,12 +378,13 @@ export default function PlaceDetailPage({
                   key={idx}
                   className="flex-1 relative overflow-hidden group rounded-xl border border-border/40"
                 >
-                  <img
+                  <LazyImage
                     src={imgUrl}
                     alt={`${placeData.name} scene ${idx + 1}`}
-                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="absolute inset-0 h-full w-full"
+                    imgClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-300" />
+                  <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-300 pointer-events-none" />
                 </div>
               ))}
             </div>
@@ -553,12 +560,13 @@ export default function PlaceDetailPage({
                   className="group flex flex-col justify-between rounded-none sm:rounded-xl border-none sm:border sm:border-border/50 bg-transparent sm:bg-card overflow-hidden transition-all duration-300 hover:shadow-none sm:hover:-translate-y-1 sm:hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)]"
                 >
                   <div className="relative h-44 sm:h-auto sm:aspect-[16/10] rounded-2xl overflow-hidden bg-secondary">
-                    <img
+                    <LazyImage
                       src={temple.image}
                       alt={temple.name}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="h-full w-full"
+                      imgClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    <div className="absolute top-2 right-2 flex items-center gap-0.5 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold backdrop-blur-sm">
+                    <div className="absolute top-2 right-2 flex items-center gap-0.5 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold backdrop-blur-sm z-10">
                       <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
                       <span>{temple.rating}</span>
                     </div>
@@ -630,12 +638,13 @@ export default function PlaceDetailPage({
                   className="group flex flex-col justify-between rounded-none sm:rounded-xl border-none sm:border sm:border-border/50 bg-transparent sm:bg-card overflow-hidden transition-all duration-300 hover:shadow-none sm:hover:-translate-y-1 sm:hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)]"
                 >
                   <div className="relative h-44 sm:h-auto sm:aspect-[16/10] rounded-2xl overflow-hidden bg-secondary">
-                    <img
+                    <LazyImage
                       src={hotel.image}
                       alt={hotel.name}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="h-full w-full"
+                      imgClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    <div className="absolute top-2 right-2 flex items-center gap-0.5 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold backdrop-blur-sm">
+                    <div className="absolute top-2 right-2 flex items-center gap-0.5 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold backdrop-blur-sm z-10">
                       <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
                       <span>{hotel.rating}</span>
                     </div>
@@ -723,12 +732,13 @@ export default function PlaceDetailPage({
                   className="group flex flex-col justify-between rounded-none sm:rounded-xl border-none sm:border sm:border-border/50 bg-transparent sm:bg-card overflow-hidden transition-all duration-300 hover:shadow-none sm:hover:-translate-y-1 sm:hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)]"
                 >
                   <div className="relative h-44 sm:h-auto sm:aspect-[16/10] rounded-2xl overflow-hidden bg-secondary">
-                    <img
+                    <LazyImage
                       src={rest.image}
                       alt={rest.name}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="h-full w-full"
+                      imgClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    <div className="absolute top-2 right-2 flex items-center gap-0.5 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold backdrop-blur-sm">
+                    <div className="absolute top-2 right-2 flex items-center gap-0.5 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold backdrop-blur-sm z-10">
                       <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
                       <span>{rest.rating}</span>
                     </div>
@@ -804,12 +814,13 @@ export default function PlaceDetailPage({
                   className="group flex flex-col justify-between rounded-none sm:rounded-xl border-none sm:border sm:border-border/50 bg-transparent sm:bg-card overflow-hidden transition-all duration-300 hover:shadow-none sm:hover:-translate-y-1 sm:hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)]"
                 >
                   <div className="relative h-44 sm:h-auto sm:aspect-[16/10] rounded-2xl overflow-hidden bg-secondary">
-                    <img
+                    <LazyImage
                       src={spa.image}
                       alt={spa.name}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="h-full w-full"
+                      imgClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    <div className="absolute top-2 right-2 flex items-center gap-0.5 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold backdrop-blur-sm">
+                    <div className="absolute top-2 right-2 flex items-center gap-0.5 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold backdrop-blur-sm z-10">
                       <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
                       <span>{spa.rating}</span>
                     </div>
@@ -885,12 +896,13 @@ export default function PlaceDetailPage({
                   className="group flex flex-col justify-between rounded-none sm:rounded-xl border-none sm:border sm:border-border/50 bg-transparent sm:bg-card overflow-hidden transition-all duration-300 hover:shadow-none sm:hover:-translate-y-1 sm:hover:shadow-md snap-start shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(33.333%-11px)]"
                 >
                   <div className="relative h-44 sm:h-auto sm:aspect-[16/10] rounded-2xl overflow-hidden bg-secondary">
-                    <img
+                    <LazyImage
                       src={act.image}
                       alt={act.name}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="h-full w-full"
+                      imgClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    <div className="absolute top-2 right-2 flex items-center gap-0.5 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold backdrop-blur-sm">
+                    <div className="absolute top-2 right-2 flex items-center gap-0.5 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold backdrop-blur-sm z-10">
                       <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
                       <span>{act.rating}</span>
                     </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Search, Plus, Edit2, Trash2, Calendar, Phone, MapPin, User, ShieldCheck, X, Briefcase, Heart, CheckCircle2, UserPlus, Image as ImageIcon } from "lucide-react";
 import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface Employee {
   id: string;
@@ -327,10 +328,11 @@ export default function EmployeeManagement() {
                   <td className="py-3.5 px-6">
                     <div className="flex items-center gap-3">
                       {emp.photo ? (
-                        <img
+                        <LazyImage
                           src={getImageUrl(emp.photo)}
                           alt={emp.name}
-                          className="h-10 w-10 rounded-xl object-cover border border-slate-200 dark:border-slate-800 shrink-0"
+                          className="h-10 w-10 rounded-xl border border-slate-200 dark:border-slate-800 shrink-0 overflow-hidden"
+                          imgClassName="h-full w-full object-cover"
                         />
                       ) : (
                         <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center font-bold text-white text-xs shrink-0 border border-slate-250/25">
@@ -605,10 +607,11 @@ export default function EmployeeManagement() {
                   <div className="flex flex-col sm:flex-row items-center gap-4 p-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-955">
                     {photo ? (
                       <div className="relative group shrink-0">
-                        <img
+                        <LazyImage
                           src={getImageUrl(photo)}
                           alt="Preview"
-                          className="h-16 w-16 rounded-xl object-cover border border-slate-200 dark:border-slate-800"
+                          className="h-16 w-16 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden"
+                          imgClassName="h-full w-full object-cover"
                         />
                         <button
                           type="button"

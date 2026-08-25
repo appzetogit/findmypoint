@@ -161,25 +161,37 @@ const isProduction = process.env.NODE_ENV === 'production';
 const productionUploadsUrl = (process.env.PRODUCTION_UPLOADS_URL || 
   (process.env.PRODUCTION_URL ? `${process.env.PRODUCTION_URL}/uploads` : 'https://findmypoint.app/uploads')).replace(/\/$/, '');
 
-// Serve local uploads if present
+// Static asset caching options (30 days cache with stale-while-revalidate for fast rendering)
+const staticCacheOptions = {
+  maxAge: isProduction ? '30d' : '7d',
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    res.setHeader('Cache-Control', 'public, max-age=2592000, stale-while-revalidate=86400');
+  }
+};
+
+// Serve local uploads if present with strong caching
 if (isProduction || fs.existsSync(uploadsBaseDir)) {
-  app.use('/uploads', express.static(uploadsBaseDir));
+  app.use('/uploads', express.static(uploadsBaseDir, staticCacheOptions));
 }
 
 // In local development: redirect any missing upload request to the live server
 app.use('/uploads', (req, res, next) => {
   const localFilePath = path.join(uploadsBaseDir, req.path);
   if (fs.existsSync(localFilePath) && fs.statSync(localFilePath).isFile()) {
+    res.setHeader('Cache-Control', 'public, max-age=2592000, stale-while-revalidate=86400');
     return res.sendFile(localFilePath);
   }
   if (productionUploadsUrl) {
+    res.setHeader('Cache-Control', 'public, max-age=86400');
     return res.redirect(302, `${productionUploadsUrl}${req.path}`);
   }
   next();
 });
 
-// Serve general static assets
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve general static assets with caching
+app.use(express.static(path.join(__dirname, 'public'), staticCacheOptions));
 
 
 // ─── Security & Core Middleware ──────────────────────────────────────────────

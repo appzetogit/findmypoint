@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { API_BASE_URL } from "../config";
 import { useCategories } from "../context/CategoryContext";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface BusinessListItem {
   _id: string;
@@ -328,7 +329,7 @@ export default function PopularServicesManagement() {
               <div>
                 <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-955 border border-slate-150 dark:border-slate-800">
                   {s.img ? (
-                    <img src={s.img} alt={s.title} className="h-full w-full object-contain" />
+                    <LazyImage src={s.img} alt={s.title} className="h-full w-full" imgClassName="h-full w-full object-contain" />
                   ) : (
                     <div className="h-full w-full flex items-center justify-center text-slate-400">
                       <Star className="h-7 w-7 stroke-[1.5]" />
@@ -453,7 +454,7 @@ export default function PopularServicesManagement() {
                 <div className="flex gap-4 items-center">
                   <div className="h-16 w-28 rounded-xl bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 overflow-hidden flex items-center justify-center text-slate-400 shrink-0">
                     {img ? (
-                      <img src={img} alt="Preview" className="h-full w-full object-cover" />
+                      <LazyImage src={img} alt="Preview" className="h-full w-full" imgClassName="h-full w-full object-cover" />
                     ) : (
                       <Star className="h-6 w-6 stroke-[1.5]" />
                     )}
@@ -560,14 +561,15 @@ export default function PopularServicesManagement() {
                           <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-955 overflow-hidden flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-800">
                               {biz.images?.[0] ? (
-                                <img
+                                <LazyImage
                                   src={
                                     biz.images[0].startsWith("data:") || biz.images[0].startsWith("http")
                                       ? biz.images[0]
                                       : `${API_BASE_URL.replace("/api", "")}${biz.images[0]}`
                                   }
                                   alt={biz.name}
-                                  className="h-full w-full object-cover"
+                                  className="h-full w-full"
+                                  imgClassName="h-full w-full object-cover"
                                 />
                               ) : (
                                 <Building2 className="h-4 w-4 text-slate-400" />

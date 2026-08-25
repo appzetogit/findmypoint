@@ -4,6 +4,7 @@ import { loadFooterData, FooterData } from "../data/footerData";
 import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
 import { Briefcase, Phone, MapPin, Calendar, Heart, ShieldCheck, X, Search, CheckCircle2, User, Image as ImageIcon } from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
+import { LazyImage } from "../components/ui/LazyImage";
 
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
@@ -428,10 +429,13 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-10">
           <div className="col-span-1 sm:col-span-2">
             <a href="/" className="flex items-center">
-              <img
+              <LazyImage
                 src={logoImg}
                 alt="FindMyPoint Logo"
-                className="h-8 w-auto object-contain"
+                priority={true}
+                showSkeleton={false}
+                className="h-8 w-auto"
+                imgClassName="h-8 w-auto object-contain"
                 style={{ mixBlendMode: "multiply" }}
               />
             </a>
@@ -768,7 +772,14 @@ export default function Footer() {
 
               {/* Logo block in header */}
               <div className="absolute top-3 left-5 z-10 flex items-center">
-                <img src={logoImg} alt="FindMyPoint Logo" className="h-4.5 w-auto object-contain" />
+                <LazyImage
+                  src={logoImg}
+                  alt="FindMyPoint Logo"
+                  priority={true}
+                  showSkeleton={false}
+                  className="h-4.5 w-auto"
+                  imgClassName="h-4.5 w-auto object-contain"
+                />
               </div>
 
               {/* 9 Dots Grid Pattern */}
@@ -790,10 +801,11 @@ export default function Footer() {
               </div>
 
               {foundEmployee.photo ? (
-                <img
+                <LazyImage
                   src={foundEmployee.photo}
                   alt={foundEmployee.name}
-                  className="h-28 w-28 rounded-2xl object-cover border-4 border-white dark:border-slate-900 shadow-md"
+                  className="h-28 w-28 rounded-2xl border-4 border-white dark:border-slate-900 shadow-md overflow-hidden"
+                  imgClassName="h-full w-full object-cover"
                 />
               ) : (
                 <div className="h-28 w-28 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center font-bold text-white text-2xl border-4 border-white dark:border-slate-900 shadow-md">
@@ -1296,15 +1308,16 @@ export default function Footer() {
                       >
                         {photos[idx] ? (
                           <>
-                            <img
+                            <LazyImage
                               src={photos[idx]}
                               alt={`Upload ${idx + 1}`}
-                              className="h-full w-full object-cover"
+                              className="h-full w-full"
+                              imgClassName="h-full w-full object-cover"
                             />
                             <button
                               type="button"
                               onClick={() => handlePhotoUpload(idx, null)}
-                              className="absolute top-1 right-1 h-5 w-5 bg-rose-500/80 hover:bg-rose-600 rounded-full flex items-center justify-center text-white text-[10px] font-bold cursor-pointer"
+                              className="absolute top-1 right-1 h-5 w-5 bg-rose-500/80 hover:bg-rose-600 rounded-full flex items-center justify-center text-white text-[10px] font-bold cursor-pointer z-10"
                             >
                               ×
                             </button>

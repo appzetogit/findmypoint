@@ -42,6 +42,20 @@ window.fetch = async function (...args) {
   });
 };
 
+// Register Service Worker for caching images & static assets
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((reg) => {
+        // Registration successful
+      })
+      .catch((err) => {
+        // SW registration failed (e.g. unsupported env)
+      });
+  });
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <CategoryProvider>

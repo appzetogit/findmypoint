@@ -3,6 +3,7 @@ import { Check, ShieldCheck, X } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { API_BASE_URL } from "../config";
 import { socketService } from "../services/socketService";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface SignInPageProps {
   onBack: () => void;
@@ -392,7 +393,14 @@ export default function SignInPage({ onBack, onSuccess, isMandatory }: SignInPag
           <form onSubmit={handlePhoneSubmit} className="flex flex-col gap-6">
             {/* Logo in white section */}
             <div className="flex justify-center mb-1">
-              <img src={logoImg} alt="FindMyPoint Logo" className="h-10 w-auto object-contain" />
+              <LazyImage
+                src={logoImg}
+                alt="FindMyPoint Logo"
+                priority={true}
+                showSkeleton={false}
+                className="h-10 w-auto"
+                imgClassName="h-10 w-auto object-contain"
+              />
             </div>
 
             {/* Heading */}

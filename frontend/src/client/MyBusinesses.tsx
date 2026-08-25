@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Search, Building, Star, Edit2, Eye, ClipboardList, X, Globe } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
 import ServiceForm from "./ServiceForm";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface MyBusinessesProps {
   filteredListings: BusinessListingData[];
@@ -67,10 +68,11 @@ export default function MyBusinesses({
                   <tr key={listing.id} className="hover:bg-slate-50/55 dark:hover:bg-slate-850/20 transition-colors">
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
-                        <img
+                        <LazyImage
                           src={listing.images[0] || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80"}
                           alt={listing.name}
-                          className="h-10 w-10 rounded-lg object-cover shrink-0 bg-slate-100 dark:bg-slate-800"
+                          className="h-10 w-10 rounded-lg shrink-0 bg-slate-100 dark:bg-slate-800 overflow-hidden"
+                          imgClassName="h-full w-full object-cover"
                         />
                         <div className="flex flex-col min-w-0">
                           <span className="font-extrabold text-slate-900 dark:text-white truncate max-w-[200px]">{listing.name}</span>

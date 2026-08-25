@@ -19,6 +19,7 @@ import {
 import logoImg from "@/assets/logo.png";
 import Footer from "./Footer";
 import { API_BASE_URL } from "../config";
+import { LazyImage } from "../components/ui/LazyImage";
 
 // ─── Types (inline, no mock data dependency) ──────────────────────────────────
 export interface BusinessDetail {
@@ -214,10 +215,13 @@ export default function ArticleDetailPage({
             }}
             className="hidden md:flex items-center shrink-0"
           >
-            <img
+            <LazyImage
               src={logoImg}
               alt="FindMyPoint Logo"
-              className="h-7 md:h-8 w-auto object-contain shrink-0"
+              priority={true}
+              showSkeleton={false}
+              className="h-7 md:h-8 w-auto shrink-0"
+              imgClassName="h-7 md:h-8 w-auto object-contain shrink-0"
               style={{ mixBlendMode: "multiply" }}
             />
           </a>
@@ -317,10 +321,12 @@ export default function ArticleDetailPage({
             {/* Gallery Section */}
             <div className="relative rounded-2xl overflow-hidden bg-secondary border border-border shadow-sm">
               <div className="aspect-[16/9] w-full overflow-hidden relative">
-                <img
+                <LazyImage
                   src={galleryImages[activeImageIndex] || currentArticle.mainImage}
                   alt={currentArticle.title}
-                  className="h-full w-full object-cover transition-all duration-500"
+                  priority={true}
+                  className="h-full w-full"
+                  imgClassName="h-full w-full object-cover transition-all duration-500"
                 />
               </div>
 
@@ -333,7 +339,12 @@ export default function ArticleDetailPage({
                       onClick={() => setActiveImageIndex(idx)}
                       className={`h-12 w-20 rounded-lg overflow-hidden border-2 transition-all ${idx === activeImageIndex ? "border-primary scale-95 shadow-md" : "border-transparent opacity-70 hover:opacity-100"}`}
                     >
-                      <img src={img} alt="thumbnail" className="h-full w-full object-cover" />
+                      <LazyImage
+                        src={img}
+                        alt="thumbnail"
+                        className="h-full w-full"
+                        imgClassName="h-full w-full object-cover"
+                      />
                     </button>
                   ))}
                 </div>
@@ -383,10 +394,11 @@ export default function ArticleDetailPage({
                         key={idx}
                         className="aspect-[4/3] rounded-2xl overflow-hidden border border-border shadow-sm bg-secondary group"
                       >
-                        <img
+                        <LazyImage
                           src={img}
                           alt={`${biz.name} dish ${idx + 1}`}
-                          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                         />
                       </div>
                     ))}
@@ -521,10 +533,11 @@ export default function ArticleDetailPage({
                       className="group flex flex-col gap-2 cursor-pointer"
                     >
                       <div className="aspect-[16/10] rounded-xl overflow-hidden bg-secondary border border-border shadow-sm">
-                        <img
+                        <LazyImage
                           src={art.mainImage}
                           alt={art.title}
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       </div>
                       <span className="text-[11.5px] font-bold text-foreground/80 leading-snug group-hover:text-primary transition-colors line-clamp-2">
@@ -542,10 +555,11 @@ export default function ArticleDetailPage({
             {/* Author Profile Card */}
             <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="flex items-center gap-4">
-                <img
+                <LazyImage
                   src={currentArticle.author.avatar}
                   alt={currentArticle.author.name}
-                  className="h-12 w-12 rounded-full object-cover border border-border shadow-sm"
+                  className="h-12 w-12 rounded-full overflow-hidden border border-border shadow-sm shrink-0"
+                  imgClassName="h-full w-full object-cover"
                 />
                 <div className="flex flex-col">
                   <div className="flex items-center gap-1.5">
@@ -628,10 +642,11 @@ export default function ArticleDetailPage({
                       className="group flex items-start gap-3 cursor-pointer"
                     >
                       <div className="h-14 w-20 rounded-lg overflow-hidden bg-secondary border border-border shadow-sm shrink-0">
-                        <img
+                        <LazyImage
                           src={art.mainImage}
                           alt={art.title}
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       </div>
                       <div className="flex flex-col min-w-0">

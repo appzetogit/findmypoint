@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, Eye, Trash2, Calendar, Clock, MapPin, Phone, Mail, User, ShieldCheck, Image as ImageIcon, X } from "lucide-react";
 import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface BusinessRequest {
   id: string;
@@ -346,10 +347,11 @@ export default function BusinessRequests() {
                   <td className="py-3.5 px-6">
                     <div className="flex items-center gap-3">
                       {req.photos && req.photos[0] ? (
-                        <img
+                        <LazyImage
                           src={req.photos[0]}
                           alt={req.businessName}
-                          className="h-10 w-10 rounded-lg object-cover border border-slate-200 dark:border-slate-800 shrink-0"
+                          className="h-10 w-10 rounded-lg border border-slate-200 dark:border-slate-800 shrink-0 overflow-hidden"
+                          imgClassName="h-full w-full object-cover"
                         />
                       ) : (
                         <div className="h-10 w-10 rounded-lg bg-indigo-50 dark:bg-slate-950 text-indigo-500 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-800">
@@ -468,10 +470,11 @@ export default function BusinessRequests() {
                       onClick={() => setZoomPhoto(photo)}
                     >
                       {photo ? (
-                        <img
+                        <LazyImage
                           src={photo}
                           alt={`Business ${index + 1}`}
-                          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                         />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center text-slate-400">
@@ -624,10 +627,12 @@ export default function BusinessRequests() {
               <X className="h-5 w-5" />
               Close
             </button>
-            <img
+            <LazyImage
               src={zoomPhoto}
               alt="Zoomed Business Photo"
-              className="max-h-[80vh] w-auto max-w-full object-contain rounded-2xl shadow-2xl border border-white/10"
+              priority={true}
+              className="max-h-[80vh] w-auto max-w-full"
+              imgClassName="max-h-[80vh] w-auto max-w-full object-contain rounded-2xl shadow-2xl border border-white/10"
             />
           </div>
         </div>

@@ -3,6 +3,7 @@ import { Save, Tag, Trash2, Upload, Search, Image as ImageIcon, Pencil, X, Rotat
 import { useCategories, Category } from "../context/CategoryContext";
 import { getCategoryImage } from "../utils/categoryImages";
 import { API_BASE_URL } from "../config";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface AddCategoryFormProps {
   onCancel: () => void;
@@ -295,14 +296,12 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
 
                       {/* Icon */}
                       <div className="h-10 w-10 rounded-xl bg-white dark:bg-slate-850 p-1 flex items-center justify-center border border-slate-100 dark:border-slate-800 shadow-sm shrink-0">
-                        <img
+                        <LazyImage
                           src={getCategoryImage(cat.label, cat.img)}
                           alt={cat.label}
-                          className="h-full w-full object-contain"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=100&q=80";
-                          }}
+                          fallbackSrc="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=100&q=80"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-contain"
                         />
                       </div>
 
@@ -430,14 +429,12 @@ export default function AddCategoryForm({ onCancel, onSuccess }: AddCategoryForm
             {imgUrl && (
               <div className="p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 rounded-xl flex items-center gap-3 text-left">
                 <div className="h-10 w-10 bg-white dark:bg-slate-850 border border-slate-200/30 rounded-xl p-1 flex items-center justify-center shadow-sm shrink-0">
-                  <img
+                  <LazyImage
                     src={getCategoryImage(label, imgUrl)}
                     alt="Preview"
-                    className="h-full w-full object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=100&q=80";
-                    }}
+                    fallbackSrc="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=100&q=80"
+                    className="h-full w-full"
+                    imgClassName="h-full w-full object-contain"
                   />
                 </div>
                 <div className="min-w-0 flex-1">

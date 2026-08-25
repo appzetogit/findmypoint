@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
 import { BACKEND_ORIGIN, API_BASE_URL } from "../config";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface AddProductProps {
   clientListings: BusinessListingData[];
@@ -376,13 +377,12 @@ export default function AddProduct({ clientListings }: AddProductProps) {
                       {/* Image */}
                       <td className="px-6 py-4">
                         <div className="h-12 w-12 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-950">
-                          <img
+                          <LazyImage
                             src={imgSrc}
                             alt={prod.name}
-                            className="h-full w-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = getPlaceholderImg(selectedBiz?.category || "");
-                            }}
+                            fallbackSrc={getPlaceholderImg(selectedBiz?.category || "")}
+                            className="h-full w-full"
+                            imgClassName="h-full w-full object-cover"
                           />
                         </div>
                       </td>
@@ -555,10 +555,11 @@ export default function AddProduct({ clientListings }: AddProductProps) {
                   {imgPreview && (
                     <div className="p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 rounded-xl flex items-center gap-3">
                       <div className="h-20 w-20 bg-white dark:bg-slate-850 border border-slate-200/40 rounded-xl overflow-hidden shrink-0 shadow-sm">
-                        <img
+                        <LazyImage
                           src={imgPreview.startsWith("/uploads/") ? `${BACKEND_ORIGIN}${imgPreview}` : imgPreview}
                           alt="Preview"
-                          className="h-full w-full object-cover"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover"
                         />
                       </div>
                       <div className="min-w-0 flex-1">

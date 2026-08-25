@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
 import { API_BASE_URL } from "../config";
+import { LazyImage } from "../components/ui/LazyImage";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -387,7 +388,7 @@ export default function ServiceForm({ clientListings = [], business, onClose, re
           <div className="border-b border-slate-100 dark:border-slate-850 pb-4">
             {selectedBiz && (
               <div className="flex items-center gap-3 mb-4">
-                <img src={selectedBiz.images?.[0] || ""} alt={selectedBiz.name} className="h-10 w-10 rounded-xl object-cover bg-slate-100" />
+                <LazyImage src={selectedBiz.images?.[0] || ""} alt={selectedBiz.name} className="h-10 w-10 rounded-xl overflow-hidden bg-slate-100 shrink-0" imgClassName="h-full w-full object-cover" />
                 <div>
                   <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide">{selectedBiz.category}</p>
                   <p className="text-xs font-black text-slate-800 dark:text-white">{selectedBiz.name}</p>

@@ -5,6 +5,7 @@ import { BusinessListingData } from "../data/businessesData";
 import { API_BASE_URL } from "../config";
 import ServiceForm from "../client/ServiceForm";
 import CategoryMapView from "../components/map/CategoryMapView";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface BusinessListingsProps {
   onAddNew: () => void;
@@ -522,10 +523,11 @@ export default function BusinessListings({
                         onClick={() => setAdminLightboxImg(img)}
                         className="h-44 sm:h-52 rounded-2xl overflow-hidden border border-slate-200/60 dark:border-slate-800 bg-slate-900 group relative cursor-pointer shadow-sm"
                       >
-                        <img
+                        <LazyImage
                           src={img}
                           alt={`${viewingBusiness.name} gallery ${idx + 1}`}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          className="w-full h-full"
+                          imgClassName="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <span className="bg-white/90 text-slate-900 text-[11px] font-black px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-md">
@@ -716,10 +718,11 @@ export default function BusinessListings({
                           >
                             {prod.img && (
                               <div className="h-16 w-16 rounded-xl overflow-hidden shrink-0 border border-slate-200/50 dark:border-slate-850">
-                                <img
+                                <LazyImage
                                   src={prod.img}
                                   alt={prod.name}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full"
+                                  imgClassName="w-full h-full object-cover"
                                 />
                               </div>
                             )}
@@ -833,12 +836,14 @@ export default function BusinessListings({
 
             {/* QR Image Container */}
             <div className="relative group max-w-[200px] mx-auto">
-              <img
+              <LazyImage
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
                   window.location.origin + "/?biz=" + qrBusiness.id
                 )}`}
                 alt={`${qrBusiness.name} QR Code`}
-                className="w-full aspect-square border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3 bg-white shadow-md group-hover:scale-[1.02] transition-transform duration-300"
+                priority={true}
+                className="w-full aspect-square rounded-2xl overflow-hidden"
+                imgClassName="w-full h-full border border-slate-200/80 dark:border-slate-800 p-3 bg-white shadow-md group-hover:scale-[1.02] transition-transform duration-300 object-contain"
               />
             </div>
 
@@ -931,10 +936,12 @@ export default function BusinessListings({
               </button>
             </div>
             <div className="p-4 flex items-center justify-center bg-slate-950 max-h-[75vh] overflow-hidden">
-              <img
+              <LazyImage
                 src={adminLightboxImg}
                 alt="Full preview"
-                className="max-h-[70vh] max-w-full object-contain rounded-xl shadow-lg"
+                priority={true}
+                className="max-h-[70vh] max-w-full"
+                imgClassName="max-h-[70vh] max-w-full object-contain rounded-xl shadow-lg"
               />
             </div>
             <div className="px-6 py-3.5 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">

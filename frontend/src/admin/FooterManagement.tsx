@@ -3,6 +3,7 @@ import { Sliders, Save, Eye, CheckCircle, HelpCircle, ToggleLeft, ToggleRight } 
 import { loadFooterData, saveFooterData, DEFAULT_FOOTER_DATA, FooterData, SocialLinkItem } from "../data/footerData";
 import { API_BASE_URL } from "../config";
 import logoImg from "../assets/logo.png";
+import { LazyImage } from "../components/ui/LazyImage";
 
 export default function FooterManagement() {
   const [footerData, setFooterData] = useState<FooterData>(loadFooterData);
@@ -353,10 +354,13 @@ export default function FooterManagement() {
             <div className="space-y-6">
               {/* Logo */}
               <div className="flex items-center">
-                <img
+                <LazyImage
                   src={logoImg}
                   alt="FindMyPoint Logo"
-                  className="h-7 w-auto object-contain brightness-100 dark:brightness-110"
+                  priority={true}
+                  showSkeleton={false}
+                  className="h-7 w-auto"
+                  imgClassName="h-7 w-auto object-contain brightness-100 dark:brightness-110"
                   style={{ mixBlendMode: "multiply" }}
                 />
               </div>

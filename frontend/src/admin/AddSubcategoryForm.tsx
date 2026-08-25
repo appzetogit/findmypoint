@@ -4,6 +4,7 @@ import { Plus, Search, ChevronDown, ChevronUp, Trash2, X, Save, Sparkles } from 
 import { useCategories } from "../context/CategoryContext";
 import { getCategoryImage, getSubcategoryEmoji } from "../utils/categoryImages";
 import { API_BASE_URL } from "../config";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface AddSubcategoryFormProps {
   onCancel: () => void;
@@ -267,14 +268,12 @@ export default function AddSubcategoryForm({ onCancel }: AddSubcategoryFormProps
                   >
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 p-1 flex items-center justify-center border border-slate-200/40 shrink-0">
-                        <img
+                        <LazyImage
                           src={getCategoryImage(cat.label, cat.img)}
                           alt={cat.label}
-                          className="h-full w-full object-contain"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=100&q=80";
-                          }}
+                          fallbackSrc="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=100&q=80"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-contain"
                         />
                       </div>
                       <div className="min-w-0">
@@ -318,7 +317,7 @@ export default function AddSubcategoryForm({ onCancel }: AddSubcategoryFormProps
                                 <div className="flex items-center gap-3">
                                   <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200/50 dark:border-slate-800/80 text-xl overflow-hidden shrink-0">
                                     {isImg ? (
-                                      <img src={icon} alt={sub.label} className="h-full w-full object-contain" />
+                                      <LazyImage src={icon} alt={sub.label} className="h-full w-full" imgClassName="h-full w-full object-contain" />
                                     ) : (
                                       icon
                                     )}
@@ -435,7 +434,7 @@ export default function AddSubcategoryForm({ onCancel }: AddSubcategoryFormProps
                   <div className="flex items-center gap-4">
                     <label className="flex flex-col items-center justify-center h-16 w-16 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 cursor-pointer overflow-hidden transition-all shrink-0">
                       {iconImage ? (
-                        <img src={iconImage} alt="Icon Preview" className="h-full w-full object-contain" />
+                        <LazyImage src={iconImage} alt="Icon Preview" className="h-full w-full" imgClassName="h-full w-full object-contain" />
                       ) : (
                         <Plus className="h-5 w-5 text-slate-400" />
                       )}
@@ -541,7 +540,7 @@ export default function AddSubcategoryForm({ onCancel }: AddSubcategoryFormProps
                   <div className="flex items-center gap-4">
                     <label className="flex flex-col items-center justify-center h-16 w-16 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 cursor-pointer overflow-hidden transition-all shrink-0">
                       {editIcon ? (
-                        <img src={editIcon} alt="Icon Preview" className="h-full w-full object-contain" />
+                        <LazyImage src={editIcon} alt="Icon Preview" className="h-full w-full" imgClassName="h-full w-full object-contain" />
                       ) : (
                         <Plus className="h-5 w-5 text-slate-400" />
                       )}

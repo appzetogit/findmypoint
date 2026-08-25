@@ -15,7 +15,8 @@ import {
   PlusCircle,
   Wallet as WalletIcon
 } from "lucide-react";
-import logoImg from "../assets/logo.png";
+import logoImg from "@/assets/logo.png";
+import { LazyImage } from "../components/ui/LazyImage";
 import { BusinessListingData } from "../data/businessesData";
 import AdminEntryForm from "../admin/AdminEntryForm";
 import Dashboard from "./Dashboard";
@@ -361,7 +362,7 @@ export default function ClientShell({ onClose }: ClientShellProps) {
           {/* Logo Header */}
           <div className="flex flex-col items-center pt-0.5 pb-2.5 border-b border-slate-800/60 mb-6 text-center w-full">
             <div className="bg-white/95 backdrop-blur-sm px-3.5 py-1.5 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.12)] flex items-center justify-center border border-slate-200/50 max-w-[150px]">
-              <img src={logoImg} alt="FindMyPoint Logo" className="h-4.5 w-auto object-contain" />
+              <LazyImage src={logoImg} alt="FindMyPoint Logo" priority={true} showSkeleton={false} className="h-4.5 w-auto" imgClassName="h-4.5 w-auto object-contain" />
             </div>
             <div className="text-[10px] font-black tracking-widest text-indigo-400 mt-2 uppercase">Client Panel</div>
           </div>

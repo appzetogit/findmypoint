@@ -41,6 +41,7 @@ import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
 import { getSubcategoryEmoji } from "../utils/categoryImages";
 import { calculateDistanceKm, formatDistance, getCurrentUserLocation } from "../utils/googleMaps";
 import CategoryMapView from "../components/map/CategoryMapView";
+import { LazyImage } from "../components/ui/LazyImage";
 
 
 
@@ -1472,10 +1473,13 @@ export default function CategoryDetailPage({
           </button>
 
           <a href="/" className="hidden md:flex items-center shrink-0">
-            <img
+            <LazyImage
               src={logoImg}
               alt="FindMyPoint Logo"
-              className="h-8 w-auto object-contain shrink-0"
+              priority={true}
+              showSkeleton={false}
+              className="h-8 w-auto shrink-0"
+              imgClassName="h-8 w-auto object-contain shrink-0"
               style={{ mixBlendMode: "multiply" }}
             />
           </a>
@@ -1582,7 +1586,12 @@ export default function CategoryDetailPage({
                         {/* Subcategory Icon (Mobile only) */}
                         <span className="text-2xl lg:hidden shrink-0 flex items-center justify-center">
                           {subcatIcons[subcat] ? (
-                            <img src={subcatIcons[subcat]} alt={subcat} className="h-6 w-6 object-contain rounded-md" />
+                            <LazyImage
+                              src={subcatIcons[subcat]}
+                              alt={subcat}
+                              className="h-6 w-6 rounded-md overflow-hidden"
+                              imgClassName="h-full w-full object-contain"
+                            />
                           ) : (
                             getSubcategoryEmoji(categoryName, subcat)
                           )}
@@ -1734,15 +1743,15 @@ export default function CategoryDetailPage({
                         <div className="flex flex-row gap-2.5 items-start w-full">
                           {/* Image */}
                           <div className="relative h-20 w-20 overflow-hidden rounded-lg bg-secondary shrink-0">
-                            <img
+                            <LazyImage
                               src={biz.images[0]}
                               alt={biz.name}
-                              loading="lazy"
-                              className="h-full w-full object-cover"
+                              className="h-full w-full"
+                              imgClassName="h-full w-full object-cover"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                             {distFormatted ? (
-                              <div className="absolute bottom-1 left-1">
+                              <div className="absolute bottom-1 left-1 z-10">
                                 <span className="text-[8px] font-black bg-black/80 text-white px-1 py-0.5 rounded">
                                   {distFormatted}
                                 </span>
@@ -1834,13 +1843,13 @@ export default function CategoryDetailPage({
                       >
                         {/* Left: Listing Image */}
                         <div className="relative h-44 w-full sm:w-60 overflow-hidden rounded-xl bg-secondary shrink-0">
-                          <img
+                          <LazyImage
                             src={biz.images[0]}
                             alt={biz.name}
-                            loading="lazy"
-                            className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                            className="h-full w-full"
+                            imgClassName="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                         </div>
 
                         {/* Right: Info details */}

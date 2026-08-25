@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Image as ImageIcon, Save, Eye, CheckCircle, Upload, ChevronRight, Sliders } from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
 import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface BannerItem {
   title: string;
@@ -315,10 +316,11 @@ export default function BannerManagement() {
                           {/* Thumbnail */}
                           <div className="h-10 w-14 rounded-lg bg-slate-200 dark:bg-slate-850 overflow-hidden shrink-0 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400">
                             {slide.img ? (
-                              <img
+                              <LazyImage
                                 src={getImageUrl(slide.img)}
                                 alt=""
-                                className="h-full w-full object-cover"
+                                className="h-full w-full"
+                                imgClassName="h-full w-full object-cover"
                               />
                             ) : (
                               <ImageIcon className="h-4 w-4" />
@@ -641,10 +643,12 @@ export default function BannerManagement() {
               /* Slider Preview: wide horizontal format */
               <div className="relative overflow-hidden rounded-2xl w-full max-w-[280px] h-[180px] select-none">
                 {currentSliderBanner.img && (
-                  <img
+                  <LazyImage
                     src={getImageUrl(currentSliderBanner.img)}
                     alt={currentSliderBanner.tag}
-                    className="absolute inset-0 h-full w-full object-cover"
+                    priority={true}
+                    className="absolute inset-0 h-full w-full"
+                    imgClassName="h-full w-full object-cover"
                   />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/95 via-slate-900/45 to-transparent" />
@@ -706,10 +710,12 @@ export default function BannerManagement() {
                 {/* Character/Object Cutout Image */}
                 {currentSideBanner.img && (
                   <div className="absolute bottom-[-16px] right-0 w-[92%] h-[85%] pointer-events-none transition-transform duration-500 group-hover:scale-105 group-hover:translate-x-1">
-                    <img
+                    <LazyImage
                       src={getImageUrl(currentSideBanner.img)}
                       alt={currentSideBanner.title}
-                      className="h-full w-full object-cover object-top mix-blend-normal opacity-95"
+                      priority={true}
+                      className="h-full w-full"
+                      imgClassName="h-full w-full object-cover object-top mix-blend-normal opacity-95"
                       style={{
                         maskImage: "linear-gradient(to left, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)",
                         WebkitMaskImage:

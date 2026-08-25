@@ -62,6 +62,7 @@ import HeroSubcategoriesManagement from "./HeroSubcategoriesManagement";
 import PopularServicesManagement from "./PopularServicesManagement";
 import CategoryBannerManagement from "./CategoryBannerManagement";
 import logoImg from "../assets/logo.png";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface AdminShellProps {
   onClose: () => void;
@@ -326,17 +327,23 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
           <div className="flex flex-col items-center text-center">
             {isDarkMode ? (
               <div className="bg-white px-5 py-2 rounded-2xl shadow-sm flex items-center justify-center mb-5 border border-slate-200/40">
-                <img
+                <LazyImage
                   src={logoImg}
                   alt="FindMyPoint Logo"
-                  className="h-8 w-auto object-contain animate-fade-in shrink-0"
+                  priority={true}
+                  showSkeleton={false}
+                  className="h-8 w-auto shrink-0"
+                  imgClassName="h-8 w-auto object-contain animate-fade-in shrink-0"
                 />
               </div>
             ) : (
-              <img
+              <LazyImage
                 src={logoImg}
                 alt="FindMyPoint Logo"
-                className="h-10 w-auto object-contain mb-5 animate-fade-in shrink-0"
+                priority={true}
+                showSkeleton={false}
+                className="h-10 w-auto mb-5 shrink-0"
+                imgClassName="h-10 w-auto object-contain animate-fade-in shrink-0"
                 style={{ mixBlendMode: "multiply" }}
               />
             )}
@@ -471,7 +478,7 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
           {/* Admin Header */}
           <div className="flex flex-col items-center pt-0.5 pb-2.5 border-b border-slate-800/60 mb-4 text-center w-full">
             <div className="bg-white/95 backdrop-blur-sm px-3.5 py-1.5 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.12)] flex items-center justify-center border border-slate-200/50 max-w-[150px]">
-              <img src={logoImg} alt="FindMyPoint Logo" className="h-4.5 w-auto object-contain" />
+              <LazyImage src={logoImg} alt="FindMyPoint Logo" priority={true} showSkeleton={false} className="h-4.5 w-auto" imgClassName="h-4.5 w-auto object-contain" />
             </div>
           </div>
 

@@ -16,6 +16,7 @@ import {
 import logoImg from "@/assets/logo.png";
 import Footer from "./Footer";
 import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface PopularServiceDetailPageProps {
   popularServiceId: string;
@@ -162,10 +163,13 @@ export default function PopularServiceDetailPage({
         <div className="mx-auto flex h-16 md:h-20 max-w-7xl items-center gap-3 md:gap-4 px-4 sm:px-6 w-full">
 
           <a href="/" className="hidden md:flex items-center shrink-0">
-            <img
+            <LazyImage
               src={logoImg}
               alt="FindMyPoint Logo"
-              className="h-8 w-auto object-contain shrink-0"
+              priority={true}
+              showSkeleton={false}
+              className="h-8 w-auto shrink-0"
+              imgClassName="h-8 w-auto object-contain shrink-0"
               style={{ mixBlendMode: "multiply" }}
             />
           </a>
@@ -265,13 +269,13 @@ export default function PopularServiceDetailPage({
                     <div
                       className="relative h-44 w-full sm:w-60 overflow-hidden rounded-xl bg-secondary shrink-0 border border-border/40"
                     >
-                      <img
+                      <LazyImage
                         src={resolvedImg}
                         alt={biz.name}
-                        loading="lazy"
-                        className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                        className="h-full w-full"
+                        imgClassName="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent pointer-events-none" />
                     </div>
 
                     {/* Right: Info details */}

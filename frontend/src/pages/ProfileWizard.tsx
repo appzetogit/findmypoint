@@ -19,6 +19,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import AddressAutocompleteInput, { PlaceResultData } from "../components/map/AddressAutocompleteInput";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface ProfileWizardProps {
   onClose: () => void;
@@ -639,10 +640,11 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                     <div className="relative group">
                       <div className="h-24 w-24 rounded-full overflow-hidden border-2 border-primary bg-secondary shadow-md flex items-center justify-center">
                         {personal.avatar ? (
-                          <img
+                          <LazyImage
                             src={personal.avatar}
                             alt="Avatar Preview"
-                            className="h-full w-full object-cover"
+                            className="h-full w-full"
+                            imgClassName="h-full w-full object-cover"
                           />
                         ) : (
                           <User className="h-9 w-9 text-muted-foreground" />
@@ -802,10 +804,11 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                     <div className="relative group">
                       <div className="h-28 w-28 rounded-full overflow-hidden border-2 border-primary bg-secondary shadow-md flex items-center justify-center">
                         {personal.avatar ? (
-                          <img
+                          <LazyImage
                             src={personal.avatar}
                             alt="Avatar Preview"
-                            className="h-full w-full object-cover"
+                            className="h-full w-full"
+                            imgClassName="h-full w-full object-cover"
                           />
                         ) : (
                           <User className="h-10 w-10 text-muted-foreground" />
@@ -1177,7 +1180,12 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                     >
                       <span className="text-xl sm:text-3xl filter drop-shadow">
                         {cat.icon.startsWith("http") || cat.icon.startsWith("data:") || cat.icon.startsWith("/") ? (
-                          <img src={cat.icon} alt={cat.label} className="h-8 w-8 sm:h-12 sm:w-12 object-contain mx-auto" />
+                          <LazyImage
+                            src={cat.icon}
+                            alt={cat.label}
+                            className="h-8 w-8 sm:h-12 sm:w-12 mx-auto"
+                            imgClassName="h-full w-full object-contain"
+                          />
                         ) : (
                           cat.icon
                         )}
@@ -1232,10 +1240,11 @@ export default function ProfileWizard({ onClose, username }: ProfileWizardProps)
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-full overflow-hidden border border-primary/20 bg-card flex items-center justify-center shrink-0">
                     {personal.avatar ? (
-                      <img
+                      <LazyImage
                         src={personal.avatar}
                         alt="Avatar"
-                        className="h-full w-full object-cover"
+                        className="h-full w-full"
+                        imgClassName="h-full w-full object-cover"
                       />
                     ) : (
                       <User className="h-5 w-5 text-muted-foreground" />

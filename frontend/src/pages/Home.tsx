@@ -32,6 +32,7 @@ import { useCategories } from "../context/CategoryContext";
 import { getCategoryImage } from "../utils/categoryImages";
 import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
 import { getCurrentUserLocation, reverseGeocodeCoords, calculateDistanceKm, formatDistance } from "../utils/googleMaps";
+import { LazyImage } from "../components/ui/LazyImage";
 
 
 import beautySpa from "@/assets/beauty_spa.png";
@@ -875,10 +876,13 @@ export default function HomePage({
               href="/"
               className="flex items-center shrink-0"
             >
-              <img
+              <LazyImage
                 src={logoImg}
                 alt="FindMyPoint Logo"
-                className="h-6 md:h-8 w-auto object-contain shrink-0"
+                priority={true}
+                showSkeleton={false}
+                className="h-6 md:h-8 w-auto shrink-0"
+                imgClassName="h-6 md:h-8 w-auto object-contain shrink-0"
                 style={{ mixBlendMode: "multiply" }}
               />
             </a>
@@ -1072,11 +1076,12 @@ export default function HomePage({
                               onClick={() => handleSearchResultClick("business", biz)}
                               className="flex items-center gap-3 p-2 hover:bg-secondary/70 rounded-xl cursor-pointer transition-colors group"
                             >
-                              <div className="h-10 w-10 rounded-lg overflow-hidden bg-secondary shrink-0 border border-border/60">
-                                <img
+                              <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0 border border-border/60">
+                                <LazyImage
                                   src={biz.images?.[0] || "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=150&q=80"}
                                   alt={biz.name}
-                                  className="h-full w-full object-cover"
+                                  className="h-full w-full"
+                                  imgClassName="h-full w-full object-cover"
                                 />
                               </div>
                               <div className="min-w-0 flex-1">
@@ -1148,11 +1153,12 @@ export default function HomePage({
                               onClick={() => handleSearchResultClick("place", place)}
                               className="flex items-center gap-3 p-2 hover:bg-secondary/70 rounded-xl cursor-pointer transition-colors group"
                             >
-                              <div className="h-9 w-9 rounded-lg overflow-hidden bg-secondary shrink-0">
-                                <img
+                              <div className="h-9 w-9 rounded-lg overflow-hidden shrink-0">
+                                <LazyImage
                                   src={place.img}
                                   alt={place.title}
-                                  className="h-full w-full object-cover"
+                                  className="h-full w-full"
+                                  imgClassName="h-full w-full object-cover"
                                 />
                               </div>
                               <div className="min-w-0 flex-1">
@@ -1300,10 +1306,12 @@ export default function HomePage({
                     className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
                       }`}
                   >
-                    <img
+                    <LazyImage
                       src={getImageUrl(slide.img)}
-                      alt={slide.tag}
-                      className="absolute inset-0 h-full w-full object-cover"
+                      alt={slide.tag || "Hero Slide"}
+                      priority={index === 0}
+                      className="absolute inset-0 h-full w-full"
+                      imgClassName="h-full w-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-tr from-primary/90 via-primary/40 to-transparent" />
                     <div className="absolute inset-0 flex flex-col justify-end p-5 text-primary-foreground">
@@ -1366,10 +1374,12 @@ export default function HomePage({
                       className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
                         }`}
                     >
-                      <img
+                      <LazyImage
                         src={getImageUrl(slide.img)}
-                        alt={slide.tag}
-                        className="absolute inset-0 h-full w-full object-cover"
+                        alt={slide.tag || "Hero Slide"}
+                        priority={index === 0}
+                        className="absolute inset-0 h-full w-full"
+                        imgClassName="h-full w-full object-cover"
                       />
                       <div className="absolute inset-0 bg-gradient-to-tr from-primary/95 via-primary/45 to-transparent" />
                       <div className="absolute inset-0 flex flex-col justify-end p-6 text-primary-foreground text-left">
@@ -1456,10 +1466,12 @@ export default function HomePage({
                     {/* Character/Object Cutout Image */}
                     {card.img && (
                       <div className="absolute bottom-[-16px] right-0 w-[92%] h-[85%] pointer-events-none transition-transform duration-500 group-hover:scale-105 group-hover:translate-x-1">
-                        <img
+                        <LazyImage
                           src={getImageUrl(card.img)}
                           alt={card.title}
-                          className="h-full w-full object-cover object-top mix-blend-normal opacity-95"
+                          priority={true}
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover object-top mix-blend-normal opacity-95"
                           style={{
                             maskImage: "linear-gradient(to left, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%)",
                             WebkitMaskImage:
@@ -1485,7 +1497,12 @@ export default function HomePage({
                   className="group flex flex-col items-center justify-center gap-1.5 sm:gap-2 text-center transition-all duration-300 hover:-translate-y-1 cursor-pointer"
                 >
                   <div className="h-11 w-11 sm:h-20 sm:w-20 transition-all duration-300 group-hover:scale-110">
-                    <img src={getCategoryImage(label, img)} alt={label} className="h-full w-full object-contain" />
+                    <LazyImage
+                      src={getCategoryImage(label, img)}
+                      alt={label}
+                      className="h-full w-full"
+                      imgClassName="h-full w-full object-contain"
+                    />
                   </div>
                   <span className="text-[10px] sm:text-[13px] font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors duration-300">
                     {label}
@@ -1540,14 +1557,12 @@ export default function HomePage({
                       onClick={() => onCategoryClick?.(item.categoryName, item.subcategoryName)}
                       className="group flex flex-col items-center gap-1.5 sm:gap-2.5 cursor-pointer"
                     >
-                      <div className="w-full aspect-[1.45] overflow-hidden rounded-xl bg-secondary shadow-sm">
-                        <img
-                          src={resolveItemImage(item.img)}
-                          alt={item.label}
-                          loading="lazy"
-                          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                        />
-                      </div>
+                      <LazyImage
+                        src={resolveItemImage(item.img)}
+                        alt={item.label}
+                        className="w-full aspect-[1.45] overflow-hidden rounded-xl bg-secondary shadow-sm"
+                        imgClassName="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                      />
                       <span className="text-[13px] font-medium text-foreground/80 group-hover:text-primary transition-colors duration-300 text-center leading-tight">
                         {item.label}
                       </span>
@@ -1606,15 +1621,12 @@ export default function HomePage({
                       className="group overflow-hidden rounded-xl sm:rounded-2xl border border-border bg-background transition hover:shadow-[var(--shadow-elegant)] shrink-0 w-[45%] sm:w-full cursor-pointer flex flex-col justify-between"
                     >
                       <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-900">
-                        <img
+                        <LazyImage
                           src={resolveItemImage(biz.images?.[0])}
                           alt={biz.name}
-                          loading="lazy"
-                          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80";
-                          }}
+                          fallbackSrc="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                         />
 
 
@@ -1672,13 +1684,11 @@ export default function HomePage({
                       className="group overflow-hidden rounded-xl sm:rounded-2xl border border-border bg-background transition hover:shadow-[var(--shadow-elegant)] shrink-0 w-[30.5%] sm:w-full cursor-pointer"
                     >
                       <div className="relative aspect-[16/10] overflow-hidden">
-                        <img
+                        <LazyImage
                           src={resolveServiceImage(s.img)}
                           alt={s.title}
-                          loading="lazy"
-                          width={800}
-                          height={500}
-                          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                         />
                         {/* Desktop View Overlay */}
                         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/95 to-transparent hidden sm:block" />
@@ -1760,14 +1770,12 @@ export default function HomePage({
                     onClick={() => onPlaceClick?.(place.title)}
                     className="group flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-6 rounded-none sm:rounded-xl border-none sm:border border-border/40 bg-transparent sm:bg-background/20 p-0 sm:p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/20 hover:bg-card hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] snap-start shrink-0 w-[28%] sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)] cursor-pointer"
                   >
-                    <div className="w-full sm:h-28 sm:w-28 aspect-square sm:aspect-auto overflow-hidden rounded-xl bg-secondary shrink-0">
-                      <img
-                        src={place.img}
-                        alt={place.title}
-                        loading="lazy"
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    </div>
+                    <LazyImage
+                      src={place.img}
+                      alt={place.title}
+                      className="w-full sm:h-28 sm:w-28 aspect-square sm:aspect-auto overflow-hidden rounded-xl bg-secondary shrink-0"
+                      imgClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
                     <div className="flex flex-col items-center sm:items-start text-center sm:text-left w-full">
                       <span className="text-xs sm:text-[20px] font-semibold sm:font-bold text-foreground/90 group-hover:text-primary transition-colors duration-300 mt-1 sm:mt-0">
                         {place.title}
@@ -1861,14 +1869,12 @@ export default function HomePage({
                       </div>
 
                       {/* Image */}
-                      <div className="relative aspect-[16/8] sm:aspect-[16/9] w-full overflow-hidden bg-secondary border-y border-border/40">
-                        <img
-                          src={getImageUrl(review.businessImg)}
-                          alt={review.businessName}
-                          loading="lazy"
-                          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                        />
-                      </div>
+                      <LazyImage
+                        src={getImageUrl(review.businessImg)}
+                        alt={review.businessName}
+                        className="relative aspect-[16/8] sm:aspect-[16/9] w-full overflow-hidden bg-secondary border-y border-border/40"
+                        imgClassName="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
 
                       {/* Review Info */}
                       <div className="p-2.5 sm:p-5 flex flex-col flex-1">
@@ -1940,13 +1946,13 @@ export default function HomePage({
                 >
                   {/* Image Container with Tag */}
                   <div className="relative aspect-[16/9] sm:aspect-[16/10] overflow-hidden bg-secondary">
-                    <img
+                    <LazyImage
                       src={article.img}
                       alt={article.title}
-                      loading="lazy"
-                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      className="h-full w-full"
+                      imgClassName="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />
-                    <div className="absolute top-1.5 left-1.5 sm:top-4 sm:left-4 rounded-lg bg-black/45 backdrop-blur-md px-1.5 py-0.5 sm:px-3 sm:py-1.5 text-[7px] sm:text-[9px] font-black uppercase tracking-wider text-white border border-white/10 shadow-sm">
+                    <div className="absolute top-1.5 left-1.5 sm:top-4 sm:left-4 rounded-lg bg-black/45 backdrop-blur-md px-1.5 py-0.5 sm:px-3 sm:py-1.5 text-[7px] sm:text-[9px] font-black uppercase tracking-wider text-white border border-white/10 shadow-sm z-10">
                       {article.category}
                     </div>
                   </div>
@@ -2060,13 +2066,12 @@ export default function HomePage({
                       className="p-4 rounded-2xl border border-border bg-card hover:border-muted-foreground/30 hover:shadow-sm transition-all duration-300 flex items-start gap-4"
                     >
                       {/* Business Image */}
-                      <div className="h-16 w-16 rounded-xl overflow-hidden shrink-0 border border-border bg-secondary">
-                        <img
-                          src={resolvedImg}
-                          alt={biz.name}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
+                      <LazyImage
+                        src={resolvedImg}
+                        alt={biz.name}
+                        className="h-16 w-16 rounded-xl overflow-hidden shrink-0 border border-border bg-secondary"
+                        imgClassName="h-full w-full object-cover"
+                      />
 
                       {/* Business Details */}
                       <div className="flex-1 min-w-0">

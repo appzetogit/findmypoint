@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { API_BASE_URL } from "../config";
 import { useCategories } from "../context/CategoryContext";
+import { LazyImage } from "../components/ui/LazyImage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -129,10 +130,11 @@ function ImageUpload({
 
       {value ? (
         <div className="relative shrink-0">
-          <img
+          <LazyImage
             src={value}
             alt="preview"
-            className="h-12 w-20 object-cover rounded-xl border border-slate-200 dark:border-slate-700"
+            className="h-12 w-20 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+            imgClassName="h-full w-full object-cover"
           />
           <button
             type="button"
@@ -381,7 +383,7 @@ export default function ArticleManagement() {
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         {article.mainImage ? (
-                          <img src={article.mainImage} alt={article.title} className="h-10 w-16 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shrink-0" />
+                          <LazyImage src={article.mainImage} alt={article.title} className="h-10 w-16 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0" imgClassName="h-full w-full object-cover" />
                         ) : (
                           <div className="h-10 w-16 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0">
                             <ImageIcon className="h-4 w-4 text-slate-400" />

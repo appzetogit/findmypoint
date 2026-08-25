@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Bookmark, MapPin } from "lucide-react";
+import { LazyImage } from "./ui/LazyImage";
 
 interface SavedPageProps {
   onNavigateToBusiness?: (
@@ -76,12 +77,13 @@ export default function SavedPage({ onNavigateToBusiness }: SavedPageProps) {
             >
               {/* Image header */}
               <div className="h-28 w-full relative">
-                <img
+                <LazyImage
                   src={item.image}
                   alt={item.name}
-                  className="h-full w-full object-cover group-hover:scale-101 transition duration-500"
+                  className="h-full w-full"
+                  imgClassName="h-full w-full object-cover group-hover:scale-101 transition duration-500"
                 />
-                <span className="absolute top-3 left-3 px-2 py-0.5 bg-black/60 backdrop-blur-[2px] rounded text-[9px] font-black uppercase text-white tracking-wider border border-white/5">
+                <span className="absolute top-3 left-3 px-2 py-0.5 bg-black/60 backdrop-blur-[2px] rounded text-[9px] font-black uppercase text-white tracking-wider border border-white/5 z-10">
                   {item.sub}
                 </span>
                 <button

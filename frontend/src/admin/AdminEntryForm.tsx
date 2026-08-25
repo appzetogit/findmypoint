@@ -33,6 +33,7 @@ import countryCodesData from "../data/country-by-calling-code.json";
 import AddressAutocompleteInput, { PlaceResultData } from "../components/map/AddressAutocompleteInput";
 import MapLocationPicker from "../components/map/MapLocationPicker";
 import { getGoogleMapsEmbedUrl } from "../utils/googleMaps";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface CountryCodeItem {
   country: string;
@@ -1451,10 +1452,12 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
               ) : (
                 <div className="space-y-2">
                   <div className="relative w-full h-56 sm:h-72 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900 shadow-md group">
-                    <img
+                    <LazyImage
                       src={frontPhoto}
                       alt="Front Banner Preview"
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      priority={true}
+                      className="w-full h-full"
+                      imgClassName="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                     
@@ -1576,10 +1579,11 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                     ) : (
                       <div className="space-y-2">
                         <div className="relative w-full h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900 shadow-sm group/img">
-                          <img
+                          <LazyImage
                             src={photo}
                             alt={`Interior Preview #${idx + 1}`}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105"
+                            className="w-full h-full"
+                            imgClassName="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105"
                           />
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
                             <button
@@ -1945,10 +1949,12 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
               </button>
             </div>
             <div className="p-6 flex items-center justify-center bg-slate-950 max-h-[75vh] overflow-hidden">
-              <img
+              <LazyImage
                 src={previewModalImage}
                 alt="Full Preview"
-                className="max-h-[70vh] max-w-full object-contain rounded-xl shadow-lg"
+                priority={true}
+                className="max-h-[70vh] max-w-full"
+                imgClassName="max-h-[70vh] max-w-full object-contain rounded-xl shadow-lg"
               />
             </div>
             <div className="px-6 py-3.5 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">

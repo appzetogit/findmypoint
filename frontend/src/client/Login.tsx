@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Mail, Lock, ShieldCheck, Sun, Moon, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
-import logoImg from "../assets/logo.png";
+import logoImg from "@/assets/logo.png";
 import { API_BASE_URL } from "../config";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface ClientSession {
   email: string;
@@ -81,10 +82,10 @@ export default function Login({ onLoginSuccess, isDarkMode, toggleDarkMode }: Lo
         <div className="flex flex-col items-center text-center">
           {isDarkMode ? (
             <div className="bg-white px-5 py-2 rounded-2xl shadow-sm flex items-center justify-center mb-5 border border-slate-200/40">
-              <img src={logoImg} alt="FindMyPoint Logo" className="h-8 w-auto object-contain animate-fade-in shrink-0" />
+              <LazyImage src={logoImg} alt="FindMyPoint Logo" priority={true} showSkeleton={false} className="h-8 w-auto shrink-0" imgClassName="h-8 w-auto object-contain animate-fade-in shrink-0" />
             </div>
           ) : (
-            <img src={logoImg} alt="FindMyPoint Logo" className="h-10 w-auto object-contain mb-5 animate-fade-in shrink-0" style={{ mixBlendMode: "multiply" }} />
+            <LazyImage src={logoImg} alt="FindMyPoint Logo" priority={true} showSkeleton={false} className="h-10 w-auto mb-5 shrink-0" imgClassName="h-10 w-auto object-contain animate-fade-in shrink-0" style={{ mixBlendMode: "multiply" }} />
           )}
           <h2 className="font-serif text-2xl font-black tracking-tight text-indigo-600 dark:text-indigo-400">
             Client Portal

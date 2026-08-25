@@ -17,6 +17,7 @@ import { API_BASE_URL } from "../config";
 import AddressAutocompleteInput, { PlaceResultData } from "../components/map/AddressAutocompleteInput";
 import MapLocationPicker from "../components/map/MapLocationPicker";
 import { getGoogleMapsEmbedUrl } from "../utils/googleMaps";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface AddTouristPlaceFormProps {
   onCancel: () => void;
@@ -501,10 +502,11 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
                   ) : (
                     <div className="space-y-2">
                       <div className="h-32 w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-850 relative group bg-slate-900">
-                        <img
+                        <LazyImage
                           src={coverImage}
                           alt="Cover Preview"
-                          className="h-full w-full object-cover"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover"
                         />
                       </div>
                       <div className="flex justify-between items-center text-[10px]">
@@ -540,7 +542,7 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
                   ) : (
                     <div className="space-y-2">
                       <div className="h-32 w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-850 relative group bg-slate-900">
-                        <img src={image1} alt="Preview 1" className="h-full w-full object-cover" />
+                        <LazyImage src={image1} alt="Preview 1" className="h-full w-full" imgClassName="h-full w-full object-cover" />
                       </div>
                       <div className="flex justify-between items-center text-[10px]">
                         <span className="text-slate-455 font-bold uppercase tracking-wider">Image Selected</span>
@@ -575,7 +577,7 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
                   ) : (
                     <div className="space-y-2">
                       <div className="h-32 w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-850 relative group bg-slate-900">
-                        <img src={image2} alt="Preview 2" className="h-full w-full object-cover" />
+                        <LazyImage src={image2} alt="Preview 2" className="h-full w-full" imgClassName="h-full w-full object-cover" />
                       </div>
                       <div className="flex justify-between items-center text-[10px]">
                         <span className="text-slate-455 font-bold uppercase tracking-wider">Image Selected</span>
@@ -610,7 +612,7 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
                   ) : (
                     <div className="space-y-2">
                       <div className="h-32 w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-850 relative group bg-slate-900">
-                        <img src={image3} alt="Preview 3" className="h-full w-full object-cover" />
+                        <LazyImage src={image3} alt="Preview 3" className="h-full w-full" imgClassName="h-full w-full object-cover" />
                       </div>
                       <div className="flex justify-between items-center text-[10px]">
                         <span className="text-slate-455 font-bold uppercase tracking-wider">Image Selected</span>
@@ -728,10 +730,11 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
                   className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl overflow-hidden text-left flex flex-col justify-between hover:shadow-md transition"
                 >
                   <div className="h-28 bg-slate-100 dark:bg-slate-950 overflow-hidden relative">
-                    <img
+                    <LazyImage
                       src={item.coverImage}
                       alt={item.name}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full"
+                      imgClassName="h-full w-full object-cover"
                     />
                     <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
                       <button

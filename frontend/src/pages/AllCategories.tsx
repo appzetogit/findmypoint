@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowUp } from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
 import { getCategoryImage, getSubcategoryEmoji } from "../utils/categoryImages";
 import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
+import { LazyImage } from "../components/ui/LazyImage";
 
 
 interface AllCategoriesPageProps {
@@ -182,10 +183,11 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
                   )}
                   {/* Category Icon */}
                   {group.icon && (
-                    <img
+                    <LazyImage
                       src={getCategoryImage(group.label, group.icon)}
                       alt={group.label}
-                      className={`h-9 w-9 object-contain shrink-0 transition-all duration-200 ${isActive ? "scale-110 drop-shadow-md" : "scale-100 hover:scale-105"}`}
+                      className={`h-9 w-9 shrink-0 transition-all duration-200 ${isActive ? "scale-110 drop-shadow-md" : "scale-100 hover:scale-105"}`}
+                      imgClassName="h-full w-full object-contain"
                     />
                   )}
                   <span>{group.label}</span>
@@ -219,7 +221,12 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
                     >
                       <span className="text-4xl shrink-0 flex items-center justify-center">
                         {sub.icon.startsWith("data:image") || sub.icon.startsWith("http") ? (
-                          <img src={sub.icon} alt={sub.label} className="h-12 w-12 object-contain rounded-md shrink-0" />
+                          <LazyImage
+                            src={sub.icon}
+                            alt={sub.label}
+                            className="h-12 w-12 rounded-md shrink-0 overflow-hidden"
+                            imgClassName="h-full w-full object-contain"
+                          />
                         ) : (
                           sub.icon
                         )}
@@ -251,10 +258,11 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
                     {/* Category Advertise Banner (rendered above heading) */}
                     {activeBanner && activeBanner.img && (
                       <div className="mb-3 relative w-full overflow-hidden rounded-xl shadow-sm aspect-[2.1/1] bg-secondary border border-border/40">
-                        <img
+                        <LazyImage
                           src={getImageUrl(activeBanner.img)}
                           alt={group.label}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover"
                         />
                         {(activeBanner.title || activeBanner.subtitle) && (
                           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex flex-col justify-end p-3.5 text-white">
@@ -285,7 +293,12 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
                         >
                           <span className="text-4xl shrink-0 flex items-center justify-center">
                             {sub.icon.startsWith("data:image") || sub.icon.startsWith("http") ? (
-                              <img src={sub.icon} alt={sub.label} className="h-12 w-12 object-contain rounded-md shrink-0" />
+                              <LazyImage
+                                src={sub.icon}
+                                alt={sub.label}
+                                className="h-12 w-12 rounded-md shrink-0 overflow-hidden"
+                                imgClassName="h-full w-full object-contain"
+                              />
                             ) : (
                               sub.icon
                             )}

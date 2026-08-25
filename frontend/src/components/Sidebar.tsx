@@ -14,6 +14,7 @@ import {
   LogIn,
   CalendarDays,
 } from "lucide-react";
+import { LazyImage } from "./ui/LazyImage";
 
 interface SidebarProps {
   onClose: () => void;
@@ -199,7 +200,12 @@ export default function Sidebar({
               className="h-14 w-14 rounded-full overflow-hidden border border-slate-100 bg-slate-50 cursor-pointer shadow-sm flex items-center justify-center hover:scale-105 transition shrink-0"
             >
               {avatarUrl ? (
-                <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                <LazyImage
+                  src={avatarUrl}
+                  alt="Avatar"
+                  className="h-full w-full"
+                  imgClassName="h-full w-full object-cover"
+                />
               ) : (
                 <div
                   className={`h-full w-full flex items-center justify-center text-white text-lg font-black bg-gradient-to-tr ${isGuest ? "from-slate-400 to-slate-500" : "from-[#0062ff] to-[#00a2ff]"}`}

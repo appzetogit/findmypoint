@@ -12,6 +12,7 @@ import {
 import { API_BASE_URL } from "../../config";
 import { calculateDistanceKm, formatDistance } from "../../utils/googleMaps";
 import { BusinessListingData } from "../../data/businessesData";
+import { LazyImage } from "../ui/LazyImage";
 
 interface NearbyBusinessesSectionProps {
   currentBusinessId: string;
@@ -144,10 +145,11 @@ export default function NearbyBusinessesSection({
               <div>
                 {/* Photo with Overlay Badges */}
                 <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden bg-secondary mb-3">
-                  <img
+                  <LazyImage
                     src={mainPhoto}
                     alt={biz.name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="w-full h-full"
+                    imgClassName="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
 

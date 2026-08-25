@@ -59,6 +59,7 @@ import { useSEO } from "../hooks/useSEO";
 import { buildBusinessSchemas } from "../utils/seo";
 import NearbyBusinessesSection from "../components/map/NearbyBusinessesSection";
 import { getDirectionsUrl } from "../utils/googleMaps";
+import { LazyImage } from "../components/ui/LazyImage";
 
 function formatDateTimeDMY(d: Date): string {
   const day = String(d.getDate()).padStart(2, "0");
@@ -1253,10 +1254,13 @@ export default function BusinessDetailPage({
             }}
             className="flex items-center shrink-0"
           >
-            <img
+            <LazyImage
               src={logoImg}
               alt="FindMyPoint Logo"
-              className="h-7 md:h-8 w-auto object-contain shrink-0"
+              priority={true}
+              showSkeleton={false}
+              className="h-7 md:h-8 w-auto shrink-0"
+              imgClassName="h-7 md:h-8 w-auto object-contain shrink-0"
               style={{ mixBlendMode: "multiply" }}
             />
           </a>
@@ -1312,10 +1316,11 @@ export default function BusinessDetailPage({
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             {prod.img && (
-                              <img
+                              <LazyImage
                                 src={prod.img}
                                 alt={prod.name}
-                                className="h-8 w-8 rounded-lg object-cover bg-secondary shrink-0"
+                                className="h-8 w-8 rounded-lg bg-secondary shrink-0 overflow-hidden"
+                                imgClassName="h-full w-full object-cover"
                               />
                             )}
                             <div className="min-w-0">
@@ -1503,10 +1508,12 @@ export default function BusinessDetailPage({
               onClick={() => setLightboxIndex(mobileSlideIndex % (validImages.length || 1))}
               className="w-full h-full relative cursor-pointer group"
             >
-              <img
+              <LazyImage
                 src={validImages[mobileSlideIndex] || logoImg}
                 alt={`${currentBiz.name} photo ${mobileSlideIndex + 1}`}
-                className="w-full h-full object-cover transition-transform duration-300"
+                priority={true}
+                className="w-full h-full"
+                imgClassName="w-full h-full object-cover transition-transform duration-300"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
             </div>
@@ -1559,12 +1566,14 @@ export default function BusinessDetailPage({
               onClick={() => setLightboxIndex(0)}
               className="sm:col-span-4 h-full relative group overflow-hidden bg-secondary cursor-pointer"
             >
-              <img
+              <LazyImage
                 src={validImages[0] || logoImg}
                 alt={`${currentBiz.name} photo 1`}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                priority={true}
+                className="w-full h-full"
+                imgClassName="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
-              <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors" />
+              <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors z-10 pointer-events-none" />
             </div>
 
             {/* Column 2: Middle Photo */}
@@ -1572,12 +1581,14 @@ export default function BusinessDetailPage({
               onClick={() => setLightboxIndex(1 % (validImages.length || 1))}
               className="sm:col-span-4 h-full relative group overflow-hidden bg-secondary cursor-pointer"
             >
-              <img
+              <LazyImage
                 src={validImages[1] || validImages[0] || logoImg}
                 alt={`${currentBiz.name} photo 2`}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                priority={true}
+                className="w-full h-full"
+                imgClassName="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
-              <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors" />
+              <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors z-10 pointer-events-none" />
             </div>
 
             {/* Column 3: 2x2 Grid on Right */}
@@ -1587,12 +1598,13 @@ export default function BusinessDetailPage({
                 onClick={() => setLightboxIndex(2 % (validImages.length || 1))}
                 className="relative group overflow-hidden bg-secondary cursor-pointer min-h-0 w-full h-full"
               >
-                <img
+                <LazyImage
                   src={validImages[2] || validImages[0] || logoImg}
                   alt={`${currentBiz.name} photo 3`}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  className="w-full h-full"
+                  imgClassName="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors" />
+                <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors z-10 pointer-events-none" />
               </div>
 
               {/* Top-Right: Photo 4 */}
@@ -1600,12 +1612,13 @@ export default function BusinessDetailPage({
                 onClick={() => setLightboxIndex(3 % (validImages.length || 1))}
                 className="relative group overflow-hidden bg-secondary cursor-pointer min-h-0 w-full h-full"
               >
-                <img
+                <LazyImage
                   src={validImages[3] || validImages[1] || validImages[0] || logoImg}
                   alt={`${currentBiz.name} photo 4`}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  className="w-full h-full"
+                  imgClassName="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors" />
+                <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors z-10 pointer-events-none" />
               </div>
 
               {/* Bottom-Left: Photo 5 */}
@@ -1613,12 +1626,13 @@ export default function BusinessDetailPage({
                 onClick={() => setLightboxIndex(4 % (validImages.length || 1))}
                 className="relative group overflow-hidden bg-secondary cursor-pointer min-h-0 w-full h-full"
               >
-                <img
+                <LazyImage
                   src={validImages[4] || validImages[2] || validImages[0] || logoImg}
                   alt={`${currentBiz.name} photo 5`}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  className="w-full h-full"
+                  imgClassName="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors" />
+                <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors z-10 pointer-events-none" />
               </div>
 
               {/* Bottom-Right: Photo 6 with +X More overlay if > 5 images */}
@@ -1626,13 +1640,14 @@ export default function BusinessDetailPage({
                 onClick={() => setLightboxIndex(5 % (validImages.length || 1))}
                 className="relative group overflow-hidden bg-secondary cursor-pointer min-h-0 w-full h-full"
               >
-                <img
+                <LazyImage
                   src={validImages[5] || validImages[3] || validImages[1] || validImages[0] || logoImg}
                   alt={`${currentBiz.name} photo 6`}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  className="w-full h-full"
+                  imgClassName="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
                 {validImages.length > 5 ? (
-                  <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors flex flex-col items-center justify-center text-white text-center select-none cursor-pointer">
+                  <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors flex flex-col items-center justify-center text-white text-center select-none cursor-pointer z-10">
                     <span className="text-xl sm:text-2xl md:text-3xl font-black leading-none tracking-tight">
                       +{validImages.length - 5}
                     </span>
@@ -1905,11 +1920,12 @@ export default function BusinessDetailPage({
                           className="flex items-center gap-4 bg-transparent sm:bg-card rounded-none sm:rounded-2xl border-none sm:border sm:border-border p-2 sm:p-4 shadow-none sm:shadow-[var(--shadow-card)] hover:shadow-none sm:hover:shadow-md sm:hover:border-primary/10 transition duration-300"
                         >
                           {/* Left: Food Image */}
-                          <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl overflow-hidden bg-secondary shrink-0">
-                            <img
+                          <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl overflow-hidden shrink-0">
+                            <LazyImage
                               src={prod.img}
                               alt={prod.name}
-                              className="h-full w-full object-cover"
+                              className="h-full w-full"
+                              imgClassName="h-full w-full object-cover"
                             />
                           </div>
 
@@ -1971,11 +1987,12 @@ export default function BusinessDetailPage({
                           className="flex items-center gap-4 bg-transparent sm:bg-card rounded-none sm:rounded-2xl border-none sm:border sm:border-border p-2 sm:p-4 shadow-none sm:shadow-[var(--shadow-card)] hover:shadow-none sm:hover:shadow-md sm:hover:border-primary/10 transition duration-300"
                         >
                           {/* Left: Product Image */}
-                          <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl overflow-hidden bg-secondary shrink-0">
-                            <img
+                          <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl overflow-hidden shrink-0">
+                            <LazyImage
                               src={prod.img}
                               alt={prod.name}
-                              className="h-full w-full object-cover"
+                              className="h-full w-full"
+                              imgClassName="h-full w-full object-cover"
                             />
                           </div>
 
@@ -2128,12 +2145,13 @@ export default function BusinessDetailPage({
                       onClick={() => setLightboxIndex(idx)}
                       className="aspect-[4/3] rounded-2xl overflow-hidden border border-border shadow-sm bg-secondary group relative cursor-pointer"
                     >
-                      <img
+                      <LazyImage
                         src={img}
                         alt={`${currentBiz.name} gallery ${idx + 1}`}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        className="w-full h-full"
+                        imgClassName="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 pointer-events-none">
                         <span className="bg-white/90 text-slate-900 text-xs font-bold px-3 py-1.5 rounded-xl shadow-md flex items-center gap-1">
                           <Maximize2 className="h-3.5 w-3.5" /> View
                         </span>
@@ -2240,10 +2258,11 @@ export default function BusinessDetailPage({
                     {/* Review attached image */}
                     {rev.image && (
                       <div className="mt-4 aspect-[16/9] max-w-sm rounded-2xl overflow-hidden border border-border bg-secondary shadow-sm">
-                        <img
+                        <LazyImage
                           src={rev.image}
                           alt="Review attachment"
-                          className="h-full w-full object-cover"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover"
                         />
                       </div>
                     )}
@@ -2434,11 +2453,12 @@ export default function BusinessDetailPage({
                       onClick={() => onBusinessSelect && onBusinessSelect(sim.id)}
                       className="group flex items-start gap-3 cursor-pointer"
                     >
-                      <div className="h-14 w-20 rounded-lg overflow-hidden bg-secondary border border-border shadow-sm shrink-0">
-                        <img
+                      <div className="h-14 w-20 rounded-lg overflow-hidden shrink-0 border border-border shadow-sm">
+                        <LazyImage
                           src={sim.img}
                           alt={sim.name}
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       </div>
                       <div className="flex flex-col min-w-0 text-left">
@@ -4580,10 +4600,12 @@ export default function BusinessDetailPage({
             onClick={(e) => e.stopPropagation()}
             className="relative max-h-[82vh] max-w-[92vw] flex flex-col items-center justify-center animate-scale-in"
           >
-            <img
+            <LazyImage
               src={validImages[lightboxIndex]}
               alt={`${currentBiz.name} full view ${lightboxIndex + 1}`}
-              className="max-h-[75vh] sm:max-h-[80vh] max-w-full object-contain rounded-2xl shadow-2xl transition-all duration-300"
+              priority={true}
+              className="max-h-[75vh] sm:max-h-[80vh] max-w-full rounded-2xl shadow-2xl overflow-hidden"
+              imgClassName="max-h-[75vh] sm:max-h-[80vh] max-w-full object-contain rounded-2xl transition-all duration-300"
             />
           </div>
 
@@ -4603,10 +4625,11 @@ export default function BusinessDetailPage({
                       : "border-transparent opacity-60 hover:opacity-100"
                   }`}
                 >
-                  <img
+                  <LazyImage
                     src={tImg}
                     alt={`Thumb ${tIdx + 1}`}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full"
+                    imgClassName="h-full w-full object-cover"
                   />
                 </button>
               ))}

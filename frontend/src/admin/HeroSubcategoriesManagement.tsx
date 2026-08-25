@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Plus, Trash2, Save, Sparkles, Upload, ArrowUp, ArrowDown } from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
 import { API_BASE_URL } from "../config";
+import { LazyImage } from "../components/ui/LazyImage";
 const resolveImage = (imgStr: string) => {
   return imgStr || "";
 };
@@ -451,17 +452,14 @@ export default function HeroSubcategoriesManagement() {
                             <label className="flex flex-col items-center justify-center h-14 w-20 rounded-xl border border-dashed border-slate-350 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-850 cursor-pointer overflow-hidden transition shrink-0 relative group">
                               {item.img ? (
                                 <>
-                                  <img
+                                  <LazyImage
                                     src={resolveImage(item.img)}
                                     alt="Preview"
-                                    className="h-full w-full object-cover"
-                                    onError={(e) => {
-                                      // Fallback if local seed placeholder fails to resolve
-                                      (e.target as HTMLImageElement).src =
-                                        "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=150&q=80";
-                                    }}
+                                    fallbackSrc="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=150&q=80"
+                                    className="h-full w-full"
+                                    imgClassName="h-full w-full object-cover"
                                   />
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition">
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition z-10">
                                     Change
                                   </div>
                                 </>

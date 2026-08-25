@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Megaphone, Save, Upload, Trash2, CheckCircle, Image as ImageIcon } from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
 import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface CategoryBannerItem {
   categoryName: string;
@@ -246,10 +247,11 @@ export default function CategoryBannerManagement() {
                   <div className="relative w-full h-32 bg-slate-50 dark:bg-slate-950 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 flex items-center justify-center group shadow-inner">
                     {previewUrl ? (
                       <>
-                        <img
+                        <LazyImage
                           src={previewUrl}
                           alt={item.categoryName}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex flex-col justify-end p-2.5">
                           {item.title && <h4 className="font-bold text-xs text-white line-clamp-1">{item.title}</h4>}

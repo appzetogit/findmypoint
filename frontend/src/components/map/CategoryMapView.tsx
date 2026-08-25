@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { MapPin, Navigation, Star, Phone, ArrowRight, X } from "lucide-react";
 import { loadGoogleMapsScript } from "../../utils/googleMaps";
 import { BusinessListingData } from "../../data/businessesData";
+import { LazyImage } from "../ui/LazyImage";
 
 interface CategoryMapViewProps {
   businesses: BusinessListingData[];
@@ -132,11 +133,12 @@ export default function CategoryMapView({
           </button>
 
           <div className="flex gap-3 items-start text-left">
-            <div className="h-16 w-16 rounded-xl overflow-hidden bg-secondary shrink-0">
-              <img
+            <div className="h-16 w-16 rounded-xl overflow-hidden shrink-0 border border-border/40">
+              <LazyImage
                 src={selectedBiz.images?.[0] || "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=300&q=80"}
                 alt={selectedBiz.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full"
+                imgClassName="w-full h-full object-cover"
               />
             </div>
 

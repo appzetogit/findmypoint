@@ -17,6 +17,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
+import { LazyImage } from "../components/ui/LazyImage";
 
 interface AdvertiseProps {
   onClose: () => void;
@@ -157,10 +158,13 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 md:h-20 max-w-7xl items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-3 md:gap-4 shrink-0">
-            <img
+            <LazyImage
               src={logoImg}
               alt="FindMyPoint Logo"
-              className="h-7 md:h-8 w-auto object-contain shrink-0"
+              priority={true}
+              showSkeleton={false}
+              className="h-7 md:h-8 w-auto shrink-0"
+              imgClassName="h-7 md:h-8 w-auto object-contain shrink-0"
               style={{ mixBlendMode: "multiply" }}
             />
           </div>

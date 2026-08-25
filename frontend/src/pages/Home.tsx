@@ -1029,7 +1029,7 @@ export default function HomePage({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={`Search busi, categories, services in ${selectedCity}…`}
+                placeholder={`Search businesses, categories, services in ${selectedCity}…`}
                 className="flex-1 bg-transparent px-2 py-1 text-xs md:text-sm outline-none placeholder:text-muted-foreground w-0 min-w-0"
                 onFocus={() => setUiState((prev) => ({ ...prev, showSuggestions: true }))}
                 onBlur={() =>

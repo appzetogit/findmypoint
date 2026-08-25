@@ -13,6 +13,7 @@ import {
   LogOut,
   LogIn,
   CalendarDays,
+  Info,
 } from "lucide-react";
 import { LazyImage } from "./ui/LazyImage";
 
@@ -131,6 +132,14 @@ export default function Sidebar({
   ];
 
   const group3 = [
+    {
+      label: "About Us",
+      icon: Info,
+      action: () => {
+        onMenuClick?.("About");
+        onClose();
+      },
+    },
     {
       label: "Policy",
       icon: Shield,

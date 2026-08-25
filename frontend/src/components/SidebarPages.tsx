@@ -9,6 +9,7 @@ import FeedbackPage from "./FeedbackPage";
 import HelpPage from "./HelpPage";
 import MyReviewsPage from "./MyReviewsPage";
 import MyBookingsPage from "./MyBookingsPage";
+import AboutPage from "./AboutPage";
 
 interface SidebarPagesProps {
   activePage: string;
@@ -55,15 +56,18 @@ export default function SidebarPages({
   } else if (activePage === "Help") {
     pageIcon = "🤝";
     pageSubtitle = "Search FAQs, user guidelines, and cancellation issues";
+  } else if (activePage === "About" || activePage === "About Us") {
+    pageIcon = "✨";
+    pageSubtitle = "Learn more about FindmyPoint, our mission, vision and directory services";
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col w-full h-full text-left overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-white dark:bg-slate-950 flex flex-col w-full h-full text-left overflow-hidden">
       {/* Header Block */}
-      <div className="flex items-center gap-4 border-b border-slate-100 p-5 bg-white shrink-0 shadow-sm">
+      <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/80 p-4 sm:p-5 bg-white dark:bg-slate-950 shrink-0 shadow-xs">
         <button
           onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-black transition cursor-pointer"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-black transition cursor-pointer"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -71,16 +75,16 @@ export default function SidebarPages({
         <div className="flex items-center gap-3.5">
           <span className="text-3xl filter drop-shadow hidden md:inline">{pageIcon}</span>
           <div>
-            <h2 className="text-xl font-bold font-serif text-slate-900 uppercase tracking-tight">
+            <h2 className="text-lg sm:text-xl font-bold font-serif text-slate-900 dark:text-white uppercase tracking-tight">
               {activePage}
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5 hidden md:block">{pageSubtitle}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 hidden md:block">{pageSubtitle}</p>
           </div>
         </div>
       </div>
 
       {/* Dynamic Content Panel */}
-      <div className="flex-1 p-6 md:p-8 overflow-y-auto no-scrollbar max-w-5xl w-full mx-auto bg-slate-50">
+      <div className="flex-1 p-5 sm:p-8 overflow-y-auto no-scrollbar max-w-4xl w-full mx-auto bg-white dark:bg-slate-950">
         {activePage === "Favorites" && (
           <FavoritesPage onNavigateToBusiness={onNavigateToBusiness} />
         )}
@@ -97,6 +101,7 @@ export default function SidebarPages({
         {activePage === "Feedback" && <FeedbackPage />}
         {activePage === "My Reviews" && <MyReviewsPage />}
         {activePage === "Help" && <HelpPage />}
+        {(activePage === "About" || activePage === "About Us") && <AboutPage />}
       </div>
     </div>
   );

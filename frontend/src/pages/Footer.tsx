@@ -668,6 +668,18 @@ export default function Footer() {
                         >
                           {i}
                         </button>
+                      ) : i === "About" ? (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            window.dispatchEvent(
+                              new CustomEvent("fmp-open-page", { detail: "About" }),
+                            );
+                          }}
+                          className="transition hover:text-foreground text-left cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm text-muted-foreground font-normal"
+                        >
+                          {i}
+                        </button>
                       ) : (
                         <a href="#" className="transition hover:text-foreground">
                           {i}
@@ -899,10 +911,10 @@ export default function Footer() {
       )}
       {/* Field Work Listing Form Modal */}
       {showLeadForm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-left">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800/80 max-w-2xl w-full relative overflow-hidden flex flex-col max-h-[90vh] animate-zoom-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-left">
+          <div className="bg-white dark:bg-slate-900 rounded-none sm:rounded-3xl shadow-2xl border-0 sm:border border-slate-100 dark:border-slate-800/80 max-w-2xl w-full h-full sm:h-auto sm:max-h-[90vh] relative overflow-hidden flex flex-col animate-zoom-in">
             {/* Header */}
-            <div className="px-6 py-4.5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between shrink-0">
+            <div className="px-4 sm:px-6 py-3.5 sm:py-4.5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 bg-indigo-500/10 rounded-lg flex items-center justify-center text-indigo-500">
                   <ImageIcon className="h-4 w-4" />
@@ -926,7 +938,7 @@ export default function Footer() {
 
             {/* Form Fields Container */}
             {!isPaymentStep ? (
-              <form onSubmit={handleLeadFormSubmit} className="flex-1 overflow-y-auto p-6 space-y-5 no-scrollbar">
+              <form onSubmit={handleLeadFormSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5 no-scrollbar">
 
                 {/* Part 1: Core Details */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1363,7 +1375,7 @@ export default function Footer() {
                 </div>
 
                 {/* Footer Form Actions */}
-                <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800/80 shrink-0">
+                <div className="flex items-center justify-end gap-2.5 pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800/80 shrink-0 bg-white dark:bg-slate-900">
                   <button
                     type="button"
                     onClick={() => setShowLeadForm(false)}
@@ -1392,7 +1404,7 @@ export default function Footer() {
 
               </form>
             ) : (
-              <form onSubmit={handleFinalPaymentSubmit} className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar text-center">
+              <form onSubmit={handleFinalPaymentSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6 no-scrollbar text-center">
                 <div className="space-y-6">
                   <div className="bg-slate-50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-5 text-center space-y-2">
                     <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">

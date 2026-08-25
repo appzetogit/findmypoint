@@ -135,6 +135,14 @@ Sitemap: ${baseUrl}/sitemap.xml
   res.status(200).send(robots);
 });
 
+// @desc    Google Search Console Verification File Handler
+// @route   GET /google:code.html
+router.get('/google:code.html', (req, res) => {
+  const code = req.params.code;
+  res.set('Content-Type', 'text/html; charset=utf-8');
+  res.status(200).send(`google-site-verification: google${code}.html`);
+});
+
 // @desc    Generate Complete SEO & Structured Data for a Business
 // @route   GET /api/seo/business/:city/:locality/:slug
 router.get('/api/seo/business/:city/:locality/:slug', async (req, res) => {

@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 
+const fs = require('fs');
 const path = require('path');
 const base64UploadMiddleware = require('./middleware/base64UploadMiddleware');
 

@@ -79,6 +79,10 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
   const [dbCategories, setDbCategories] = useState<string[]>([]);
 
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+
     fetch(`${BACKEND_ORIGIN}/api/advertise-config`)
       .then((res) => res.json())
       .then((data) => {

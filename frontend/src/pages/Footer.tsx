@@ -638,6 +638,9 @@ export default function Footer() {
                         <button
                           onClick={(e) => {
                             e.preventDefault();
+                            window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+                            document.documentElement.scrollTop = 0;
+                            document.body.scrollTop = 0;
                             window.dispatchEvent(new CustomEvent("fmp-open-advertise"));
                           }}
                           className="transition hover:text-foreground text-left cursor-pointer bg-transparent border-none p-0 text-xs sm:text-sm text-muted-foreground font-normal"

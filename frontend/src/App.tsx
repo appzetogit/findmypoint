@@ -87,6 +87,9 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
     case "SET_ACTIVE_SIDEBAR_PAGE":
       return { ...state, activeSidebarPage: action.page };
     case "SET_SHOW_ADVERTISE":
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
       return { ...state, showAdvertise: action.show };
     case "SET_SHOW_ALL_CATEGORIES":
       return { ...state, showAllCategoriesPage: action.show };

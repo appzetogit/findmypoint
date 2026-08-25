@@ -1,90 +1,102 @@
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, BellOff } from "lucide-react";
+
+export interface NotificationItem {
+  id: string | number;
+  title: string;
+  text: string;
+  time: string;
+  type?: "info" | "success" | "warning" | "error";
+  read?: boolean;
+}
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("fmp_notifications:v1");
+      // Remove legacy mock storage if present
+      localStorage.removeItem("fmp_notifications:v1");
+
+      const saved = localStorage.getItem("fmp_notifications");
       if (saved) {
-        setNotifications(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setNotifications(parsed);
+        } else {
+          setNotifications([]);
+        }
       } else {
-        const defaultNotifs = [
-          {
-            id: 1,
-            title: "Welcome to FindmyPoint!",
-            text: "Your search for local points made simple. Complete your profile details to unlock premium configurations.",
-            time: "2 hours ago",
-            type: "info",
-            read: false,
-          },
-          {
-            id: 2,
-            title: "Table Reserved Successfully",
-            text: "Your reservation at Shree shyam restaurant has been confirmed. Receipt FMP-8921 generated.",
-            time: "1 day ago",
-            type: "success",
-            read: false,
-          },
-          {
-            id: 3,
-            title: "Security Alert: New Sign-in",
-            text: "Logged into your account from Jaipur, IN.",
-            time: "2 days ago",
-            type: "warning",
-            read: true,
-          },
-        ];
-        localStorage.setItem("fmp_notifications:v1", JSON.stringify(defaultNotifs));
-        setNotifications(defaultNotifs);
+        setNotifications([]);
       }
     } catch (e) {
       console.error("Failed to load notifications", e);
+      setNotifications([]);
     }
   }, []);
 
   const markAllRead = () => {
     const updated = notifications.map((n) => ({ ...n, read: true }));
     setNotifications(updated);
-    localStorage.setItem("fmp_notifications:v1", JSON.stringify(updated));
+    localStorage.setItem("fmp_notifications", JSON.stringify(updated));
   };
 
-  const deleteNotification = (id: number) => {
+  const deleteNotification = (id: string | number) => {
     const updated = notifications.filter((n) => n.id !== id);
     setNotifications(updated);
-    localStorage.setItem("fmp_notifications:v1", JSON.stringify(updated));
+    localStorage.setItem("fmp_notifications", JSON.stringify(updated));
+  };
+
+  const clearAll = () => {
+    setNotifications([]);
+    localStorage.setItem("fmp_notifications", JSON.stringify([]));
   };
 
   return (
     <div className="space-y-6">
-      <div className="hidden md:flex justify-between items-center">
+      <div className="flex justify-between items-center">
         <div>
           <h3 className="font-serif text-lg font-black text-foreground">Alert Hub</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             Security updates and confirmation summaries.
           </p>
         </div>
-        {notifications.some((n) => !n.read) && (
-          <button
-            onClick={markAllRead}
-            className="text-[11px] font-black text-primary hover:underline cursor-pointer"
-          >
-            Mark all as read
-          </button>
+        {notifications.length > 0 && (
+          <div className="flex items-center gap-3">
+            {notifications.some((n) => !n.read) && (
+              <button
+                onClick={markAllRead}
+                className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
+              >
+                Mark all as read
+              </button>
+            )}
+            <button
+              onClick={clearAll}
+              className="text-[11px] font-medium text-slate-400 hover:text-rose-500 cursor-pointer transition"
+            >
+              Clear all
+            </button>
+          </div>
         )}
       </div>
 
       {notifications.length === 0 ? (
-        <div className="border border-dashed border-border rounded-2xl p-10 text-center text-xs font-bold text-slate-400 bg-secondary/5">
-          Clean state. You have no notifications.
+        <div className="border border-dashed border-border rounded-2xl p-12 text-center text-xs font-medium text-muted-foreground bg-secondary/5 flex flex-col items-center justify-center gap-2">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground/60 mb-1">
+            <BellOff className="w-5 h-5" />
+          </div>
+          <span className="font-bold text-foreground text-sm">No notifications yet</span>
+          <span className="text-muted-foreground text-[11px] max-w-xs">
+            You're all caught up! New alerts and updates will appear here.
+          </span>
         </div>
       ) : (
         <div className="space-y-3">
           {notifications.map((notif) => (
             <div
               key={notif.id}
-              className={`py-3.5 border-b border-border/60 text-left flex items-start justify-between gap-4 transition relative ${
+              className={`py-3.5 px-4 rounded-xl border border-border/60 bg-white shadow-xs text-left flex items-start justify-between gap-4 transition relative group ${
                 notif.read ? "opacity-60" : ""
               }`}
             >
@@ -95,7 +107,9 @@ export default function NotificationsPage() {
                       ? "bg-emerald-500"
                       : notif.type === "warning"
                         ? "bg-amber-500"
-                        : "bg-primary"
+                        : notif.type === "error"
+                          ? "bg-rose-500"
+                          : "bg-primary"
                   }`}
                 />
                 <div>
@@ -108,6 +122,13 @@ export default function NotificationsPage() {
                   </span>
                 </div>
               </div>
+              <button
+                onClick={() => deleteNotification(notif.id)}
+                className="text-muted-foreground/50 hover:text-rose-500 transition p-1 cursor-pointer rounded"
+                title="Delete notification"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
           ))}
         </div>

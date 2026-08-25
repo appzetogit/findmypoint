@@ -1,17 +1,11 @@
 import { useState, useEffect } from "react";
 import { Sliders, Save, Eye, CheckCircle, HelpCircle, ToggleLeft, ToggleRight } from "lucide-react";
-import { loadFooterData, saveFooterData, FooterData, SocialLinkItem } from "../data/footerData";
+import { loadFooterData, saveFooterData, DEFAULT_FOOTER_DATA, FooterData, SocialLinkItem } from "../data/footerData";
 import { API_BASE_URL } from "../config";
 import logoImg from "../assets/logo.png";
 
 export default function FooterManagement() {
-  const [footerData, setFooterData] = useState<FooterData>({
-    tagline: "",
-    socials: [],
-    playstoreUrl: "",
-    appstoreUrl: "",
-    copyright: "",
-  });
+  const [footerData, setFooterData] = useState<FooterData>(loadFooterData);
 
   const [isSavedAlert, setIsSavedAlert] = useState(false);
 
@@ -20,7 +14,20 @@ export default function FooterManagement() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.footer) {
-          setFooterData(data.footer);
+          const loadedSocials = Array.isArray(data.footer.socials) && data.footer.socials.length > 0
+            ? DEFAULT_FOOTER_DATA.socials.map((defaultSocial) => {
+                const found = data.footer.socials.find((s: any) => s.id === defaultSocial.id);
+                return found ? found : defaultSocial;
+              })
+            : DEFAULT_FOOTER_DATA.socials;
+
+          setFooterData({
+            tagline: data.footer.tagline || "",
+            socials: loadedSocials,
+            playstoreUrl: data.footer.playstoreUrl || "",
+            appstoreUrl: data.footer.appstoreUrl || "",
+            copyright: data.footer.copyright || "",
+          });
         } else {
           setFooterData(loadFooterData());
         }

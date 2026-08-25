@@ -435,7 +435,9 @@ export default function Footer() {
                 style={{ mixBlendMode: "multiply" }}
               />
             </a>
-            <p className="mt-4 max-w-sm text-sm text-muted-foreground">{footerData.tagline}</p>
+            {footerData.tagline && (
+              <p className="mt-4 max-w-sm text-sm text-muted-foreground">{footerData.tagline}</p>
+            )}
 
             {/* Dynamic Social Links */}
             <div className="mt-6 flex gap-2.5">
@@ -526,62 +528,68 @@ export default function Footer() {
             </div>
 
             {/* App Download Buttons */}
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              {/* Google Play Button */}
-              <a
-                href={footerData.playstoreUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2.5 rounded-xl bg-[#111111] hover:bg-black text-white px-3 py-1.5 transition-all duration-300 shadow-sm border border-white/10 cursor-pointer"
-              >
-                <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M1.9 22.1l13.56-10.1L1.9 1.9c-.06.22-.09.46-.09.7v18.8c0 .24.03.48.09.7"
-                    fill="#3bccff"
-                  />
-                  <path
-                    d="M16.14 11.3l-3.26-3.26L2.3 1.22c.3-.18.66-.22 1.02-.02l12.82 7.32"
-                    fill="#00e676"
-                  />
-                  <path
-                    d="M21.97 12.74a1.66 1.66 0 0 0-.03-1.48l-3.37-1.92-3.15 3.16 3.15 3.16 3.37-1.92"
-                    fill="#ffe000"
-                  />
-                  <path
-                    d="M16.14 12.7l-3.26 3.26L2.3 22.78c.3.18.66.22 1.02.02l12.82-7.32"
-                    fill="#ff3a44"
-                  />
-                </svg>
-                <div className="flex flex-col text-left">
-                  <span className="text-[8px] font-semibold text-white/70 uppercase tracking-widest leading-none">
-                    GET IT ON
-                  </span>
-                  <span className="text-[11px] font-bold leading-tight mt-0.5">Google Play</span>
-                </div>
-              </a>
+            {(footerData.playstoreUrl || footerData.appstoreUrl) && (
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                {/* Google Play Button */}
+                {footerData.playstoreUrl && (
+                  <a
+                    href={footerData.playstoreUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2.5 rounded-xl bg-[#111111] hover:bg-black text-white px-3 py-1.5 transition-all duration-300 shadow-sm border border-white/10 cursor-pointer"
+                  >
+                    <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path
+                        d="M1.9 22.1l13.56-10.1L1.9 1.9c-.06.22-.09.46-.09.7v18.8c0 .24.03.48.09.7"
+                        fill="#3bccff"
+                      />
+                      <path
+                        d="M16.14 11.3l-3.26-3.26L2.3 1.22c.3-.18.66-.22 1.02-.02l12.82 7.32"
+                        fill="#00e676"
+                      />
+                      <path
+                        d="M21.97 12.74a1.66 1.66 0 0 0-.03-1.48l-3.37-1.92-3.15 3.16 3.15 3.16 3.37-1.92"
+                        fill="#ffe000"
+                      />
+                      <path
+                        d="M16.14 12.7l-3.26 3.26L2.3 22.78c.3.18.66.22 1.02.02l12.82-7.32"
+                        fill="#ff3a44"
+                      />
+                    </svg>
+                    <div className="flex flex-col text-left">
+                      <span className="text-[8px] font-semibold text-white/70 uppercase tracking-widest leading-none">
+                        GET IT ON
+                      </span>
+                      <span className="text-[11px] font-bold leading-tight mt-0.5">Google Play</span>
+                    </div>
+                  </a>
+                )}
 
-              {/* App Store Button */}
-              <a
-                href={footerData.appstoreUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2.5 rounded-xl bg-[#111111] hover:bg-black text-white px-3 py-1.5 transition-all duration-300 shadow-sm border border-white/10 cursor-pointer"
-              >
-                <svg
-                  className="h-4.5 w-4.5 fill-white"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.502 12.06 1.002 1.45 2.19 3.078 3.76 3.02 1.514-.06 2.09-.98 3.916-.98 1.81 0 2.333.98 3.917.948 1.606-.027 2.648-1.48 3.627-2.9 1.13-1.656 1.597-3.26 1.623-3.342-.03-.015-3.107-1.192-3.137-4.747-.025-2.978 2.443-4.41 2.56-4.484-1.393-2.04-3.548-2.27-4.316-2.32-2-.162-3.9 1.231-4.918 1.231zm2.33-4.57c.896-1.082 1.5-2.585 1.332-4.086-1.286.05-2.85.856-3.774 1.938-.796.918-1.492 2.455-1.304 3.925 1.438.113 2.875-.722 3.746-1.777z" />
-                </svg>
-                <div className="flex flex-col text-left">
-                  <span className="text-[8px] font-semibold text-white/70 leading-none">
-                    Download on the
-                  </span>
-                  <span className="text-[11px] font-bold leading-tight mt-0.5">App Store</span>
-                </div>
-              </a>
-            </div>
+                {/* App Store Button */}
+                {footerData.appstoreUrl && (
+                  <a
+                    href={footerData.appstoreUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2.5 rounded-xl bg-[#111111] hover:bg-black text-white px-3 py-1.5 transition-all duration-300 shadow-sm border border-white/10 cursor-pointer"
+                  >
+                    <svg
+                      className="h-4.5 w-4.5 fill-white"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.502 12.06 1.002 1.45 2.19 3.078 3.76 3.02 1.514-.06 2.09-.98 3.916-.98 1.81 0 2.333.98 3.917.948 1.606-.027 2.648-1.48 3.627-2.9 1.13-1.656 1.597-3.26 1.623-3.342-.03-.015-3.107-1.192-3.137-4.747-.025-2.978 2.443-4.41 2.56-4.484-1.393-2.04-3.548-2.27-4.316-2.32-2-.162-3.9 1.231-4.918 1.231zm2.33-4.57c.896-1.082 1.5-2.585 1.332-4.086-1.286.05-2.85.856-3.774 1.938-.796.918-1.492 2.455-1.304 3.925 1.438.113 2.875-.722 3.746-1.777z" />
+                    </svg>
+                    <div className="flex flex-col text-left">
+                      <span className="text-[8px] font-semibold text-white/70 leading-none">
+                        Download on the
+                      </span>
+                      <span className="text-[11px] font-bold leading-tight mt-0.5">App Store</span>
+                    </div>
+                  </a>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Static link segments remain unchanged */}
@@ -668,7 +676,7 @@ export default function Footer() {
 
         {/* Dynamic Copyright block */}
         <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-border pt-8 text-xs text-muted-foreground md:flex-row md:items-center">
-          <p>{footerData.copyright}</p>
+          <p>{footerData.copyright || `© ${new Date().getFullYear()} FindmyPoint Directory Services. All rights reserved.`}</p>
         </div>
       </div>
       {/* Search Employee ID Modal */}

@@ -400,7 +400,7 @@ export default function HomePage({
 
     window.addEventListener("storage", handleSync);
     window.addEventListener("fmp_banners_changed", handleSync);
-    
+
     return () => {
       window.removeEventListener("storage", handleSync);
       window.removeEventListener("fmp_banners_changed", handleSync);
@@ -566,7 +566,7 @@ export default function HomePage({
           localStorage.setItem("fmp_nearby_radius_km:v1", String(data.settings.nearbyRadiusKm));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -607,7 +607,7 @@ export default function HomePage({
           const parsed = JSON.parse(saved);
           return parsed.shortName || parsed.area || parsed.city || "Indore";
         }
-      } catch {}
+      } catch { }
       return "Indore";
     })(),
     showLocationDropdown: false,
@@ -867,7 +867,7 @@ export default function HomePage({
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden w-full">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
-          <div className="mx-auto flex flex-col lg:flex-row h-auto lg:h-20 max-w-7xl items-stretch lg:items-center gap-3 lg:gap-8 px-4 md:px-6 py-3 lg:py-0 w-full">
+        <div className="mx-auto flex flex-col lg:flex-row h-auto lg:h-20 max-w-7xl items-stretch lg:items-center gap-3 lg:gap-8 px-4 md:px-6 py-3 lg:py-0 w-full">
           {/* Mobile Top Navigation Row (Profile, Logo, Bell) */}
           <div className="flex items-center justify-between lg:contents w-full">
             {/* Logo */}
@@ -961,40 +961,40 @@ export default function HomePage({
                     {/* Recent Locations */}
                     {(recentLocations.length > 0 ||
                       (cityAreas[selectedCity]?.recent?.length ?? 0) > 0) && (
-                      <div className="pt-2">
-                        <div className="flex items-center justify-between px-3 mb-1">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                            Recent Locations
-                          </p>
-                          {recentLocations.length > 0 && (
-                            <button
-                              onClick={() => {
-                                setLocationState((prev) => ({ ...prev, recentLocations: [] }));
-                                localStorage.removeItem("fmp_recent_locations:v1");
-                              }}
-                              className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
-                            >
-                              Clear All
-                            </button>
-                          )}
+                        <div className="pt-2">
+                          <div className="flex items-center justify-between px-3 mb-1">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                              Recent Locations
+                            </p>
+                            {recentLocations.length > 0 && (
+                              <button
+                                onClick={() => {
+                                  setLocationState((prev) => ({ ...prev, recentLocations: [] }));
+                                  localStorage.removeItem("fmp_recent_locations:v1");
+                                }}
+                                className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                              >
+                                Clear All
+                              </button>
+                            )}
+                          </div>
+                          {[...recentLocations, ...(cityAreas[selectedCity]?.recent || [])]
+                            .filter((v, i, a) => a.indexOf(v) === i)
+                            .slice(0, 3)
+                            .map((loc) => (
+                              <button
+                                key={loc}
+                                onClick={() => handleSelectArea(loc)}
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer"
+                              >
+                                <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                <span className="text-[13px] font-semibold text-foreground">
+                                  {loc}
+                                </span>
+                              </button>
+                            ))}
                         </div>
-                        {[...recentLocations, ...(cityAreas[selectedCity]?.recent || [])]
-                          .filter((v, i, a) => a.indexOf(v) === i)
-                          .slice(0, 3)
-                          .map((loc) => (
-                            <button
-                              key={loc}
-                              onClick={() => handleSelectArea(loc)}
-                              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer"
-                            >
-                              <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                              <span className="text-[13px] font-semibold text-foreground">
-                                {loc}
-                              </span>
-                            </button>
-                          ))}
-                      </div>
-                    )}
+                      )}
 
                     {/* Trending Areas */}
                     <div className="pt-2 pb-1">
@@ -1029,7 +1029,7 @@ export default function HomePage({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={`Search businesses, categories, services in ${selectedCity}…`}
+                placeholder={`Search busi, categories, services in ${selectedCity}…`}
                 className="flex-1 bg-transparent px-2 py-1 text-xs md:text-sm outline-none placeholder:text-muted-foreground w-0 min-w-0"
                 onFocus={() => setUiState((prev) => ({ ...prev, showSuggestions: true }))}
                 onBlur={() =>
@@ -1297,9 +1297,8 @@ export default function HomePage({
                 return (
                   <div
                     key={index}
-                    className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                      isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
-                    }`}
+                    className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+                      }`}
                   >
                     <img
                       src={getImageUrl(slide.img)}
@@ -1342,9 +1341,8 @@ export default function HomePage({
                     <button
                       key={index}
                       onClick={() => setUiState((prev) => ({ ...prev, activeSlide: index }))}
-                      className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                        activeSlide === index ? "w-5 bg-accent" : "w-1.5 bg-white/50"
-                      }`}
+                      className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${activeSlide === index ? "w-5 bg-accent" : "w-1.5 bg-white/50"
+                        }`}
                       aria-label={`Go to slide ${index + 1}`}
                     />
                   ))}
@@ -1358,17 +1356,15 @@ export default function HomePage({
         {(allHeroSlides.length > 0 || allHeroCards.length > 0) && (
           <section className="hidden sm:grid grid-cols-12 gap-5 items-stretch">
             {allHeroSlides.length > 0 && (
-              <div className={`group relative col-span-12 overflow-hidden rounded-3xl ${
-                allHeroCards.length > 0 ? "lg:col-span-7" : ""
-              } min-h-[190px] lg:min-h-[250px]`}>
+              <div className={`group relative col-span-12 overflow-hidden rounded-3xl ${allHeroCards.length > 0 ? "lg:col-span-7" : ""
+                } min-h-[190px] lg:min-h-[250px]`}>
                 {allHeroSlides.map((slide, index) => {
                   const isActive = activeSlide === index;
                   return (
                     <div
                       key={index}
-                      className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                        isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
-                      }`}
+                      className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+                        }`}
                     >
                       <img
                         src={getImageUrl(slide.img)}
@@ -1411,9 +1407,8 @@ export default function HomePage({
                       <button
                         key={index}
                         onClick={() => setUiState((prev) => ({ ...prev, activeSlide: index }))}
-                        className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                          activeSlide === index ? "w-6 bg-accent" : "w-2 bg-white/50 hover:bg-white"
-                        }`}
+                        className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${activeSlide === index ? "w-6 bg-accent" : "w-2 bg-white/50 hover:bg-white"
+                          }`}
                         aria-label={`Go to slide ${index + 1}`}
                       />
                     ))}
@@ -1425,9 +1420,8 @@ export default function HomePage({
             )}
 
             {allHeroCards.length > 0 && (
-              <div className={`col-span-12 ${
-                allHeroSlides.length > 0 ? "lg:col-span-5" : ""
-              } grid grid-cols-1 sm:grid-cols-3 gap-4`}>
+              <div className={`col-span-12 ${allHeroSlides.length > 0 ? "lg:col-span-5" : ""
+                } grid grid-cols-1 sm:grid-cols-3 gap-4`}>
                 {allHeroCards.map((card, i) => (
                   <button
                     key={i}
@@ -1580,11 +1574,10 @@ export default function HomePage({
                   <button
                     key={t}
                     onClick={() => setUiState((prev) => ({ ...prev, activeTab: t }))}
-                    className={`rounded-full border px-3 sm:px-4 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold cursor-pointer transition-all duration-300 ${
-                      isActive
+                    className={`rounded-full border px-3 sm:px-4 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold cursor-pointer transition-all duration-300 ${isActive
                         ? "border-primary bg-primary text-primary-foreground shadow-sm scale-105"
                         : "border-border text-muted-foreground bg-background hover:border-muted-foreground/60 hover:text-foreground hover:bg-secondary/40"
-                    }`}
+                      }`}
                   >
                     {t}
                   </button>
@@ -2003,13 +1996,13 @@ export default function HomePage({
               <p>
                 {aboutData.paragraph1.includes("FindmyPoint")
                   ? aboutData.paragraph1.split("FindmyPoint").map((chunk, i, arr) => (
-                      <span key={i}>
-                        {chunk}
-                        {i < arr.length - 1 && (
-                          <span className="font-extrabold text-foreground">FindmyPoint</span>
-                        )}
-                      </span>
-                    ))
+                    <span key={i}>
+                      {chunk}
+                      {i < arr.length - 1 && (
+                        <span className="font-extrabold text-foreground">FindmyPoint</span>
+                      )}
+                    </span>
+                  ))
                   : aboutData.paragraph1}
               </p>
               <p>{aboutData.paragraph2}</p>
@@ -2083,7 +2076,7 @@ export default function HomePage({
                         <p className="text-xs text-muted-foreground mt-1 truncate">
                           {biz.location}
                         </p>
-                        
+
                         {/* Rating */}
                         <div className="flex items-center gap-1.5 mt-2">
                           <div className="flex items-center text-amber-500 shrink-0">
@@ -2108,7 +2101,7 @@ export default function HomePage({
                           >
                             View Details
                           </button>
-                          
+
                           {biz.whatsapp && (
                             <a
                               href={`https://wa.me/${biz.whatsapp.replace(/[+\s]+/g, "")}`}

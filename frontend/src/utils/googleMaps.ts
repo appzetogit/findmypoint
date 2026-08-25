@@ -289,3 +289,61 @@ export async function reverseGeocodeCoords(
 
   return null;
 }
+
+/**
+ * Real Dynamic Forward Geocoding: address / city / locality name -> { lat, lng }
+ * Uses Google Maps Geocoder SDK or OpenStreetMap Nominatim API with zero hardcoded mock data.
+ */
+export async function geocodeLocation(
+  locationName: string
+): Promise<{ lat: number; lng: number } | null> {
+  if (!locationName || !locationName.trim()) return null;
+  const clean = locationName.trim();
+
+  // 1. Google Maps JS SDK Geocoder
+  try {
+    const isLoaded = await loadGoogleMapsScript();
+    if (isLoaded && (window as any).google?.maps?.Geocoder) {
+      const result = await new Promise<any>((resolve) => {
+        const geocoder = new (window as any).google.maps.Geocoder();
+        geocoder.geocode({ address: clean }, (results: any[], status: string) => {
+          if (status === "OK" && results && results.length > 0) {
+            resolve(results[0]);
+          } else {
+            resolve(null);
+          }
+        });
+      });
+
+      if (result?.geometry?.location) {
+        return {
+          lat: result.geometry.location.lat(),
+          lng: result.geometry.location.lng(),
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("[GoogleMaps] Geocoder error:", err);
+  }
+
+  // 2. Fast HTTP Nominatim Forward Geocoding API
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        clean
+      )}&limit=1`,
+      { headers: { "Accept-Language": "en" } }
+    );
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0 && data[0].lat && data[0].lon) {
+      return {
+        lat: parseFloat(data[0].lat),
+        lng: parseFloat(data[0].lon),
+      };
+    }
+  } catch (err) {
+    console.warn("[GoogleMaps] HTTP Geocoding error:", err);
+  }
+
+  return null;
+}

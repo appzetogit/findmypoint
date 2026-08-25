@@ -31,7 +31,7 @@ import { loadAboutData, AboutData } from "../data/aboutData";
 import { useCategories } from "../context/CategoryContext";
 import { getCategoryImage } from "../utils/categoryImages";
 import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
-import { getCurrentUserLocation, reverseGeocodeCoords, calculateDistanceKm, formatDistance, loadGoogleMapsScript } from "../utils/googleMaps";
+import { getCurrentUserLocation, reverseGeocodeCoords, calculateDistanceKm, formatDistance, loadGoogleMapsScript, geocodeLocation } from "../utils/googleMaps";
 import { LazyImage } from "../components/ui/LazyImage";
 import MobileSearchPage from "./MobileSearchPage";
 import MobileLocationPage from "./MobileLocationPage";
@@ -794,7 +794,7 @@ export default function HomePage({
   const locationRef = useRef<HTMLDivElement>(null);
 
   const handleSelectArea = useCallback(
-    (area: string) => {
+    async (area: string) => {
       const updated = [area, ...recentLocations.filter((l) => l !== area)].slice(0, 5);
       setLocationState((prev) => ({
         ...prev,
@@ -804,6 +804,20 @@ export default function HomePage({
       }));
       localStorage.setItem("fmp_recent_locations:v1", JSON.stringify(updated));
       localStorage.setItem("fmp_selected_city:v1", area);
+
+      // Dynamically forward-geocode the chosen location without mock data
+      try {
+        const coords = await geocodeLocation(area);
+        if (coords) {
+          setUserCoords(coords);
+          localStorage.setItem(
+            "fmp_user_coords:v1",
+            JSON.stringify({ ...coords, city: area, shortName: area })
+          );
+        }
+      } catch (err) {
+        console.warn("Dynamic geocode error for area:", area, err);
+      }
     },
     [recentLocations],
   );
@@ -984,18 +998,20 @@ export default function HomePage({
     return popularServices.filter((s) => s.tab === activeTab);
   }, [popularServices, activeTab]);
 
-  // Compute businesses within dynamic radius (default 5 KM or admin configured)
+  // Compute businesses within dynamic radius (strictly respects admin configured radius e.g. 3 KM)
   const nearbyBusinesses = useMemo(() => {
     if (!Array.isArray(allBusinesses) || allBusinesses.length === 0) return [];
 
-    const uLat = userCoords?.lat || (selectedCity.toLowerCase().includes("indore") ? 22.7196 : null);
-    const uLng = userCoords?.lng || (selectedCity.toLowerCase().includes("indore") ? 75.8577 : null);
-    const radiusLimit = nearbyRadiusKm || 5;
+    const uLat = userCoords?.lat;
+    const uLng = userCoords?.lng;
+    const radiusLimit = Number(nearbyRadiusKm) > 0 ? Number(nearbyRadiusKm) : 5;
+    const curLoc = (selectedCity || "").toLowerCase().trim();
 
-    const withDistance = allBusinesses.map((biz) => {
+    const withDistance = allBusinesses.map((biz: any) => {
       const bLat = parseFloat(biz.latitude || biz.lat);
       const bLng = parseFloat(biz.longitude || biz.lng);
-      let distanceKm = 999;
+
+      let distanceKm = 9999;
       let hasExactDistance = false;
 
       if (uLat && uLng && !isNaN(bLat) && !isNaN(bLng) && bLat !== 0 && bLng !== 0) {
@@ -1003,9 +1019,8 @@ export default function HomePage({
         hasExactDistance = true;
       } else {
         const bizLoc = (biz.location || biz.address || biz.cityTown || "").toLowerCase();
-        const curLoc = (selectedCity || "").toLowerCase();
         if (bizLoc && curLoc && (bizLoc.includes(curLoc) || curLoc.includes(bizLoc))) {
-          distanceKm = 1.8;
+          distanceKm = 1.0;
           hasExactDistance = true;
         }
       }
@@ -1018,13 +1033,10 @@ export default function HomePage({
       };
     });
 
-    // Dynamic radius filter (e.g. 5 KM)
+    // STRICT: Only return businesses that are legitimately within the specified radius
     const withinRadius = withDistance.filter((biz) => biz.hasExactDistance && biz.distanceKm <= radiusLimit);
     withinRadius.sort((a, b) => a.distanceKm - b.distanceKm);
 
-    if (withinRadius.length === 0) {
-      return withDistance.slice(0, 8);
-    }
     return withinRadius;
   }, [allBusinesses, userCoords, selectedCity, nearbyRadiusKm]);
 
@@ -1917,7 +1929,7 @@ export default function HomePage({
                 nearbyBusinesses.length === 0 ? (
                   <div className="col-span-4 py-10 text-center text-muted-foreground italic text-xs w-full flex flex-col items-center justify-center gap-2">
                     <MapPin className="h-8 w-8 text-rose-500/40" />
-                    <span>No businesses found within {nearbyRadiusKm} km of your location.</span>
+                    <span>No businesses found within {nearbyRadiusKm} km of {selectedCity || "your location"}.</span>
                   </div>
                 ) : (
                   nearbyBusinesses.map((biz: any) => (
@@ -1934,7 +1946,6 @@ export default function HomePage({
                           className="h-full w-full"
                           imgClassName="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                         />
-
 
                         {/* Rating Badge on top right */}
                         {biz.rating && (

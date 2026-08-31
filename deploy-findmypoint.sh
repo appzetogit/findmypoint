@@ -49,9 +49,31 @@ cp -r "$APP_DIR/frontend/dist"/* "$WEB_ROOT"/
 
 # Generate dynamic sitemap.xml and robots.txt into WEB_ROOT for direct Nginx serving
 echo "🗺️ Updating sitemap.xml and robots.txt in $WEB_ROOT..."
-sleep 2
-curl -s http://127.0.0.1:5000/sitemap.xml > "$WEB_ROOT/sitemap.xml" 2>/dev/null || true
-curl -s http://127.0.0.1:5000/robots.txt > "$WEB_ROOT/robots.txt" 2>/dev/null || true
+# Wait up to 15 seconds for backend to become healthy
+for i in {1..15}; do
+  if curl -s http://127.0.0.1:5000/api/health | grep -q "healthy"; then
+    echo "✅ Backend is healthy."
+    break
+  fi
+  sleep 1
+done
+
+# Fetch fresh sitemap and validate it is valid XML before placing it in WEB_ROOT
+TEMP_SITEMAP="/tmp/fmp_sitemap.xml"
+if curl -s http://127.0.0.1:5000/sitemap.xml -o "$TEMP_SITEMAP" && grep -q "<urlset" "$TEMP_SITEMAP"; then
+  cp "$TEMP_SITEMAP" "$WEB_ROOT/sitemap.xml"
+  echo "✅ Sitemap updated with valid XML."
+else
+  echo "⚠️ Warning: Dynamic sitemap fetch failed or invalid XML. Preserving pre-built static sitemap."
+fi
+rm -f "$TEMP_SITEMAP"
+
+TEMP_ROBOTS="/tmp/fmp_robots.txt"
+if curl -s http://127.0.0.1:5000/robots.txt -o "$TEMP_ROBOTS" && grep -q "Sitemap:" "$TEMP_ROBOTS"; then
+  cp "$TEMP_ROBOTS" "$WEB_ROOT/robots.txt"
+  echo "✅ Robots.txt updated."
+fi
+rm -f "$TEMP_ROBOTS"
 
 # Fix permissions
 chown -R www-data:www-data "$WEB_ROOT" 2>/dev/null || true

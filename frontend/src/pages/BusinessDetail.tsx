@@ -498,12 +498,20 @@ export default function BusinessDetailPage({
     return buildBusinessSchemas(currentBiz, window.location.origin);
   }, [currentBiz]);
 
+  const robotsDirective = useMemo(() => {
+    if (bizNotFound) return "noindex, nofollow";
+    if (currentBiz?.status === "deleted" || currentBiz?.status === "suspended" || currentBiz?.isIndexable === false) {
+      return "noindex, nofollow";
+    }
+    return "index, follow";
+  }, [bizNotFound, currentBiz?.status, currentBiz?.isIndexable]);
+
   useSEO({
     title: seoTitle,
     description: seoDescription,
     keywords: currentBiz?.seoKeywords || [currentBiz?.name, currentBiz?.category, currentBiz?.location, currentBiz?.cityTown].filter(Boolean) as string[],
     canonicalUrl: canonicalPath,
-    robots: currentBiz?.status === 'published' && currentBiz?.isIndexable !== false ? "index, follow" : "noindex, nofollow",
+    robots: robotsDirective,
     og: {
       title: seoTitle,
       description: seoDescription,
@@ -518,7 +526,7 @@ export default function BusinessDetailPage({
       image: (currentBiz?.images && currentBiz.images[0]) || ""
     },
     schemas: seoSchemas
-  }, [seoTitle, seoDescription, canonicalPath, seoSchemas, currentBiz?.status, currentBiz?.isIndexable]);
+  }, [seoTitle, seoDescription, canonicalPath, seoSchemas, robotsDirective]);
 
   const [bookingState, dispatchBooking] = useReducer(
     bookingReducer,

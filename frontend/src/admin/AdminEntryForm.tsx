@@ -579,8 +579,9 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
     const cleanInteriorPhotos = interiorPhotos.map((p) => p.trim()).filter(Boolean);
 
     // Save/Update Object matching BusinessListingData schema
+    const cleanSlug = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "business";
     const newBusiness: BusinessListingData = {
-      id: businessId || `custom-${Date.now()}-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      id: businessId || `${cleanSlug}-${Date.now().toString().slice(-4)}`,
       name: name.trim(),
       location: cityTown.trim() || address.trim(),
       category: `${category} > ${subCategory}`,

@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const BannerSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['slide', 'card', 'category'],
+    enum: ['slide', 'card', 'category', 'search'],
     required: true
   },
   title: {
@@ -29,6 +29,23 @@ const BannerSchema = new mongoose.Schema({
     default: ''
   },
   themeColor: {
+    type: String,
+    default: ''
+  },
+  // Search specific fields
+  searchQuery: {
+    type: String,
+    default: ''
+  },
+  phone: {
+    type: String,
+    default: ''
+  },
+  location: {
+    type: String,
+    default: ''
+  },
+  link: {
     type: String,
     default: ''
   },

@@ -75,6 +75,7 @@ interface HomePageProps {
   onTermsConditionsClick?: () => void;
   onPopularServiceClick?: (id: string) => void;
   onBusinessSelect?: (id: string) => void;
+  onSearchSubmit?: (query: string, location?: string) => void;
 }
 
 // City-specific area data for location dropdown
@@ -165,6 +166,7 @@ export default function HomePage({
   onTermsConditionsClick,
   onPopularServiceClick,
   onBusinessSelect,
+  onSearchSubmit,
 }: HomePageProps) {
   const { categories, subcategoriesData } = useCategories();
 
@@ -293,13 +295,18 @@ export default function HomePage({
         onBusinessSelect(data.id);
       }
     } else if (type === "category") {
-      saveSearchTerm(data.subcategory ? `${data.category} - ${data.subcategory}` : data.category);
-      if (onCategoryClick) {
+      const term = data.subcategory ? `${data.category} - ${data.subcategory}` : (data.label || data.category);
+      saveSearchTerm(term);
+      if (onSearchSubmit) {
+        onSearchSubmit(term, selectedCity);
+      } else if (onCategoryClick) {
         onCategoryClick(data.category, data.subcategory);
       }
     } else if (type === "place") {
       saveSearchTerm(data.title);
-      if (onPlaceClick) {
+      if (onSearchSubmit) {
+        onSearchSubmit(data.title, selectedCity);
+      } else if (onPlaceClick) {
         onPlaceClick(data.title);
       }
     }
@@ -310,6 +317,11 @@ export default function HomePage({
     if (!searchQuery.trim()) return;
     saveSearchTerm(searchQuery.trim());
     setUiState((prev) => ({ ...prev, showSuggestions: false }));
+
+    if (onSearchSubmit) {
+      onSearchSubmit(searchQuery.trim(), selectedCity);
+      return;
+    }
 
     if (searchResults.businesses.length > 0) {
       handleSearchResultClick("business", searchResults.businesses[0]);
@@ -1040,6 +1052,58 @@ export default function HomePage({
     return withinRadius;
   }, [allBusinesses, userCoords, selectedCity, nearbyRadiusKm]);
 
+  // Dynamic sliding placeholder phrases (Single individual search terms without dots)
+  const searchPlaceholders = useMemo(
+    () => [
+      selectedCity ? `Search in ${selectedCity}` : "Search near me",
+      "Restaurants",
+      "Hotels",
+      "Ayurvedic Spa",
+      "Doctors",
+      "Hospitals",
+      "Beauty Parlour",
+      "Electricians",
+      "Plumbers",
+      "Car Rentals",
+      "Coaching Classes",
+      "Gym & Fitness",
+      "Dentists",
+      "Event Planners",
+      "Coffee Shops",
+      "Local Businesses",
+    ],
+    [selectedCity]
+  );
+
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(true);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPlaceholderIndex((prev) => prev + 1);
+    }, 2800);
+    return () => clearInterval(timer);
+  }, [searchPlaceholders.length]);
+
+  useEffect(() => {
+    if (placeholderIndex === searchPlaceholders.length) {
+      const resetTimeout = setTimeout(() => {
+        setIsTransitioning(false);
+        setPlaceholderIndex(0);
+      }, 550);
+      return () => clearTimeout(resetTimeout);
+    }
+  }, [placeholderIndex, searchPlaceholders.length]);
+
+  useEffect(() => {
+    if (placeholderIndex === 0 && !isTransitioning) {
+      const t = setTimeout(() => {
+        setIsTransitioning(true);
+      }, 50);
+      return () => clearTimeout(t);
+    }
+  }, [placeholderIndex, isTransitioning]);
+
   const resolveServiceImage = (imgStr?: string) => {
     if (!imgStr) return "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80";
     if (imgStr.startsWith("data:") || imgStr.startsWith("http")) return imgStr;
@@ -1078,6 +1142,10 @@ export default function HomePage({
         onPlaceSelect={(placeName) => {
           setShowMobileSearch(false);
           onPlaceClick?.(placeName);
+        }}
+        onSearchSubmit={(q, loc) => {
+          setShowMobileSearch(false);
+          onSearchSubmit?.(q, loc);
         }}
         allBusinesses={allBusinesses}
       />
@@ -1120,7 +1188,7 @@ export default function HomePage({
             </div>
           </div>
 
-          <div className="relative flex flex-1 w-full items-center gap-1.5 md:gap-2 rounded-full border border-border bg-card px-2 py-1 md:py-1.5 shadow-[var(--shadow-card)] max-w-3xl">
+          <div className="relative flex flex-1 w-full items-center gap-1.5 md:gap-2 rounded-xl border border-border bg-card px-2.5 py-1 md:py-1.5 shadow-[var(--shadow-card)] max-w-3xl">
             {/* Clickable Location Selector (hidden on mobile, visible on tablet/desktop) */}
             <div ref={locationRef} className="hidden sm:block relative shrink-0">
               <button
@@ -1335,40 +1403,72 @@ export default function HomePage({
             <button
               type="button"
               onClick={() => setShowMobileSearch(true)}
-              className="sm:hidden flex flex-1 items-center gap-2 px-1 py-1 text-xs text-muted-foreground w-full cursor-pointer text-left"
+              className="sm:hidden flex flex-1 items-center gap-2 px-1.5 py-1 text-xs text-muted-foreground w-full cursor-pointer text-left min-w-0"
             >
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
-                <Search className="h-3.5 w-3.5" />
+              <Search className="h-4 w-4 text-muted-foreground ml-1 shrink-0" />
+              <div className="relative h-6 flex-1 overflow-hidden select-none pointer-events-none min-w-0">
+                <div
+                  className={`flex flex-col w-full ${isTransitioning ? "transition-transform duration-500 ease-in-out" : ""}`}
+                  style={{
+                    transform: `translateY(-${placeholderIndex * 24}px)`,
+                  }}
+                >
+                  {[...searchPlaceholders, searchPlaceholders[0]].map((text, idx) => (
+                    <div
+                      key={idx}
+                      className="h-6 leading-6 flex items-center text-xs text-muted-foreground/90 truncate w-full font-medium shrink-0"
+                    >
+                      {text}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <span className="truncate text-foreground/75">
-                Search businesses, categories, services in {selectedCity}…
-              </span>
             </button>
 
             {/* Desktop Search Input Form */}
-            <form onSubmit={handleSearchSubmit} className="hidden sm:flex flex-1 items-center min-w-0 gap-1.5 md:gap-2">
+            <form onSubmit={handleSearchSubmit} className="hidden sm:flex flex-1 items-center min-w-0 gap-1.5 md:gap-2 relative">
               <button
                 type="submit"
-                className="flex h-7 w-7 md:h-9 md:w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90 shrink-0 cursor-pointer"
+                className="flex h-7 w-7 md:h-8 md:w-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/70 transition shrink-0 cursor-pointer"
                 title="Search"
               >
                 {isSearching ? (
-                  <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 animate-spin text-primary" />
                 ) : (
-                  <Search className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                  <Search className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
                 )}
               </button>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={`Search businesses, categories, services in ${selectedCity}…`}
-                className="flex-1 bg-transparent px-1 md:px-2 py-1 text-xs md:text-sm outline-none placeholder:text-muted-foreground w-0 min-w-0"
-                onFocus={() => setUiState((prev) => ({ ...prev, showSuggestions: true }))}
-                onBlur={() =>
-                  setTimeout(() => setUiState((prev) => ({ ...prev, showSuggestions: false })), 250)
-                }
-              />
+              <div className="relative flex-1 flex items-center min-w-0">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 bg-transparent px-1 md:px-2 py-1 text-xs md:text-sm outline-none text-foreground w-full min-w-0 relative z-10"
+                  onFocus={() => setUiState((prev) => ({ ...prev, showSuggestions: true }))}
+                  onBlur={() =>
+                    setTimeout(() => setUiState((prev) => ({ ...prev, showSuggestions: false })), 250)
+                  }
+                />
+                {!searchQuery && (
+                  <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-6 overflow-hidden pointer-events-none px-1 md:px-2">
+                    <div
+                      className={`flex flex-col w-full ${isTransitioning ? "transition-transform duration-500 ease-in-out" : ""}`}
+                      style={{
+                        transform: `translateY(-${placeholderIndex * 24}px)`,
+                      }}
+                    >
+                      {[...searchPlaceholders, searchPlaceholders[0]].map((text, idx) => (
+                        <div
+                          key={idx}
+                          className="h-6 leading-6 flex items-center text-xs md:text-sm text-muted-foreground/80 truncate w-full font-normal shrink-0"
+                        >
+                          {text}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </form>
 
             {/* Live Search Suggestions Dropdown */}

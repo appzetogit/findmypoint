@@ -8,12 +8,14 @@ const getBanners = async (req, res) => {
     const slides = await Banner.find({ type: 'slide' }).sort({ order: 1 });
     const cards = await Banner.find({ type: 'card' }).sort({ order: 1 });
     const categoryBanners = await Banner.find({ type: 'category' }).sort({ order: 1 });
+    const searchBanners = await Banner.find({ type: 'search' }).sort({ order: 1 });
 
     res.status(200).json({
       success: true,
       slides,
       cards,
-      categoryBanners
+      categoryBanners,
+      searchBanners
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -26,8 +28,8 @@ const getBanners = async (req, res) => {
 const saveBanners = async (req, res) => {
   const { type, banners } = req.body;
 
-  if (!type || !['slide', 'card', 'category'].includes(type) || !Array.isArray(banners)) {
-    return res.status(400).json({ success: false, message: 'Please provide type ("slide", "card", or "category") and banners array.' });
+  if (!type || !['slide', 'card', 'category', 'search'].includes(type) || !Array.isArray(banners)) {
+    return res.status(400).json({ success: false, message: 'Please provide valid type ("slide", "card", "category", or "search") and banners array.' });
   }
 
   try {
@@ -53,6 +55,12 @@ const saveBanners = async (req, res) => {
         doc.themeColor = b.themeColor || '';
       } else if (type === 'category') {
         doc.subtitle = b.subtitle || '';
+      } else if (type === 'search') {
+        doc.subtitle = b.subtitle || '';
+        doc.searchQuery = b.searchQuery || '';
+        doc.phone = b.phone || '';
+        doc.location = b.location || '';
+        doc.link = b.link || '';
       }
 
       return doc;

@@ -25,6 +25,7 @@ interface MobileSearchPageProps {
   onCategorySelect: (categoryName: string, subcategoryName?: string) => void;
   onPlaceSelect?: (placeName: string) => void;
   onNotificationsClick?: () => void;
+  onSearchSubmit?: (query: string, location?: string) => void;
   allBusinesses?: BusinessListingData[];
 }
 
@@ -36,6 +37,7 @@ export default function MobileSearchPage({
   onCategorySelect,
   onPlaceSelect,
   onNotificationsClick,
+  onSearchSubmit,
   allBusinesses = [],
 }: MobileSearchPageProps) {
   const { categories, subcategoriesData } = useCategories();
@@ -145,8 +147,13 @@ export default function MobileSearchPage({
   };
 
   const handleSelectCategory = (categoryName: string, subcategoryName?: string) => {
-    saveSearchTerm(subcategoryName || categoryName);
-    onCategorySelect(categoryName, subcategoryName);
+    const term = subcategoryName || categoryName;
+    saveSearchTerm(term);
+    if (onSearchSubmit) {
+      onSearchSubmit(term, selectedCity);
+    } else {
+      onCategorySelect(categoryName, subcategoryName);
+    }
   };
 
   return (
@@ -178,7 +185,17 @@ export default function MobileSearchPage({
       </header>
 
       {/* Big Search Input Container */}
-      <div className="px-3 pt-3 pb-2 bg-background border-b border-border/60">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!query.trim()) return;
+          saveSearchTerm(query.trim());
+          if (onSearchSubmit) {
+            onSearchSubmit(query.trim(), selectedCity);
+          }
+        }}
+        className="px-3 pt-3 pb-2 bg-background border-b border-border/60"
+      >
         <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl border border-border bg-card shadow-xs focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
           <Search className="h-5 w-5 text-muted-foreground shrink-0" />
 
@@ -204,8 +221,15 @@ export default function MobileSearchPage({
               <X className="h-3.5 w-3.5" />
             </button>
           )}
+
+          <button
+            type="submit"
+            className="px-3 py-1 rounded-xl bg-primary text-primary-foreground text-xs font-bold shrink-0 cursor-pointer shadow-xs"
+          >
+            Search
+          </button>
         </div>
-      </div>
+      </form>
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-6 text-left">
@@ -230,7 +254,7 @@ export default function MobileSearchPage({
                   {recentSearches.map((term, idx) => (
                     <button
                       key={idx}
-                      onClick={() => setQuery(term)}
+                      onClick={() => (onSearchSubmit ? onSearchSubmit(term, selectedCity) : setQuery(term))}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary hover:bg-secondary/80 border border-border text-xs font-medium text-foreground transition cursor-pointer"
                     >
                       <span>{term}</span>

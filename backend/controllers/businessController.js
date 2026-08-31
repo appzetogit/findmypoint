@@ -41,21 +41,97 @@ const getBusinesses = async (req, res) => {
       query.subCategoryLine = { $regex: new RegExp(escapeRegex(subcategory), 'i') };
     }
 
+    let locConditions = null;
     if (location) {
-      query.location = { $regex: new RegExp(escapeRegex(location), 'i') };
+      const locTokens = location
+        .split(/[,]+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
+
+      const locFields = ['location', 'address', 'cityTown', 'district', 'state', 'pincode', 'localitySlug', 'citySlug'];
+      locConditions = locTokens.flatMap((tok) =>
+        locFields.map((field) => ({
+          [field]: { $regex: new RegExp(escapeRegex(tok), 'i') },
+        }))
+      );
+      if (locConditions.length > 0) {
+        query.$or = locConditions;
+      }
     }
+
+    let searchConditions = null;
+    let andConditions = null;
 
     if (search) {
-      const safeSearch = escapeRegex(search);
-      query.$or = [
-        { name: { $regex: new RegExp(safeSearch, 'i') } },
-        { category: { $regex: new RegExp(safeSearch, 'i') } },
-        { location: { $regex: new RegExp(safeSearch, 'i') } },
-        { description: { $regex: new RegExp(safeSearch, 'i') } },
+      const safeSearch = escapeRegex(search.trim());
+      const words = safeSearch
+        .split(/\s+/)
+        .map((w) => w.trim())
+        .filter(
+          (w) =>
+            w.length > 1 &&
+            !['in', 'at', 'near', 'me', 'the', 'and', 'or', 'for', 'to', 'of'].includes(w.toLowerCase())
+        );
+
+      const searchFields = [
+        'name',
+        'category',
+        'subCategoryLine',
+        'categoryLine',
+        'location',
+        'address',
+        'cityTown',
+        'district',
+        'state',
+        'pincode',
+        'description',
+        'seoKeywords',
+        'highlightsName',
+        'citySlug',
+        'localitySlug',
       ];
+
+      if (words.length > 1) {
+        andConditions = words.map((word) => ({
+          $or: searchFields.map((field) => ({
+            [field]: { $regex: new RegExp(escapeRegex(word), 'i') },
+          })),
+        }));
+
+        if (query.$or) {
+          query = { $and: [{ $or: query.$or }, ...andConditions] };
+        } else {
+          query.$and = andConditions;
+        }
+      } else {
+        searchConditions = searchFields.map((field) => ({
+          [field]: { $regex: new RegExp(safeSearch, 'i') },
+        }));
+
+        if (query.$or) {
+          query = { $and: [{ $or: query.$or }, { $or: searchConditions }] };
+        } else {
+          query.$or = searchConditions;
+        }
+      }
     }
 
-    const businesses = await Business.find(query);
+    let businesses = await Business.find(query);
+
+    // Fallback: If 0 results found with strict sub-locality, search by query without strict locality
+    if (businesses.length === 0 && search && location) {
+      let fallbackQuery = { status: query.status || 'published' };
+      if (category) fallbackQuery.category = query.category;
+      if (subcategory) fallbackQuery.subCategoryLine = query.subCategoryLine;
+
+      if (words && words.length > 1 && andConditions) {
+        fallbackQuery.$and = andConditions;
+      } else if (searchConditions) {
+        fallbackQuery.$or = searchConditions;
+      }
+      businesses = await Business.find(fallbackQuery);
+    }
+
     const sanitized = businesses.map(sanitizePublicBusiness);
     res.status(200).json({ success: true, count: sanitized.length, data: sanitized });
   } catch (error) {

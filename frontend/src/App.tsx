@@ -17,6 +17,7 @@ import PopularServiceDetailPage from "./pages/PopularServiceDetail";
 import MobileTransactionPage from "./pages/MobileTransactionPage";
 import MobileProfilePage from "./pages/MobileProfilePage";
 import EmployeeVerificationPage from "./pages/EmployeeVerificationPage";
+import SearchResultsPage from "./pages/SearchResultsPage";
 import BottomLoginPrompt from "./components/BottomLoginPrompt";
 import { Home, CalendarDays, Receipt, User } from "lucide-react";
 import { socketService } from "./services/socketService";
@@ -30,6 +31,8 @@ interface AppViewState {
   selectedPlaceName: string | null;
   selectedCategoryName: string | null;
   selectedSubcategoryName: string | null;
+  searchQuery: string | null;
+  searchLocation: string | null;
   showSignIn: boolean;
   showSidebar: boolean;
   scrollToReview: boolean;
@@ -50,6 +53,8 @@ const initialAppState: AppViewState = {
   selectedPlaceName: null,
   selectedCategoryName: null,
   selectedSubcategoryName: null,
+  searchQuery: null,
+  searchLocation: null,
   showSignIn: false,
   showSidebar: false,
   scrollToReview: false,
@@ -74,6 +79,8 @@ type AppAction =
   | { type: "SELECT_BUSINESS"; id: string | null; scrollToReview?: boolean; scrollToMenu?: boolean }
   | { type: "SELECT_PLACE"; name: string | null }
   | { type: "SELECT_CATEGORY"; name: string | null; subcategoryName?: string | null }
+  | { type: "SEARCH"; query: string; location?: string }
+  | { type: "CLEAR_SEARCH" }
   | { type: "SET_SHOW_ALL_CATEGORIES"; show: boolean }
   | { type: "SET_SHOW_ADMIN"; show: boolean }
   | { type: "SET_SHOW_CLIENT"; show: boolean }
@@ -83,6 +90,30 @@ type AppAction =
 
 function appReducer(state: AppViewState, action: AppAction): AppViewState {
   switch (action.type) {
+    case "SEARCH":
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      return {
+        ...state,
+        searchQuery: action.query,
+        searchLocation: action.location || null,
+        selectedArticleId: null,
+        selectedBusinessId: null,
+        selectedPlaceName: null,
+        selectedCategoryName: null,
+        selectedSubcategoryName: null,
+        selectedPopularServiceId: null,
+        showAdminPanel: false,
+        showClientPanel: false,
+        showAdvertise: false,
+        showAllCategoriesPage: false,
+        verifiedEmpId: null,
+      };
+    case "CLEAR_SEARCH":
+      return {
+        ...state,
+        searchQuery: null,
+        searchLocation: null,
+      };
     case "SET_VERIFIED_EMP_ID":
       return {
         ...state,
@@ -93,6 +124,8 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
         selectedCategoryName: null,
         selectedSubcategoryName: null,
         selectedPopularServiceId: null,
+        searchQuery: null,
+        searchLocation: null,
         showAdminPanel: false,
         showClientPanel: false,
         showAdvertise: false,
@@ -112,7 +145,7 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
       document.body.scrollTop = 0;
       return { ...state, showAdvertise: action.show };
     case "SET_SHOW_ALL_CATEGORIES":
-      return { ...state, showAllCategoriesPage: action.show };
+      return { ...state, showAllCategoriesPage: action.show, searchQuery: null, searchLocation: null };
     case "SELECT_ARTICLE":
       return {
         ...state,
@@ -122,6 +155,8 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
         selectedCategoryName: null,
         selectedSubcategoryName: null,
         selectedPopularServiceId: null,
+        searchQuery: null,
+        searchLocation: null,
         scrollToReview: false,
       };
     case "SELECT_BUSINESS":
@@ -133,6 +168,8 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
         selectedCategoryName: null,
         selectedSubcategoryName: null,
         selectedPopularServiceId: null,
+        searchQuery: null,
+        searchLocation: null,
         scrollToReview: !!action.scrollToReview,
         scrollToMenu: !!action.scrollToMenu,
       };
@@ -145,6 +182,8 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
         selectedCategoryName: null,
         selectedSubcategoryName: null,
         selectedPopularServiceId: null,
+        searchQuery: null,
+        searchLocation: null,
         scrollToReview: false,
       };
     case "SELECT_CATEGORY":
@@ -156,6 +195,8 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
         selectedCategoryName: action.name,
         selectedSubcategoryName: action.subcategoryName || null,
         selectedPopularServiceId: null,
+        searchQuery: null,
+        searchLocation: null,
         scrollToReview: false,
       };
     case "SELECT_POPULAR_SERVICE":
@@ -167,6 +208,8 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
         selectedCategoryName: null,
         selectedSubcategoryName: null,
         selectedPopularServiceId: action.id,
+        searchQuery: null,
+        searchLocation: null,
         scrollToReview: false,
       };
     case "LOGOUT":
@@ -178,11 +221,15 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
       return {
         ...state,
         showAdminPanel: action.show,
+        searchQuery: null,
+        searchLocation: null,
       };
     case "SET_SHOW_CLIENT":
       return {
         ...state,
         showClientPanel: action.show,
+        searchQuery: null,
+        searchLocation: null,
       };
     default:
       return state;
@@ -190,7 +237,7 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
 }
 
 // ---------------------------------------------------------------------------
-const RESERVED_ROUTES = ["admin", "client", "advertise", "sidebar", "business", "article", "place", "service", "category", "categories", "tab", "verify", "employee"];
+const RESERVED_ROUTES = ["admin", "client", "advertise", "sidebar", "business", "article", "place", "service", "category", "categories", "tab", "verify", "employee", "search"];
 
 function buildPath(state: AppViewState, mobileTab: string): string {
   if (state.verifiedEmpId !== null) return state.verifiedEmpId ? `/verify/${encodeURIComponent(state.verifiedEmpId)}` : "/verify";
@@ -198,6 +245,11 @@ function buildPath(state: AppViewState, mobileTab: string): string {
   if (state.showClientPanel) return "/client";
   if (state.showAdvertise) return "/advertise";
   if (state.activeSidebarPage) return `/sidebar/${encodeURIComponent(state.activeSidebarPage)}`;
+  if (state.searchQuery) {
+    const qParam = encodeURIComponent(state.searchQuery);
+    const locParam = state.searchLocation ? `&location=${encodeURIComponent(state.searchLocation)}` : "";
+    return `/search?q=${qParam}${locParam}`;
+  }
   if (state.selectedBusinessId) {
     if (state.selectedBusinessId.startsWith("/")) return state.selectedBusinessId;
     if (state.selectedBusinessId.includes("/")) return `/${state.selectedBusinessId}`;
@@ -223,6 +275,13 @@ function parsePath(): {
   const segments = path.split("/").filter(Boolean);
   const page = segments[0] || "";
   const params: Record<string, string> = {};
+
+  if (page === "search") {
+    const searchParams = new URLSearchParams(window.location.search);
+    params.searchQuery = searchParams.get("q") || "";
+    params.searchLocation = searchParams.get("location") || "";
+    return { page, params };
+  }
 
   // Check 3-segment SEO path: /{city}/{locality}/{slug} (e.g. /indore/vijay-nagar/appzeto)
   if (segments.length === 3 && !RESERVED_ROUTES.includes(segments[0])) {
@@ -367,6 +426,9 @@ export default function App() {
     const { page, params } = parsePath();
     const base = { ...initialAppState };
 
+    if (page === "search" && params.searchQuery) {
+      return { ...base, searchQuery: params.searchQuery, searchLocation: params.searchLocation || null };
+    }
     if (page === "admin") return { ...base, showAdminPanel: true };
     if (page === "client") return { ...base, showClientPanel: true };
     if (page === "advertise") return { ...base, showAdvertise: true };
@@ -437,6 +499,10 @@ export default function App() {
   const handlePopState = useCallback(() => {
     const { page, params } = parsePath();
 
+    if (page === "search" && params.searchQuery) {
+      dispatch({ type: "SEARCH", query: params.searchQuery, location: params.searchLocation });
+      return;
+    }
     if (page === "admin") { dispatch({ type: "SET_SHOW_ADMIN", show: true }); return; }
     if (page === "client") { dispatch({ type: "SET_SHOW_CLIENT", show: true }); return; }
     if (page === "advertise") { dispatch({ type: "SET_SHOW_ADVERTISE", show: true }); return; }
@@ -652,9 +718,29 @@ export default function App() {
           onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
           onProfileClick={handleProfileClick}
           username={username}
+          onSearchSubmit={(query, location) => {
+            dispatch({ type: "SEARCH", query, location });
+          }}
         />
       );
     }
+  } else if (state.searchQuery !== null) {
+    content = (
+      <SearchResultsPage
+        initialQuery={state.searchQuery}
+        initialLocation={state.searchLocation || undefined}
+        onBack={() => dispatch({ type: "CLEAR_SEARCH" })}
+        onBusinessSelect={(id) => {
+          dispatch({ type: "SELECT_BUSINESS", id });
+        }}
+        onBookNow={(id) => {
+          dispatch({ type: "SELECT_BUSINESS", id, scrollToMenu: true });
+        }}
+        onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
+        onProfileClick={handleProfileClick}
+        username={username}
+      />
+    );
   } else if (state.selectedPopularServiceId !== null) {
     content = (
       <PopularServiceDetailPage
@@ -701,6 +787,9 @@ export default function App() {
         username={username}
         onShowAllCategories={() => dispatch({ type: "SET_SHOW_ALL_CATEGORIES", show: true })}
         onPopularServiceClick={(id) => dispatch({ type: "SELECT_POPULAR_SERVICE", id })}
+        onSearchSubmit={(query, location) => {
+          dispatch({ type: "SEARCH", query, location });
+        }}
         onLogout={() => {
           localStorage.removeItem("fmp_user_token");
           localStorage.removeItem("fmp_profile_personal:v1");
@@ -720,7 +809,7 @@ export default function App() {
     );
   }
 
-  // Public directory pages (business profile, articles, places, categories, advertise, employee verification) MUST ALWAYS be accessible publicly
+  // Public directory pages (business profile, articles, places, categories, advertise, employee verification, search results) MUST ALWAYS be accessible publicly
   const isPublicRoute =
     state.verifiedEmpId !== null ||
     state.selectedBusinessId !== null ||
@@ -728,6 +817,7 @@ export default function App() {
     state.selectedPlaceName !== null ||
     state.selectedCategoryName !== null ||
     state.selectedPopularServiceId !== null ||
+    state.searchQuery !== null ||
     state.showAllCategoriesPage ||
     state.showAdvertise;
 

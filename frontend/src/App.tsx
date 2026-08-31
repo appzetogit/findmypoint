@@ -219,6 +219,20 @@ function parsePath(): {
     };
   }
 
+  // Check 2-segment SEO path: /{city}/{slug} (e.g. /indore/deluxe-tour-service)
+  if (segments.length === 2 && !RESERVED_ROUTES.includes(segments[0])) {
+    const city = decodeURIComponent(segments[0]);
+    const slug = decodeURIComponent(segments[1]);
+    return {
+      page: "business",
+      params: {
+        city,
+        slug,
+        businessId: `/${city}/${slug}`
+      }
+    };
+  }
+
   if (page === "business" && segments[1]) params.businessId = decodeURIComponent(segments[1]);
   if (page === "article" && segments[1]) params.articleId = segments[1];
   if (page === "place" && segments[1]) params.placeName = decodeURIComponent(segments[1]);

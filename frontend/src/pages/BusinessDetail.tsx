@@ -437,6 +437,9 @@ export default function BusinessDetailPage({
     if (parts.length === 3) {
       const [c, l, s] = parts;
       url = `${API_BASE_URL}/businesses/public/${encodeURIComponent(c)}/${encodeURIComponent(l)}/${encodeURIComponent(s)}`;
+    } else if (parts.length === 2) {
+      const [c, s] = parts;
+      url = `${API_BASE_URL}/businesses/public/${encodeURIComponent(c)}/${encodeURIComponent(s)}`;
     }
 
     fetch(url)
@@ -445,12 +448,13 @@ export default function BusinessDetailPage({
         return res.json();
       })
       .then((data) => {
-        if (data.redirect && data.canonicalUrl) {
-          if (window.location.pathname !== data.canonicalUrl) {
-            window.history.replaceState(null, "", data.canonicalUrl);
+        const raw = data.data || data;
+        const targetCanonical = data.canonicalUrl || raw?.canonicalUrl;
+        if (targetCanonical && (window.location.pathname.startsWith('/business/') || data.redirect)) {
+          if (window.location.pathname !== targetCanonical) {
+            window.history.replaceState(null, "", targetCanonical);
           }
         }
-        const raw = data.data || data;
         // Normalize: ensure all array fields default to [] when missing
         const normalized: BusinessListingData = {
           ...raw,

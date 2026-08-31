@@ -50,6 +50,9 @@ const isOriginAllowed = (origin) => {
   if (ALLOWED_ORIGINS.includes(origin)) return true;
   try {
     const parsed = new URL(origin);
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+      return true;
+    }
     if (parsed.hostname === 'findmypoint.app' || parsed.hostname.endsWith('.findmypoint.app')) {
       return true;
     }
@@ -263,10 +266,14 @@ const seoRoutes = require('./routes/seoRoutes');
 const withdrawalRoutes = require('./routes/withdrawalRoutes');
 
 // API Healthcheck
+const mongoose = require('mongoose');
 app.get('/api/health', (req, res) => {
+  const dbStates = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  const dbStatus = dbStates[mongoose.connection.readyState] || 'unknown';
   res.status(200).json({
     status: 'healthy',
     message: 'FindmyPoint Backend API is running properly.',
+    database: dbStatus,
     timestamp: new Date()
   });
 });

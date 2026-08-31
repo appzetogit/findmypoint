@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Allow: /business/
+Allow: /category/
+Allow: /place/
+Allow: /article/
+Allow: /service/
+Allow: /categories
+Allow: /advertise
+Allow: /assets/
+Allow: /public/
+Allow: /src/
+Disallow: /admin/
+Disallow: /client/
+Disallow: /api/
+
+Sitemap: https://findmypoint.app/sitemap.xml

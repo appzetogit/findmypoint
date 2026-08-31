@@ -26,6 +26,7 @@ router.get('/', getBusinesses);
 router.get('/nearby', getNearbyBusinesses);
 router.post('/login', loginBusiness);
 router.get('/public/:city/:locality/:slug', getPublicBusinessByPath);
+router.get('/public/:city/:slug', getPublicBusinessByPath);
 router.get('/:id', getBusinessById);
 router.post('/:id/reviews', addReview);
 router.post('/:id/enquire', submitEnquiry);

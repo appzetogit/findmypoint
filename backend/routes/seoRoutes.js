@@ -8,9 +8,12 @@ const { slugify } = require('../utils/slugify');
 
 const getBaseUrl = (req) => {
   if (process.env.SITE_URL) return process.env.SITE_URL.replace(/\/$/, '');
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-  const host = req.get('host') || 'localhost:5173';
-  // If host is backend port 5000 in dev, default to frontend 5173 or current origin
+  if (process.env.PRODUCTION_URL) return process.env.PRODUCTION_URL.replace(/\/$/, '');
+  const host = req ? req.get('host') : null;
+  if (!host || host.includes('localhost') || host.includes('127.0.0.1')) {
+    return 'https://findmypoint.app';
+  }
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
   return `${protocol}://${host}`;
 };
 
@@ -23,7 +26,7 @@ router.get(['/sitemap.xml', '/api/sitemap.xml'], async (req, res) => {
     // Fetch published & indexable businesses
     const businesses = await Business.find(
       { status: 'published', isIndexable: { $ne: false } },
-      'canonicalUrl updatedAt name'
+      'id slug citySlug localitySlug canonicalUrl updatedAt name'
     ).lean();
 
     // Fetch categories
@@ -47,13 +50,23 @@ router.get(['/sitemap.xml', '/api/sitemap.xml'], async (req, res) => {
 
     // Business Profile URLs
     for (const biz of businesses) {
-      if (biz.canonicalUrl) {
-        const lastmod = biz.updatedAt ? new Date(biz.updatedAt).toISOString() : nowIso;
+      const canonicalPath = biz.canonicalUrl || (biz.citySlug && biz.localitySlug && biz.slug ? `/${biz.citySlug}/${biz.localitySlug}/${biz.slug}` : `/business/${biz.id || biz.slug}`);
+      const lastmod = biz.updatedAt ? new Date(biz.updatedAt).toISOString() : nowIso;
+      
+      xml += `  <url>\n`;
+      xml += `    <loc>${baseUrl}${canonicalPath}</loc>\n`;
+      xml += `    <lastmod>${lastmod}</lastmod>\n`;
+      xml += `    <changefreq>weekly</changefreq>\n`;
+      xml += `    <priority>0.9</priority>\n`;
+      xml += `  </url>\n`;
+
+      // If business has an id and canonical path is different, also provide direct fallback url
+      if (biz.id && canonicalPath !== `/business/${biz.id}`) {
         xml += `  <url>\n`;
-        xml += `    <loc>${baseUrl}${biz.canonicalUrl}</loc>\n`;
+        xml += `    <loc>${baseUrl}/business/${encodeURIComponent(biz.id)}</loc>\n`;
         xml += `    <lastmod>${lastmod}</lastmod>\n`;
         xml += `    <changefreq>weekly</changefreq>\n`;
-        xml += `    <priority>0.9</priority>\n`;
+        xml += `    <priority>0.8</priority>\n`;
         xml += `  </url>\n`;
       }
     }

@@ -584,7 +584,7 @@ export default function HomePage({
   // UI states grouped to reduce useState count
   const [uiState, setUiState] = useState({
     showSuggestions: false,
-    activeTab: "Trending" as "Trending" | "Urgent" | "Near You",
+    activeTab: "Near You" as "Near You" | "Trending" | "Urgent",
     activeSlide: 0,
   });
   const { showSuggestions, activeTab, activeSlide } = uiState;
@@ -1901,7 +1901,7 @@ export default function HomePage({
               </div>
             </div>
             <div className="flex gap-1.5 sm:gap-2 shrink-0">
-              {(["Trending", "Near You"] as const).map((t) => {
+              {(["Near You", "Trending"] as const).map((t) => {
                 const isActive = activeTab === t;
                 return (
                   <button
@@ -1932,61 +1932,72 @@ export default function HomePage({
                     <span>No businesses found within {nearbyRadiusKm} km of {selectedCity || "your location"}.</span>
                   </div>
                 ) : (
-                  nearbyBusinesses.map((biz: any) => (
-                    <div
-                      key={biz._id || biz.id}
-                      onClick={() => onBusinessSelect ? onBusinessSelect(biz.id || biz._id) : (onCategoryClick && onCategoryClick(biz.category))}
-                      className="group overflow-hidden rounded-xl sm:rounded-2xl border border-border bg-background transition hover:shadow-[var(--shadow-elegant)] shrink-0 w-[45%] sm:w-full cursor-pointer flex flex-col justify-between"
-                    >
-                      <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-900">
-                        <LazyImage
-                          src={resolveItemImage(biz.images?.[0])}
-                          alt={biz.name}
-                          fallbackSrc="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80"
-                          className="h-full w-full"
-                          imgClassName="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                        />
+                  nearbyBusinesses.map((biz: any) => {
+                    const bizHref = biz.canonicalUrl || (biz.citySlug && biz.localitySlug && biz.slug ? `/${biz.citySlug}/${biz.localitySlug}/${biz.slug}` : `/business/${biz.id || biz._id}`);
+                    return (
+                      <a
+                        key={biz._id || biz.id}
+                        href={bizHref}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (onBusinessSelect) {
+                            onBusinessSelect(bizHref);
+                          } else if (onCategoryClick) {
+                            onCategoryClick(biz.category);
+                          }
+                        }}
+                        className="group overflow-hidden rounded-xl sm:rounded-2xl border border-border bg-background transition hover:shadow-[var(--shadow-elegant)] shrink-0 w-[45%] sm:w-full cursor-pointer flex flex-col justify-between block no-underline text-inherit"
+                      >
+                        <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-900">
+                          <LazyImage
+                            src={resolveItemImage(biz.images?.[0])}
+                            alt={biz.name}
+                            fallbackSrc="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80"
+                            className="h-full w-full"
+                            imgClassName="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                          />
 
-                        {/* Rating Badge on top right */}
-                        {biz.rating && (
-                          <div className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-md">
-                            <Star className="h-2.5 w-2.5 fill-white stroke-none" />
-                            <span>{biz.rating}</span>
+                          {/* Rating Badge on top right */}
+                          {biz.rating && (
+                            <div className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-md">
+                              <Star className="h-2.5 w-2.5 fill-white stroke-none" />
+                              <span>{biz.rating}</span>
+                            </div>
+                          )}
+
+                          {/* Desktop View Overlay */}
+                          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/95 to-transparent hidden sm:block" />
+                          <div className="absolute bottom-3 left-4 right-4 text-primary-foreground hidden sm:block">
+                            <div className="font-serif text-base lg:text-lg leading-tight font-bold truncate">{biz.name}</div>
+                            <div className="text-xs opacity-90 mt-0.5 truncate">{biz.categoryLine || biz.category || "Local Business"}</div>
                           </div>
-                        )}
-
-                        {/* Desktop View Overlay */}
-                        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/95 to-transparent hidden sm:block" />
-                        <div className="absolute bottom-3 left-4 right-4 text-primary-foreground hidden sm:block">
-                          <div className="font-serif text-base lg:text-lg leading-tight font-bold truncate">{biz.name}</div>
-                          <div className="text-xs opacity-90 mt-0.5 truncate">{biz.categoryLine || biz.category || "Local Business"}</div>
                         </div>
-                      </div>
 
-                      <div className="p-2 sm:p-4 flex items-center justify-between">
-                        {/* Desktop View Bottom Bar */}
-                        <div className="hidden sm:flex items-center justify-between w-full">
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground truncate max-w-[140px]">
-                            <BadgeCheck className="h-3.5 w-3.5 text-accent shrink-0" />
-                            <span className="truncate">{biz.location || biz.cityTown || "Verified"}</span>
+                        <div className="p-2 sm:p-4 flex items-center justify-between">
+                          {/* Desktop View Bottom Bar */}
+                          <div className="hidden sm:flex items-center justify-between w-full">
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground truncate max-w-[140px]">
+                              <BadgeCheck className="h-3.5 w-3.5 text-accent shrink-0" />
+                              <span className="truncate">{biz.location || biz.cityTown || "Verified"}</span>
+                            </div>
+                            <button className="inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition group-hover:bg-accent group-hover:text-accent-foreground cursor-pointer shrink-0">
+                              <Phone className="h-3 w-3" /> View Detail
+                            </button>
                           </div>
-                          <button className="inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition group-hover:bg-accent group-hover:text-accent-foreground cursor-pointer shrink-0">
-                            <Phone className="h-3 w-3" /> View Detail
-                          </button>
-                        </div>
 
-                        {/* Mobile View Bottom Bar */}
-                        <div className="flex sm:hidden flex-col text-left w-full">
-                          <span className="text-[11px] font-bold text-foreground/95 leading-tight truncate">
-                            {biz.name}
-                          </span>
-                          <span className="text-[9px] text-muted-foreground truncate mt-0.5">
-                            {biz.location || biz.category}
-                          </span>
+                          {/* Mobile View Bottom Bar */}
+                          <div className="flex sm:hidden flex-col text-left w-full">
+                            <span className="text-[11px] font-bold text-foreground/95 leading-tight truncate">
+                              {biz.name}
+                            </span>
+                            <span className="text-[9px] text-muted-foreground truncate mt-0.5">
+                              {biz.location || biz.category}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))
+                      </a>
+                    );
+                  })
                 )
               ) : (
                 activeServices.length === 0 ? (

@@ -63,21 +63,21 @@ const getBusinesses = async (req, res) => {
   }
 };
 
-// @desc    Get public business by SEO path: /{city}/{locality}/{slug}
-// @route   GET /api/businesses/public/:city/:locality/:slug
+// @desc    Get public business by SEO path: /{city}/{locality}/{slug} or /{city}/{slug}
+// @route   GET /api/businesses/public/:city/:locality/:slug, GET /api/businesses/public/:city/:slug
 // @access  Public
 const getPublicBusinessByPath = async (req, res) => {
   try {
     const citySlug = slugify(req.params.city);
-    const localitySlug = slugify(req.params.locality);
-    const slug = slugify(req.params.slug);
+    const localitySlug = req.params.locality ? slugify(req.params.locality) : null;
+    const slug = slugify(req.params.slug || (req.params.locality ? req.params.locality : req.params.city));
 
     // 1. Direct match on current slugs
-    const business = await Business.findOne({
-      citySlug,
-      localitySlug,
-      slug
-    });
+    const query = localitySlug
+      ? { citySlug, localitySlug, slug }
+      : { $or: [{ citySlug, slug }, { slug }] };
+
+    let business = await Business.findOne(query);
 
     if (business) {
       if (business.status === 'deleted') {
@@ -98,15 +98,17 @@ const getPublicBusinessByPath = async (req, res) => {
 
       return res.status(200).json({
         success: true,
+        canonicalUrl: business.canonicalUrl,
         data: sanitizePublicBusiness(business)
       });
     }
 
     // 2. Search in previousSlugs (for 301 redirection)
     const oldBusiness = await Business.findOne({
-      'previousSlugs.citySlug': citySlug,
-      'previousSlugs.localitySlug': localitySlug,
-      'previousSlugs.slug': slug
+      $or: [
+        { 'previousSlugs.slug': slug },
+        { 'previousSlugs.citySlug': citySlug, 'previousSlugs.slug': slug }
+      ]
     });
 
     if (oldBusiness && oldBusiness.canonicalUrl) {
@@ -120,7 +122,10 @@ const getPublicBusinessByPath = async (req, res) => {
     }
 
     // 3. Fallback: Search by business slug only
-    const slugOnlyMatch = await Business.findOne({ slug, status: 'published' });
+    const slugOnlyMatch = await Business.findOne({
+      $or: [{ slug }, { id: slug }, { id: req.params.slug || req.params.locality || req.params.city }],
+      status: 'published'
+    });
     if (slugOnlyMatch && slugOnlyMatch.canonicalUrl) {
       return res.status(200).json({
         success: true,
@@ -169,7 +174,11 @@ const getBusinessById = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Business profile is currently unavailable.' });
     }
 
-    res.status(200).json({ success: true, data: sanitizePublicBusiness(business) });
+    res.status(200).json({ 
+      success: true, 
+      canonicalUrl: business.canonicalUrl,
+      data: sanitizePublicBusiness(business) 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Tag, User, Layers, Megaphone, Compass, HelpCircle } from "lucide-react";
+import { Tag, User, Layers, Megaphone, Compass, HelpCircle, FileText, Sparkles, Users } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { API_BASE_URL } from "../config";
 
-interface DashboardProps {}
+interface DashboardProps { }
 
 interface DashboardStats {
   usersCount: number;
@@ -20,16 +20,22 @@ interface DashboardStats {
   advertiseCount: number;
   touristPlacesCount: number;
   supportCount: number;
+  articlesCount: number;
+  popularServicesCount: number;
+  employeesCount: number;
 }
 
-export default function Dashboard({}: DashboardProps) {
+export default function Dashboard({ }: DashboardProps) {
   const [stats, setStats] = useState<DashboardStats>({
     usersCount: 0,
     categoriesCount: 0,
     subcategoriesCount: 0,
     advertiseCount: 0,
     touristPlacesCount: 0,
-    supportCount: 0
+    supportCount: 0,
+    articlesCount: 0,
+    popularServicesCount: 0,
+    employeesCount: 0
   });
   const [categoryData, setCategoryData] = useState<{ name: string; value: number }[]>([]);
 
@@ -112,13 +118,59 @@ export default function Dashboard({}: DashboardProps) {
       console.error("Failed to load support tickets", e);
     }
 
+    // 7. Total Articles (Article Management)
+    let articlesCount = 0;
+    try {
+      const res = await fetch(`${API_BASE_URL}/articles`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) articlesCount = data.data.length;
+    } catch (e) {
+      console.error("Failed to load articles count", e);
+    }
+
+    // 8. Total Popular Services
+    let popularServicesCount = 0;
+    try {
+      const res = await fetch(`${API_BASE_URL}/popular-services`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) popularServicesCount = data.data.length;
+      else if (data.success && Array.isArray(data.services)) popularServicesCount = data.services.length;
+    } catch (e) {
+      console.error("Failed to load popular services count", e);
+    }
+
+    // 9. Total Employees (Employee Management)
+    let employeesCount = 0;
+    try {
+      const res = await fetch(`${API_BASE_URL}/employees`, { headers: authHeaders });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.employees)) {
+        employeesCount = data.employees.length;
+      } else {
+        const pubRes = await fetch(`${API_BASE_URL}/employees/public`);
+        const pubData = await pubRes.json();
+        if (pubData.success && Array.isArray(pubData.employees)) employeesCount = pubData.employees.length;
+      }
+    } catch (e) {
+      try {
+        const pubRes = await fetch(`${API_BASE_URL}/employees/public`);
+        const pubData = await pubRes.json();
+        if (pubData.success && Array.isArray(pubData.employees)) employeesCount = pubData.employees.length;
+      } catch (err) {
+        console.error("Failed to load employees count", err);
+      }
+    }
+
     setStats({
       usersCount,
       categoriesCount,
       subcategoriesCount,
       advertiseCount,
       touristPlacesCount,
-      supportCount
+      supportCount,
+      articlesCount,
+      popularServicesCount,
+      employeesCount
     });
     setCategoryData(
       Object.entries(categoryCounts)
@@ -141,13 +193,13 @@ export default function Dashboard({}: DashboardProps) {
             Admin Dashboard
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Manage your Justdial & Dhanda AI database listings in real-time.
+            Manage your FindmyPoint database listings in real-time.
           </p>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* Total Users */}
         <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-800/60 flex items-center gap-4 hover:shadow-md transition">
           <div className="h-11 w-11 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 flex items-center justify-center shrink-0">
@@ -234,6 +286,51 @@ export default function Dashboard({}: DashboardProps) {
             </span>
             <span className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight mt-1 block">
               {stats.supportCount}
+            </span>
+          </div>
+        </div>
+
+        {/* Total Articles (Article Management) */}
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-800/60 flex items-center gap-4 hover:shadow-md transition">
+          <div className="h-11 w-11 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <FileText className="h-5.5 w-5.5" />
+          </div>
+          <div className="text-left">
+            <span className="block text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider">
+              Total Articles
+            </span>
+            <span className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight mt-1 block">
+              {stats.articlesCount}
+            </span>
+          </div>
+        </div>
+
+        {/* Popular Services */}
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-800/60 flex items-center gap-4 hover:shadow-md transition">
+          <div className="h-11 w-11 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+            <Sparkles className="h-5.5 w-5.5" />
+          </div>
+          <div className="text-left">
+            <span className="block text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider">
+              Popular Services
+            </span>
+            <span className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight mt-1 block">
+              {stats.popularServicesCount}
+            </span>
+          </div>
+        </div>
+
+        {/* Total Employees (Employee Management) */}
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-800/60 flex items-center gap-4 hover:shadow-md transition">
+          <div className="h-11 w-11 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+            <Users className="h-5.5 w-5.5" />
+          </div>
+          <div className="text-left">
+            <span className="block text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider">
+              Total Employees
+            </span>
+            <span className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight mt-1 block">
+              {stats.employeesCount}
             </span>
           </div>
         </div>

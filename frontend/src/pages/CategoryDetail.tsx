@@ -35,7 +35,6 @@ import {
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { BusinessListingData } from "../data/businessesData";
-import Footer from "./Footer";
 import { useCategories } from "../context/CategoryContext";
 import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
 import { getSubcategoryEmoji } from "../utils/categoryImages";
@@ -1669,38 +1668,6 @@ export default function CategoryDetailPage({
               </div>
             </div>
 
-            {/* Mobile View Toggle Bar */}
-            <div className="flex lg:hidden items-center justify-between gap-2 mb-4 bg-card border border-border/80 rounded-xl p-1.5 shadow-xs">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="bg-transparent text-foreground text-[11px] font-bold px-2 py-1 outline-none cursor-pointer flex-1"
-              >
-                <option value="default">Sort By</option>
-                <option value="distance">📍 Nearest to Me</option>
-                <option value="rating">⭐ Top Rated</option>
-              </select>
-
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setViewMode("list")}
-                  className={`p-1.5 rounded-lg ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
-                  title="List View"
-                >
-                  <ListIcon className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode("map")}
-                  className={`p-1.5 rounded-lg ${viewMode === "map" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
-                  title="Map View"
-                >
-                  <MapIcon className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-
             {/* Map View Mode Render */}
             {viewMode === "map" ? (
               <CategoryMapView
@@ -1735,9 +1702,13 @@ export default function CategoryDetailPage({
                   return (
                     <div key={biz.id}>
                       {/* Mobile View Compact Card */}
-                      <div
-                        onClick={() => onBusinessSelect(biz.id)}
-                        className="sm:hidden group flex flex-col overflow-hidden rounded-xl border border-border bg-card p-2.5 gap-2 transition-all duration-300 cursor-pointer"
+                      <a
+                        href={biz.canonicalUrl || `/business/${biz.id}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onBusinessSelect(biz.canonicalUrl || biz.id);
+                        }}
+                        className="sm:hidden group flex flex-col overflow-hidden rounded-xl border border-border bg-card p-2.5 gap-2 transition-all duration-300 cursor-pointer block no-underline text-inherit"
                       >
                         {/* Top part: Image + Info Row */}
                         <div className="flex flex-row gap-2.5 items-start w-full">
@@ -1834,12 +1805,16 @@ export default function CategoryDetailPage({
                             ) : null;
                           })()}
                         </div>
-                      </div>
+                      </a>
 
                       {/* Desktop View Original Card */}
-                      <div
-                        onClick={() => onBusinessSelect(biz.id)}
-                        className="hidden sm:flex group flex-row overflow-hidden rounded-2xl border border-border bg-card p-4 transition-all duration-300 hover:border-primary/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] cursor-pointer"
+                      <a
+                        href={biz.canonicalUrl || `/business/${biz.id}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onBusinessSelect(biz.canonicalUrl || biz.id);
+                        }}
+                        className="hidden sm:flex group flex-row overflow-hidden rounded-2xl border border-border bg-card p-4 transition-all duration-300 hover:border-primary/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] cursor-pointer block no-underline text-inherit"
                       >
                         {/* Left: Listing Image */}
                         <div className="relative h-44 w-full sm:w-60 overflow-hidden rounded-xl bg-secondary shrink-0">
@@ -1980,7 +1955,7 @@ export default function CategoryDetailPage({
                             </button>
                           </div>
                         </div>
-                      </div>
+                      </a>
                     </div>
                   );
                 })}
@@ -1989,8 +1964,6 @@ export default function CategoryDetailPage({
           </section>
         </div>
       </main>
-
-      <Footer />
 
       {/* Enquiry Modal */}
       {enquiryModalOpen && selectedBizForEnquiry && (

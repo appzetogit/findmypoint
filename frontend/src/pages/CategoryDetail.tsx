@@ -429,11 +429,39 @@ export default function CategoryDetailPage({
     setActiveSubcategory(subcat);
   };
 
+  // Handle Sort selection with auto-geolocation trigger for distance
+  const handleSortChange = (newSort: "default" | "distance" | "rating" | "reviews") => {
+    setSortBy(newSort);
+    if (newSort === "distance" && !userCoords && typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserCoords(coords);
+          try {
+            localStorage.setItem("fmp_user_coords:v1", JSON.stringify(coords));
+          } catch (e) {}
+        },
+        (err) => {
+          console.warn("Geolocation permission not granted:", err);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+  };
+
   // Process listings with distance and sorting
   const processedListings = useMemo(() => {
     let list = listings.map((b) => {
-      if (userCoords && b.latitude && b.longitude) {
-        const dist = calculateDistanceKm(userCoords.lat, userCoords.lng, b.latitude, b.longitude);
+      let lat = typeof b.latitude === "number" ? b.latitude : parseFloat(String(b.latitude || ""));
+      let lng = typeof b.longitude === "number" ? b.longitude : parseFloat(String(b.longitude || ""));
+
+      if ((isNaN(lat) || isNaN(lng)) && (b as any).coords) {
+        lat = (b as any).coords.lat;
+        lng = (b as any).coords.lng;
+      }
+
+      if (userCoords && !isNaN(lat) && !isNaN(lng)) {
+        const dist = calculateDistanceKm(userCoords.lat, userCoords.lng, lat, lng);
         return { ...b, distance: dist * 1000 };
       }
       return b;
@@ -451,15 +479,37 @@ export default function CategoryDetailPage({
 
     if (sortBy === "distance") {
       list.sort((a, b) => {
-        if (a.distance && b.distance) return a.distance - b.distance;
-        if (a.distance) return -1;
-        if (b.distance) return 1;
-        return 0;
+        const distA = typeof a.distance === "number" && !isNaN(a.distance) ? a.distance : Infinity;
+        const distB = typeof b.distance === "number" && !isNaN(b.distance) ? b.distance : Infinity;
+        return distA - distB;
       });
     } else if (sortBy === "rating") {
-      list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      list.sort((a, b) => {
+        const rA = parseFloat(String(a.rating || 0)) || 0;
+        const rB = parseFloat(String(b.rating || 0)) || 0;
+        if (rB !== rA) return rB - rA;
+        const rcA = Number(a.reviewCount ?? a.reviews?.length ?? 0) || 0;
+        const rcB = Number(b.reviewCount ?? b.reviews?.length ?? 0) || 0;
+        return rcB - rcA;
+      });
     } else if (sortBy === "reviews") {
-      list.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
+      list.sort((a, b) => {
+        const rcA = Number(a.reviewCount ?? a.reviews?.length ?? 0) || 0;
+        const rcB = Number(b.reviewCount ?? b.reviews?.length ?? 0) || 0;
+        if (rcB !== rcA) return rcB - rcA;
+        const rA = parseFloat(String(a.rating || 0)) || 0;
+        const rB = parseFloat(String(b.rating || 0)) || 0;
+        return rB - rA;
+      });
+    } else if (sortBy === "default") {
+      list.sort((a, b) => {
+        const vA = a.isVerified ? 1 : 0;
+        const vB = b.isVerified ? 1 : 0;
+        if (vB !== vA) return vB - vA;
+        const rA = parseFloat(String(a.rating || 0)) || 0;
+        const rB = parseFloat(String(b.rating || 0)) || 0;
+        return rB - rA;
+      });
     }
 
     return list;
@@ -1460,15 +1510,15 @@ export default function CategoryDetailPage({
   };
 
   return (
-    <div className="h-screen lg:h-auto lg:min-h-screen w-full bg-background flex flex-col overflow-hidden lg:overflow-visible text-foreground font-sans">
+    <div className="h-screen md:h-auto md:min-h-screen w-full bg-background flex flex-col overflow-hidden md:overflow-visible text-foreground font-sans">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur-xl shrink-0">
-        <div className="mx-auto flex h-16 md:h-20 max-w-7xl items-center gap-3 md:gap-4 px-4 sm:px-6 w-full">
+        <div className="mx-auto flex h-14 sm:h-16 md:h-20 max-w-7xl items-center gap-2 sm:gap-3 md:gap-4 px-3 sm:px-6 w-full">
           <button
             onClick={onBack}
-            className="flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-xl border border-border/80 bg-card hover:bg-secondary transition-colors cursor-pointer shrink-0"
+            className="flex h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 items-center justify-center rounded-xl border border-border/80 bg-card hover:bg-secondary transition-colors cursor-pointer shrink-0"
           >
-            <ArrowLeft className="h-4.5 w-4.5 md:h-5 md:w-5 text-foreground" />
+            <ArrowLeft className="h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5 text-foreground" />
           </button>
 
           <a href="/" className="hidden md:flex items-center shrink-0">
@@ -1477,16 +1527,16 @@ export default function CategoryDetailPage({
               alt="FindMyPoint Logo"
               priority={true}
               showSkeleton={false}
-              className="h-8 w-auto shrink-0"
-              imgClassName="h-8 w-auto object-contain shrink-0"
+              className="h-7 sm:h-8 w-auto shrink-0"
+              imgClassName="h-7 sm:h-8 w-auto object-contain shrink-0"
               style={{ mixBlendMode: "multiply" }}
             />
           </a>
 
           {/* Search bar inside subcategory page */}
-          <div className="relative flex flex-1 items-center gap-1.5 md:gap-2 rounded-full border border-border bg-card px-2 py-1 md:py-1.5 shadow-[var(--shadow-card)] max-w-xl">
-            <div className="hidden sm:flex items-center gap-1.5 border-r border-border px-3 py-1.5 text-xs sm:text-sm shrink-0">
-              <MapPin className="h-4 w-4 text-accent" />
+          <div className="relative flex flex-1 items-center gap-1 sm:gap-1.5 md:gap-2 rounded-full border border-border bg-card px-2 py-1 md:py-1.5 shadow-[var(--shadow-card)] max-w-xl min-w-0">
+            <div className="hidden md:flex items-center gap-1 border-r border-border px-2.5 py-1 text-xs shrink-0">
+              <MapPin className="h-3.5 w-3.5 text-accent" />
               <span className="font-semibold text-foreground/80">Mumbai</span>
             </div>
             <input
@@ -1494,33 +1544,33 @@ export default function CategoryDetailPage({
               placeholder={`Search in ${activeSubcategory}…`}
               value={searchQuery}
               onChange={(e) => setSearchFilters((prev) => ({ ...prev, query: e.target.value }))}
-              className="flex-1 bg-transparent px-2 py-1 text-xs sm:text-sm outline-none placeholder:text-muted-foreground"
+              className="flex-1 bg-transparent px-2 py-0.5 sm:py-1 text-xs sm:text-sm outline-none placeholder:text-muted-foreground min-w-0"
               aria-label={`Search in ${activeSubcategory}`}
             />
             <button
               aria-label="Submit search"
-              className="flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90 shrink-0"
+              className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90 shrink-0"
             >
               <Search className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </button>
           </div>
 
           {/* User profile action */}
-          <div className="hidden sm:flex items-center gap-2.5 ml-auto shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 ml-auto shrink-0">
             {username ? (
               <button
                 onClick={onProfileClick}
-                className="flex items-center gap-1.5 md:gap-2 rounded-full border border-border bg-card px-2 sm:px-3.5 py-1 sm:py-2 text-[11px] sm:text-sm font-semibold hover:bg-secondary cursor-pointer shrink-0"
+                className="flex items-center gap-1.5 rounded-full border border-border bg-card px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-semibold hover:bg-secondary cursor-pointer shrink-0"
               >
-                <div className="flex h-5 w-5 md:h-6 md:w-6 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-[10px] md:text-[11px] font-bold text-white uppercase shrink-0">
+                <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-[10px] sm:text-[11px] font-bold text-white uppercase shrink-0">
                   {username.charAt(0)}
                 </div>
-                <span className="hidden sm:inline text-foreground/80">{username}</span>
+                <span className="hidden md:inline max-w-[120px] truncate text-foreground/80">{username}</span>
               </button>
             ) : (
               <button
                 onClick={onSignInClick}
-                className="hidden sm:flex items-center gap-1 rounded-full bg-primary px-2.5 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-sm font-semibold text-primary-foreground hover:bg-primary/95 transition-all cursor-pointer shrink-0"
+                className="flex items-center gap-1 rounded-full bg-primary px-2.5 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm font-semibold text-primary-foreground hover:bg-primary/95 transition-all cursor-pointer shrink-0"
               >
                 <User className="h-3.5 w-3.5" /> Sign In
               </button>
@@ -1530,9 +1580,9 @@ export default function CategoryDetailPage({
       </header>
 
       {/* Main Content Body */}
-      <main className="flex-1 flex flex-col lg:block overflow-hidden lg:overflow-visible w-full max-w-7xl mx-auto px-0 sm:px-6 lg:px-6 py-0 sm:py-6 lg:py-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-6">
         {/* Breadcrumb / Title */}
-        <div className="hidden sm:flex mb-6 flex-wrap items-center gap-2 text-xs sm:text-sm text-muted-foreground pl-0.5 mt-2 lg:mt-0">
+        <div className="hidden md:flex mb-3 md:mb-5 flex-wrap items-center gap-2 text-xs sm:text-sm text-muted-foreground pl-0.5">
           <span className="cursor-pointer hover:text-primary transition-colors" onClick={onBack}>
             Home
           </span>
@@ -1542,14 +1592,14 @@ export default function CategoryDetailPage({
           <span className="font-bold text-primary">{activeSubcategory}</span>
         </div>
 
-        <div className="flex-1 flex lg:flex-row overflow-hidden lg:overflow-visible w-full gap-0 lg:gap-8">
+        <div className="flex flex-row w-full gap-3 sm:gap-4 md:gap-6">
           {/* Left Panel: Subcategories Selector */}
-          <aside className="w-[110px] lg:w-72 shrink-0 border-r lg:border-none border-border/80 bg-secondary/15 lg:bg-transparent flex flex-col lg:block overflow-hidden lg:overflow-visible h-full lg:h-auto">
-            <div className="lg:sticky lg:top-28 lg:rounded-2xl lg:border lg:border-border/80 lg:bg-card lg:p-5 lg:shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col overflow-hidden lg:overflow-visible h-full lg:h-auto w-full bg-transparent lg:bg-card">
+          <aside className="w-[80px] sm:w-[90px] md:w-52 lg:w-60 xl:w-64 shrink-0 border-r md:border-none border-border/80 bg-secondary/15 md:bg-transparent flex flex-col md:block overflow-hidden md:overflow-visible h-full md:h-auto">
+            <div className="md:sticky md:top-28 md:rounded-2xl md:border md:border-border/80 md:bg-card md:p-3.5 lg:p-4 md:shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col overflow-hidden md:overflow-visible h-full md:h-auto w-full bg-transparent md:bg-card">
               {/* Desktop-only header/search */}
-              <div className="hidden lg:block">
-                <h3 className="font-serif text-lg font-bold mb-4 pl-1">Subcategories</h3>
-                <div className="relative mb-4">
+              <div className="hidden md:block">
+                <h3 className="font-serif text-base lg:text-lg font-bold mb-2.5 pl-1">Subcategories</h3>
+                <div className="relative mb-3">
                   <input
                     type="text"
                     placeholder="Filter subcategories..."
@@ -1557,15 +1607,15 @@ export default function CategoryDetailPage({
                     onChange={(e) =>
                       setSearchFilters((prev) => ({ ...prev, subcatQuery: e.target.value }))
                     }
-                    className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-xs outline-none focus:border-accent transition-colors"
+                    className="w-full rounded-xl border border-border bg-background py-1.5 pl-8 pr-2.5 text-xs outline-none focus:border-accent transition-colors"
                     aria-label="Filter subcategories"
                   />
-                  <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
                 </div>
               </div>
 
               {/* Subcategories list */}
-              <div className="flex-1 lg:flex-none lg:max-h-[380px] lg:overflow-y-auto no-scrollbar flex flex-col p-0 lg:gap-1.5">
+              <div className="flex-1 md:flex-none md:max-h-[380px] md:overflow-y-auto no-scrollbar flex flex-col p-0 md:gap-1">
                 {filteredSubcategories.length > 0 ? (
                   filteredSubcategories.map((subcat) => {
                     const isSelected = activeSubcategory === subcat;
@@ -1573,29 +1623,29 @@ export default function CategoryDetailPage({
                       <button
                         key={subcat}
                         onClick={() => handleSubcategorySelect(subcat)}
-                        className={`relative transition-all duration-300 cursor-pointer border-b border-border/20 lg:border lg:rounded-xl shrink-0 flex flex-col lg:flex-row items-center lg:items-start justify-center lg:justify-start text-center lg:text-left ${isSelected
-                            ? "text-accent bg-background lg:bg-primary lg:border-primary lg:text-primary-foreground font-black lg:font-bold shadow-none lg:shadow-sm"
-                            : "text-muted-foreground lg:text-foreground/80 bg-transparent lg:bg-background border-transparent lg:border-border hover:bg-secondary/10 lg:hover:bg-secondary lg:hover:text-primary"
-                          } px-2 py-4 lg:px-4 lg:py-2.5 gap-2 lg:gap-2 text-[10px] sm:text-[11px] lg:text-[13px]`}
+                        className={`relative transition-all duration-300 cursor-pointer border-b border-border/20 md:border md:rounded-xl shrink-0 flex flex-col md:flex-row items-center md:items-start justify-center md:justify-start text-center md:text-left ${isSelected
+                            ? "text-accent bg-background md:bg-primary md:border-primary md:text-primary-foreground font-black md:font-bold shadow-none md:shadow-sm"
+                            : "text-muted-foreground md:text-foreground/80 bg-transparent md:bg-background border-transparent md:border-border hover:bg-secondary/10 md:hover:bg-secondary md:hover:text-primary"
+                          } px-1 sm:px-2 py-3 md:px-3 lg:px-3.5 md:py-2 gap-1 md:gap-2 text-[10px] sm:text-[11px] md:text-xs lg:text-[13px]`}
                       >
                         {/* Active vertical indicator line on mobile */}
                         {isSelected && (
-                          <span className="absolute left-0 top-0 bottom-0 w-1 bg-accent rounded-r lg:hidden" />
+                          <span className="absolute left-0 top-0 bottom-0 w-1 bg-accent rounded-r md:hidden" />
                         )}
                         {/* Subcategory Icon (Mobile only) */}
-                        <span className="text-2xl lg:hidden shrink-0 flex items-center justify-center">
+                        <span className="text-xl md:hidden shrink-0 flex items-center justify-center">
                           {subcatIcons[subcat] ? (
                             <LazyImage
                               src={subcatIcons[subcat]}
                               alt={subcat}
-                              className="h-6 w-6 rounded-md overflow-hidden"
+                              className="h-5 w-5 rounded-md overflow-hidden"
                               imgClassName="h-full w-full object-contain"
                             />
                           ) : (
                             getSubcategoryEmoji(categoryName, subcat)
                           )}
                         </span>
-                        <span className="line-clamp-2 lg:line-clamp-none leading-tight lg:leading-normal">
+                        <span className="line-clamp-2 md:line-clamp-none leading-tight md:leading-normal">
                           {subcat}
                         </span>
                       </button>
@@ -1611,13 +1661,13 @@ export default function CategoryDetailPage({
           </aside>
 
           {/* Right Panel: Business Listings */}
-          <section className="flex-1 overflow-y-auto lg:overflow-visible px-4 py-6 lg:p-0">
-            <div className="hidden lg:flex items-center justify-between gap-4 mb-6">
-              <div>
-                <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight">
+          <section className="flex-1 min-w-0">
+            <div className="hidden md:flex items-center justify-between gap-3 mb-4 md:mb-5 w-full">
+              <div className="min-w-0 flex-1">
+                <h1 className="font-serif text-lg sm:text-xl md:text-2xl font-bold tracking-tight truncate leading-tight">
                   Top {activeSubcategory} in {categoryName}
                 </h1>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 truncate">
                   {listingsLoading
                     ? "Loading listings..."
                     : `Showing ${filteredListings.length} verified listing${filteredListings.length !== 1 ? 's' : ''} ready to assist you.`}
@@ -1625,46 +1675,17 @@ export default function CategoryDetailPage({
               </div>
 
               {/* View & Sort Controls */}
-              <div className="flex items-center gap-2.5 shrink-0">
-                {/* Sort Dropdown */}
+              <div className="shrink-0">
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="bg-card border border-border text-foreground text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs outline-none cursor-pointer"
+                  onChange={(e) => handleSortChange(e.target.value as any)}
+                  className="bg-card border border-border text-foreground text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs outline-none cursor-pointer hover:border-primary/50 transition-colors"
                 >
                   <option value="default">Default Sort</option>
                   <option value="distance">📍 Nearest to Me</option>
                   <option value="rating">⭐ Highest Rated</option>
                   <option value="reviews">💬 Most Reviewed</option>
                 </select>
-
-                {/* View Mode Toggle: List vs Map */}
-                <div className="flex items-center rounded-xl border border-border bg-card p-0.5 shadow-xs">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("list")}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      viewMode === "list"
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <ListIcon className="h-3.5 w-3.5" />
-                    <span>List</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("map")}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      viewMode === "map"
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <MapIcon className="h-3.5 w-3.5" />
-                    <span>Map View</span>
-                  </button>
-                </div>
               </div>
             </div>
 
@@ -1695,18 +1716,24 @@ export default function CategoryDetailPage({
                 </p>
               </div>
             ) : (
-              <div key={activeSubcategory} className="flex flex-col gap-4 sm:gap-6 animate-fade-in-up">
+              <div key={activeSubcategory} className="flex flex-col gap-3 sm:gap-4 md:gap-5 animate-fade-in-up">
                 {filteredListings.map((biz) => {
                   const distKm = biz.distance ? biz.distance / 1000 : null;
                   const distFormatted = distKm ? formatDistance(distKm) : null;
                   return (
                     <div key={biz.id}>
-                      {/* Mobile View Compact Card */}
-                      <a
-                        href={biz.canonicalUrl || `/business/${biz.id}`}
-                        onClick={(e) => {
-                          e.preventDefault();
+                      {/* Mobile View Compact Card (< sm) */}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => {
                           onBusinessSelect(biz.canonicalUrl || biz.id);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onBusinessSelect(biz.canonicalUrl || biz.id);
+                          }
                         }}
                         className="sm:hidden group flex flex-col overflow-hidden rounded-xl border border-border bg-card p-2.5 gap-2 transition-all duration-300 cursor-pointer block no-underline text-inherit"
                       >
@@ -1721,13 +1748,6 @@ export default function CategoryDetailPage({
                               imgClassName="h-full w-full object-cover"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
-                            {distFormatted ? (
-                              <div className="absolute bottom-1 left-1 z-10">
-                                <span className="text-[8px] font-black bg-black/80 text-white px-1 py-0.5 rounded">
-                                  {distFormatted}
-                                </span>
-                              </div>
-                            ) : null}
                           </div>
 
                           {/* Info */}
@@ -1805,19 +1825,25 @@ export default function CategoryDetailPage({
                             ) : null;
                           })()}
                         </div>
-                      </a>
+                      </div>
 
-                      {/* Desktop View Original Card */}
-                      <a
-                        href={biz.canonicalUrl || `/business/${biz.id}`}
-                        onClick={(e) => {
-                          e.preventDefault();
+                      {/* Tablet/Desktop View Rich Card (>= sm) */}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => {
                           onBusinessSelect(biz.canonicalUrl || biz.id);
                         }}
-                        className="hidden sm:flex group flex-row overflow-hidden rounded-2xl border border-border bg-card p-4 transition-all duration-300 hover:border-primary/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] cursor-pointer block no-underline text-inherit"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onBusinessSelect(biz.canonicalUrl || biz.id);
+                          }
+                        }}
+                        className="hidden sm:flex group flex-row overflow-hidden rounded-2xl border border-border bg-card p-3 sm:p-4 lg:p-4.5 transition-all duration-300 hover:border-primary/20 hover:shadow-md cursor-pointer block no-underline text-inherit"
                       >
                         {/* Left: Listing Image */}
-                        <div className="relative h-44 w-full sm:w-60 overflow-hidden rounded-xl bg-secondary shrink-0">
+                        <div className="relative h-36 w-36 sm:h-38 sm:w-44 md:h-40 md:w-48 lg:h-44 lg:w-56 overflow-hidden rounded-xl bg-secondary shrink-0">
                           <LazyImage
                             src={biz.images[0]}
                             alt={biz.name}
@@ -1828,60 +1854,50 @@ export default function CategoryDetailPage({
                         </div>
 
                         {/* Right: Info details */}
-                        <div className="flex flex-1 flex-col justify-between p-1 sm:p-2 mt-4 sm:mt-0 sm:ml-6">
+                        <div className="flex flex-1 flex-col justify-between ml-3 sm:ml-4 lg:ml-5 min-w-0">
                           <div>
-                            {/* Title & Badge */}
-                            <div className="flex items-start justify-between gap-2">
-                              <h2 className="font-serif text-xl font-bold text-foreground transition-colors leading-tight">
+                            {/* Title & Badges in elegant stacked layout */}
+                            <div className="space-y-1">
+                              <h2 className="font-serif text-base sm:text-lg md:text-xl font-bold text-foreground transition-colors leading-snug">
                                 {biz.name}
                               </h2>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                {distFormatted ? (
-                                  <span className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 px-2 py-0.5 rounded-full">
-                                    <MapPin className="h-3 w-3 text-rose-500" />
-                                    {distFormatted} away
-                                  </span>
-                                ) : null}
+
+                              {/* Badges & Rating Row */}
+                              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                <div className="flex items-center gap-1 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] sm:text-xs font-black text-white shrink-0">
+                                  <span>{biz.rating}</span>
+                                  <Star className="h-2.5 w-2.5 sm:h-3 sm:w-3 fill-current" />
+                                </div>
+                                <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground">
+                                  {biz.reviewCount} Ratings
+                                </span>
 
                                 {biz.isVerified ? (
-                                  <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                  <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">
                                     <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" />
                                     Verified
                                   </span>
-                                ) : (
-                                  <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                                    Unverified
-                                  </span>
-                                )}
+                                ) : null}
                               </div>
-                            </div>
-
-                            {/* Ratings */}
-                            <div className="mt-2 flex items-center gap-2">
-                              <div className="flex items-center gap-1 rounded bg-amber-500 px-1.5 py-0.5 text-xs font-black text-white">
-                                <span>{biz.rating}</span>
-                                <Star className="h-3 w-3 fill-current" />
-                              </div>
-                              <span className="text-xs font-semibold text-muted-foreground">
-                                {biz.reviewCount} Ratings
-                              </span>
                             </div>
 
                             {/* Address & Timings */}
-                            <div className="mt-3.5 space-y-1.5 text-[13px] text-foreground/80">
+                            <div className="mt-2.5 space-y-1 text-xs sm:text-[13px] text-foreground/80">
                               <p className="flex items-center gap-1.5">
-                                <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
-                                <span className="line-clamp-1">{biz.address}</span>
+                                <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
+                                <span className="truncate">{biz.address}</span>
                               </p>
-                              <p className="flex items-center gap-1.5 text-muted-foreground">
-                                <Clock className="h-4 w-4 text-muted-foreground/80 shrink-0" />
-                                <span>{biz.timings}</span>
-                                <span className="ml-2 font-bold text-emerald-600 text-xs">
-                                  Open Now
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground/80 shrink-0" />
+                                  <span>{biz.timings}</span>
+                                </div>
+                                <span className="font-bold text-emerald-600 text-[11px] sm:text-xs shrink-0">
+                                  • Open Now
                                 </span>
-                              </p>
+                              </div>
                               {categoryName === "Hotel Point" && biz.products && biz.products[0] && (
-                                <p className="flex items-center gap-1.5 text-emerald-600 font-bold text-[13px] mt-1.5">
+                                <p className="flex items-center gap-1.5 text-emerald-600 font-bold text-xs sm:text-[13px] mt-1">
                                   <span>
                                     Rooms starting from:{" "}
                                     <span className="underline">{biz.products[0].price}</span>
@@ -1892,7 +1908,7 @@ export default function CategoryDetailPage({
                                 categoryName === "Doctor Point") &&
                                 biz.products &&
                                 biz.products[0] && (
-                                  <p className="flex items-center gap-1.5 text-emerald-600 font-bold text-[13px] mt-1.5">
+                                  <p className="flex items-center gap-1.5 text-emerald-600 font-bold text-xs sm:text-[13px] mt-1">
                                     <span>
                                       OPD Consult Fee:{" "}
                                       <span className="underline">{biz.products[0].price}</span>
@@ -1902,12 +1918,12 @@ export default function CategoryDetailPage({
                             </div>
                           </div>
 
-                          {/* Actions buttons */}
-                          <div className="mt-6 flex flex-wrap gap-1.5 pt-4 border-t border-border/50">
+                          {/* Actions buttons: Responsive single line */}
+                          <div className="mt-3 sm:mt-4 flex flex-nowrap items-center gap-1.5 sm:gap-2 pt-2.5 border-t border-border/50 overflow-x-auto no-scrollbar">
                             <a
                               href={`tel:${biz.phone.replace(/[^0-9+]/g, "")}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full border border-border bg-background px-2.5 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-foreground transition-all hover:bg-secondary cursor-pointer"
+                              className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-full border border-border bg-background px-2.5 sm:px-3.5 md:px-4 py-1.5 text-[10px] sm:text-[11px] md:text-xs font-bold text-foreground transition-all hover:bg-secondary cursor-pointer whitespace-nowrap shrink-0"
                             >
                               <Phone className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-accent" />
                               Call
@@ -1918,7 +1934,7 @@ export default function CategoryDetailPage({
                                 e.stopPropagation();
                                 openEnquiryModal(biz);
                               }}
-                              className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full bg-primary px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-primary-foreground transition-all hover:bg-primary/95 cursor-pointer shadow-sm hover:scale-[1.02]"
+                              className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-full bg-primary px-3 sm:px-4 md:px-5 py-1.5 text-[10px] sm:text-[11px] md:text-xs font-bold text-primary-foreground transition-all hover:bg-primary/95 cursor-pointer shadow-sm whitespace-nowrap shrink-0"
                             >
                               <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                               Enquire Now
@@ -1936,26 +1952,16 @@ export default function CategoryDetailPage({
                                       openBookingModal(biz);
                                     }
                                   }}
-                                  className="inline-flex items-center gap-1 sm:gap-1.5 rounded-full bg-emerald-600 px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold text-white transition-all hover:bg-emerald-700 cursor-pointer shadow-sm hover:scale-[1.02]"
+                                  className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-full bg-emerald-600 px-3 sm:px-4 md:px-5 py-1.5 text-[10px] sm:text-[11px] md:text-xs font-bold text-white transition-all hover:bg-emerald-700 cursor-pointer shadow-sm whitespace-nowrap shrink-0"
                                 >
                                   <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                                  {biz.bookingButtonLabel || "Book Now"}
+                                  {biz.bookingButtonLabel || "Book"}
                                 </button>
                               ) : null;
                             })()}
-
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onBusinessSelect(biz.id);
-                              }}
-                              className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-secondary/30 hover:bg-secondary px-2.5 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs font-semibold text-muted-foreground hover:text-foreground transition sm:ml-auto cursor-pointer"
-                            >
-                              Details <ChevronRight className="h-3 w-3" />
-                            </button>
                           </div>
                         </div>
-                      </a>
+                      </div>
                     </div>
                   );
                 })}

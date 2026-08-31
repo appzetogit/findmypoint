@@ -1980,9 +1980,9 @@ export default function HomePage({
                               <BadgeCheck className="h-3.5 w-3.5 text-accent shrink-0" />
                               <span className="truncate">{biz.location || biz.cityTown || "Verified"}</span>
                             </div>
-                            <button className="inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition group-hover:bg-accent group-hover:text-accent-foreground cursor-pointer shrink-0">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition group-hover:bg-accent group-hover:text-accent-foreground cursor-pointer shrink-0">
                               <Phone className="h-3 w-3" /> View Detail
-                            </button>
+                            </span>
                           </div>
 
                           {/* Mobile View Bottom Bar */}

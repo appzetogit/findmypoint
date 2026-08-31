@@ -498,13 +498,7 @@ export default function BusinessDetailPage({
     return buildBusinessSchemas(currentBiz, window.location.origin);
   }, [currentBiz]);
 
-  const robotsDirective = useMemo(() => {
-    if (bizNotFound) return "noindex, nofollow";
-    if (currentBiz?.status === "deleted" || currentBiz?.status === "suspended" || currentBiz?.isIndexable === false) {
-      return "noindex, nofollow";
-    }
-    return "index, follow";
-  }, [bizNotFound, currentBiz?.status, currentBiz?.isIndexable]);
+  const robotsDirective = "index, follow";
 
   useSEO({
     title: seoTitle,

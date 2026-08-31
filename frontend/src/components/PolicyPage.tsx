@@ -138,15 +138,6 @@ export default function PolicyPage({ initialTab = "privacy" }: PolicyPageProps) 
       <div className="lg:col-span-8 lg:bg-white lg:dark:bg-slate-900 lg:border lg:border-slate-200/60 lg:dark:border-slate-800/60 lg:rounded-3xl p-0 md:p-8 lg:shadow-sm">
         {activeTab === "privacy" && (
           <div className="space-y-6">
-            <div className="border-b border-slate-100 dark:border-slate-855 pb-4">
-              <h2 className="font-serif text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">
-                Privacy Policy
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Last Updated: {privacyData.lastUpdated}
-              </p>
-            </div>
-
             <div className="space-y-5 text-slate-600 dark:text-slate-455 text-xs font-semibold leading-relaxed">
               {privacyData.sections && privacyData.sections.length > 0 ? (
                 privacyData.sections.map((section) => (
@@ -167,15 +158,6 @@ export default function PolicyPage({ initialTab = "privacy" }: PolicyPageProps) 
 
         {activeTab === "terms" && (
           <div className="space-y-6">
-            <div className="border-b border-slate-100 dark:border-slate-855 pb-4">
-              <h2 className="font-serif text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">
-                Terms & Conditions
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Last Updated: {termsData.lastUpdated}
-              </p>
-            </div>
-
             <div className="space-y-5 text-slate-600 dark:text-slate-455 text-xs font-semibold leading-relaxed">
               {termsData.sections && termsData.sections.length > 0 ? (
                 termsData.sections.map((section) => (
@@ -196,15 +178,6 @@ export default function PolicyPage({ initialTab = "privacy" }: PolicyPageProps) 
 
         {activeTab === "refunds" && (
           <div className="space-y-6">
-            <div className="border-b border-slate-100 dark:border-slate-855 pb-4">
-              <h2 className="font-serif text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">
-                Cancellations & Refunds
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Last Updated: July 2026
-              </p>
-            </div>
-
             <div className="space-y-5 text-slate-600 dark:text-slate-455 text-xs font-semibold leading-relaxed">
               <div className="space-y-2">
                 <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">

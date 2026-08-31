@@ -41,7 +41,7 @@ export default function SidebarPages({
   ].includes(activePage);
 
   return (
-    <div className="fixed inset-0 z-50 bg-white dark:bg-slate-950 flex flex-col w-full h-full text-left overflow-hidden">
+    <div className="fixed inset-0 z-[10001] bg-white dark:bg-slate-950 flex flex-col w-full h-full text-left overflow-hidden">
       {/* Header Block */}
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-3.5 sm:py-4 bg-white dark:bg-slate-900 shrink-0 shadow-xs z-10">
         <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">

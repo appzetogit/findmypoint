@@ -12,7 +12,7 @@ const createRequest = async (req, res) => {
     const newRequest = await AdvertiseRequest.create({
       businessName,
       category,
-      city: city || 'Mumbai',
+      city: city || '',
       email,
       mobile
     });

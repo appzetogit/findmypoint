@@ -17,6 +17,7 @@ import PopularServiceDetailPage from "./pages/PopularServiceDetail";
 import MobileTransactionPage from "./pages/MobileTransactionPage";
 import MobileProfilePage from "./pages/MobileProfilePage";
 import EmployeeVerificationPage from "./pages/EmployeeVerificationPage";
+import BottomLoginPrompt from "./components/BottomLoginPrompt";
 import { Home, CalendarDays, Receipt, User } from "lucide-react";
 import { socketService } from "./services/socketService";
 import ReviewPromptModal from "./components/ReviewPromptModal";
@@ -322,6 +323,7 @@ export default function App() {
   const [isApk, setIsApk] = useState(() => isApkEnvironment());
   const [mobileTab, setMobileTab] = useState<"home" | "booking" | "transactions" | "profile">("home");
   const [isNavVisible, setIsNavVisible] = useState(true);
+  const [showBottomLoginPrompt, setShowBottomLoginPrompt] = useState(false);
   const lastScrollY = useRef(0);
 
   const handleProfileClick = () => {
@@ -386,6 +388,26 @@ export default function App() {
   };
 
   const [state, dispatch] = useReducer(appReducer, undefined, buildInitialState);
+
+  // Auto-trigger slide-up login prompt once website loads (Mandatory for unauthenticated users)
+  useEffect(() => {
+    const hasToken = typeof window !== "undefined" ? localStorage.getItem("fmp_user_token") : null;
+
+    if (
+      !username &&
+      !hasToken &&
+      !state.showAdminPanel &&
+      !state.showClientPanel &&
+      !state.verifiedEmpId
+    ) {
+      const timer = setTimeout(() => {
+        setShowBottomLoginPrompt(true);
+      }, 400);
+      return () => clearTimeout(timer);
+    } else if (username || hasToken) {
+      setShowBottomLoginPrompt(false);
+    }
+  }, [username, state.showAdminPanel, state.showClientPanel, state.verifiedEmpId]);
 
   // Restore mobileTab from path on first load
   useEffect(() => {
@@ -900,6 +922,27 @@ export default function App() {
           businessName={activeReviewPrompt.businessName}
           service={activeReviewPrompt.service}
           onClose={() => setActiveReviewPrompt(null)}
+        />
+      )}
+
+      {/* Auto Slide-Up Bottom Login Sheet (Mandatory) */}
+      {showBottomLoginPrompt && !username && (
+        <BottomLoginPrompt
+          isOpen={showBottomLoginPrompt}
+          isMandatory={true}
+          onClose={() => setShowBottomLoginPrompt(false)}
+          onSuccess={(name) => {
+            setUsername(name);
+            const savedProfile = localStorage.getItem("fmp_profile_personal:v1");
+            if (savedProfile) {
+              try {
+                setUserProfile(JSON.parse(savedProfile));
+              } catch (e) {}
+            }
+            setShowBottomLoginPrompt(false);
+          }}
+          onPrivacyPolicyClick={() => dispatch({ type: "SET_ACTIVE_SIDEBAR_PAGE", page: "Privacy Policy" })}
+          onTermsConditionsClick={() => dispatch({ type: "SET_ACTIVE_SIDEBAR_PAGE", page: "Terms & Conditions" })}
         />
       )}
     </div>

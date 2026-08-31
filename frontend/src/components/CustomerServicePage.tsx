@@ -96,9 +96,17 @@ export default function CustomerServicePage() {
               </div>
               <div>
                 <span className="text-[9px] font-black uppercase text-muted-foreground block">
+                  Office / Support Address
+                </span>
+                <span className="text-xs font-bold text-foreground mt-0.5 block leading-snug">
+                  📍 G-161, Sector 22 Noida, Uttar Pradesh 201301 India
+                </span>
+              </div>
+              <div>
+                <span className="text-[9px] font-black uppercase text-muted-foreground block">
                   Operations Hours
                 </span>
-                <span className="text-xs font-bold text-slate-600 mt-0.5 block">
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-0.5 block">
                   Mon-Sat | 09:00 AM - 08:30 PM
                 </span>
               </div>

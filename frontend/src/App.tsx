@@ -16,6 +16,7 @@ import MobileBookingPage from "./pages/MobileBookingPage";
 import PopularServiceDetailPage from "./pages/PopularServiceDetail";
 import MobileTransactionPage from "./pages/MobileTransactionPage";
 import MobileProfilePage from "./pages/MobileProfilePage";
+import EmployeeVerificationPage from "./pages/EmployeeVerificationPage";
 import { Home, CalendarDays, Receipt, User } from "lucide-react";
 import { socketService } from "./services/socketService";
 import ReviewPromptModal from "./components/ReviewPromptModal";
@@ -39,6 +40,7 @@ interface AppViewState {
   showAdminPanel: boolean;
   showClientPanel: boolean;
   selectedPopularServiceId: string | null;
+  verifiedEmpId: string | null;
 }
 
 const initialAppState: AppViewState = {
@@ -58,6 +60,7 @@ const initialAppState: AppViewState = {
   showAdminPanel: false,
   showClientPanel: false,
   selectedPopularServiceId: null,
+  verifiedEmpId: null,
 };
 
 type AppAction =
@@ -74,10 +77,26 @@ type AppAction =
   | { type: "SET_SHOW_ADMIN"; show: boolean }
   | { type: "SET_SHOW_CLIENT"; show: boolean }
   | { type: "SELECT_POPULAR_SERVICE"; id: string | null }
+  | { type: "SET_VERIFIED_EMP_ID"; empId: string | null }
   | { type: "LOGOUT" };
 
 function appReducer(state: AppViewState, action: AppAction): AppViewState {
   switch (action.type) {
+    case "SET_VERIFIED_EMP_ID":
+      return {
+        ...state,
+        verifiedEmpId: action.empId,
+        selectedArticleId: null,
+        selectedBusinessId: null,
+        selectedPlaceName: null,
+        selectedCategoryName: null,
+        selectedSubcategoryName: null,
+        selectedPopularServiceId: null,
+        showAdminPanel: false,
+        showClientPanel: false,
+        showAdvertise: false,
+        showAllCategoriesPage: false,
+      };
     case "SET_SHOW_SIGN_IN":
       return { ...state, showSignIn: action.show };
     case "SET_SHOW_SIDEBAR":
@@ -170,9 +189,10 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
 }
 
 // ---------------------------------------------------------------------------
-const RESERVED_ROUTES = ["admin", "client", "advertise", "sidebar", "business", "article", "place", "service", "category", "categories", "tab"];
+const RESERVED_ROUTES = ["admin", "client", "advertise", "sidebar", "business", "article", "place", "service", "category", "categories", "tab", "verify", "employee"];
 
 function buildPath(state: AppViewState, mobileTab: string): string {
+  if (state.verifiedEmpId !== null) return state.verifiedEmpId ? `/verify/${encodeURIComponent(state.verifiedEmpId)}` : "/verify";
   if (state.showAdminPanel) return "/admin";
   if (state.showClientPanel) return "/client";
   if (state.showAdvertise) return "/advertise";
@@ -243,6 +263,8 @@ function parsePath(): {
   }
   if (page === "tab" && segments[1]) params.tab = segments[1];
   if (page === "sidebar" && segments[1]) params.sidebarPage = decodeURIComponent(segments[1]);
+  if ((page === "verify" || page === "employee") && segments[1]) params.verifiedEmpId = decodeURIComponent(segments[1]);
+  else if (page === "verify" || page === "employee") params.verifiedEmpId = "";
 
   return { page, params };
 }
@@ -359,6 +381,7 @@ export default function App() {
       };
     }
     if (page === "categories") return { ...base, showAllCategoriesPage: true };
+    if (page === "verify" || page === "employee") return { ...base, verifiedEmpId: params.verifiedEmpId || "" };
     return base;
   };
 
@@ -405,6 +428,7 @@ export default function App() {
       return;
     }
     if (page === "categories") { dispatch({ type: "SET_SHOW_ALL_CATEGORIES", show: true }); return; }
+    if (page === "verify" || page === "employee") { dispatch({ type: "SET_VERIFIED_EMP_ID", empId: params.verifiedEmpId || "" }); return; }
     if (page === "tab" && params.tab) {
       setMobileTab(params.tab as "home" | "booking" | "transactions" | "profile");
       return;
@@ -674,8 +698,9 @@ export default function App() {
     );
   }
 
-  // Public directory pages (business profile, articles, places, categories, advertise) MUST ALWAYS be accessible publicly
+  // Public directory pages (business profile, articles, places, categories, advertise, employee verification) MUST ALWAYS be accessible publicly
   const isPublicRoute =
+    state.verifiedEmpId !== null ||
     state.selectedBusinessId !== null ||
     state.selectedArticleId !== null ||
     state.selectedPlaceName !== null ||
@@ -698,6 +723,18 @@ export default function App() {
           }
         }}
         isMandatory={true}
+      />
+    );
+  }
+
+  if (state.verifiedEmpId !== null) {
+    return (
+      <EmployeeVerificationPage
+        initialEmpId={state.verifiedEmpId}
+        onBackToHome={() => {
+          dispatch({ type: "SET_VERIFIED_EMP_ID", empId: null });
+          window.history.pushState(null, "", "/");
+        }}
       />
     );
   }

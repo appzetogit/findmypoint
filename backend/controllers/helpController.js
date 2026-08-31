@@ -8,7 +8,13 @@ const HelpTicket = require('../models/HelpTicket');
 // @route  GET /api/help/faqs
 const getFAQs = async (req, res) => {
   try {
-    const faqs = await FAQ.find().sort({ order: 1, createdAt: 1 });
+    const faqs = await FAQ.find({
+      $or: [
+        { businessId: { $exists: false } },
+        { businessId: null },
+        { businessId: '' },
+      ],
+    }).sort({ order: 1, createdAt: 1 });
     res.status(200).json({ success: true, data: faqs });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -61,7 +67,16 @@ const deleteFAQ = async (req, res) => {
 const getContact = async (req, res) => {
   try {
     let contact = await HelpContact.findOne();
-    if (!contact) contact = await HelpContact.create({ email: '', phone: '' });
+    if (!contact) {
+      contact = await HelpContact.create({
+        email: 'panchalajay717@gmail.com',
+        phone: '+91 8339977383',
+        address: 'G-161, Sector 22 Noida, Uttar Pradesh 201301 India',
+      });
+    } else if (!contact.address) {
+      contact.address = 'G-161, Sector 22 Noida, Uttar Pradesh 201301 India';
+      await contact.save();
+    }
     res.status(200).json({ success: true, data: contact });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -71,15 +86,20 @@ const getContact = async (req, res) => {
 // @desc   Save contact details (admin only)
 // @route  POST /api/help/contact
 const saveContact = async (req, res) => {
-  const { email, phone } = req.body;
+  const { email, phone, address } = req.body;
   try {
     let contact = await HelpContact.findOne();
     if (contact) {
-      contact.email = email || '';
-      contact.phone = phone || '';
+      if (email !== undefined) contact.email = email;
+      if (phone !== undefined) contact.phone = phone;
+      if (address !== undefined) contact.address = address;
       await contact.save();
     } else {
-      contact = await HelpContact.create({ email: email || '', phone: phone || '' });
+      contact = await HelpContact.create({
+        email: email || 'panchalajay717@gmail.com',
+        phone: phone || '+91 8339977383',
+        address: address || 'G-161, Sector 22 Noida, Uttar Pradesh 201301 India',
+      });
     }
     res.status(200).json({ success: true, data: contact });
   } catch (err) {

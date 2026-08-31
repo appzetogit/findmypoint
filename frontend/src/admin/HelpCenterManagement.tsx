@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronUp,
   Phone,
+  MapPin,
   Send,
   Loader2,
   AlertCircle,
@@ -45,6 +46,7 @@ export default function HelpCenterManagement() {
   // Support Contact states
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [contactAddress, setContactAddress] = useState("");
   const [savingContact, setSavingContact] = useState(false);
 
   // FAQ Modal states
@@ -96,6 +98,7 @@ export default function HelpCenterManagement() {
       if (data.success) {
         setContactEmail(data.data.email || "");
         setContactPhone(data.data.phone || "");
+        setContactAddress(data.data.address || "G-161, Sector 22 Noida, Uttar Pradesh 201301 India");
       }
     } catch { /* silent */ }
   };
@@ -182,7 +185,11 @@ export default function HelpCenterManagement() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${adminToken}`,
         },
-        body: JSON.stringify({ email: contactEmail, phone: contactPhone }),
+        body: JSON.stringify({
+          email: contactEmail,
+          phone: contactPhone,
+          address: contactAddress,
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -447,6 +454,23 @@ export default function HelpCenterManagement() {
                     className="w-full bg-slate-50 dark:bg-slate-950 text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-semibold"
                   />
                   <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                </div>
+              </div>
+
+              {/* Support / Office Address */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block font-semibold">
+                  Support & Office Address
+                </label>
+                <div className="relative">
+                  <textarea
+                    rows={2}
+                    value={contactAddress}
+                    onChange={(e) => setContactAddress(e.target.value)}
+                    placeholder="e.g. G-161, Sector 22 Noida, Uttar Pradesh 201301 India"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-semibold resize-none"
+                  />
+                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                 </div>
               </div>
 

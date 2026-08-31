@@ -28,63 +28,56 @@ export default function SidebarPages({
   username,
   onNavigateToBusiness,
 }: SidebarPagesProps) {
-  // Setup Visual Config per page
-  let pageIcon = "";
-  let pageSubtitle = "";
-
-  if (activePage === "Favorites") {
-    pageIcon = "❤️";
-    pageSubtitle = "Curated list of your preferred service categories";
-  } else if (activePage === "Saved") {
-    pageIcon = "🔖";
-    pageSubtitle = "View and configure your bookmarked points";
-  } else if (activePage === "My Transaction") {
-    pageIcon = "🧾";
-    pageSubtitle = "Invoice receipts, booking deposits, and payment details";
-  } else if (activePage === "My Bookings") {
-    pageIcon = "📅";
-    pageSubtitle = "View and manage your service and product bookings";
-  } else if (activePage === "Customer Service") {
-    pageIcon = "🎧";
-    pageSubtitle = "Help hotline, email ticket desk, and interactive assistant";
-  } else if (activePage === "Policy" || activePage === "Privacy Policy" || activePage === "Terms & Conditions") {
-    pageIcon = "🛡️";
-    pageSubtitle = "Privacy policy, cancellation terms, and user agreements";
-  } else if (activePage === "Feedback" || activePage === "My Reviews") {
-    pageIcon = "⭐";
-    pageSubtitle = "Share reviews and view your posted feedbacks";
-  } else if (activePage === "Help") {
-    pageIcon = "🤝";
-    pageSubtitle = "Search FAQs, user guidelines, and cancellation issues";
-  } else if (activePage === "About" || activePage === "About Us") {
-    pageIcon = "✨";
-    pageSubtitle = "Learn more about FindmyPoint, our mission, vision and directory services";
-  }
+  const isWidePage = [
+    "Help",
+    "Customer Service",
+    "About",
+    "About Us",
+    "My Bookings",
+    "My Transaction",
+    "Policy",
+    "Privacy Policy",
+    "Terms & Conditions",
+  ].includes(activePage);
 
   return (
     <div className="fixed inset-0 z-50 bg-white dark:bg-slate-950 flex flex-col w-full h-full text-left overflow-hidden">
       {/* Header Block */}
-      <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/80 p-4 sm:p-5 bg-white dark:bg-slate-950 shrink-0 shadow-xs">
-        <button
-          onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-black transition cursor-pointer"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-3.5 sm:py-4 bg-white dark:bg-slate-900 shrink-0 shadow-xs z-10">
+        <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+          <button
+            onClick={onClose}
+            aria-label="Go Back"
+            className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition cursor-pointer border border-slate-200/50 dark:border-slate-750 shrink-0"
+          >
+            <ArrowLeft className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
+          </button>
 
-        <div className="flex items-center gap-3.5">
-          <span className="text-3xl filter drop-shadow hidden md:inline">{pageIcon}</span>
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold font-serif text-slate-900 dark:text-white uppercase tracking-tight">
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className="text-base sm:text-xl font-black font-serif text-slate-900 dark:text-white uppercase tracking-tight truncate">
               {activePage}
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 hidden md:block">{pageSubtitle}</p>
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-150 dark:border-indigo-900/40">
+              FindmyPoint Support
+            </span>
           </div>
         </div>
+
+        <button
+          onClick={onClose}
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+        >
+          <span>Close</span>
+          <span className="text-[10px] font-mono bg-slate-200/80 dark:bg-slate-700/80 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300">ESC</span>
+        </button>
       </div>
 
       {/* Dynamic Content Panel */}
-      <div className="flex-1 p-5 sm:p-8 overflow-y-auto no-scrollbar max-w-4xl w-full mx-auto bg-white dark:bg-slate-950">
+      <div
+        className={`flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto no-scrollbar w-full mx-auto bg-white dark:bg-slate-950 ${
+          isWidePage ? "max-w-6xl 2xl:max-w-7xl" : "max-w-4xl"
+        }`}
+      >
         {activePage === "Favorites" && (
           <FavoritesPage onNavigateToBusiness={onNavigateToBusiness} />
         )}

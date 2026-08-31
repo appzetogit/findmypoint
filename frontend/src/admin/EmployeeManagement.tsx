@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
-import { Search, Plus, Edit2, Trash2, Calendar, Phone, MapPin, User, ShieldCheck, X, Briefcase, Heart, CheckCircle2, UserPlus, Image as ImageIcon } from "lucide-react";
+import { Search, Plus, Edit2, Trash2, Calendar, Phone, MapPin, User, ShieldCheck, X, Briefcase, Heart, CheckCircle2, UserPlus, Image as ImageIcon, QrCode } from "lucide-react";
 import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
 import { LazyImage } from "../components/ui/LazyImage";
+import EmployeeIdCardModal from "../components/EmployeeIdCardModal";
 
 interface Employee {
   id: string;
@@ -56,6 +57,7 @@ export default function EmployeeManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [idCardEmployee, setIdCardEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(false);
 
   const getImageUrl = (img: string) => {
@@ -238,6 +240,8 @@ export default function EmployeeManagement() {
           const newEmp = { ...data.employee, id: data.employee._id };
           setEmployees([newEmp, ...employees]);
           setIsModalOpen(false);
+          // Automatically display the newly generated ID card with QR code
+          setIdCardEmployee(newEmp);
         } else {
           alert("Failed to create employee: " + (data.message || "Unknown error"));
         }
@@ -401,6 +405,14 @@ export default function EmployeeManagement() {
                   {/* Action Buttons */}
                   <td className="py-3.5 px-6 text-right">
                     <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => setIdCardEmployee(emp)}
+                        title="View Digital ID Card & QR Code"
+                        className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition cursor-pointer"
+                      >
+                        <QrCode className="h-3.5 w-3.5" />
+                      </button>
+
                       <button
                         onClick={() => handleOpenEditModal(emp)}
                         title="Edit Employee Detail"
@@ -696,6 +708,14 @@ export default function EmployeeManagement() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Digital ID Card & QR Code Modal */}
+      {idCardEmployee && (
+        <EmployeeIdCardModal
+          employee={idCardEmployee}
+          onClose={() => setIdCardEmployee(null)}
+        />
       )}
     </>
   );

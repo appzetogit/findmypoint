@@ -789,8 +789,8 @@ export default function Footer() {
               {/* Navy accent slant */}
               <div className="absolute top-10 right-0 w-[35%] h-24 bg-slate-900 rounded-bl-[60px] z-0 transform rotate-6 opacity-80" />
 
-              {/* Logo block in header */}
-              <div className="absolute top-3 left-5 z-10 flex items-center">
+              {/* Logo block in header centered */}
+              <div className="absolute top-3 inset-x-0 z-10 flex items-center justify-center">
                 <LazyImage
                   src={logoImg}
                   alt="FindMyPoint Logo"
@@ -845,53 +845,70 @@ export default function Footer() {
               <div className="w-12 h-[1px] bg-slate-200 dark:bg-slate-800 mx-auto mt-2.5" />
             </div>
 
-            {/* Details List */}
-            <div className="px-6 py-4.5 space-y-3.5 flex-1">
-
-              {/* ID Number */}
-              <div className="flex items-center gap-3">
-                <div className="h-6.5 w-6.5 rounded-full bg-indigo-50 dark:bg-slate-950 text-indigo-650 dark:text-slate-450 flex items-center justify-center shrink-0 border border-indigo-100/50 dark:border-slate-800">
-                  <User className="h-3.5 w-3.5" />
+            {/* Details List with QR Code shifted further left */}
+            <div className="px-4 py-4 flex items-center justify-center gap-3.5 flex-1">
+              {/* Left Details */}
+              <div className="space-y-3 shrink-0">
+                {/* ID Number */}
+                <div className="flex items-center gap-2.5">
+                  <div className="h-6 w-6 rounded-full bg-indigo-50 dark:bg-slate-950 text-indigo-650 dark:text-slate-450 flex items-center justify-center shrink-0 border border-indigo-100/50 dark:border-slate-800">
+                    <User className="h-3 w-3" />
+                  </div>
+                  <div className="text-left leading-none min-w-0">
+                    <span className="text-[7px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">ID NUMBER</span>
+                    <span className="text-[11px] text-slate-800 dark:text-slate-200 font-extrabold mt-0.5 block font-mono truncate">{foundEmployee.empIdNumber}</span>
+                  </div>
                 </div>
-                <div className="text-left leading-none">
-                  <span className="text-[7.5px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">ID Number</span>
-                  <span className="text-[11.5px] text-slate-800 dark:text-slate-200 font-extrabold mt-0.5 block font-mono">{foundEmployee.empIdNumber}</span>
+
+                {/* Designation */}
+                <div className="flex items-center gap-2.5">
+                  <div className="h-6 w-6 rounded-full bg-indigo-50 dark:bg-slate-950 text-indigo-650 dark:text-slate-450 flex items-center justify-center shrink-0 border border-indigo-100/50 dark:border-slate-800">
+                    <Briefcase className="h-3 w-3" />
+                  </div>
+                  <div className="text-left leading-none min-w-0">
+                    <span className="text-[7px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">DESIGNATION</span>
+                    <span className="text-[11px] text-slate-800 dark:text-slate-200 font-extrabold mt-0.5 block truncate">{foundEmployee.designation}</span>
+                  </div>
+                </div>
+
+                {/* Contact */}
+                <div className="flex items-center gap-2.5">
+                  <div className="h-6 w-6 rounded-full bg-indigo-50 dark:bg-slate-950 text-indigo-650 dark:text-slate-450 flex items-center justify-center shrink-0 border border-indigo-100/50 dark:border-slate-800">
+                    <Phone className="h-3 w-3" />
+                  </div>
+                  <div className="text-left leading-none min-w-0">
+                    <span className="text-[7px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">CONTACT NUMBER</span>
+                    <span className="text-[11px] text-slate-800 dark:text-slate-200 font-extrabold mt-0.5 block truncate">{foundEmployee.contactNumber}</span>
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div className="flex items-center gap-2.5">
+                  <div className="h-6 w-6 rounded-full bg-indigo-50 dark:bg-slate-950 text-indigo-650 dark:text-slate-450 flex items-center justify-center shrink-0 border border-indigo-100/50 dark:border-slate-800">
+                    <MapPin className="h-3 w-3" />
+                  </div>
+                  <div className="text-left leading-none min-w-0">
+                    <span className="text-[7px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">FIELD LOCATION</span>
+                    <span className="text-[11px] text-slate-800 dark:text-slate-200 font-extrabold mt-0.5 block truncate">{foundEmployee.fieldLocation || "Not Assigned"}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Designation */}
-              <div className="flex items-center gap-3">
-                <div className="h-6.5 w-6.5 rounded-full bg-indigo-50 dark:bg-slate-950 text-indigo-650 dark:text-slate-450 flex items-center justify-center shrink-0 border border-indigo-100/50 dark:border-slate-800">
-                  <Briefcase className="h-3.5 w-3.5" />
+              {/* Right: Scannable QR Code */}
+              <div className="shrink-0 flex flex-col items-center justify-center text-center">
+                <div className="h-[76px] w-[76px] sm:h-[80px] sm:w-[80px] p-1 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+                      window.location.origin + "/verify/" + foundEmployee.empIdNumber
+                    )}&margin=10`}
+                    alt="QR Code"
+                    className="h-full w-full object-contain"
+                  />
                 </div>
-                <div className="text-left leading-none">
-                  <span className="text-[7.5px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Designation</span>
-                  <span className="text-[11.5px] text-slate-800 dark:text-slate-200 font-extrabold mt-0.5 block">{foundEmployee.designation}</span>
-                </div>
+                <span className="text-[6.5px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider mt-1 block">
+                  SCAN TO VERIFY
+                </span>
               </div>
-
-              {/* Contact */}
-              <div className="flex items-center gap-3">
-                <div className="h-6.5 w-6.5 rounded-full bg-indigo-50 dark:bg-slate-950 text-indigo-650 dark:text-slate-450 flex items-center justify-center shrink-0 border border-indigo-100/50 dark:border-slate-800">
-                  <Phone className="h-3.5 w-3.5" />
-                </div>
-                <div className="text-left leading-none">
-                  <span className="text-[7.5px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Contact Number</span>
-                  <span className="text-[11.5px] text-slate-800 dark:text-slate-200 font-extrabold mt-0.5 block">{foundEmployee.contactNumber}</span>
-                </div>
-              </div>
-
-              {/* Location */}
-              <div className="flex items-center gap-3">
-                <div className="h-6.5 w-6.5 rounded-full bg-indigo-50 dark:bg-slate-950 text-indigo-650 dark:text-slate-450 flex items-center justify-center shrink-0 border border-indigo-100/50 dark:border-slate-800">
-                  <MapPin className="h-3.5 w-3.5" />
-                </div>
-                <div className="text-left leading-none">
-                  <span className="text-[7.5px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Field Location</span>
-                  <span className="text-[11.5px] text-slate-800 dark:text-slate-200 font-extrabold mt-0.5 block">{foundEmployee.fieldLocation || "Not Assigned"}</span>
-                </div>
-              </div>
-
             </div>
 
             {/* Issued & Validity Footer */}

@@ -172,7 +172,7 @@ export function getGoogleMapsEmbedUrl(params: {
 }
 
 /**
- * Get user's current GPS location with high accuracy
+ * Get user's current GPS location with high accuracy and fast fallback
  */
 export function getCurrentUserLocation(): Promise<{ lat: number; lng: number } | null> {
   return new Promise((resolve) => {
@@ -189,12 +189,29 @@ export function getCurrentUserLocation(): Promise<{ lat: number; lng: number } |
         });
       },
       (error) => {
-        console.warn("[GoogleMaps] Geolocation error/declined:", error.message);
-        resolve(null);
+        console.warn("[GoogleMaps] High accuracy failed, attempting standard accuracy:", error.message);
+        // Fallback: Try with standard accuracy (faster on desktops/WiFi)
+        navigator.geolocation.getCurrentPosition(
+          (fallbackPos) => {
+            resolve({
+              lat: fallbackPos.coords.latitude,
+              lng: fallbackPos.coords.longitude,
+            });
+          },
+          (fallbackErr) => {
+            console.warn("[GoogleMaps] Geolocation standard accuracy declined/error:", fallbackErr.message);
+            resolve(null);
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 300000,
+          }
+        );
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 6000,
         maximumAge: 60000,
       }
     );

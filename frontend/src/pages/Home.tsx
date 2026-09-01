@@ -882,10 +882,9 @@ export default function HomePage({
     }
   }, []);
 
-  // Auto-detect live GPS location on page load (Directly triggers native browser prompt)
+  // Auto-detect live GPS location on page load (Always auto-detects latest position)
   useEffect(() => {
-    const saved = localStorage.getItem("fmp_user_coords:v1");
-    if (!saved && typeof navigator !== "undefined" && navigator.geolocation) {
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
       handleDetectLocation();
     }
   }, [handleDetectLocation]);
@@ -1169,8 +1168,8 @@ export default function HomePage({
                 alt="FindMyPoint Logo"
                 priority={true}
                 showSkeleton={false}
-                className="h-6 md:h-8 w-auto shrink-0"
-                imgClassName="h-6 md:h-8 w-auto object-contain shrink-0"
+                className="h-5.5 sm:h-6.5 md:h-7.5 w-auto shrink-0 max-w-[120px] sm:max-w-[140px] md:max-w-[160px]"
+                imgClassName="h-5.5 sm:h-6.5 md:h-7.5 w-auto object-contain shrink-0"
                 style={{ mixBlendMode: "multiply" }}
               />
             </a>

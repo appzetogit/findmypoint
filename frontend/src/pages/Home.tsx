@@ -882,7 +882,7 @@ export default function HomePage({
     }
   }, []);
 
-  // Auto-detect live GPS location on initial visit
+  // Auto-detect live GPS location on page load (Directly triggers native browser prompt)
   useEffect(() => {
     const saved = localStorage.getItem("fmp_user_coords:v1");
     if (!saved && typeof navigator !== "undefined" && navigator.geolocation) {
@@ -1157,7 +1157,7 @@ export default function HomePage({
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex flex-col lg:flex-row h-auto lg:h-20 max-w-7xl items-stretch lg:items-center gap-3 lg:gap-8 px-4 md:px-6 py-3 lg:py-0 w-full">
-          {/* Mobile Top Navigation Row (Profile, Logo, Bell) */}
+          {/* Mobile Top Navigation Row (Profile, Logo, Location, Bell) */}
           <div className="flex items-center justify-between lg:contents w-full">
             {/* Logo */}
             <a
@@ -1174,6 +1174,19 @@ export default function HomePage({
                 style={{ mixBlendMode: "multiply" }}
               />
             </a>
+
+            {/* Mobile Location Quick Selector Button */}
+            <div className="lg:hidden flex items-center max-w-[55%]">
+              <button
+                type="button"
+                onClick={() => setShowMobileLocation(true)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/80 hover:bg-secondary border border-border/70 text-xs font-bold text-foreground transition cursor-pointer"
+              >
+                <MapPin className="h-3.5 w-3.5 text-accent shrink-0" />
+                <span className="truncate max-w-[130px]">{detectingGps ? "Detecting..." : selectedCity}</span>
+                <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+              </button>
+            </div>
 
             {/* Right: Notification Bell */}
             <div className="lg:hidden shrink-0 flex items-center gap-2">

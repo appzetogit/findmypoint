@@ -9,6 +9,7 @@ import {
   Navigation,
   Building2,
   Globe,
+  AlertCircle,
 } from "lucide-react";
 import {
   loadGoogleMapsScript,
@@ -125,6 +126,7 @@ export default function MobileLocationPage({
 }: MobileLocationPageProps) {
   const [query, setQuery] = useState("");
   const [detectingGps, setDetectingGps] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
   const [isSearchingOnline, setIsSearchingOnline] = useState(false);
   const [apiSuggestions, setApiSuggestions] = useState<LocationSuggestion[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -244,9 +246,11 @@ export default function MobileLocationPage({
   // Live GPS Location Detection
   const handleDetectLocation = async () => {
     setDetectingGps(true);
+    setGpsError(null);
     try {
       const pos = await getCurrentUserLocation();
       if (!pos) {
+        setGpsError("Location access was blocked or unavailable. Please enable location in browser settings or choose a city below.");
         setDetectingGps(false);
         return;
       }
@@ -261,6 +265,7 @@ export default function MobileLocationPage({
       onSelectLocation(shortName);
     } catch (err) {
       console.warn("GPS Detection error:", err);
+      setGpsError("Failed to detect live GPS. Please choose a city below.");
     } finally {
       setDetectingGps(false);
     }
@@ -349,6 +354,14 @@ export default function MobileLocationPage({
           )}
           <span>{detectingGps ? "Detecting GPS location..." : "Detect my location"}</span>
         </button>
+
+        {/* GPS Error Guidance */}
+        {gpsError && (
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs flex items-start gap-2 animate-in fade-in">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <p className="leading-snug">{gpsError}</p>
+          </div>
+        )}
 
         {/* State A: EMPTY QUERY -> Show Anywhere in City + Trending Areas */}
         {!query.trim() && (

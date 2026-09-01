@@ -22,6 +22,7 @@ import {
   MessageSquare,
   BadgeCheck,
   ChevronRight,
+  ChevronDown,
   Clock,
   User,
   X,
@@ -1741,49 +1742,43 @@ export default function CategoryDetailPage({
   return (
     <div className="h-screen md:h-auto md:min-h-screen w-full bg-background flex flex-col overflow-hidden md:overflow-visible text-foreground font-sans">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur-xl shrink-0">
-        <div className="mx-auto flex h-14 sm:h-16 md:h-20 max-w-7xl items-center gap-2 sm:gap-3 md:gap-4 px-3 sm:px-6 w-full">
-          <button
-            onClick={onBack}
-            className="flex h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 items-center justify-center rounded-xl border border-border/80 bg-card hover:bg-secondary transition-colors cursor-pointer shrink-0"
-          >
-            <ArrowLeft className="h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5 text-foreground" />
-          </button>
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl shrink-0">
+        <div className="mx-auto max-w-7xl w-full px-3 sm:px-6 py-2.5 flex flex-col gap-2.5">
+          {/* Top Row: Back Button & Centered Location Selector Pill */}
+          <div className="relative flex items-center justify-between w-full min-h-[38px] sm:min-h-[42px]">
+            {/* Left: Back Button */}
+            <button
+              onClick={onBack}
+              className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-border bg-card hover:bg-secondary transition-colors cursor-pointer shrink-0 z-10"
+              title="Go Back"
+            >
+              <ArrowLeft className="h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5 text-foreground" />
+            </button>
 
-          <a href="/" className="hidden md:flex items-center shrink-0">
-            <LazyImage
-              src={logoImg}
-              alt="FindMyPoint Logo"
-              priority={true}
-              showSkeleton={false}
-              className="h-7 sm:h-8 w-auto shrink-0"
-              imgClassName="h-7 sm:h-8 w-auto object-contain shrink-0"
-              style={{ mixBlendMode: "multiply" }}
-            />
-          </a>
-
-          {/* Search bar inside subcategory page */}
-          <div className="relative flex flex-1 items-center gap-1.5 sm:gap-2.5 md:gap-3 rounded-xl border border-border bg-card px-3 sm:px-4 py-1.5 md:py-2.5 shadow-[var(--shadow-card)] max-w-2xl lg:max-w-3xl min-w-0">
-            {/* Clickable Location Selector */}
-            <div ref={locationRef} className="hidden sm:block relative shrink-0">
+            {/* Center: Location Selector Pill */}
+            <div ref={locationRef} className="absolute inset-x-0 mx-auto flex justify-center w-fit max-w-[calc(100%-84px)] z-10">
               <button
                 type="button"
                 onClick={() => setShowLocationDropdown(!showLocationDropdown)}
-                className="flex items-center gap-1.5 md:gap-2 border-r border-border pr-3 md:pr-4 pl-1 py-1 text-xs sm:text-sm hover:text-primary transition-colors cursor-pointer group max-w-[190px] sm:max-w-[260px] md:max-w-[320px] shrink-0"
-                title={`Current Location: ${selectedCity}`}
+                className="flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 sm:py-2 rounded-full border border-border bg-card hover:bg-secondary/70 text-xs sm:text-sm font-semibold text-foreground cursor-pointer shadow-xs transition-all max-w-full justify-between"
+                title={`Current Location: ${selectedCity || "Select Location"}`}
               >
-                <MapPin className="h-4 w-4 text-accent group-hover:text-primary transition-colors shrink-0" />
-                <span className="font-semibold text-foreground/90 truncate">
-                  {detectingGps ? "Detecting..." : selectedCity || "Select Location"}
-                </span>
-                <ChevronRight
-                  className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ${showLocationDropdown ? "rotate-90" : ""}`}
+                <div className="flex items-center gap-1.5 truncate">
+                  <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600 dark:text-amber-500 shrink-0" />
+                  <span className="truncate max-w-[150px] sm:max-w-[240px] md:max-w-xs">
+                    {detectingGps ? "Detecting..." : selectedCity || "Select Location"}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform duration-200 ${
+                    showLocationDropdown ? "rotate-180" : ""
+                  }`}
                 />
               </button>
 
               {/* Location Dropdown Modal */}
               {showLocationDropdown && (
-                <div className="fixed inset-x-4 top-20 sm:absolute sm:top-[calc(100%+12px)] sm:left-0 sm:min-w-[360px] sm:w-auto bg-card border border-border rounded-2xl shadow-2xl z-[60] text-left overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="fixed inset-x-4 top-20 sm:absolute sm:top-[calc(100%+8px)] sm:left-1/2 sm:-translate-x-1/2 sm:min-w-[360px] sm:w-auto bg-card border border-border rounded-2xl shadow-2xl z-[60] text-left overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                   {/* Location Search Bar Header */}
                   <div className="p-3 border-b border-border/60 bg-secondary/30">
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-card shadow-xs focus-within:border-primary transition-all">
@@ -1864,8 +1859,8 @@ export default function CategoryDetailPage({
                         disabled={detectingGps}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-blue-50/70 hover:bg-blue-100/80 dark:bg-blue-950/40 border border-blue-200/60 transition cursor-pointer group disabled:opacity-60"
                       >
-                        <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                          <Navigation className={`h-4 w-4 fill-current ${detectingGps ? "animate-spin" : ""}`} />
+                        <div className="h-7 w-7 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 flex items-center justify-center shrink-0">
+                          <Navigation className={`h-3.5 w-3.5 fill-current ${detectingGps ? "animate-spin" : ""}`} />
                         </div>
                         <div className="flex flex-col text-left">
                           <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
@@ -1879,7 +1874,7 @@ export default function CategoryDetailPage({
 
                       {/* Recent Locations */}
                       {recentLocations.length > 0 && (
-                        <div className="pt-2">
+                        <div className="pt-2 border-t border-border/40">
                           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-1">
                             Recent Locations
                           </p>
@@ -1901,8 +1896,10 @@ export default function CategoryDetailPage({
                 </div>
               )}
             </div>
+          </div>
 
-            {/* Desktop Search Input Form with sliding ticker */}
+          {/* Row 2 (Underneath): Full Width Search Input Bar */}
+          <div className="relative w-full">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -1911,15 +1908,9 @@ export default function CategoryDetailPage({
                   onSearchSubmit(searchQuery.trim(), selectedCity);
                 }
               }}
-              className="flex flex-1 items-center min-w-0 gap-2 relative"
+              className="flex items-center gap-2 px-3.5 py-1.5 sm:py-2 rounded-2xl border border-border bg-card shadow-xs focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all w-full min-w-0"
             >
-              <button
-                type="submit"
-                className="flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/70 transition shrink-0 cursor-pointer"
-                title="Search"
-              >
-                <Search className="h-4 w-4 md:h-4.5 md:w-4.5 text-muted-foreground" />
-              </button>
+              <Search className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-muted-foreground shrink-0" />
               <div className="relative flex-1 flex items-center min-w-0">
                 <input
                   type="text"
@@ -1959,6 +1950,14 @@ export default function CategoryDetailPage({
                   </button>
                 )}
               </div>
+              <button
+                type="submit"
+                className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs sm:text-sm font-bold cursor-pointer shrink-0 transition flex items-center gap-1.5 shadow-2xs"
+                title="Search"
+              >
+                <Search className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Search</span>
+              </button>
             </form>
 
             {/* Live Search Suggestions Dropdown */}
@@ -2026,28 +2025,6 @@ export default function CategoryDetailPage({
                   </div>
                 )}
               </div>
-            )}
-          </div>
-
-          {/* User profile action */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 ml-auto shrink-0">
-            {username ? (
-              <button
-                onClick={onProfileClick}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-card px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-semibold hover:bg-secondary cursor-pointer shrink-0"
-              >
-                <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-[10px] sm:text-[11px] font-bold text-white uppercase shrink-0">
-                  {username.charAt(0)}
-                </div>
-                <span className="hidden md:inline max-w-[120px] truncate text-foreground/80">{username}</span>
-              </button>
-            ) : (
-              <button
-                onClick={onSignInClick}
-                className="flex items-center gap-1 rounded-full bg-primary px-2.5 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm font-semibold text-primary-foreground hover:bg-primary/95 transition-all cursor-pointer shrink-0"
-              >
-                <User className="h-3.5 w-3.5" /> Sign In
-              </button>
             )}
           </div>
         </div>

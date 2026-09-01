@@ -921,182 +921,232 @@ export default function SearchResultsPage({
   return (
     <div className="min-h-screen w-full bg-background text-foreground flex flex-col font-sans">
       {/* ========================================================================= */}
-      {/* Sticky Header with Justdial / FindMyPoint Search Bar & Location Selector  */}
+      {/* Sticky Header with Location Selector Top Row & Full Search Bar Row       */}
       {/* ========================================================================= */}
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-xl shrink-0 shadow-xs">
-        <div className="mx-auto max-w-6xl w-full px-3 sm:px-6 py-2.5 flex flex-col gap-2">
-          {/* Top Row: Back button, Location Selector & Search Input */}
-          <div className="flex items-center gap-2 sm:gap-3 w-full">
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl shrink-0">
+        <div className="mx-auto max-w-6xl w-full px-3 sm:px-6 py-2.5 flex flex-col gap-2.5">
+          {/* Top Row: Back button & Centered Location Selector Pill */}
+          <div className="relative flex items-center justify-between w-full min-h-[38px] sm:min-h-[42px]">
+            {/* Left: Back Button */}
             <button
               onClick={onBack}
-              className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-border bg-card hover:bg-secondary transition-colors cursor-pointer shrink-0"
+              className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-border bg-card hover:bg-secondary transition-colors cursor-pointer shrink-0 z-10"
               title="Go Back"
             >
               <ChevronLeft className="h-5 w-5 text-foreground" />
             </button>
 
-            {/* Desktop Location Selector (Justdial Style) */}
-            <div className="relative hidden md:block shrink-0">
+            {/* Center: Location Selector Pill */}
+            <div ref={locationDropdownRef} className="absolute inset-x-0 mx-auto flex justify-center w-fit max-w-[calc(100%-84px)] z-10">
               <button
                 type="button"
                 onClick={() => setShowLocationDropdown(!showLocationDropdown)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card hover:bg-secondary/70 text-xs sm:text-sm font-semibold text-foreground cursor-pointer shadow-xs min-w-[170px] justify-between"
+                className="flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 sm:py-2 rounded-full border border-border bg-card hover:bg-secondary/70 text-xs sm:text-sm font-semibold text-foreground cursor-pointer shadow-xs transition-all max-w-full justify-between"
+                title={`Current Location: ${selectedCity || "Select Location"}`}
               >
-                <div className="flex items-center gap-1.5 truncate max-w-[150px]">
-                  <MapPin className="h-4 w-4 text-amber-600 dark:text-amber-500 shrink-0" />
-                  <span className="truncate">{selectedCity || "Select City"}</span>
+                <div className="flex items-center gap-1.5 truncate">
+                  <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600 dark:text-amber-500 shrink-0" />
+                  <span className="truncate max-w-[150px] sm:max-w-[240px] md:max-w-xs">{detectingGps ? "Detecting..." : (selectedCity || "Select Location")}</span>
                 </div>
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              </button>
-            </div>
-
-            {/* Main Search Input Form */}
-            <form
-              onSubmit={handleSearchSubmit}
-              className="flex flex-1 items-center gap-2 px-3 py-1.5 sm:py-2 rounded-xl border border-border bg-card shadow-xs focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all min-w-0"
-            >
-              <Search className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-muted-foreground shrink-0" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search businesses, services, hostels, spa..."
-                className="flex-1 bg-transparent text-xs sm:text-sm md:text-base outline-none text-foreground w-full min-w-0"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="p-1 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-              <button
-                type="submit"
-                className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold cursor-pointer shrink-0 transition flex items-center gap-1"
-                title="Search"
-              >
-                <Search className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Search</span>
-              </button>
-            </form>
-          </div>
-
-          {/* Location Bar Row on Mobile (< md) */}
-          <div className="flex md:hidden items-center justify-between text-xs px-1 text-muted-foreground relative">
-            <div className="flex items-center gap-1.5 truncate">
-              <MapPin className="h-3.5 w-3.5 text-amber-600 dark:text-amber-500 shrink-0" />
-              <span className="truncate">
-                Results in{" "}
-                <strong className="text-foreground font-semibold">
-                  "{selectedCity || "Your Location"}"
-                </strong>
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowLocationDropdown(!showLocationDropdown)}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold text-xs flex items-center gap-1 shrink-0 cursor-pointer ml-2 hover:underline"
-            >
-              <span>✏️</span>
-              <span>Change</span>
-            </button>
-          </div>
-
-          {/* Location Dropdown Modal */}
-          {showLocationDropdown && (
-            <div
-              ref={locationDropdownRef}
-              className="absolute top-full left-3 md:left-14 max-w-sm w-[90vw] mt-2 bg-card border border-border rounded-2xl shadow-2xl z-50 p-3 text-left overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
-            >
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-card mb-2.5">
-                <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-                <input
-                  type="text"
-                  value={locationSearchInput}
-                  onChange={(e) => setLocationSearchInput(e.target.value)}
-                  placeholder="Search locality, city, area..."
-                  className="flex-1 bg-transparent text-xs outline-none text-foreground"
-                  autoFocus
+                <ChevronDown
+                  className={`h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform duration-200 ${
+                    showLocationDropdown ? "rotate-180" : ""
+                  }`}
                 />
-                {locationSearchInput && (
-                  <button
-                    type="button"
-                    onClick={() => setLocationSearchInput("")}
-                    className="p-0.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
+              </button>
 
-              <div className="space-y-1 max-h-64 overflow-y-auto no-scrollbar">
-                {/* Live GPS detect */}
-                <button
-                  type="button"
-                  onClick={handleDetectLocation}
-                  disabled={detectingGps}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 hover:bg-blue-100/80 transition text-left cursor-pointer border border-blue-200/50"
+              {/* Location Dropdown Modal */}
+              {showLocationDropdown && (
+                <div
+                  className="fixed inset-x-4 top-20 sm:absolute sm:top-[calc(100%+8px)] sm:left-1/2 sm:-translate-x-1/2 sm:min-w-[360px] sm:w-auto bg-card border border-border rounded-2xl shadow-2xl z-[60] text-left overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
                 >
-                  <Navigation
-                    className={`h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 ${
-                      detectingGps ? "animate-spin" : ""
-                    }`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-blue-700 dark:text-blue-300">
-                      {detectingGps ? "Detecting Live Location..." : "Use Current GPS Location"}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">Auto-detect via device GPS</p>
-                  </div>
-                </button>
-
-                {/* Recent / Available Locations */}
-                {recentLocations.length > 0 && (
-                  <>
-                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground pt-2 px-2">
-                      Recent Locations
-                    </p>
-                    {recentLocations.slice(0, 5).map((loc) => (
-                      <button
-                        key={loc}
-                        type="button"
-                        onClick={() => handleSelectArea(loc)}
-                        className="w-full flex items-center gap-2 p-2 hover:bg-secondary/70 rounded-xl text-left cursor-pointer transition-colors"
-                      >
-                        <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-xs font-semibold text-foreground truncate">{loc}</span>
-                      </button>
-                    ))}
-                  </>
-                )}
-
-                {listings.length > 0 && (
-                  <>
-                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground pt-2 px-2">
-                      Available Areas
-                    </p>
-                    {listings
-                      .map((b: any) => b.location || b.cityTown || b.district)
-                      .filter((loc: string, idx: number, arr: string[]) => loc && arr.indexOf(loc) === idx)
-                      .slice(0, 5)
-                      .map((area: string) => (
+                  {/* Location Search Bar Header */}
+                  <div className="p-3 border-b border-border/60 bg-secondary/30">
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-card shadow-xs focus-within:border-primary transition-all">
+                      <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <input
+                        type="text"
+                        value={locationSearchInput}
+                        onChange={(e) => setLocationSearchInput(e.target.value)}
+                        placeholder="Search locality, city, area..."
+                        className="flex-1 bg-transparent text-xs sm:text-sm outline-none placeholder:text-muted-foreground text-foreground min-w-0"
+                        autoFocus
+                      />
+                      {locationSearchInput && (
                         <button
-                          key={area}
                           type="button"
-                          onClick={() => handleSelectArea(area)}
-                          className="w-full flex items-center gap-2 p-2 hover:bg-secondary/70 rounded-xl text-left cursor-pointer transition-colors"
+                          onClick={() => setLocationSearchInput("")}
+                          className="p-0.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition cursor-pointer shrink-0"
                         >
-                          <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="text-xs font-semibold text-foreground truncate">{area}</span>
+                          <X className="h-3.5 w-3.5" />
                         </button>
-                      ))}
-                  </>
-                )}
-              </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowLocationDropdown(false);
+                          setLocationSearchInput("");
+                        }}
+                        className="p-1 rounded-lg hover:bg-secondary text-muted-foreground transition cursor-pointer shrink-0"
+                        title="Close"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 max-h-72 overflow-y-auto no-scrollbar p-2">
+                    {/* Live GPS detect */}
+                    <button
+                      type="button"
+                      onClick={handleDetectLocation}
+                      disabled={detectingGps}
+                      className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 hover:bg-blue-100/80 transition text-left cursor-pointer border border-blue-200/50 group disabled:opacity-60"
+                    >
+                      <div className="h-7 w-7 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 flex items-center justify-center shrink-0">
+                        <Navigation
+                          className={`h-3.5 w-3.5 ${detectingGps ? "animate-spin" : ""}`}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                          {detectingGps ? "Detecting Live Location..." : "Use Current GPS Location"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">Auto-detect via device GPS</p>
+                      </div>
+                    </button>
+
+                    {/* Filtered Area Matches if user typed something */}
+                    {locationSearchInput.trim() ? (
+                      <div className="pt-1 space-y-1">
+                        {listings
+                          .map((b: any) => b.location || b.cityTown || b.district)
+                          .filter(
+                            (loc: string, idx: number, arr: string[]) =>
+                              loc &&
+                              arr.indexOf(loc) === idx &&
+                              loc.toLowerCase().includes(locationSearchInput.toLowerCase())
+                          )
+                          .slice(0, 6)
+                          .map((loc: string, idx: number) => (
+                            <button
+                              key={`loc-${idx}`}
+                              type="button"
+                              onClick={() => {
+                                handleSelectArea(loc);
+                                setLocationSearchInput("");
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer text-left group"
+                            >
+                              <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary" />
+                              <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                                {loc}
+                              </span>
+                            </button>
+                          ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleSelectArea(locationSearchInput.trim());
+                            setLocationSearchInput("");
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer text-left group border-t border-border/40 mt-1"
+                        >
+                          <Search className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="text-xs font-bold text-primary truncate">
+                            Search for "{locationSearchInput.trim()}"
+                          </span>
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Recent Locations */}
+                        {recentLocations.length > 0 && (
+                          <div className="pt-2 border-t border-border/40">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-2 mb-1">
+                              Recent Locations
+                            </p>
+                            {recentLocations.slice(0, 5).map((loc) => (
+                              <button
+                                key={loc}
+                                type="button"
+                                onClick={() => handleSelectArea(loc)}
+                                className="w-full flex items-center gap-2.5 p-2 hover:bg-secondary/70 rounded-xl text-left cursor-pointer transition-colors"
+                              >
+                                <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                <span className="text-xs font-semibold text-foreground truncate">
+                                  {loc}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Available Areas */}
+                        {listings.length > 0 && (
+                          <div className="pt-2 border-t border-border/40">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-2 mb-1">
+                              Available Areas
+                            </p>
+                            {listings
+                              .map((b: any) => b.location || b.cityTown || b.district)
+                              .filter((loc: string, idx: number, arr: string[]) => loc && arr.indexOf(loc) === idx)
+                              .slice(0, 6)
+                              .map((area: string) => (
+                                <button
+                                  key={area}
+                                  type="button"
+                                  onClick={() => handleSelectArea(area)}
+                                  className="w-full flex items-center gap-2.5 p-2 hover:bg-secondary/70 rounded-xl text-left cursor-pointer transition-colors"
+                                >
+                                  <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                  <span className="text-xs font-semibold text-foreground truncate">
+                                    {area}
+                                  </span>
+                                </button>
+                              ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
+          {/* Row 2 (Underneath): Full Width Search Input Bar */}
+          <form
+            onSubmit={handleSearchSubmit}
+            className="flex items-center gap-2 px-3.5 py-1.5 sm:py-2 rounded-2xl border border-border bg-card shadow-xs focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all w-full min-w-0"
+          >
+            <Search className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search businesses, services, hostels, spa..."
+              className="flex-1 bg-transparent text-xs sm:text-sm md:text-base outline-none text-foreground w-full min-w-0"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="p-1 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+                title="Clear"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              type="submit"
+              className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs sm:text-sm font-bold cursor-pointer shrink-0 transition flex items-center gap-1.5 shadow-2xs"
+              title="Search"
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Search</span>
+            </button>
+          </form>
         </div>
       </header>
 

@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { ArrowLeft, ArrowUp } from "lucide-react";
+import { ArrowLeft, ArrowUp, MapPin, ChevronDown, Search, X, Navigation, Clock } from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
 import { getCategoryImage, getSubcategoryEmoji } from "../utils/categoryImages";
 import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
 import { LazyImage } from "../components/ui/LazyImage";
-
+import { getCurrentUserLocation, reverseGeocodeCoords } from "../utils/googleMaps";
 
 interface AllCategoriesPageProps {
   onBack: () => void;
@@ -15,6 +15,73 @@ interface AllCategoriesPageProps {
 export default function AllCategoriesPage({ onBack, onCategoryClick, initialCategory }: AllCategoriesPageProps) {
   const { categories } = useCategories();
   const [categoryBanners, setCategoryBanners] = useState<any[]>([]);
+
+  // Location State
+  const [selectedCity, setSelectedCity] = useState<string>(() => {
+    try {
+      return (
+        localStorage.getItem("fmp_selected_city:v1") ||
+        localStorage.getItem("fmp_selected_location") ||
+        localStorage.getItem("fmp_selected_city") ||
+        ""
+      );
+    } catch {
+      return "";
+    }
+  });
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [locationQuery, setLocationQuery] = useState("");
+  const [detectingGps, setDetectingGps] = useState(false);
+  const [recentLocations, setRecentLocations] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("fmp_recent_locations:v1") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const locationRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (locationRef.current && !locationRef.current.contains(e.target as Node)) {
+        setShowLocationDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelectArea = (locName: string) => {
+    const trimmed = locName.trim();
+    if (!trimmed) return;
+    setSelectedCity(trimmed);
+    localStorage.setItem("fmp_selected_city:v1", trimmed);
+    localStorage.setItem("fmp_selected_location", trimmed);
+    const updated = [trimmed, ...recentLocations.filter((l) => l !== trimmed)].slice(0, 8);
+    setRecentLocations(updated);
+    localStorage.setItem("fmp_recent_locations:v1", JSON.stringify(updated));
+    setShowLocationDropdown(false);
+    window.dispatchEvent(new CustomEvent("fmp_city_changed", { detail: trimmed }));
+  };
+
+  const handleDetectLocation = async () => {
+    setDetectingGps(true);
+    try {
+      const coords = await getCurrentUserLocation({ forceFresh: true });
+      if (coords) {
+        const addr = await reverseGeocodeCoords(coords.lat, coords.lng);
+        if (addr) {
+          const locStr = [addr.area, addr.city].filter(Boolean).join(", ") || addr.shortName || addr.city || "Current Location";
+          handleSelectArea(locStr);
+        }
+      }
+    } catch (err) {
+      console.error("GPS detection failed:", err);
+    } finally {
+      setDetectingGps(false);
+    }
+  };
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -131,25 +198,167 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
 
   return (
     <div className="h-screen w-full bg-background flex flex-col overflow-hidden animate-in fade-in duration-300">
-      {/* Search Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border/80 bg-background sticky top-0 z-10 shrink-0 w-full max-w-3xl mx-auto">
-        <button
-          onClick={onBack}
-          className="p-1 rounded-full hover:bg-secondary transition-colors cursor-pointer"
-          aria-label="Back"
-        >
-          <ArrowLeft className="h-6 w-6 text-foreground" />
-        </button>
-        <div className="relative flex-1">
-          <input
-            type="text"
-            placeholder="Type here..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-secondary/50 border border-border/80 rounded-lg py-2 px-4 text-sm focus:outline-none focus:border-primary transition-all duration-300"
-          />
+      {/* Sticky Header with Location Selector Top Row & Full Search Bar Row */}
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl shrink-0 w-full max-w-3xl mx-auto">
+        <div className="w-full px-3 sm:px-4 py-2.5 flex flex-col gap-2.5">
+          {/* Top Row: Back button & Centered Location Selector Pill */}
+          <div className="relative flex items-center justify-between w-full min-h-[38px] sm:min-h-[42px]">
+            {/* Left: Back Button */}
+            <button
+              onClick={onBack}
+              className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-border bg-card hover:bg-secondary transition-colors cursor-pointer shrink-0 z-10"
+              title="Go Back"
+            >
+              <ArrowLeft className="h-5 w-5 text-foreground" />
+            </button>
+
+            {/* Center: Location Selector Pill */}
+            <div ref={locationRef} className="absolute inset-x-0 mx-auto flex justify-center w-fit max-w-[calc(100%-84px)] z-10">
+              <button
+                type="button"
+                onClick={() => setShowLocationDropdown(!showLocationDropdown)}
+                className="flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 sm:py-2 rounded-full border border-border bg-card hover:bg-secondary/70 text-xs sm:text-sm font-semibold text-foreground cursor-pointer shadow-xs transition-all max-w-full justify-between"
+                title={`Current Location: ${selectedCity || "Select Location"}`}
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600 dark:text-amber-500 shrink-0" />
+                  <span className="truncate max-w-[150px] sm:max-w-[240px] md:max-w-xs">
+                    {detectingGps ? "Detecting..." : selectedCity || "Select Location"}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform duration-200 ${
+                    showLocationDropdown ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {/* Location Dropdown Modal */}
+              {showLocationDropdown && (
+                <div className="fixed inset-x-4 top-20 sm:absolute sm:top-[calc(100%+8px)] sm:left-1/2 sm:-translate-x-1/2 sm:min-w-[360px] sm:w-auto bg-card border border-border rounded-2xl shadow-2xl z-[60] text-left overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  {/* Location Search Bar Header */}
+                  <div className="p-3 border-b border-border/60 bg-secondary/30">
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-card shadow-xs focus-within:border-primary transition-all">
+                      <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <input
+                        type="text"
+                        value={locationQuery}
+                        onChange={(e) => setLocationQuery(e.target.value)}
+                        placeholder="Search city, area or locality..."
+                        className="flex-1 bg-transparent text-xs sm:text-sm outline-none placeholder:text-muted-foreground text-foreground min-w-0"
+                        autoFocus
+                      />
+                      {locationQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setLocationQuery("")}
+                          className="p-0.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition cursor-pointer shrink-0"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowLocationDropdown(false);
+                          setLocationQuery("");
+                        }}
+                        className="p-1 rounded-lg hover:bg-secondary text-muted-foreground transition cursor-pointer shrink-0"
+                        title="Close"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {locationQuery.trim() ? (
+                    <div className="p-2 max-h-[280px] overflow-y-auto no-scrollbar space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSelectArea(locationQuery.trim());
+                          setLocationQuery("");
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer text-left group"
+                      >
+                        <Search className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="text-xs font-bold text-primary truncate">
+                          Search for "{locationQuery.trim()}"
+                        </span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-3 space-y-1 max-h-[340px] overflow-y-auto no-scrollbar">
+                      {/* Detect Live GPS */}
+                      <button
+                        type="button"
+                        onClick={handleDetectLocation}
+                        disabled={detectingGps}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-blue-50/70 hover:bg-blue-100/80 dark:bg-blue-950/40 border border-blue-200/60 transition cursor-pointer group disabled:opacity-60"
+                      >
+                        <div className="h-7 w-7 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 flex items-center justify-center shrink-0">
+                          <Navigation className={`h-3.5 w-3.5 fill-current ${detectingGps ? "animate-spin" : ""}`} />
+                        </div>
+                        <div className="flex flex-col text-left">
+                          <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                            {detectingGps ? "Detecting Live Location..." : "Refresh Live GPS Location"}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            Auto-detects your current address
+                          </span>
+                        </div>
+                      </button>
+
+                      {/* Recent Locations */}
+                      {recentLocations.length > 0 && (
+                        <div className="pt-2 border-t border-border/40">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-1">
+                            Recent Locations
+                          </p>
+                          {recentLocations.slice(0, 5).map((loc) => (
+                            <button
+                              key={loc}
+                              type="button"
+                              onClick={() => handleSelectArea(loc)}
+                              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer text-left"
+                            >
+                              <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              <span className="text-[13px] font-semibold text-foreground">{loc}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Row 2 (Underneath): Full Width Search Input Bar */}
+          <div className="relative w-full">
+            <div className="flex items-center gap-2 px-3.5 py-1.5 sm:py-2 rounded-2xl border border-border bg-card shadow-xs focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all w-full min-w-0">
+              <Search className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-muted-foreground shrink-0" />
+              <input
+                type="text"
+                placeholder="Search categories, subcategories..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 bg-transparent px-1.5 py-1 text-xs sm:text-sm md:text-base outline-none text-foreground w-full min-w-0"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="p-1 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      </header>
 
       {/* Main Split Layout */}
       <div className="flex-1 flex overflow-hidden w-full max-w-3xl mx-auto bg-background">

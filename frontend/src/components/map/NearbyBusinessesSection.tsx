@@ -172,10 +172,12 @@ export default function NearbyBusinessesSection({
                   <h4 className="text-sm font-black text-foreground group-hover:text-primary transition-colors line-clamp-1">
                     {biz.name}
                   </h4>
-                  <p className="text-xs text-muted-foreground font-semibold line-clamp-1 mt-0.5 flex items-center gap-1">
-                    <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-                    {biz.location || biz.address || "Indore"}
-                  </p>
+                  {(biz.location || biz.address) && (
+                    <p className="text-xs text-muted-foreground font-semibold line-clamp-1 mt-0.5 flex items-center gap-1">
+                      <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+                      {biz.location || biz.address}
+                    </p>
+                  )}
                 </div>
               </div>
 

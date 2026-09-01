@@ -398,7 +398,7 @@ export default function AddTouristPlaceForm({ onCancel }: AddTouristPlaceFormPro
                   <label className="block">Nearest Airport</label>
                   <input
                     type="text"
-                    placeholder="e.g. Indore (IDR) Airport"
+                    placeholder="Enter nearest airport"
                     value={nearestAirport}
                     onChange={(e) => setNearestAirport(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 font-semibold"

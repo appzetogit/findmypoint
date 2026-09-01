@@ -178,7 +178,7 @@ export default function MobileSearchPage({
         >
           <div className="flex items-center gap-2 min-w-0">
             <MapPin className="h-4 w-4 text-accent shrink-0" />
-            <span className="text-xs sm:text-sm font-bold truncate">{selectedCity || "Indore"}</span>
+            <span className="text-xs sm:text-sm font-bold truncate">{selectedCity || "Select Location"}</span>
           </div>
           <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
         </button>
@@ -204,7 +204,7 @@ export default function MobileSearchPage({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={`Search in ${selectedCity || "Indore"}`}
+            placeholder={selectedCity ? `Search in ${selectedCity}` : "Search businesses, services..."}
             className="flex-1 bg-transparent text-sm md:text-base outline-none placeholder:text-muted-foreground text-foreground min-w-0"
           />
 
@@ -397,7 +397,7 @@ export default function MobileSearchPage({
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground truncate mt-0.5">
-                          {biz.location || biz.address || (biz as any).city || selectedCity || "Indore"} • {biz.category}
+                          {[biz.location || biz.address || (biz as any).city || selectedCity, biz.category].filter(Boolean).join(" • ")}
                         </p>
                       </div>
                       {(biz as any).rating ? (

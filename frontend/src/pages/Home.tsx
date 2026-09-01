@@ -24,8 +24,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import logoImg from "@/assets/logo.png";
-import catInterior from "@/assets/cat-interior.jpg";
-import catDining from "@/assets/cat-dining.jpg";
 import Footer from "./Footer";
 import { loadAboutData, AboutData } from "../data/aboutData";
 import { useCategories } from "../context/CategoryContext";
@@ -35,10 +33,8 @@ import { getCurrentUserLocation, reverseGeocodeCoords, calculateDistanceKm, form
 import { LazyImage } from "../components/ui/LazyImage";
 import MobileSearchPage from "./MobileSearchPage";
 import MobileLocationPage from "./MobileLocationPage";
+import MandatoryLocationModal from "../components/location/MandatoryLocationModal";
 
-
-import beautySpa from "@/assets/beauty_spa.png";
-import serviceAc from "@/assets/service_ac.png";
 
 
 
@@ -78,73 +74,7 @@ interface HomePageProps {
   onSearchSubmit?: (query: string, location?: string) => void;
 }
 
-// City-specific area data for location dropdown
-const cityAreas: Record<string, { trending: string[]; recent: string[] }> = {
-  Mumbai: {
-    trending: [
-      "Bandra West, Mumbai",
-      "Andheri West, Mumbai",
-      "Colaba, Mumbai",
-      "Powai, Mumbai",
-      "Juhu, Mumbai",
-      "Worli, Mumbai",
-      "Dadar, Mumbai",
-    ],
-    recent: ["Bandra, Mumbai"],
-  },
-  Indore: {
-    trending: [
-      "Vijay Nagar, Indore",
-      "Vijay Nagar Road Vijay Nagar, Indore",
-      "Bhawar Kuan, Indore",
-      "Khajrana, Indore",
-      "Sudama Nagar, Indore",
-      "Mhow, Indore",
-      "MG Road, Indore",
-    ],
-    recent: ["Chhoti Gwaltoli, Indore"],
-  },
-  Ujjain: {
-    trending: [
-      "Mahakal Marg, Ujjain",
-      "Freeganj, Ujjain",
-      "Dewas Gate, Ujjain",
-      "Ram Ghat, Ujjain",
-    ],
-    recent: [],
-  },
-  Pune: {
-    trending: [
-      "Koregaon Park, Pune",
-      "Viman Nagar, Pune",
-      "Hinjewadi, Pune",
-      "Kothrud, Pune",
-      "Baner, Pune",
-    ],
-    recent: [],
-  },
-  Jaipur: {
-    trending: [
-      "Malviya Nagar, Jaipur",
-      "C-Scheme, Jaipur",
-      "Mansarovar, Jaipur",
-      "Vaishali Nagar, Jaipur",
-      "Tonk Road, Jaipur",
-    ],
-    recent: [],
-  },
-};
 
-const availableCities = [
-  "Mumbai",
-  "Indore",
-  "Pune",
-  "Jaipur",
-  "Ujjain",
-  "Ahmedabad",
-  "Nashik",
-  "Udaipur",
-];
 
 export default function HomePage({
   onArticleClick,
@@ -532,7 +462,7 @@ export default function HomePage({
                 userColor: rev.userColor || "from-blue-500 to-indigo-600",
                 rating: rev.rating || 5,
                 reviewText: rev.reviewText,
-                whatsappLink: biz.whatsapp ? `https://wa.me/${biz.whatsapp.replace(/[+\s]+/g, "")}` : "https://wa.me/919999999999",
+                whatsappLink: biz.whatsapp ? `https://wa.me/${biz.whatsapp.replace(/[+\s]+/g, "")}` : "",
                 date: rev.date
               });
             });
@@ -620,10 +550,10 @@ export default function HomePage({
         const saved = localStorage.getItem("fmp_user_coords:v1");
         if (saved) {
           const parsed = JSON.parse(saved);
-          return parsed.shortName || parsed.area || parsed.city || "Indore";
+          return parsed.shortName || parsed.area || parsed.city || "";
         }
       } catch { }
-      return "Indore";
+      return "";
     })(),
     showLocationDropdown: false,
     recentLocations: (() => {
@@ -636,6 +566,15 @@ export default function HomePage({
   });
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [showMobileLocation, setShowMobileLocation] = useState(false);
+  const [showMandatoryLocationModal, setShowMandatoryLocationModal] = useState(() => {
+    try {
+      const savedCoords = localStorage.getItem("fmp_user_coords:v1");
+      const savedCity = localStorage.getItem("fmp_selected_city:v1");
+      return !savedCoords && !savedCity;
+    } catch {
+      return true;
+    }
+  });
   const [desktopLocationQuery, setDesktopLocationQuery] = useState("");
   const [desktopOnlineLocations, setDesktopOnlineLocations] = useState<{ title: string; subtitle?: string; fullAddress: string }[]>([]);
   const [isSearchingDesktopLocation, setIsSearchingDesktopLocation] = useState(false);
@@ -742,65 +681,16 @@ export default function HomePage({
   const filteredDesktopLocations = useMemo(() => {
     const q = desktopLocationQuery.trim().toLowerCase();
     if (!q) return [];
-    const all = [
-      "Vijay Nagar, Indore",
-      "Bhawar Kuan, Indore",
-      "Khajrana, Indore",
-      "Sudama Nagar, Indore",
-      "Mhow, Indore",
-      "MG Road, Indore",
-      "New Palasia, Indore",
-      "Kanadia Road, Indore",
-      "Rau, Indore",
-      "Navlakha, Indore",
-      "Old Palasia, Indore",
-      "Annapurna, Indore",
-      "Rajwada, Indore",
-      "Geeta Bhawan, Indore",
-      "Sapna Sangeeta, Indore",
-      "AB Road, Indore",
-      "Scheme 54, Indore",
-      "Scheme 78, Indore",
-      "Mahalaxmi Nagar, Indore",
-      "Chhoti Gwaltoli, Indore",
-      "Bada Sarafa, Indore",
-      "LIG Colony, Indore",
-      "Bypass Road, Indore",
-      "Airport Road, Indore",
-      "Bicholi Mardana, Indore",
-      "Super Corridor, Indore",
-      "Khandwa Road, Indore",
-      "Indore, Madhya Pradesh",
-      "Bhopal, Madhya Pradesh",
-      "Ujjain, Madhya Pradesh",
-      "Dewas, Madhya Pradesh",
-      "Gwalior, Madhya Pradesh",
-      "Jabalpur, Madhya Pradesh",
-      "Ratlam, Madhya Pradesh",
-      "Khandwa, Madhya Pradesh",
-      "Pithampur, Madhya Pradesh",
-      "Sagar, Madhya Pradesh",
-      "Satna, Madhya Pradesh",
-      "Rewa, Madhya Pradesh",
-      "Mumbai, Maharashtra",
-      "Pune, Maharashtra",
-      "Nagpur, Maharashtra",
-      "Delhi, NCR",
-      "New Delhi, NCR",
-      "Noida, Uttar Pradesh",
-      "Gurgaon, Haryana",
-      "Bangalore, Karnataka",
-      "Hyderabad, Telangana",
-      "Chennai, Tamil Nadu",
-      "Kolkata, West Bengal",
-      "Ahmedabad, Gujarat",
-      "Surat, Gujarat",
-      "Jaipur, Rajasthan",
-      "Lucknow, Uttar Pradesh",
-      "Goa",
-    ];
+    const dynamicList: string[] = [];
+    allBusinesses.forEach((b: any) => {
+      const loc = b.location || b.cityTown || b.district;
+      if (loc && !dynamicList.includes(loc)) {
+        dynamicList.push(loc);
+      }
+    });
+    const all = [...locationState.recentLocations, ...dynamicList];
     return Array.from(new Set(all)).filter((loc) => loc.toLowerCase().includes(q)).slice(0, 8);
-  }, [desktopLocationQuery]);
+  }, [desktopLocationQuery, allBusinesses, locationState.recentLocations]);
 
   const { selectedCity, showLocationDropdown, recentLocations } = locationState;
   const locationRef = useRef<HTMLDivElement>(null);
@@ -846,7 +736,7 @@ export default function HomePage({
       }
 
       const geocoded = await reverseGeocodeCoords(pos.lat, pos.lng);
-      const detectedCity = geocoded?.city || "Indore";
+      const detectedCity = geocoded?.city || geocoded?.area || "";
       const detectedArea = geocoded?.area || "";
       const shortName = geocoded?.shortName || (detectedArea ? `${detectedArea}, ${detectedCity}` : detectedCity);
       const fullAddress = geocoded?.formattedAddress || shortName;
@@ -881,6 +771,46 @@ export default function HomePage({
       setDetectingGps(false);
     }
   }, []);
+
+  const handleMandatoryLocationConfirmed = useCallback(
+    (locationData: {
+      lat: number;
+      lng: number;
+      city: string;
+      area: string;
+      shortName: string;
+      formattedAddress: string;
+    }) => {
+      setUserCoords({ lat: locationData.lat, lng: locationData.lng });
+      localStorage.setItem(
+        "fmp_user_coords:v1",
+        JSON.stringify({
+          lat: locationData.lat,
+          lng: locationData.lng,
+          city: locationData.city,
+          area: locationData.area,
+          shortName: locationData.shortName,
+          formattedAddress: locationData.formattedAddress,
+        })
+      );
+      setLocationState((prev) => {
+        const updatedRecent = [
+          locationData.shortName,
+          ...prev.recentLocations.filter((l) => l !== locationData.shortName),
+        ].slice(0, 5);
+        localStorage.setItem("fmp_recent_locations:v1", JSON.stringify(updatedRecent));
+        localStorage.setItem("fmp_selected_city:v1", locationData.shortName);
+        return {
+          ...prev,
+          selectedCity: locationData.shortName,
+          recentLocations: updatedRecent,
+          showLocationDropdown: false,
+        };
+      });
+      setShowMandatoryLocationModal(false);
+    },
+    []
+  );
 
   // Auto-detect live GPS location on page load (Always auto-detects latest position)
   useEffect(() => {
@@ -1343,68 +1273,62 @@ export default function HomePage({
                       </button>
 
                       {/* Recent Locations */}
-                      {(recentLocations.length > 0 ||
-                        (cityAreas[selectedCity]?.recent?.length ?? 0) > 0) && (
-                          <div className="pt-2">
-                            <div className="flex items-center justify-between px-3 mb-1">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                                Recent Locations
-                              </p>
-                              {recentLocations.length > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setLocationState((prev) => ({ ...prev, recentLocations: [] }));
-                                    localStorage.removeItem("fmp_recent_locations:v1");
-                                  }}
-                                  className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
-                                >
-                                  Clear All
-                                </button>
-                              )}
-                            </div>
-                            {[...recentLocations, ...(cityAreas[selectedCity]?.recent || [])]
-                              .filter((v, i, a) => a.indexOf(v) === i)
-                              .slice(0, 3)
-                              .map((loc) => (
-                                <button
-                                  key={loc}
-                                  type="button"
-                                  onClick={() => handleSelectArea(loc)}
-                                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer"
-                                >
-                                  <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                  <span className="text-[13px] font-semibold text-foreground">
-                                    {loc}
-                                  </span>
-                                </button>
-                              ))}
+                      {recentLocations.length > 0 && (
+                        <div className="pt-2">
+                          <div className="flex items-center justify-between px-3 mb-1">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                              Recent Locations
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLocationState((prev) => ({ ...prev, recentLocations: [] }));
+                                localStorage.removeItem("fmp_recent_locations:v1");
+                              }}
+                              className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                            >
+                              Clear All
+                            </button>
                           </div>
-                        )}
+                          {recentLocations.slice(0, 5).map((loc) => (
+                            <button
+                              key={loc}
+                              type="button"
+                              onClick={() => handleSelectArea(loc)}
+                              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer"
+                            >
+                              <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              <span className="text-[13px] font-semibold text-foreground">
+                                {loc}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
 
-                      {/* Trending Areas */}
-                      <div className="pt-2 pb-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-1">
-                          Trending Areas
-                        </p>
-                        {(
-                          cityAreas[selectedCity]?.trending || [
-                            `Central ${selectedCity}`,
-                            `North ${selectedCity}`,
-                            `South ${selectedCity}`,
-                          ]
-                        ).map((area) => (
-                          <button
-                            key={area}
-                            type="button"
-                            onClick={() => handleSelectArea(area)}
-                            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer"
-                          >
-                            <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <span className="text-[13px] font-semibold text-foreground">{area}</span>
-                          </button>
-                        ))}
-                      </div>
+                      {/* Available Areas from Real Businesses */}
+                      {allBusinesses.length > 0 && (
+                        <div className="pt-2 pb-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-1">
+                            Available Areas
+                          </p>
+                          {allBusinesses
+                            .map((b: any) => b.location || b.cityTown || b.district)
+                            .filter((loc: string, idx: number, arr: string[]) => loc && arr.indexOf(loc) === idx)
+                            .slice(0, 5)
+                            .map((area: string) => (
+                              <button
+                                key={area}
+                                type="button"
+                                onClick={() => handleSelectArea(area)}
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer"
+                              >
+                                <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                <span className="text-[13px] font-semibold text-foreground">{area}</span>
+                              </button>
+                            ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2577,6 +2501,12 @@ export default function HomePage({
           </div>
         </div>
       )}
+
+      {/* Mandatory First-Time Location Gate */}
+      <MandatoryLocationModal
+        isOpen={showMandatoryLocationModal}
+        onLocationConfirmed={handleMandatoryLocationConfirmed}
+      />
     </div>
   );
 }

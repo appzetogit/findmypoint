@@ -67,7 +67,7 @@ export const LocationPermissionModal: React.FC<LocationPermissionModalProps> = (
 
       // Reverse geocode to get city & neighborhood
       const geocoded = await reverseGeocodeCoords(pos.lat, pos.lng);
-      const detectedCity = geocoded?.city || "Indore";
+      const detectedCity = geocoded?.city || geocoded?.area || "";
       const detectedArea = geocoded?.area || "";
       const shortName = geocoded?.shortName || (detectedArea ? `${detectedArea}, ${detectedCity}` : detectedCity);
       const fullAddress = geocoded?.formattedAddress || shortName;

@@ -549,7 +549,7 @@ export default function ArticleManagement() {
               <div>
                 {sectionHead(<Tag className="h-4 w-4" />, "Tags")}
                 <label className={labelCls}>Comma-separated tags</label>
-                <input className={inputCls} placeholder="cloud kitchen, food indore, best restaurants..." value={form.tags} onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))} />
+                <input className={inputCls} placeholder="cloud kitchen, food, best restaurants..." value={form.tags} onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))} />
               </div>
 
 

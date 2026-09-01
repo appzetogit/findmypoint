@@ -147,7 +147,6 @@ router.get('/robots.txt', (req, res) => {
   const baseUrl = getBaseUrl(req);
   const robots = `User-agent: *
 Allow: /
-Allow: /indore/
 Allow: /business/
 Allow: /category/
 Allow: /place/

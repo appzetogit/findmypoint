@@ -450,9 +450,11 @@ export default function Reviews({ clientListings }: ReviewsProps) {
                       <h5 className="font-extrabold text-sm text-slate-900 dark:text-white truncate">
                         {review.userName}
                       </h5>
-                      <span className="text-[10px] font-semibold text-slate-450 dark:text-slate-500 truncate block">
-                        {review.userEmail || "no-email@example.com"}
-                      </span>
+                      {review.userEmail && (
+                        <span className="text-[10px] font-semibold text-slate-450 dark:text-slate-500 truncate block">
+                          {review.userEmail}
+                        </span>
+                      )}
                     </div>
                   </div>
 

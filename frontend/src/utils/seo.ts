@@ -144,8 +144,8 @@ export function buildBusinessSchemas(biz: any, origin: string) {
     "address": {
       "@type": "PostalAddress",
       "streetAddress": biz.address || biz.location || "",
-      "addressLocality": biz.cityTown || biz.district || "Indore",
-      "addressRegion": biz.state || "Madhya Pradesh",
+      "addressLocality": biz.cityTown || biz.district || "",
+      "addressRegion": biz.state || "",
       "postalCode": biz.pincode || "",
       "addressCountry": biz.country || "IN"
     },
@@ -170,8 +170,8 @@ export function buildBusinessSchemas(biz: any, origin: string) {
   };
 
   // 2. BreadcrumbList Schema
-  const city = biz.cityTown || biz.district || "Indore";
-  const locality = biz.location || "Vijay Nagar";
+  const city = biz.cityTown || biz.district || "";
+  const locality = biz.location || "";
 
   const breadcrumbSchema: Record<string, any> = {
     "@context": "https://schema.org",
@@ -183,23 +183,23 @@ export function buildBusinessSchemas(biz: any, origin: string) {
         "name": "Home",
         "item": origin
       },
-      {
+      ...(city ? [{
         "@type": "ListItem",
         "position": 2,
         "name": city,
-        "item": `${origin}/${biz.citySlug || 'indore'}`
-      },
-      {
+        "item": `${origin}/${biz.citySlug || encodeURIComponent(city.toLowerCase().replace(/\s+/g, '-'))}`
+      }] : []),
+      ...(locality ? [{
         "@type": "ListItem",
-        "position": 3,
+        "position": city ? 3 : 2,
         "name": locality,
-        "item": `${origin}/${biz.citySlug || 'indore'}/${biz.localitySlug || 'vijay-nagar'}`
-      },
+        "item": `${origin}/${biz.citySlug || 'city'}/${biz.localitySlug || encodeURIComponent(locality.toLowerCase().replace(/\s+/g, '-'))}`
+      }] : []),
       {
         "@type": "ListItem",
-        "position": 4,
+        "position": (city ? 1 : 0) + (locality ? 1 : 0) + 2,
         "name": biz.name,
-        "item": fullUrl
+        "item": `${origin}${biz.canonicalUrl || `/${biz.id}`}`
       }
     ]
   };

@@ -372,7 +372,7 @@ export default function BusinessDetailPage({
           setGlobalBusinesses(data.data);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Close search dropdown on click outside
@@ -480,7 +480,8 @@ export default function BusinessDetailPage({
   // Dynamic SEO Metadata and Schema.org JSON-LD Structured Data
   const seoTitle = useMemo(() => {
     if (!currentBiz?.name) return "FindMyPoint — Premium Local Business Directory";
-    return currentBiz.seoTitle || `${currentBiz.name} in ${currentBiz.location || 'Vijay Nagar'}, ${currentBiz.cityTown || currentBiz.district || 'Indore'} - ${currentBiz.category || 'Business'} | FindMyPoint`;
+    const locPart = [currentBiz.location, currentBiz.cityTown || currentBiz.district].filter(Boolean).join(", ");
+    return currentBiz.seoTitle || `${currentBiz.name}${locPart ? ` in ${locPart}` : ''} - ${currentBiz.category || 'Business'} | FindMyPoint`;
   }, [currentBiz?.name, currentBiz?.seoTitle, currentBiz?.location, currentBiz?.cityTown, currentBiz?.district, currentBiz?.category]);
 
   const seoDescription = useMemo(() => {
@@ -490,8 +491,8 @@ export default function BusinessDetailPage({
 
   const canonicalPath = useMemo(() => {
     if (!currentBiz?.name) return "";
-    return currentBiz.canonicalUrl || `/${currentBiz.citySlug || 'indore'}/${currentBiz.localitySlug || 'vijay-nagar'}/${currentBiz.slug || currentBiz.id}`;
-  }, [currentBiz?.name, currentBiz?.canonicalUrl, currentBiz?.citySlug, currentBiz?.localitySlug, currentBiz?.slug, currentBiz?.id]);
+    return currentBiz.canonicalUrl || `/${currentBiz.slug || currentBiz.id}`;
+  }, [currentBiz?.name, currentBiz?.canonicalUrl, currentBiz?.slug, currentBiz?.id]);
 
   const seoSchemas = useMemo(() => {
     if (!currentBiz?.name || typeof window === "undefined") return [];
@@ -1188,7 +1189,7 @@ export default function BusinessDetailPage({
   };
 
   const handleShare = async () => {
-    const canonical = currentBiz.canonicalUrl || `/${currentBiz.citySlug || 'indore'}/${currentBiz.localitySlug || 'vijay-nagar'}/${currentBiz.slug || currentBiz.id}`;
+    const canonical = currentBiz.canonicalUrl || `/${currentBiz.slug || currentBiz.id}`;
     const shareUrl = `${window.location.origin}${canonical}`;
 
     if (navigator.share) {
@@ -1544,11 +1545,10 @@ export default function BusinessDetailPage({
                       e.stopPropagation();
                       setMobileSlideIndex(idx);
                     }}
-                    className={`transition-all duration-300 rounded-full cursor-pointer ${
-                      mobileSlideIndex === idx
+                    className={`transition-all duration-300 rounded-full cursor-pointer ${mobileSlideIndex === idx
                         ? "w-4 h-1.5 bg-white shadow-sm"
                         : "w-1.5 h-1.5 bg-white/50 hover:bg-white/80"
-                    }`}
+                      }`}
                     aria-label={`Go to slide ${idx + 1}`}
                   />
                 ))}
@@ -1699,8 +1699,12 @@ export default function BusinessDetailPage({
               <span className="group-hover:underline">{currentBiz.address}</span>
             </a>
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
-              <span>{currentBiz.location || currentBiz.cityTown || "Indore"}</span>
-              <span>•</span>
+              {(currentBiz.location || currentBiz.cityTown) && (
+                <>
+                  <span>{currentBiz.location || currentBiz.cityTown}</span>
+                  <span>•</span>
+                </>
+              )}
               <span>{currentBiz.businessType || "Service Provider"}</span>
               {currentBiz.establishedYear ? (
                 <>
@@ -1733,11 +1737,10 @@ export default function BusinessDetailPage({
               </div>
               {/* Open Now / Closed Status in the same line */}
               {currentBiz.openStatus && (
-                <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-extrabold uppercase border ml-1 ${
-                  currentBiz.openStatus.toLowerCase().includes("open")
+                <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-extrabold uppercase border ml-1 ${currentBiz.openStatus.toLowerCase().includes("open")
                     ? "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800"
                     : "bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800"
-                }`}>
+                  }`}>
                   {currentBiz.openStatus}
                 </span>
               )}
@@ -4625,11 +4628,10 @@ export default function BusinessDetailPage({
                 <button
                   key={tIdx}
                   onClick={() => setLightboxIndex(tIdx)}
-                  className={`h-12 w-16 sm:h-14 sm:w-20 rounded-lg overflow-hidden border-2 transition cursor-pointer shrink-0 ${
-                    lightboxIndex === tIdx
+                  className={`h-12 w-16 sm:h-14 sm:w-20 rounded-lg overflow-hidden border-2 transition cursor-pointer shrink-0 ${lightboxIndex === tIdx
                       ? "border-primary scale-105 shadow-md"
                       : "border-transparent opacity-60 hover:opacity-100"
-                  }`}
+                    }`}
                 >
                   <LazyImage
                     src={tImg}

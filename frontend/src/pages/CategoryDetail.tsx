@@ -44,61 +44,6 @@ import { calculateDistanceKm, formatDistance, getCurrentUserLocation, reverseGeo
 import CategoryMapView from "../components/map/CategoryMapView";
 import { LazyImage } from "../components/ui/LazyImage";
 
-const cityAreas: Record<string, { trending: string[]; recent: string[] }> = {
-  Mumbai: {
-    trending: [
-      "Bandra West, Mumbai",
-      "Andheri West, Mumbai",
-      "Colaba, Mumbai",
-      "Powai, Mumbai",
-      "Juhu, Mumbai",
-      "Worli, Mumbai",
-      "Dadar, Mumbai",
-    ],
-    recent: ["Bandra, Mumbai"],
-  },
-  Indore: {
-    trending: [
-      "Vijay Nagar, Indore",
-      "Vijay Nagar Road Vijay Nagar, Indore",
-      "Bhawar Kuan, Indore",
-      "Khajrana, Indore",
-      "Sudama Nagar, Indore",
-      "Mhow, Indore",
-      "MG Road, Indore",
-    ],
-    recent: ["Chhoti Gwaltoli, Indore"],
-  },
-  Ujjain: {
-    trending: [
-      "Mahakal Marg, Ujjain",
-      "Freeganj, Ujjain",
-      "Dewas Gate, Ujjain",
-      "Ram Ghat, Ujjain",
-    ],
-    recent: [],
-  },
-  Pune: {
-    trending: [
-      "Koregaon Park, Pune",
-      "Viman Nagar, Pune",
-      "Hinjewadi, Pune",
-      "Kothrud, Pune",
-      "Baner, Pune",
-    ],
-    recent: [],
-  },
-  Jaipur: {
-    trending: [
-      "Malviya Nagar, Jaipur",
-      "C-Scheme, Jaipur",
-      "Mansarovar, Jaipur",
-      "Vaishali Nagar, Jaipur",
-      "Tonk Road, Jaipur",
-    ],
-    recent: [],
-  },
-};
 
 
 
@@ -1876,27 +1821,39 @@ export default function CategoryDetailPage({
 
                   {desktopLocationQuery.trim() ? (
                     <div className="p-2 max-h-[280px] overflow-y-auto no-scrollbar space-y-1">
-                      {/* Filtered Area Matches */}
-                      {Object.keys(cityAreas).flatMap((c) =>
-                        (cityAreas[c]?.trending || []).filter((a) =>
-                          a.toLowerCase().includes(desktopLocationQuery.toLowerCase())
-                        )
-                      ).map((loc, idx) => (
-                        <button
-                          key={`loc-${idx}`}
-                          type="button"
-                          onClick={() => {
-                            handleSelectArea(loc);
-                            setDesktopLocationQuery("");
-                          }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer text-left group"
-                        >
-                          <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary" />
-                          <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                            {loc}
-                          </span>
-                        </button>
-                      ))}
+                      {/* Filtered Area Matches from registered businesses */}
+                      {listings
+                        .map((b: any) => b.location || b.cityTown || b.district)
+                        .filter((loc: string, idx: number, arr: string[]) => loc && arr.indexOf(loc) === idx && loc.toLowerCase().includes(desktopLocationQuery.toLowerCase()))
+                        .map((loc: string, idx: number) => (
+                          <button
+                            key={`loc-${idx}`}
+                            type="button"
+                            onClick={() => {
+                              handleSelectArea(loc);
+                              setDesktopLocationQuery("");
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer text-left group"
+                          >
+                            <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary" />
+                            <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                              {loc}
+                            </span>
+                          </button>
+                        ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSelectArea(desktopLocationQuery.trim());
+                          setDesktopLocationQuery("");
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer text-left group border-t border-border/40 mt-1"
+                      >
+                        <Search className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="text-xs font-bold text-primary truncate">
+                          Search for "{desktopLocationQuery.trim()}"
+                        </span>
+                      </button>
                     </div>
                   ) : (
                     <div className="p-3 space-y-1 max-h-[340px] overflow-y-auto no-scrollbar">
@@ -1926,7 +1883,7 @@ export default function CategoryDetailPage({
                           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-1">
                             Recent Locations
                           </p>
-                          {recentLocations.slice(0, 3).map((loc) => (
+                          {recentLocations.slice(0, 5).map((loc) => (
                             <button
                               key={loc}
                               type="button"
@@ -1939,32 +1896,6 @@ export default function CategoryDetailPage({
                           ))}
                         </div>
                       )}
-
-                      {/* Trending Areas */}
-                      <div className="pt-2 pb-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-1">
-                          Trending Areas
-                        </p>
-                        {(
-                          cityAreas[selectedCity]?.trending || [
-                            "Vijay Nagar, Indore",
-                            "Bhawar Kuan, Indore",
-                            "Freeganj, Ujjain",
-                            "Bandra West, Mumbai",
-                            "Koregaon Park, Pune",
-                          ]
-                        ).slice(0, 5).map((area) => (
-                          <button
-                            key={area}
-                            type="button"
-                            onClick={() => handleSelectArea(area)}
-                            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/70 transition cursor-pointer text-left"
-                          >
-                            <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <span className="text-[13px] font-semibold text-foreground">{area}</span>
-                          </button>
-                        ))}
-                      </div>
                     </div>
                   )}
                 </div>

@@ -44,56 +44,6 @@ const WhatsAppIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
   </svg>
 );
 
-const cityAreas: Record<string, { trending: string[]; recent: string[] }> = {
-  Indore: {
-    trending: [
-      "Vijay Nagar, Indore",
-      "Bhawar Kuan, Indore",
-      "Khajrana, Indore",
-      "Chhoti Gwaltoli, Indore",
-      "Sapna Sangeeta, Indore",
-      "New Palasia, Indore",
-    ],
-    recent: ["Vijay Nagar, Indore", "Bhawar Kuan, Indore"],
-  },
-  Mumbai: {
-    trending: [
-      "Bandra West, Mumbai",
-      "Andheri West, Mumbai",
-      "Powai, Mumbai",
-      "Juhu, Mumbai",
-      "Colaba, Mumbai",
-    ],
-    recent: ["Bandra West, Mumbai", "Andheri West, Mumbai"],
-  },
-  Pune: {
-    trending: [
-      "Koregaon Park, Pune",
-      "Viman Nagar, Pune",
-      "Kothrud, Pune",
-      "Hinjewadi, Pune",
-    ],
-    recent: ["Koregaon Park, Pune", "Viman Nagar, Pune"],
-  },
-  Ujjain: {
-    trending: [
-      "Freeganj, Ujjain",
-      "Mahakal Road, Ujjain",
-      "Nanakheda, Ujjain",
-      "Tower Chowk, Ujjain",
-    ],
-    recent: ["Freeganj, Ujjain", "Nanakheda, Ujjain"],
-  },
-  Jaipur: {
-    trending: [
-      "Malviya Nagar, Jaipur",
-      "Vaishali Nagar, Jaipur",
-      "C-Scheme, Jaipur",
-      "Mansarovar, Jaipur",
-    ],
-    recent: ["Malviya Nagar, Jaipur", "Vaishali Nagar, Jaipur"],
-  },
-};
 
 interface SearchResultsPageProps {
   initialQuery: string;
@@ -151,8 +101,8 @@ function SearchResultCard({
   };
 
   const distFormatted = biz.distanceKm ? formatDistance(biz.distanceKm) : null;
-  const phoneRaw = biz.phone?.replace(/[^0-9+]/g, "") || "9999999999";
-  const whatsappRaw = (biz.whatsapp || biz.phone || "9999999999").replace(/[^0-9+]/g, "");
+  const phoneRaw = biz.phone?.replace(/[^0-9+]/g, "") || "";
+  const whatsappRaw = (biz.whatsapp || biz.phone || "").replace(/[^0-9+]/g, "");
 
   // Tags
   const tags = useMemo(() => {
@@ -184,8 +134,8 @@ function SearchResultCard({
     if (biz.description) {
       return biz.description;
     }
-    return `${biz.name} is a top choice for customers in ${selectedCity || "Indore"}. Clean, well-maintained and prompt service.`;
-  }, [biz, selectedCity]);
+    return "";
+  }, [biz]);
 
   return (
     <div
@@ -290,17 +240,19 @@ function SearchResultCard({
             )}
 
             {/* Review Snippet Quote */}
-            <div className="flex items-center gap-1.5 text-xs text-foreground/80 pt-0.5">
-              <span className="text-red-500 dark:text-rose-400 text-sm leading-none shrink-0">💬</span>
-              <p className="line-clamp-1 text-xs text-muted-foreground">
-                <strong className="text-foreground font-medium">"{reviewQuote}"</strong>
-                {biz.reviews && biz.reviews.length > 0 && (
-                  <span className="ml-1.5 text-muted-foreground font-normal">
-                    {biz.reviews.length} {biz.reviews.length === 1 ? "Suggestion" : "Suggestions"}
-                  </span>
-                )}
-              </p>
-            </div>
+            {reviewQuote && (
+              <div className="flex items-center gap-1.5 text-xs text-foreground/80 pt-0.5">
+                <span className="text-red-500 dark:text-rose-400 text-sm leading-none shrink-0">💬</span>
+                <p className="line-clamp-1 text-xs text-muted-foreground">
+                  <strong className="text-foreground font-medium">"{reviewQuote}"</strong>
+                  {biz.reviews && biz.reviews.length > 0 && (
+                    <span className="ml-1.5 text-muted-foreground font-normal">
+                      {biz.reviews.length} {biz.reviews.length === 1 ? "Review" : "Reviews"}
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons Row: Original 3 Buttons (Call, Enquire, Book) */}
@@ -410,12 +362,14 @@ function SearchResultCard({
         </div>
 
         {/* User Review Snippet Quote */}
-        <div className="flex items-start gap-1.5 text-xs text-foreground/80 pt-0.5">
-          <span className="text-red-500 dark:text-rose-400 text-sm leading-none shrink-0 mt-0.5">💬</span>
-          <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground font-normal">
-            {reviewQuote}
-          </p>
-        </div>
+        {reviewQuote && (
+          <div className="flex items-start gap-1.5 text-xs text-foreground/80 pt-0.5">
+            <span className="text-red-500 dark:text-rose-400 text-sm leading-none shrink-0 mt-0.5">💬</span>
+            <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground font-normal">
+              {reviewQuote}
+            </p>
+          </div>
+        )}
 
         {/* Action Buttons Row: Mobile 3-Button Layout */}
         <div className="flex flex-row items-center gap-1.5 pt-2 border-t border-border/40 w-full">
@@ -1095,31 +1049,48 @@ export default function SearchResultsPage({
                   </div>
                 </button>
 
-                {/* Trending Locations */}
-                <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground pt-2 px-2">
-                  Popular Areas
-                </p>
-                {(
-                  cityAreas[selectedCity]?.trending || [
-                    "Vijay Nagar, Indore",
-                    "Bhawar Kuan, Indore",
-                    "Chhoti Gwaltoli, Indore",
-                    "Sapna Sangeeta, Indore",
-                    "Freeganj, Ujjain",
-                    "Bandra West, Mumbai",
-                    "Koregaon Park, Pune",
-                  ]
-                ).map((area) => (
-                  <button
-                    key={area}
-                    type="button"
-                    onClick={() => handleSelectArea(area)}
-                    className="w-full flex items-center gap-2 p-2 hover:bg-secondary/70 rounded-xl text-left cursor-pointer transition-colors"
-                  >
-                    <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-xs font-semibold text-foreground truncate">{area}</span>
-                  </button>
-                ))}
+                {/* Recent / Available Locations */}
+                {recentLocations.length > 0 && (
+                  <>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground pt-2 px-2">
+                      Recent Locations
+                    </p>
+                    {recentLocations.slice(0, 5).map((loc) => (
+                      <button
+                        key={loc}
+                        type="button"
+                        onClick={() => handleSelectArea(loc)}
+                        className="w-full flex items-center gap-2 p-2 hover:bg-secondary/70 rounded-xl text-left cursor-pointer transition-colors"
+                      >
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-xs font-semibold text-foreground truncate">{loc}</span>
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {listings.length > 0 && (
+                  <>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground pt-2 px-2">
+                      Available Areas
+                    </p>
+                    {listings
+                      .map((b: any) => b.location || b.cityTown || b.district)
+                      .filter((loc: string, idx: number, arr: string[]) => loc && arr.indexOf(loc) === idx)
+                      .slice(0, 5)
+                      .map((area: string) => (
+                        <button
+                          key={area}
+                          type="button"
+                          onClick={() => handleSelectArea(area)}
+                          className="w-full flex items-center gap-2 p-2 hover:bg-secondary/70 rounded-xl text-left cursor-pointer transition-colors"
+                        >
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="text-xs font-semibold text-foreground truncate">{area}</span>
+                        </button>
+                      ))}
+                  </>
+                )}
               </div>
             </div>
           )}

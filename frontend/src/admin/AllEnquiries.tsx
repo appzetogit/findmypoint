@@ -26,7 +26,6 @@ interface EnquiryRecord {
   message: string;
 }
 
-// Mock enquiries generator matching client structure
 export default function AllEnquiries() {
   const [enquiries, setEnquiries] = useState<EnquiryRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -150,155 +149,150 @@ export default function AllEnquiries() {
           `"${enq.timestamp}","${enq.businessName}","${enq.categoryName}","${enq.name}","${enq.mobile}","${enq.email}","${enq.message.replace(/"/g, '""')}"`
       )
       .join("\n");
-    const blob = new Blob([headers + rows], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `admin_all_enquiries_${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+
+    const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Enquiries_${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
   };
 
   return (
-    <div className="space-y-8 animate-fade-in-up text-left max-w-7xl mx-auto">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-6">
+      {/* Top Header Card */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl p-5 shadow-sm text-left">
         <div>
-          <h2 className="font-serif text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <MessageSquare className="h-6 w-6 text-indigo-500" />
-            All Enquiries Management
+          <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+              <MessageSquare className="h-5 w-5" />
+            </div>
+            All Customer Enquiries
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            View customer enquiries received by all business listings.
+            Global repository of business leads and customer enquiries across all listings
           </p>
         </div>
-        <button
-          onClick={handleDownloadCSV}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/10 cursor-pointer transition-all shrink-0 self-start sm:self-center"
-        >
-          <Download className="h-4 w-4" /> Export to CSV
-        </button>
-      </div>
-
-      {/* Summary Widget */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-5 flex items-center justify-between shadow-sm max-w-sm">
-        <div className="space-y-1">
-          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Enquiries Received</span>
-          <h4 className="text-3xl font-black text-slate-900 dark:text-white">{filteredEnquiries.length}</h4>
-        </div>
-        <div className="h-12 w-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-          <MessageSquare className="h-6 w-6" />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleDownloadCSV}
+            disabled={filteredEnquiries.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV ({filteredEnquiries.length})
+          </button>
         </div>
       </div>
 
-      {/* Main Table card */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm space-y-6">
-        {/* Filters Panel */}
-        <div className="flex flex-col xl:flex-row gap-4 items-stretch xl:items-center justify-between">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search by customer name, phone, message, business..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Business filter */}
-            <div className="flex items-center gap-1.5 bg-slate-50/50 dark:bg-slate-950/50 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800">
-              <Building className="h-3.5 w-3.5 text-slate-400" />
-              <select
-                value={selectedBiz}
-                onChange={(e) => setSelectedBiz(e.target.value)}
-                className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer text-slate-700 dark:text-slate-350 pr-2"
-              >
-                <option value="All">All Businesses</option>
-                {uniqueBusinesses.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Category filter */}
-            <div className="flex items-center gap-1.5 bg-slate-50/50 dark:bg-slate-950/50 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800">
-              <Tag className="h-3.5 w-3.5 text-slate-400" />
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer text-slate-700 dark:text-slate-350 pr-2"
-              >
-                <option value="All">All Categories</option>
-                {uniqueCategories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+      {/* Filter Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+        {/* Search */}
+        <div className="sm:col-span-6 relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by customer name, mobile, email or message..."
+            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/80 rounded-xl text-xs font-semibold text-slate-900 dark:text-white outline-none focus:border-indigo-500 shadow-sm"
+          />
         </div>
 
-        {/* Enquiries Table */}
-        <div className="overflow-x-auto border border-slate-200/50 dark:border-slate-800/50 rounded-2xl">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="bg-slate-50/50 dark:bg-slate-950/50 border-b border-slate-200/60 dark:border-slate-800/60">
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Date & Time</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Business Name</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Contact</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Message</th>
+        {/* Business Selector */}
+        <div className="sm:col-span-3">
+          <select
+            value={selectedBiz}
+            onChange={(e) => setSelectedBiz(e.target.value)}
+            className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/80 rounded-xl text-xs font-semibold text-slate-900 dark:text-white outline-none focus:border-indigo-500 shadow-sm cursor-pointer"
+          >
+            <option value="All">All Businesses ({uniqueBusinesses.length})</option>
+            {uniqueBusinesses.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Category Selector */}
+        <div className="sm:col-span-3">
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/80 rounded-xl text-xs font-semibold text-slate-900 dark:text-white outline-none focus:border-indigo-500 shadow-sm cursor-pointer"
+          >
+            <option value="All">All Categories ({uniqueCategories.length})</option>
+            {uniqueCategories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Enquiries Table */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl shadow-sm overflow-hidden text-left">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-slate-800 dark:text-slate-200">
+            <thead className="bg-slate-50 dark:bg-slate-950/40 border-b border-slate-200/50 dark:border-slate-800/80 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+              <tr>
+                <th className="py-3 px-4">Date / Time</th>
+                <th className="py-3 px-4">Business</th>
+                <th className="py-3 px-4">Customer Name</th>
+                <th className="py-3 px-4">Contact</th>
+                <th className="py-3 px-4">Enquiry Details</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200/40 dark:divide-slate-800/40 text-xs font-medium text-slate-700 dark:text-slate-300">
-              {filteredEnquiries.length > 0 ? (
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40 font-medium">
+              {filteredEnquiries.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-slate-400 text-xs font-semibold">
+                    No enquiries found matching your filters.
+                  </td>
+                </tr>
+              ) : (
                 filteredEnquiries.map((enq) => (
-                  <tr key={enq.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-900/30 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-slate-500 dark:text-slate-400">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-slate-400" />
-                        <span>{enq.timestamp}</span>
+                  <tr key={enq.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                    <td className="py-3.5 px-4 whitespace-nowrap text-slate-500 dark:text-slate-400 font-mono text-[11px]">
+                      {enq.timestamp}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <Building className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                          {enq.businessName}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">{enq.categoryName}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">{enq.businessName}</td>
-                    <td className="px-6 py-4">
-                      <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 text-[10px] font-black uppercase tracking-wider">
-                        {enq.categoryName}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">
+                    <td className="py-3.5 px-4 whitespace-nowrap font-bold text-slate-900 dark:text-white">
                       <div className="flex items-center gap-1.5">
                         <User className="h-3.5 w-3.5 text-slate-400" />
-                        <span>{enq.name}</span>
+                        {enq.name}
                       </div>
                     </td>
-                    <td className="px-6 py-4 space-y-1">
-                      <div className="flex items-center gap-1">
-                        <Phone className="h-3 w-3 text-slate-400" />
-                        <span>{enq.mobile}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-450">
-                        <Mail className="h-3 w-3 text-slate-400" />
-                        <span>{enq.email}</span>
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <div className="flex flex-col gap-0.5 text-[11px]">
+                        <a href={`tel:${enq.mobile}`} className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline">
+                          <Phone className="h-3 w-3" />
+                          {enq.mobile}
+                        </a>
+                        {enq.email !== "N/A" && (
+                          <a href={`mailto:${enq.email}`} className="flex items-center gap-1 text-slate-500 hover:underline text-[10px]">
+                            <Mail className="h-3 w-3" />
+                            {enq.email}
+                          </a>
+                        )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400 max-w-[280px]" title={enq.message}>
-                      {enq.message}
+                    <td className="py-3.5 px-4 max-w-xs text-slate-600 dark:text-slate-300">
+                      <p className="line-clamp-2 leading-relaxed bg-slate-50 dark:bg-slate-950/30 border border-slate-100 dark:border-slate-800/60 rounded-lg p-2 text-[11px]">
+                        {enq.message}
+                      </p>
                     </td>
                   </tr>
                 ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-semibold">
-                    No enquiries found matching the selected filters.
-                  </td>
-                </tr>
               )}
             </tbody>
           </table>

@@ -97,7 +97,7 @@ export default function MyBusinesses({
                     <td className="py-4 px-6">
                       <div className="flex items-center justify-center gap-2">
                         {(() => {
-                          const canonical = listing.canonicalUrl || `/${listing.citySlug || 'indore'}/${listing.localitySlug || 'vijay-nagar'}/${listing.slug || listing.id}`;
+                          const canonical = listing.canonicalUrl || `/${listing.slug || listing.id}`;
                           return (
                             <a
                               href={canonical}

@@ -126,12 +126,7 @@ export default function BusinessCommission() {
           }
         } catch (e) {}
 
-        // Fallback mock if sales volume is zero for premium look
-        const isEstimated = salesVolume === 0;
-        if (isEstimated) {
-          const hash = biz.id.charCodeAt(0) + biz.id.charCodeAt(biz.id.length - 1);
-          salesVolume = (hash % 10 + 2) * 999;
-        }
+        const isEstimated = false;
 
         const commissionRate = commissionsConfig[biz.id] !== undefined ? commissionsConfig[biz.id] : 10; // default to 10%
         const commissionEarned = parseFloat(((salesVolume * commissionRate) / 100).toFixed(2));

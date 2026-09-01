@@ -471,7 +471,7 @@ export default function BusinessListings({
             <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
               {/* Public SEO Profile & Canonical URL Box */}
               {(() => {
-                const canonicalPath = viewingBusiness.canonicalUrl || `/${viewingBusiness.citySlug || 'indore'}/${viewingBusiness.localitySlug || 'vijay-nagar'}/${viewingBusiness.slug || viewingBusiness.id}`;
+                const canonicalPath = viewingBusiness.canonicalUrl || `/${viewingBusiness.slug || viewingBusiness.id}`;
                 return (
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-900/50 p-4.5 rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">

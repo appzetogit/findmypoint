@@ -5,6 +5,7 @@ import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
 import { Briefcase, Phone, MapPin, Calendar, Heart, ShieldCheck, X, Search, CheckCircle2, User, Image as ImageIcon } from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
 import { LazyImage } from "../components/ui/LazyImage";
+import statesAndDistricts from "../data/states-and-districts.json";
 
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
@@ -57,29 +58,7 @@ export default function Footer() {
   const [searchError, setSearchError] = useState("");
   const [foundEmployee, setFoundEmployee] = useState<Employee | null>(null);
 
-  const GEOGRAPHY_DATA: Record<string, Record<string, string[]>> = {
-    India: {
-      "Madhya Pradesh": ["Indore", "Bhopal", "Jabalpur", "Gwalior", "Ujjain"],
-      Gujarat: ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Anand"],
-      Maharashtra: ["Mumbai", "Pune", "Nagpur", "Thane", "Nashik"],
-      Delhi: ["New Delhi", "North Delhi", "South Delhi", "West Delhi"]
-    },
-    Canada: {
-      Ontario: ["Toronto", "Ottawa", "Mississauga", "Hamilton"],
-      Quebec: ["Montreal", "Quebec City", "Laval", "Gatineau"],
-      "British Columbia": ["Vancouver", "Victoria", "Burnaby", "Richmond"]
-    },
-    Australia: {
-      "New South Wales": ["Sydney", "Newcastle", "Wollongong"],
-      Victoria: ["Melbourne", "Geelong", "Ballarat"],
-      Queensland: ["Brisbane", "Gold Coast", "Sunshine Coast"]
-    },
-    USA: {
-      California: ["Los Angeles", "San Diego", "San Jose", "San Francisco"],
-      Texas: ["Houston", "San Antonio", "Dallas", "Austin"],
-      "New York": ["New York City", "Buffalo", "Rochester", "Yonkers"]
-    }
-  };
+
 
   const CALLING_CODES = ["+91", "+1", "+44", "+61", "+65", "+971"];
   const BUSINESS_CATEGORIES = [
@@ -188,25 +167,20 @@ export default function Footer() {
           }
         });
 
-      const states = Object.keys(GEOGRAPHY_DATA["India"] || {});
-      setState(states[0] || "");
-      const districts = GEOGRAPHY_DATA["India"]?.[states[0] || ""] || [];
-      setDistrict(districts[0] || "");
+      const states = statesAndDistricts.states || [];
+      if (states.length > 0) {
+        setState(states[0].state || "");
+        const districts = states[0].districts || [];
+        setDistrict(districts[0] || "");
+      }
     }
   }, [showLeadForm]);
-
-  // Adjust State and District when Country changes
-  useEffect(() => {
-    const states = Object.keys(GEOGRAPHY_DATA[country] || {});
-    setState(states[0] || "");
-    const districts = GEOGRAPHY_DATA[country]?.[states[0] || ""] || [];
-    setDistrict(districts[0] || "");
-  }, [country]);
 
   // Adjust District when State changes
   useEffect(() => {
     if (state) {
-      const districts = GEOGRAPHY_DATA[country]?.[state] || [];
+      const found = (statesAndDistricts.states || []).find((s: any) => s.state === state);
+      const districts = found?.districts || [];
       setDistrict(districts[0] || "");
     } else {
       setDistrict("");
@@ -1109,11 +1083,7 @@ export default function Footer() {
                         onChange={(e) => setCountry(e.target.value)}
                         className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
                       >
-                        {Object.keys(GEOGRAPHY_DATA).map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
+                        <option value="India">India</option>
                       </select>
                     </div>
 
@@ -1127,9 +1097,9 @@ export default function Footer() {
                         onChange={(e) => setState(e.target.value)}
                         className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
                       >
-                        {Object.keys(GEOGRAPHY_DATA[country] || {}).map((s) => (
-                          <option key={s} value={s}>
-                            {s}
+                        {(statesAndDistricts.states || []).map((s: any) => (
+                          <option key={s.state} value={s.state}>
+                            {s.state}
                           </option>
                         ))}
                       </select>
@@ -1145,7 +1115,7 @@ export default function Footer() {
                         onChange={(e) => setDistrict(e.target.value)}
                         className="w-full bg-white dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-805 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
                       >
-                        {(GEOGRAPHY_DATA[country]?.[state] || []).map((d) => (
+                        {((statesAndDistricts.states || []).find((s: any) => s.state === state)?.districts || []).map((d: string) => (
                           <option key={d} value={d}>
                             {d}
                           </option>

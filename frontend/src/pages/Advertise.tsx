@@ -154,8 +154,6 @@ export default function Advertise({ onClose, username }: AdvertiseProps) {
 
   const categories = dbCategories;
 
-  const cities = ["Mumbai", "Indore", "Pune", "Jaipur", "Delhi", "Bangalore"];
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans animate-fade-in">
       {/* Header */}

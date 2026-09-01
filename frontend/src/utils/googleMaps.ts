@@ -132,11 +132,11 @@ export function getDirectionsUrl(
     if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
       return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
     }
-    const query = encodeURIComponent([name, address].filter(Boolean).join(", ") || "Indore, India");
+    const query = encodeURIComponent([name, address].filter(Boolean).join(", "));
     return `https://www.google.com/maps/search/?api=1&query=${query}`;
   }
 
-  const query = encodeURIComponent(destination || "Indore, India");
+  const query = encodeURIComponent(destination || "");
   return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
@@ -167,7 +167,7 @@ export function getGoogleMapsEmbedUrl(params: {
 
   // 3. Fallback to query address
   const fullAddress = [name, address].filter(Boolean).join(", ");
-  const query = encodeURIComponent(fullAddress || "Indore, Madhya Pradesh, India");
+  const query = encodeURIComponent(fullAddress || "");
   return `https://maps.google.com/maps?q=${query}&z=14&output=embed`;
 }
 
@@ -251,7 +251,7 @@ export async function reverseGeocodeCoords(
           get("locality") ||
           get("administrative_area_level_2") ||
           get("administrative_area_level_1") ||
-          "Indore";
+          "";
         const area =
           get("sublocality_level_1") ||
           get("sublocality") ||
@@ -282,7 +282,7 @@ export async function reverseGeocodeCoords(
     if (data && data.address) {
       const addr = data.address;
       const city =
-        addr.city || addr.town || addr.municipality || addr.county || addr.state_district || "Indore";
+        addr.city || addr.town || addr.municipality || addr.county || addr.state_district || "";
       const area =
         addr.suburb ||
         addr.neighbourhood ||

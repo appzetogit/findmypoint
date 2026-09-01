@@ -15,37 +15,15 @@ export default function SavedPage({ onNavigateToBusiness }: SavedPageProps) {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("fmp_saved_listings:v1");
+      const saved = localStorage.getItem("fmp_saved_listings:v1") || localStorage.getItem("fmp_saved_listings");
       if (saved) {
         setSavedListings(JSON.parse(saved));
       } else {
-        const defaultSaved = [
-          {
-            id: "REST002213",
-            name: "Shree shyam restaurant",
-            category: "Food Point",
-            sub: "Restaurants",
-            rating: 4.8,
-            address: "Jaipur Highway, Mansarovar",
-            image:
-              "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500&auto=format&fit=crop&q=60",
-          },
-          {
-            id: "HOTEL001",
-            name: "The Royal Palace Hotel",
-            category: "Hotel Point",
-            sub: "Hotels",
-            rating: 4.9,
-            address: "Subhash Marg, C-Scheme",
-            image:
-              "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&auto=format&fit=crop&q=60",
-          },
-        ];
-        localStorage.setItem("fmp_saved_listings:v1", JSON.stringify(defaultSaved));
-        setSavedListings(defaultSaved);
+        setSavedListings([]);
       }
     } catch (e) {
       console.error("Failed to load saved listings from localStorage", e);
+      setSavedListings([]);
     }
   }, []);
 

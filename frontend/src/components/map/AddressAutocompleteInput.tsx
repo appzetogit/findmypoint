@@ -33,7 +33,7 @@ export default function AddressAutocompleteInput({
   value,
   onChange,
   onPlaceSelected,
-  placeholder = "Start typing address or locality (e.g. Vijay Nagar, Indore)...",
+  placeholder = "Start typing address or locality...",
   className = "",
   required = false,
   id,

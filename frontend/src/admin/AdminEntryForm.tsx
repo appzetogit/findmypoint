@@ -834,7 +834,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                 </div>
                 <AddressAutocompleteInput
                   required
-                  placeholder="Start typing business address (e.g. Scheme 54, Vijay Nagar, Indore)..."
+                  placeholder="Start typing business address ..."
                   value={address}
                   onChange={(val) => setAddress(val)}
                   onPlaceSelected={(place: PlaceResultData) => {
@@ -1194,7 +1194,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                 </label>
                 <input
                   type="text"
-                  placeholder={`e.g. ${name || 'Business'} in ${cityTown || 'Indore'} - Best Services | FindMyPoint`}
+                  placeholder={`e.g. ${name || 'Business'}${cityTown ? ` in ${cityTown}` : ''} - Best Services | FindMyPoint`}
                   value={seoTitle}
                   onChange={(e) => setSeoTitle(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
@@ -1208,7 +1208,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                 </label>
                 <textarea
                   rows={2}
-                  placeholder={`e.g. Contact ${name || 'Business'} in ${cityTown || 'Indore'}. View services, reviews, address, phone number and photos on FindMyPoint.`}
+                  placeholder={`e.g. Contact ${name || 'Business'}${cityTown ? ` in ${cityTown}` : ''}. View services, reviews, address, phone number and photos on FindMyPoint.`}
                   value={seoDescription}
                   onChange={(e) => setSeoDescription(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"

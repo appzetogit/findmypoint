@@ -75,8 +75,8 @@ export default function MapLocationPicker({
     return null;
   });
 
-  // Default fallback center: Indore, India
-  const defaultCenter = { lat: 22.7196, lng: 75.8577 };
+  // Default fallback center: Geographic center
+  const defaultCenter = { lat: 20.5937, lng: 78.9629 };
 
   const handlePositionChange = useCallback(
     async (lat: number, lng: number) => {

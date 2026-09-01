@@ -36,8 +36,8 @@ export default function CategoryMapView({
       // Filter businesses with valid coordinates
       const withCoords = businesses.filter((b) => b.latitude && b.longitude);
 
-      // Determine center: first business, user coords, or default to Indore
-      let defaultCenter = { lat: 22.7196, lng: 75.8577 }; // Indore center
+      // Determine center: user coords, first business, or India geographic center
+      let defaultCenter = { lat: 20.5937, lng: 78.9629 }; // Geographic center
       if (userCoords) {
         defaultCenter = userCoords;
       } else if (withCoords.length > 0) {

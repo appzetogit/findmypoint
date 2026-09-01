@@ -6,6 +6,7 @@ import {
   Phone,
   MessageSquare,
   ChevronLeft,
+  ChevronRight,
   X,
   Navigation,
   Clock,
@@ -14,7 +15,6 @@ import {
   Crown,
   Sparkles,
   SlidersHorizontal,
-  Mic,
   ChevronDown,
   Building2,
   Calendar,
@@ -22,11 +22,27 @@ import {
   QrCode,
   ShieldCheck,
   Loader2,
+  ThumbsUp,
+  Zap,
+  Tag,
+  Percent,
 } from "lucide-react";
-import { API_BASE_URL, RAZORPAY_KEY_ID, BACKEND_ORIGIN } from "../config";
+import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
 import { BusinessListingData } from "../data/businessesData";
 import { LazyImage } from "../components/ui/LazyImage";
 import { calculateDistanceKm, formatDistance, getCurrentUserLocation, reverseGeocodeCoords } from "../utils/googleMaps";
+import Footer from "./Footer";
+
+// WhatsApp SVG Icon
+const WhatsAppIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={className}
+  >
+    <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2M12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.58 20.15 12.04 20.15C10.56 20.15 9.11 19.76 7.85 19.01L7.55 18.83L4.43 19.65L5.26 16.61L5.06 16.29C4.24 14.99 3.8 13.47 3.8 11.91C3.81 7.37 7.5 3.67 12.05 3.67M9.13 7.38C8.94 7.38 8.64 7.45 8.38 7.73C8.12 8.02 7.39 8.7 7.39 10.08C7.39 11.46 8.4 12.78 8.54 12.97C8.68 13.16 10.5 16.12 13.38 17.24C15.77 18.17 16.26 17.98 16.79 17.93C17.32 17.89 18.49 17.24 18.73 16.57C18.97 15.9 18.97 15.33 18.9 15.21C18.83 15.09 18.64 15.02 18.35 14.88C18.06 14.74 16.65 14.05 16.39 13.95C16.13 13.86 15.94 13.81 15.75 14.1C15.56 14.39 15.01 15.02 14.85 15.21C14.68 15.4 14.52 15.42 14.23 15.28C13.94 15.14 13.01 14.83 11.91 13.85C11.05 13.09 10.47 12.14 10.3 11.86C10.14 11.57 10.28 11.41 10.43 11.27C10.56 11.14 10.72 10.92 10.87 10.75C11.01 10.58 11.06 10.46 11.16 10.27C11.25 10.08 11.2 9.91 11.13 9.77C11.06 9.63 10.49 8.24 10.25 7.67C10.02 7.12 9.79 7.19 9.62 7.18C9.46 7.18 9.3 7.38 9.13 7.38Z" />
+  </svg>
+);
 
 const cityAreas: Record<string, { trending: string[]; recent: string[] }> = {
   Indore: {
@@ -90,14 +106,369 @@ interface SearchResultsPageProps {
   username?: string | null;
 }
 
+// Individual Search Result Card Component
+interface SearchResultCardProps {
+  biz: BusinessListingData;
+  selectedCity: string;
+  onBusinessSelect: (idOrSlug: string) => void;
+  onBookNow?: (idOrSlug: string) => void;
+  onOpenEnquiry: (biz: BusinessListingData) => void;
+}
+
+function SearchResultCard({
+  biz,
+  selectedCity,
+  onBusinessSelect,
+  onBookNow,
+  onOpenEnquiry,
+}: SearchResultCardProps) {
+  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
+
+  // Photos resolution
+  const photos = useMemo(() => {
+    const raw = Array.isArray(biz.images) && biz.images.length > 0 ? biz.images : [];
+    if (raw.length > 0) {
+      return raw.map((img) =>
+        img.startsWith("data:") || img.startsWith("http") ? img : `${BACKEND_ORIGIN}${img}`
+      );
+    }
+    return [
+      "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80",
+    ];
+  }, [biz.images]);
+
+  const handlePrevPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActivePhotoIdx((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
+  };
+
+  const handleNextPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActivePhotoIdx((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
+  };
+
+  const distFormatted = biz.distanceKm ? formatDistance(biz.distanceKm) : null;
+  const phoneRaw = biz.phone?.replace(/[^0-9+]/g, "") || "9999999999";
+  const whatsappRaw = (biz.whatsapp || biz.phone || "9999999999").replace(/[^0-9+]/g, "");
+
+  // Tags
+  const tags = useMemo(() => {
+    const list: string[] = [];
+    const lowerName = (biz.name || "").toLowerCase();
+    if (lowerName.includes("girls")) list.push("Girls");
+    else if (lowerName.includes("boys")) list.push("Boys");
+
+    if (biz.category && !list.includes(biz.category)) list.push(biz.category);
+    if ((biz as any).subcategory && !list.includes((biz as any).subcategory)) {
+      list.push((biz as any).subcategory);
+    }
+    if (biz.subCategoryLine && !list.includes(biz.subCategoryLine)) {
+      list.push(biz.subCategoryLine);
+    }
+    if (Array.isArray(biz.facilities)) {
+      biz.facilities.slice(0, 3).forEach((f) => {
+        if (f && !list.includes(f)) list.push(f);
+      });
+    }
+    return list.slice(0, 4);
+  }, [biz]);
+
+  // Review Quote
+  const reviewQuote = useMemo(() => {
+    if (biz.reviews && biz.reviews.length > 0 && biz.reviews[0]?.reviewText) {
+      return biz.reviews[0].reviewText;
+    }
+    if (biz.description) {
+      return biz.description;
+    }
+    return `${biz.name} is a top choice for customers in ${selectedCity || "Indore"}. Clean, well-maintained and prompt service.`;
+  }, [biz, selectedCity]);
+
+  return (
+    <div
+      onClick={() => onBusinessSelect(biz.canonicalUrl || biz.id)}
+      className="py-4 sm:py-5 border-b border-border/70 transition-all cursor-pointer group"
+    >
+      {/* ========================================================================= */}
+      {/* DESKTOP VIEW (Visible on md and up >= 768px): Exact Justdial Style Layout */}
+      {/* ========================================================================= */}
+      <div className="hidden md:flex flex-row items-stretch gap-5 lg:gap-6">
+        {/* Left Column: Image Carousel / Slider with Slide Arrows */}
+        <div className="relative w-64 lg:w-72 h-52 lg:h-56 shrink-0 rounded-xl overflow-hidden bg-secondary border border-border/40 group/img select-none">
+          <LazyImage
+            src={photos[activePhotoIdx]}
+            alt={`${biz.name} photo ${activePhotoIdx + 1}`}
+            className="h-full w-full"
+            imgClassName="h-full w-full object-cover group-hover/img:scale-105 transition-transform duration-500"
+          />
+
+          {/* Navigation Arrows */}
+          {photos.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={handlePrevPhoto}
+                className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-all opacity-0 group-hover/img:opacity-100 cursor-pointer shadow-md z-10"
+                title="Previous Image"
+              >
+                <ChevronLeft className="h-4.5 w-4.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleNextPhoto}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-all opacity-90 group-hover/img:opacity-100 cursor-pointer shadow-md z-10"
+                title="Next Image"
+              >
+                <ChevronRight className="h-4.5 w-4.5" />
+              </button>
+              <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold z-10">
+                {activePhotoIdx + 1}/{photos.length}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Right Column: Business Info & Actions */}
+        <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5 space-y-2">
+          <div className="space-y-2">
+            {/* Title Row with Thumbs Up Badge */}
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 rounded-full bg-slate-900 dark:bg-slate-800 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                <ThumbsUp className="h-3.5 w-3.5 fill-current" />
+              </div>
+              <h2 className="text-lg lg:text-xl font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                {biz.name}
+              </h2>
+            </div>
+
+            {/* Rating, Reviews, Trust & Verified Badges */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-flex items-center gap-1 rounded bg-[#13803d] dark:bg-emerald-600 px-2 py-0.5 text-xs font-black text-white shrink-0">
+                <span>{biz.rating || "4.5"}</span>
+                <Star className="h-3 w-3 fill-current text-white" />
+              </div>
+              <span className="text-xs font-semibold text-muted-foreground shrink-0">
+                {biz.reviewCount || (biz.reviews ? biz.reviews.length : "0")} Ratings
+              </span>
+
+              {biz.isVerified !== false && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-bold border border-blue-500/20 shrink-0">
+                  <BadgeCheck className="h-3.5 w-3.5 text-blue-500" />
+                  Verified
+                </span>
+              )}
+
+              {parseFloat(String(biz.rating || 0)) >= 4.5 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 text-xs font-bold border border-orange-500/20 shrink-0">
+                  <Star className="h-3 w-3 fill-current text-orange-500" />
+                  Top Rated
+                </span>
+              )}
+            </div>
+
+            {/* Address Row */}
+            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground font-medium">
+              <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="truncate">{biz.address || biz.location || "Main Road"}</span>
+            </div>
+
+            {/* Tags / Subcategories Row */}
+            {tags.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                {tags.map((t, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2.5 py-0.5 rounded-md bg-secondary/80 text-foreground/80 text-xs font-medium border border-border/50"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Review Snippet Quote */}
+            <div className="flex items-center gap-1.5 text-xs text-foreground/80 pt-0.5">
+              <span className="text-red-500 dark:text-rose-400 text-sm leading-none shrink-0">💬</span>
+              <p className="line-clamp-1 text-xs text-muted-foreground">
+                <strong className="text-foreground font-medium">"{reviewQuote}"</strong>
+                {biz.reviews && biz.reviews.length > 0 && (
+                  <span className="ml-1.5 text-muted-foreground font-normal">
+                    {biz.reviews.length} {biz.reviews.length === 1 ? "Suggestion" : "Suggestions"}
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons Row: Original 3 Buttons (Call, Enquire, Book) */}
+          <div className="flex items-center gap-2.5 pt-2 flex-wrap">
+            {/* Call Button */}
+            <a
+              href={`tel:${phoneRaw}`}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card hover:bg-secondary text-foreground py-2 px-5 text-xs lg:text-sm font-bold shadow-2xs transition-colors cursor-pointer"
+            >
+              <Phone className="h-3.5 w-3.5 text-accent" />
+              <span>Call</span>
+            </a>
+
+            {/* Enquire Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenEnquiry(biz);
+              }}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground py-2 px-5 text-xs lg:text-sm font-bold shadow-2xs transition-colors cursor-pointer"
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span>Enquire</span>
+            </button>
+
+            {/* Book Button (if enabled) */}
+            {biz.isBookingDisabled !== true && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onBookNow) {
+                    onBookNow(biz.canonicalUrl || biz.id);
+                  } else {
+                    onBusinessSelect(biz.canonicalUrl || biz.id);
+                  }
+                }}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-5 text-xs lg:text-sm font-bold shadow-2xs transition-colors cursor-pointer"
+              >
+                <Check className="h-3.5 w-3.5" />
+                <span>{biz.bookingButtonLabel || "Book"}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* MOBILE VIEW (Visible on < md screen): Exact Preserved Mobile Layout       */}
+      {/* ========================================================================= */}
+      <div className="md:hidden flex flex-col gap-2.5">
+        {/* Photo Slider */}
+        <div className="flex gap-2 h-28 sm:h-36 w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory py-0.5">
+          {photos.map((photo, pIdx) => (
+            <div
+              key={pIdx}
+              className="relative h-full w-28 sm:w-36 shrink-0 overflow-hidden bg-secondary rounded-lg snap-start border border-border/30 shadow-2xs"
+            >
+              <LazyImage
+                src={photo}
+                alt={`${biz.name} ${pIdx + 1}`}
+                className="h-full w-full"
+                imgClassName="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Business Name */}
+        <h2 className="text-base sm:text-lg font-bold text-foreground line-clamp-1 leading-snug group-hover:text-primary transition-colors pt-0.5">
+          {biz.name}
+        </h2>
+
+        {/* Rating, Review Count, Trust & Verified Badges */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex items-center gap-0.5 rounded bg-emerald-600 px-1.5 py-0.5 text-[11px] font-black text-white shrink-0">
+            <span>{biz.rating || "4.1"}</span>
+            <Star className="h-2.5 w-2.5 fill-current" />
+          </div>
+          <span className="text-xs font-semibold text-muted-foreground shrink-0">
+            {biz.reviewCount || (biz.reviews ? biz.reviews.length : "0")} Ratings
+          </span>
+
+          {biz.isVerified !== false && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold border border-blue-500/20 shrink-0">
+              <BadgeCheck className="h-3 w-3 text-blue-500" />
+              Verified
+            </span>
+          )}
+          {parseFloat(String(biz.rating || 0)) >= 4.5 && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[10px] font-bold border border-orange-500/20 shrink-0">
+              <Star className="h-2.5 w-2.5 fill-current text-orange-500" />
+              Top rated
+            </span>
+          )}
+        </div>
+
+        {/* Address */}
+        <div className="text-xs text-muted-foreground font-medium">
+          <p className="flex items-start gap-1">
+            <span className="line-clamp-1">
+              {biz.address || biz.location || "Main Road"}
+            </span>
+          </p>
+        </div>
+
+        {/* User Review Snippet Quote */}
+        <div className="flex items-start gap-1.5 text-xs text-foreground/80 pt-0.5">
+          <span className="text-red-500 dark:text-rose-400 text-sm leading-none shrink-0 mt-0.5">💬</span>
+          <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground font-normal">
+            {reviewQuote}
+          </p>
+        </div>
+
+        {/* Action Buttons Row: Mobile 3-Button Layout */}
+        <div className="flex flex-row items-center gap-1.5 pt-2 border-t border-border/40 w-full">
+          <a
+            href={`tel:${phoneRaw}`}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 inline-flex items-center justify-center gap-1 rounded-xl border border-border bg-secondary/50 hover:bg-secondary py-2 text-xs font-bold text-foreground cursor-pointer shadow-2xs whitespace-nowrap transition-colors"
+          >
+            <Phone className="h-3 w-3 text-accent" />
+            Call
+          </a>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenEnquiry(biz);
+            }}
+            className="flex-1 inline-flex items-center justify-center gap-1 rounded-xl bg-primary hover:bg-primary/90 py-2 text-xs font-bold text-primary-foreground cursor-pointer shadow-2xs whitespace-nowrap transition-colors"
+          >
+            <MessageSquare className="h-3 w-3" />
+            Enquire
+          </button>
+
+          {biz.isBookingDisabled !== true && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onBookNow) {
+                  onBookNow(biz.canonicalUrl || biz.id);
+                } else {
+                  onBusinessSelect(biz.canonicalUrl || biz.id);
+                }
+              }}
+              className="flex-1 inline-flex items-center justify-center gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 py-2 text-xs font-bold text-white cursor-pointer shadow-2xs whitespace-nowrap transition-colors"
+            >
+              <Check className="h-3 w-3" />
+              {biz.bookingButtonLabel || "Book"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SearchResultsPage({
   initialQuery,
   initialLocation,
   onBack,
   onBusinessSelect,
   onBookNow,
-  onSignInClick,
-  onProfileClick,
   username,
 }: SearchResultsPageProps) {
   const [searchQuery, setSearchQuery] = useState(initialQuery || "");
@@ -143,6 +514,7 @@ export default function SearchResultsPage({
   const [filterTopRated, setFilterTopRated] = useState(false);
   const [filterVerified, setFilterVerified] = useState(false);
   const [filterOpenNow, setFilterOpenNow] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   // Enquiry modal state
   const [enquiryModalBiz, setEnquiryModalBiz] = useState<BusinessListingData | null>(null);
@@ -184,6 +556,7 @@ export default function SearchResultsPage({
   }, []);
 
   const locationDropdownRef = useRef<HTMLDivElement>(null);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   // Auto detect location if missing
   useEffect(() => {
@@ -212,7 +585,7 @@ export default function SearchResultsPage({
     }
   }, [selectedCity]);
 
-  // Click outside to close location modal
+  // Click outside to close modals/dropdowns
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -220,6 +593,12 @@ export default function SearchResultsPage({
         !locationDropdownRef.current.contains(e.target as Node)
       ) {
         setShowLocationDropdown(false);
+      }
+      if (
+        sortDropdownRef.current &&
+        !sortDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowSortDropdown(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -240,7 +619,9 @@ export default function SearchResultsPage({
         setListings(json.data);
       } else {
         // Fallback 1: fetch with search term without location restriction
-        const fallbackRes = await fetch(`${API_BASE_URL}/businesses?search=${encodeURIComponent(queryTerm.trim())}`);
+        const fallbackRes = await fetch(
+          `${API_BASE_URL}/businesses?search=${encodeURIComponent(queryTerm.trim())}`
+        );
         const fallbackJson = await fallbackRes.json();
         if (fallbackJson.success && Array.isArray(fallbackJson.data) && fallbackJson.data.length > 0) {
           setListings(fallbackJson.data);
@@ -311,6 +692,33 @@ export default function SearchResultsPage({
     }
   };
 
+  // Collect available Categories / Genders and Amenities for filter dropdowns
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>();
+    listings.forEach((b) => {
+      const lowerName = (b.name || "").toLowerCase();
+      if (lowerName.includes("girls")) set.add("Girls");
+      if (lowerName.includes("boys")) set.add("Boys");
+      if (b.category) set.add(b.category);
+      if ((b as any).subcategory) set.add((b as any).subcategory);
+      if (b.subCategoryLine) set.add(b.subCategoryLine);
+    });
+    return Array.from(set).slice(0, 8);
+  }, [listings]);
+
+  const availableAmenities = useMemo(() => {
+    const set = new Set<string>();
+    listings.forEach((b) => {
+      if (Array.isArray(b.facilities)) {
+        b.facilities.forEach((f) => f && set.add(f));
+      }
+    });
+    if (set.size === 0) {
+      ["AC", "WiFi", "Parking", "Card Payment", "CCTV", "Spa", "Massage"].forEach((a) => set.add(a));
+    }
+    return Array.from(set).slice(0, 8);
+  }, [listings]);
+
   // Process & filter listings
   const processedListings = useMemo(() => {
     let list = listings.map((b) => {
@@ -363,7 +771,10 @@ export default function SearchResultsPage({
 
         if (searchableText.includes(q)) return true;
         if (words.length > 1) {
-          return words.every((word) => searchableText.includes(word)) || words.some((word) => searchableText.includes(word));
+          return (
+            words.every((word) => searchableText.includes(word)) ||
+            words.some((word) => searchableText.includes(word))
+          );
         }
         return words.some((word) => searchableText.includes(word));
       });
@@ -373,41 +784,67 @@ export default function SearchResultsPage({
       }
     }
 
-    // Toggle filters
+    // 1. Filter: Top Rated (Rating >= 4.0)
     if (filterTopRated) {
-      list = list.filter((b) => parseFloat(String(b.rating || 0)) >= 4.0);
-    }
-    if (filterVerified) {
-      list = list.filter((b) => b.isVerified);
-    }
-    if (filterOpenNow) {
-      list = list.filter(
-        (b) =>
-          b.openStatus?.toLowerCase().includes("open") ||
-          !b.openStatus?.toLowerCase().includes("closed")
-      );
+      list = list.filter((b) => (parseFloat(String(b.rating || 0)) || 0) >= 4.0);
     }
 
-    // Sorting
+    // 2. Filter: Verified (Only verified businesses)
+    if (filterVerified) {
+      list = list.filter((b) => {
+        return b.isVerified === true || String(b.isVerified).toLowerCase() === "true" || (b as any).isVerified === 1;
+      });
+    }
+
+    // 3. Filter: Open Now (Currently open based on openStatus & hours)
+    if (filterOpenNow) {
+      list = list.filter((b) => {
+        const status = (b.openStatus || "").toLowerCase();
+        if (status.includes("closed")) return false;
+        if (status.includes("open")) return true;
+
+        if (b.openTime && b.closeTime) {
+          const now = new Date();
+          const currentMins = now.getHours() * 60 + now.getMinutes();
+          const parseTimeToMins = (t: string) => {
+            const [hh, mm] = t.split(":").map(Number);
+            return (hh || 0) * 60 + (mm || 0);
+          };
+          const startMins = parseTimeToMins(b.openTime);
+          const endMins = parseTimeToMins(b.closeTime);
+          if (endMins >= startMins) {
+            return currentMins >= startMins && currentMins <= endMins;
+          } else {
+            return currentMins >= startMins || currentMins <= endMins;
+          }
+        }
+        return true;
+      });
+    }
+
+    // 4. Sorting logic
     if (sortBy === "distance") {
       list.sort((a, b) => {
         const distA = typeof a.distance === "number" && !isNaN(a.distance) ? a.distance : Infinity;
         const distB = typeof b.distance === "number" && !isNaN(b.distance) ? b.distance : Infinity;
-        return distA - distB;
+        if (distA !== distB) return distA - distB;
+        const rA = parseFloat(String(a.rating || 0)) || 0;
+        const rB = parseFloat(String(b.rating || 0)) || 0;
+        return rB - rA;
       });
     } else if (sortBy === "rating") {
       list.sort((a, b) => {
         const rA = parseFloat(String(a.rating || 0)) || 0;
         const rB = parseFloat(String(b.rating || 0)) || 0;
         if (rB !== rA) return rB - rA;
-        const rcA = Number(a.reviewCount ?? a.reviews?.length ?? 0) || 0;
-        const rcB = Number(b.reviewCount ?? b.reviews?.length ?? 0) || 0;
+        const rcA = Number(a.reviewCount || (Array.isArray(a.reviews) ? a.reviews.length : 0)) || 0;
+        const rcB = Number(b.reviewCount || (Array.isArray(b.reviews) ? b.reviews.length : 0)) || 0;
         return rcB - rcA;
       });
     } else if (sortBy === "reviews") {
       list.sort((a, b) => {
-        const rcA = Number(a.reviewCount ?? a.reviews?.length ?? 0) || 0;
-        const rcB = Number(b.reviewCount ?? b.reviews?.length ?? 0) || 0;
+        const rcA = Number(a.reviewCount || (Array.isArray(a.reviews) ? a.reviews.length : 0)) || 0;
+        const rcB = Number(b.reviewCount || (Array.isArray(b.reviews) ? b.reviews.length : 0)) || 0;
         if (rcB !== rcA) return rcB - rcA;
         const rA = parseFloat(String(a.rating || 0)) || 0;
         const rB = parseFloat(String(b.rating || 0)) || 0;
@@ -415,17 +852,28 @@ export default function SearchResultsPage({
       });
     } else if (sortBy === "default") {
       list.sort((a, b) => {
-        const vA = a.isVerified ? 1 : 0;
-        const vB = b.isVerified ? 1 : 0;
+        const vA = (a.isVerified === true || String(a.isVerified).toLowerCase() === "true" || (a as any).isVerified === 1) ? 1 : 0;
+        const vB = (b.isVerified === true || String(b.isVerified).toLowerCase() === "true" || (b as any).isVerified === 1) ? 1 : 0;
         if (vB !== vA) return vB - vA;
         const rA = parseFloat(String(a.rating || 0)) || 0;
         const rB = parseFloat(String(b.rating || 0)) || 0;
-        return rB - rA;
+        if (rB !== rA) return rB - rA;
+        const rcA = Number(a.reviewCount || (Array.isArray(a.reviews) ? a.reviews.length : 0)) || 0;
+        const rcB = Number(b.reviewCount || (Array.isArray(b.reviews) ? b.reviews.length : 0)) || 0;
+        return rcB - rcA;
       });
     }
 
     return list;
-  }, [listings, submittedQuery, sortBy, filterTopRated, filterVerified, filterOpenNow, userCoords]);
+  }, [
+    listings,
+    submittedQuery,
+    sortBy,
+    filterTopRated,
+    filterVerified,
+    filterOpenNow,
+    userCoords,
+  ]);
 
   // Compute multiple matching Search Banners from admin
   const matchingSearchBanners = useMemo(() => {
@@ -444,7 +892,9 @@ export default function SearchResultsPage({
     if (partial.length > 0) return partial;
 
     // Wildcard / Global banners
-    const wildcard = searchBanners.filter((b) => (b.searchQuery === "*" || !b.searchQuery) && b.img);
+    const wildcard = searchBanners.filter(
+      (b) => (b.searchQuery === "*" || !b.searchQuery) && b.img
+    );
     return wildcard;
   }, [searchBanners, submittedQuery]);
 
@@ -513,10 +963,12 @@ export default function SearchResultsPage({
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground flex flex-col font-sans">
-      {/* Sticky Header */}
+      {/* ========================================================================= */}
+      {/* Sticky Header with Justdial / FindMyPoint Search Bar & Location Selector  */}
+      {/* ========================================================================= */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-xl shrink-0 shadow-xs">
-        <div className="mx-auto max-w-4xl px-3 sm:px-4 py-2.5 flex flex-col gap-2">
-          {/* Top Row: Back button, Search Bar, and User Actions */}
+        <div className="mx-auto max-w-6xl w-full px-3 sm:px-6 py-2.5 flex flex-col gap-2">
+          {/* Top Row: Back button, Location Selector & Search Input */}
           <div className="flex items-center gap-2 sm:gap-3 w-full">
             <button
               onClick={onBack}
@@ -525,6 +977,21 @@ export default function SearchResultsPage({
             >
               <ChevronLeft className="h-5 w-5 text-foreground" />
             </button>
+
+            {/* Desktop Location Selector (Justdial Style) */}
+            <div className="relative hidden md:block shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowLocationDropdown(!showLocationDropdown)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card hover:bg-secondary/70 text-xs sm:text-sm font-semibold text-foreground cursor-pointer shadow-xs min-w-[170px] justify-between"
+              >
+                <div className="flex items-center gap-1.5 truncate max-w-[150px]">
+                  <MapPin className="h-4 w-4 text-amber-600 dark:text-amber-500 shrink-0" />
+                  <span className="truncate">{selectedCity || "Select City"}</span>
+                </div>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              </button>
+            </div>
 
             {/* Main Search Input Form */}
             <form
@@ -536,7 +1003,7 @@ export default function SearchResultsPage({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search businesses, services, hotels..."
+                placeholder="Search businesses, services, hostels, spa..."
                 className="flex-1 bg-transparent text-xs sm:text-sm md:text-base outline-none text-foreground w-full min-w-0"
               />
               {searchQuery && (
@@ -550,16 +1017,17 @@ export default function SearchResultsPage({
               )}
               <button
                 type="submit"
-                className="p-1 text-primary hover:text-primary/80 cursor-pointer shrink-0"
+                className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold cursor-pointer shrink-0 transition flex items-center gap-1"
                 title="Search"
               >
-                <Search className="h-4 w-4" />
+                <Search className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Search</span>
               </button>
             </form>
           </div>
 
-          {/* Location Bar Row: Results in "Location" [Change] */}
-          <div className="flex items-center justify-between text-xs px-1 text-muted-foreground relative">
+          {/* Location Bar Row on Mobile (< md) */}
+          <div className="flex md:hidden items-center justify-between text-xs px-1 text-muted-foreground relative">
             <div className="flex items-center gap-1.5 truncate">
               <MapPin className="h-3.5 w-3.5 text-amber-600 dark:text-amber-500 shrink-0" />
               <span className="truncate">
@@ -577,92 +1045,95 @@ export default function SearchResultsPage({
               <span>✏️</span>
               <span>Change</span>
             </button>
+          </div>
 
-            {/* Location Dropdown Modal */}
-            {showLocationDropdown && (
-              <div
-                ref={locationDropdownRef}
-                className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-2xl shadow-2xl z-50 p-3 text-left overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
-              >
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-card mb-2.5">
-                  <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <input
-                    type="text"
-                    value={locationSearchInput}
-                    onChange={(e) => setLocationSearchInput(e.target.value)}
-                    placeholder="Search locality, city, area..."
-                    className="flex-1 bg-transparent text-xs outline-none text-foreground"
-                    autoFocus
-                  />
-                  {locationSearchInput && (
-                    <button
-                      type="button"
-                      onClick={() => setLocationSearchInput("")}
-                      className="p-0.5 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-1 max-h-64 overflow-y-auto no-scrollbar">
-                  {/* Live GPS detect */}
+          {/* Location Dropdown Modal */}
+          {showLocationDropdown && (
+            <div
+              ref={locationDropdownRef}
+              className="absolute top-full left-3 md:left-14 max-w-sm w-[90vw] mt-2 bg-card border border-border rounded-2xl shadow-2xl z-50 p-3 text-left overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+            >
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-card mb-2.5">
+                <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                <input
+                  type="text"
+                  value={locationSearchInput}
+                  onChange={(e) => setLocationSearchInput(e.target.value)}
+                  placeholder="Search locality, city, area..."
+                  className="flex-1 bg-transparent text-xs outline-none text-foreground"
+                  autoFocus
+                />
+                {locationSearchInput && (
                   <button
                     type="button"
-                    onClick={handleDetectLocation}
-                    disabled={detectingGps}
-                    className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 hover:bg-blue-100/80 transition text-left cursor-pointer border border-blue-200/50"
+                    onClick={() => setLocationSearchInput("")}
+                    className="p-0.5 text-muted-foreground hover:text-foreground"
                   >
-                    <Navigation
-                      className={`h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 ${
-                        detectingGps ? "animate-spin" : ""
-                      }`}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-blue-700 dark:text-blue-300">
-                        {detectingGps ? "Detecting Live Location..." : "Use Current GPS Location"}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">Auto-detect via device GPS</p>
-                    </div>
+                    <X className="h-3 w-3" />
                   </button>
-
-                  {/* Trending Locations */}
-                  <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground pt-2 px-2">
-                    Popular Areas
-                  </p>
-                  {(
-                    cityAreas[selectedCity]?.trending || [
-                      "Vijay Nagar, Indore",
-                      "Bhawar Kuan, Indore",
-                      "Chhoti Gwaltoli, Indore",
-                      "Freeganj, Ujjain",
-                      "Bandra West, Mumbai",
-                      "Koregaon Park, Pune",
-                    ]
-                  ).map((area) => (
-                    <button
-                      key={area}
-                      type="button"
-                      onClick={() => handleSelectArea(area)}
-                      className="w-full flex items-center gap-2 p-2 hover:bg-secondary/70 rounded-xl text-left cursor-pointer transition-colors"
-                    >
-                      <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="text-xs font-semibold text-foreground truncate">{area}</span>
-                    </button>
-                  ))}
-                </div>
+                )}
               </div>
-            )}
-          </div>
+
+              <div className="space-y-1 max-h-64 overflow-y-auto no-scrollbar">
+                {/* Live GPS detect */}
+                <button
+                  type="button"
+                  onClick={handleDetectLocation}
+                  disabled={detectingGps}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 hover:bg-blue-100/80 transition text-left cursor-pointer border border-blue-200/50"
+                >
+                  <Navigation
+                    className={`h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 ${
+                      detectingGps ? "animate-spin" : ""
+                    }`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                      {detectingGps ? "Detecting Live Location..." : "Use Current GPS Location"}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">Auto-detect via device GPS</p>
+                  </div>
+                </button>
+
+                {/* Trending Locations */}
+                <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground pt-2 px-2">
+                  Popular Areas
+                </p>
+                {(
+                  cityAreas[selectedCity]?.trending || [
+                    "Vijay Nagar, Indore",
+                    "Bhawar Kuan, Indore",
+                    "Chhoti Gwaltoli, Indore",
+                    "Sapna Sangeeta, Indore",
+                    "Freeganj, Ujjain",
+                    "Bandra West, Mumbai",
+                    "Koregaon Park, Pune",
+                  ]
+                ).map((area) => (
+                  <button
+                    key={area}
+                    type="button"
+                    onClick={() => handleSelectArea(area)}
+                    className="w-full flex items-center gap-2 p-2 hover:bg-secondary/70 rounded-xl text-left cursor-pointer transition-colors"
+                  >
+                    <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-xs font-semibold text-foreground truncate">{area}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 mx-auto max-w-4xl w-full px-3 sm:px-4 py-3 space-y-3">
+      {/* ========================================================================= */}
+      {/* Main Content Area: Search Filters, Banners, and Listing Cards             */}
+      {/* ========================================================================= */}
+      <main className="flex-1 mx-auto max-w-6xl w-full px-3 sm:px-6 py-4 space-y-4">
         {/* Search Promotional Multiple Banner Carousel / Slider */}
         {matchingSearchBanners.length > 0 && (
-          <div className="relative w-full space-y-1.5">
-            <div className="relative w-full overflow-hidden rounded-2xl shadow-xs border border-border/40 bg-card flex items-center justify-center">
+          <div className="relative w-full">
+            <div className="relative w-full overflow-hidden rounded-2xl shadow-xs border border-border/40 bg-card">
               {/* Slider Track */}
               <div
                 className="flex w-full transition-transform duration-500 ease-in-out"
@@ -678,7 +1149,7 @@ export default function SearchResultsPage({
                         window.location.href = `tel:${banner.phone.replace(/[^0-9+]/g, "")}`;
                       }
                     }}
-                    className="w-full shrink-0 flex items-center justify-center cursor-pointer hover:opacity-95 p-0.5"
+                    className="w-full shrink-0 cursor-pointer hover:opacity-95 overflow-hidden"
                   >
                     <img
                       src={
@@ -687,7 +1158,7 @@ export default function SearchResultsPage({
                           : `${BACKEND_ORIGIN}${banner.img}`
                       }
                       alt={banner.searchQuery || "Search Banner"}
-                      className="w-full h-auto max-h-48 object-contain rounded-2xl"
+                      className="w-full h-28 sm:h-36 md:h-44 lg:h-52 object-cover block"
                     />
                   </div>
                 ))}
@@ -696,230 +1167,195 @@ export default function SearchResultsPage({
           </div>
         )}
 
-        {/* Horizontal Filters & Sort Row */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 pt-0.5">
-          <div className="h-8 w-8 rounded-xl border border-border bg-card flex items-center justify-center text-muted-foreground shrink-0 shadow-2xs">
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-          </div>
-
-          {/* Sort By Dropdown Button */}
-          <div className="relative shrink-0">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="appearance-none flex items-center gap-1 px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-secondary/70 text-xs font-semibold text-foreground cursor-pointer pr-7 outline-none shadow-2xs"
+        {/* Filters & Sort Row */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 pt-0.5">
+          {/* Custom Sort Dropdown */}
+          <div ref={sortDropdownRef} className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowSortDropdown(!showSortDropdown)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all shadow-2xs ${
+                sortBy !== "default"
+                  ? "border-primary bg-primary/10 text-primary font-bold"
+                  : "border-border bg-card hover:bg-secondary text-foreground"
+              }`}
             >
-              <option value="default">Sort by: Default</option>
-              <option value="rating">Top Rated</option>
-              <option value="reviews">Most Reviewed</option>
-              <option value="distance">Nearest Distance</option>
-            </select>
-            <ChevronDown className="h-3 w-3 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <span>
+                {sortBy === "rating"
+                  ? "Top Rated"
+                  : sortBy === "reviews"
+                  ? "Most Reviewed"
+                  : sortBy === "distance"
+                  ? "Nearest Distance"
+                  : "Sort by: Default"}
+              </span>
+              <ChevronDown
+                className={`h-3 w-3 text-muted-foreground transition-transform duration-200 ${
+                  showSortDropdown ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {showSortDropdown && (
+              <div className="absolute top-full left-0 mt-1.5 w-44 bg-card border border-border rounded-xl shadow-xl z-50 p-1 space-y-0.5 animate-in fade-in zoom-in-95">
+                {[
+                  { id: "default", label: "Default" },
+                  { id: "rating", label: "Top Rated" },
+                  { id: "reviews", label: "Most Reviewed" },
+                  { id: "distance", label: "Nearest Distance" },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      setSortBy(opt.id as any);
+                      setShowSortDropdown(false);
+                      if (opt.id === "distance" && !userCoords) {
+                        handleDetectLocation();
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                      sortBy === opt.id
+                        ? "bg-primary text-primary-foreground font-bold"
+                        : "text-foreground hover:bg-secondary"
+                    }`}
+                  >
+                    <span>{opt.label}</span>
+                    {sortBy === opt.id && <Check className="h-3.5 w-3.5" />}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Top Rated Pill */}
           <button
             type="button"
             onClick={() => setFilterTopRated(!filterTopRated)}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 cursor-pointer transition-colors shadow-2xs ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 cursor-pointer transition-all shadow-2xs ${
               filterTopRated
-                ? "border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold"
-                : "border-border bg-card text-foreground/80 hover:bg-secondary/70"
+                ? "border-amber-500 bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold ring-1 ring-amber-500/30"
+                : "border-border bg-card text-foreground/80 hover:bg-secondary"
             }`}
           >
-            <Star className="h-3 w-3 fill-current text-amber-500" />
-            Top Rated
+            <Star className="h-3.5 w-3.5 fill-current text-amber-500" />
+            <span>Top Rated</span>
+            {filterTopRated && <X className="h-3 w-3 ml-0.5 text-amber-600 dark:text-amber-400" />}
           </button>
 
           {/* Verified Pill */}
           <button
             type="button"
             onClick={() => setFilterVerified(!filterVerified)}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 cursor-pointer transition-colors shadow-2xs ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 cursor-pointer transition-all shadow-2xs ${
               filterVerified
-                ? "border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold"
-                : "border-border bg-card text-foreground/80 hover:bg-secondary/70"
+                ? "border-blue-500 bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold ring-1 ring-blue-500/30"
+                : "border-border bg-card text-foreground/80 hover:bg-secondary"
             }`}
           >
-            <BadgeCheck className="h-3 w-3 text-blue-500" />
-            Verified
+            <BadgeCheck className="h-3.5 w-3.5 text-blue-500" />
+            <span>Verified</span>
+            {filterVerified && <X className="h-3 w-3 ml-0.5 text-blue-500" />}
           </button>
 
           {/* Open Now Pill */}
           <button
             type="button"
             onClick={() => setFilterOpenNow(!filterOpenNow)}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 cursor-pointer transition-colors shadow-2xs ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 cursor-pointer transition-all shadow-2xs ${
               filterOpenNow
-                ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold"
-                : "border-border bg-card text-foreground/80 hover:bg-secondary/70"
+                ? "border-emerald-500 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold ring-1 ring-emerald-500/30"
+                : "border-border bg-card text-foreground/80 hover:bg-secondary"
             }`}
           >
-            <Clock className="h-3 w-3 text-emerald-500" />
-            Open Now
+            <Clock className="h-3.5 w-3.5 text-emerald-500" />
+            <span>Open Now</span>
+            {filterOpenNow && <X className="h-3 w-3 ml-0.5 text-emerald-500" />}
           </button>
+
+          {/* Reset All Filters button */}
+          {(filterTopRated || filterVerified || filterOpenNow || sortBy !== "default") && (
+            <button
+              type="button"
+              onClick={() => {
+                setFilterTopRated(false);
+                setFilterVerified(false);
+                setFilterOpenNow(false);
+                setSortBy("default");
+              }}
+              className="text-xs font-bold text-red-600 dark:text-red-400 hover:underline px-2 py-1 cursor-pointer shrink-0 ml-1"
+            >
+              Reset All
+            </button>
+          )}
         </div>
 
-        {/* Title Header (Exact matching reference image) */}
-        <div className="pt-1 pb-0.5">
-          <h1 className="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-300">
+        {/* Heading Title (Popular [Query] in [Location]) */}
+        <div className="pt-1 pb-0.5 flex items-center justify-between">
+          <h1 className="text-sm sm:text-base font-bold text-foreground">
             Popular {submittedQuery || "Businesses"} in {selectedCity || "your area"}
           </h1>
+          {processedListings.length > 0 && (
+            <span className="text-xs text-muted-foreground font-medium hidden sm:inline">
+              Showing {processedListings.length} {processedListings.length === 1 ? "result" : "results"}
+            </span>
+          )}
         </div>
 
         {/* Listings Container */}
         {loading ? (
-          <div className="py-16 flex flex-col items-center justify-center text-center space-y-3">
+          <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-sm font-semibold text-muted-foreground">
               Finding best businesses for you...
             </p>
           </div>
         ) : processedListings.length === 0 ? (
-          <div className="min-h-[45vh] flex items-center justify-center text-center p-4">
-            <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-              No exact business found
+          <div className="min-h-[45vh] flex flex-col items-center justify-center text-center p-6 bg-card rounded-2xl border border-border/50 space-y-3">
+            <div className="h-12 w-12 rounded-full bg-secondary text-muted-foreground flex items-center justify-center">
+              <Search className="h-6 w-6" />
+            </div>
+            <p className="text-base font-bold text-foreground">No businesses found matching your criteria</p>
+            <p className="text-xs text-muted-foreground max-w-sm">
+              Try clearing some filters or searching for another service or location.
             </p>
+            <button
+              onClick={() => {
+                setFilterTopRated(false);
+                setFilterVerified(false);
+                setFilterOpenNow(false);
+                setSortBy("default");
+              }}
+              className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl shadow-xs cursor-pointer hover:bg-primary/90 transition"
+            >
+              Reset Filters
+            </button>
           </div>
         ) : (
-          <div className="space-y-4">
-            {processedListings.map((biz) => {
-              const distFormatted = biz.distanceKm ? formatDistance(biz.distanceKm) : "1.61 km";
-              const photos =
-                biz.images && biz.images.length > 0
-                  ? biz.images
-                  : [
-                      "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=400&q=80",
-                      "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=400&q=80",
-                      "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=400&q=80",
-                      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=400&q=80",
-                    ];
-
-              return (
-                <div
-                  key={biz.id}
-                  onClick={() => onBusinessSelect(biz.canonicalUrl || biz.id)}
-                  className="group flex flex-col gap-2.5 py-3.5 border-b border-border/70 transition-all cursor-pointer"
-                >
-                  {/* Photo Slider: subtle rounded corners & horizontal slide */}
-                  <div className="flex gap-2 h-28 sm:h-36 w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory py-0.5">
-                    {photos.map((photo, pIdx) => (
-                      <div
-                        key={pIdx}
-                        className="relative h-full w-28 sm:w-36 shrink-0 overflow-hidden bg-secondary rounded-lg snap-start border border-border/30 shadow-2xs"
-                      >
-                        <LazyImage
-                          src={photo}
-                          alt={`${biz.name} ${pIdx + 1}`}
-                          className="h-full w-full"
-                          imgClassName="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Business Name */}
-                  <h2 className="text-base sm:text-lg font-bold text-foreground line-clamp-1 leading-snug group-hover:text-primary transition-colors pt-0.5">
-                    {biz.name}
-                  </h2>
-
-                  {/* Rating, Review Count, Trust & Verified Badges (All in same row) */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="inline-flex items-center gap-0.5 rounded bg-emerald-600 px-1.5 py-0.5 text-[11px] font-black text-white shrink-0">
-                      <span>{biz.rating || "4.1"}</span>
-                      <Star className="h-2.5 w-2.5 fill-current" />
-                    </div>
-                    <span className="text-xs font-semibold text-muted-foreground shrink-0">
-                      {biz.reviewCount || (biz.reviews ? biz.reviews.length : "0")} Ratings
-                    </span>
-
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black tracking-wide border border-amber-500/20 shrink-0">
-                      <Crown className="h-3 w-3 fill-current text-amber-500" />
-                      Trust
-                    </span>
-                    {biz.isVerified !== false && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold border border-blue-500/20 shrink-0">
-                        <BadgeCheck className="h-3 w-3 text-blue-500" />
-                        Verified
-                      </span>
-                    )}
-                    {parseFloat(String(biz.rating || 0)) >= 4.5 && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[10px] font-bold border border-orange-500/20 shrink-0">
-                        <Star className="h-2.5 w-2.5 fill-current text-orange-500" />
-                        Top rated
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Address */}
-                  <div className="text-xs text-muted-foreground font-medium">
-                    <p className="flex items-start gap-1">
-                      <span className="line-clamp-1">
-                        {biz.address || biz.location || "Main Road"}
-                      </span>
-                    </p>
-                  </div>
-
-                  {/* User Review Snippet Quote (Matches 3rd & 4th images) */}
-                  <div className="flex items-start gap-1.5 text-xs text-foreground/80 pt-0.5">
-                    <span className="text-red-500 dark:text-rose-400 text-sm leading-none shrink-0 mt-0.5">💬</span>
-                    <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground font-normal">
-                      {biz.reviews?.[0]?.reviewText ||
-                        biz.description ||
-                        `${biz.name} is a hidden gem for travelers and customers seeking a rejuvenating experience in ${selectedCity}! The clean, well-maintained rooms and prompt support make it a top choice.`}
-                    </p>
-                  </div>
-
-                  {/* Action Buttons Row: 3 Standard App Buttons */}
-                  <div className="flex flex-row items-center gap-1.5 pt-2 border-t border-border/40 w-full">
-                    <a
-                      href={`tel:${biz.phone?.replace(/[^0-9+]/g, "") || "9999999999"}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex-1 inline-flex items-center justify-center gap-1 rounded-xl border border-border bg-secondary/50 hover:bg-secondary py-2 text-xs font-bold text-foreground cursor-pointer shadow-2xs whitespace-nowrap transition-colors"
-                    >
-                      <Phone className="h-3 w-3 text-accent" />
-                      Call
-                    </a>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEnquiryModalBiz(biz);
-                        setEnquirySubmitted(false);
-                      }}
-                      className="flex-1 inline-flex items-center justify-center gap-1 rounded-xl bg-primary hover:bg-primary/90 py-2 text-xs font-bold text-primary-foreground cursor-pointer shadow-2xs whitespace-nowrap transition-colors"
-                    >
-                      <MessageSquare className="h-3 w-3" />
-                      Enquire
-                    </button>
-
-                    {biz.isBookingDisabled !== true && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onBookNow) {
-                            onBookNow(biz.canonicalUrl || biz.id);
-                          } else {
-                            onBusinessSelect(biz.canonicalUrl || biz.id);
-                          }
-                        }}
-                        className="flex-1 inline-flex items-center justify-center gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 py-2 text-xs font-bold text-white cursor-pointer shadow-2xs whitespace-nowrap transition-colors"
-                      >
-                        <Check className="h-3 w-3" />
-                        {biz.bookingButtonLabel || "Book"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="flex flex-col">
+            {processedListings.map((biz) => (
+              <SearchResultCard
+                key={biz.id || (biz as any)._id}
+                biz={biz}
+                selectedCity={selectedCity}
+                onBusinessSelect={onBusinessSelect}
+                onBookNow={onBookNow}
+                onOpenEnquiry={(bizToEnquire) => {
+                  setEnquiryModalBiz(bizToEnquire);
+                  setEnquirySubmitted(false);
+                }}
+              />
+            ))}
           </div>
         )}
       </main>
 
-      {/* Enquiry Modal */}
+      {/* Footer */}
+      <Footer />
+
+      {/* ========================================================================= */}
+      {/* Enquiry Modal                                                             */}
+      {/* ========================================================================= */}
       {enquiryModalBiz && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl p-5 max-w-md w-full shadow-2xl relative animate-in zoom-in-95 duration-200">
@@ -1004,7 +1440,9 @@ export default function SearchResultsPage({
         </div>
       )}
 
-      {/* Booking Modal */}
+      {/* ========================================================================= */}
+      {/* Booking Modal                                                             */}
+      {/* ========================================================================= */}
       {bookingModalBiz && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl p-5 max-w-md w-full shadow-2xl relative animate-in zoom-in-95 duration-200">

@@ -102,6 +102,7 @@ export interface BusinessListingData {
   longitude?: number;
   placeId?: string;
   distance?: number; // Distance in meters from user for nearby searches
+  distanceKm?: number;
 }
 
 export const businessesData: BusinessListingData[] = [];

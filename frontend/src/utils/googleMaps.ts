@@ -189,8 +189,14 @@ export function getCurrentUserLocation(): Promise<{ lat: number; lng: number } |
         });
       },
       (error) => {
-        console.warn("[GoogleMaps] High accuracy failed, attempting standard accuracy:", error.message);
-        // Fallback: Try with standard accuracy (faster on desktops/WiFi)
+        console.warn("[GoogleMaps] High accuracy geolocation notice:", error.code, error.message);
+        // If user explicitly denied permission (code 1), do not re-prompt or fallback
+        if (error.code === 1) {
+          resolve(null);
+          return;
+        }
+
+        // Fallback: Try with standard accuracy (faster on mobile networks/WiFi)
         navigator.geolocation.getCurrentPosition(
           (fallbackPos) => {
             resolve({
@@ -204,14 +210,14 @@ export function getCurrentUserLocation(): Promise<{ lat: number; lng: number } |
           },
           {
             enableHighAccuracy: false,
-            timeout: 10000,
+            timeout: 15000,
             maximumAge: 300000,
           }
         );
       },
       {
         enableHighAccuracy: true,
-        timeout: 6000,
+        timeout: 15000,
         maximumAge: 60000,
       }
     );

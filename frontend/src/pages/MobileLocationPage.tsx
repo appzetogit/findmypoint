@@ -190,13 +190,28 @@ export default function MobileLocationPage({
       }
 
       const geocoded = await reverseGeocodeCoords(pos.lat, pos.lng);
-      const detectedCity = geocoded?.city || "";
+      const detectedCity = geocoded?.city || geocoded?.area || "";
       const detectedArea = geocoded?.area || "";
       const shortName =
         geocoded?.shortName ||
         (detectedArea && detectedCity ? `${detectedArea}, ${detectedCity}` : detectedCity) ||
         geocoded?.formattedAddress ||
         "My Location";
+
+      try {
+        localStorage.setItem(
+          "fmp_user_coords:v1",
+          JSON.stringify({
+            lat: pos.lat,
+            lng: pos.lng,
+            city: detectedCity,
+            area: detectedArea,
+            shortName,
+            formattedAddress: geocoded?.formattedAddress || shortName,
+          })
+        );
+        localStorage.setItem("fmp_selected_city:v1", shortName);
+      } catch {}
 
       onSelectLocation(shortName);
     } catch (err) {

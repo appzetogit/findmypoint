@@ -33,6 +33,7 @@ import { getCurrentUserLocation, reverseGeocodeCoords, calculateDistanceKm, form
 import { LazyImage } from "../components/ui/LazyImage";
 import MobileSearchPage from "./MobileSearchPage";
 import MobileLocationPage from "./MobileLocationPage";
+import LocationPermissionModal from "../components/location/LocationPermissionModal";
 
 
 
@@ -565,6 +566,20 @@ export default function HomePage({
   });
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [showMobileLocation, setShowMobileLocation] = useState(false);
+  const [showLocationPermissionModal, setShowLocationPermissionModal] = useState(() => {
+    try {
+      const savedCoords = localStorage.getItem("fmp_user_coords:v1");
+      const savedCity = localStorage.getItem("fmp_selected_city:v1");
+      if (savedCoords || savedCity) return false;
+      const dismissed = localStorage.getItem("fmp_location_prompt_dismissed:v1");
+      if (dismissed && Date.now() < Number(dismissed)) {
+        return false;
+      }
+      return true;
+    } catch {
+      return true;
+    }
+  });
   const [desktopLocationQuery, setDesktopLocationQuery] = useState("");
   const [desktopOnlineLocations, setDesktopOnlineLocations] = useState<{ title: string; subtitle?: string; fullAddress: string }[]>([]);
   const [isSearchingDesktopLocation, setIsSearchingDesktopLocation] = useState(false);
@@ -761,6 +776,55 @@ export default function HomePage({
       setDetectingGps(false);
     }
   }, []);
+
+  const handleLocationGranted = useCallback(
+    (locationData: {
+      lat: number;
+      lng: number;
+      city: string;
+      area: string;
+      shortName: string;
+      formattedAddress: string;
+    }) => {
+      setUserCoords({ lat: locationData.lat, lng: locationData.lng });
+      localStorage.setItem(
+        "fmp_user_coords:v1",
+        JSON.stringify({
+          lat: locationData.lat,
+          lng: locationData.lng,
+          city: locationData.city,
+          area: locationData.area,
+          shortName: locationData.shortName,
+          formattedAddress: locationData.formattedAddress,
+        })
+      );
+      setLocationState((prev) => {
+        const updatedRecent = [
+          locationData.shortName,
+          ...prev.recentLocations.filter((l) => l !== locationData.shortName),
+        ].slice(0, 5);
+        localStorage.setItem("fmp_recent_locations:v1", JSON.stringify(updatedRecent));
+        localStorage.setItem("fmp_selected_city:v1", locationData.shortName);
+        return {
+          ...prev,
+          selectedCity: locationData.shortName,
+          recentLocations: updatedRecent,
+          showLocationDropdown: false,
+        };
+      });
+      setShowLocationPermissionModal(false);
+    },
+    []
+  );
+
+  const handleOpenManualCitySelector = useCallback(() => {
+    setShowLocationPermissionModal(false);
+    if (isMobile) {
+      setShowMobileLocation(true);
+    } else {
+      setLocationState((prev) => ({ ...prev, showLocationDropdown: true }));
+    }
+  }, [isMobile]);
 
   // Auto-detect live GPS location on page load (Always auto-detects latest position)
   useEffect(() => {
@@ -1062,7 +1126,7 @@ export default function HomePage({
                 className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/80 hover:bg-secondary border border-border/70 text-xs font-bold text-foreground transition cursor-pointer"
               >
                 <MapPin className="h-3.5 w-3.5 text-accent shrink-0" />
-                <span className="truncate max-w-[130px]">{detectingGps ? "Detecting..." : selectedCity}</span>
+                <span className="truncate max-w-[130px]">{detectingGps ? "Detecting..." : selectedCity || "Select Location"}</span>
                 <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
               </button>
             </div>
@@ -1090,12 +1154,12 @@ export default function HomePage({
                     showLocationDropdown: !prev.showLocationDropdown,
                   }))
                 }
-                title={`Current Location: ${selectedCity}`}
+                title={`Current Location: ${selectedCity || "Select Location"}`}
                 className="flex items-center gap-1.5 md:gap-2 border-r border-border pl-1.5 pr-2.5 md:px-3.5 py-1 text-xs md:text-sm hover:text-primary transition-colors cursor-pointer group max-w-[180px] sm:max-w-[280px] md:max-w-[340px]"
               >
                 <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 text-accent group-hover:text-primary transition-colors shrink-0" />
                 <span className="font-semibold truncate">
-                  {detectingGps ? "Detecting..." : selectedCity}
+                  {detectingGps ? "Detecting..." : selectedCity || "Select Location"}
                 </span>
                 <ChevronRight
                   className={`h-3 w-3 md:h-3.5 md:w-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ${showLocationDropdown ? "rotate-90" : ""}`}
@@ -2451,6 +2515,60 @@ export default function HomePage({
           </div>
         </div>
       )}
+
+      {/* Mobile Search Overlay */}
+      {showMobileSearch && (
+        <MobileSearchPage
+          onBack={() => setShowMobileSearch(false)}
+          selectedCity={selectedCity}
+          onOpenLocation={() => {
+            setShowMobileSearch(false);
+            setShowMobileLocation(true);
+          }}
+          onBusinessSelect={(id) => {
+            setShowMobileSearch(false);
+            if (onBusinessSelect) {
+              onBusinessSelect(id);
+            } else {
+              onReviewClick(id);
+            }
+          }}
+          onCategorySelect={(cat, subcat) => {
+            setShowMobileSearch(false);
+            onCategoryClick?.(cat, subcat);
+          }}
+          onPlaceSelect={(place) => {
+            setShowMobileSearch(false);
+            onPlaceClick?.(place);
+          }}
+          onNotificationsClick={onNotificationsClick}
+          onSearchSubmit={(q, loc) => {
+            setShowMobileSearch(false);
+            onSearchSubmit?.(q, loc);
+          }}
+          allBusinesses={allBusinesses}
+        />
+      )}
+
+      {/* Mobile Location Selector Overlay */}
+      {showMobileLocation && (
+        <MobileLocationPage
+          onBack={() => setShowMobileLocation(false)}
+          selectedCity={selectedCity}
+          onSelectLocation={(loc) => {
+            handleSelectArea(loc);
+            setShowMobileLocation(false);
+          }}
+        />
+      )}
+
+      {/* Location Permission Modal */}
+      <LocationPermissionModal
+        isOpen={showLocationPermissionModal}
+        onClose={() => setShowLocationPermissionModal(false)}
+        onLocationGranted={handleLocationGranted}
+        onOpenManualCitySelector={handleOpenManualCitySelector}
+      />
     </div>
   );
 }

@@ -32,6 +32,7 @@ import { BusinessListingData } from "../data/businessesData";
 import { LazyImage } from "../components/ui/LazyImage";
 import { calculateDistanceKm, formatDistance, getCurrentUserLocation, reverseGeocodeCoords } from "../utils/googleMaps";
 import Footer from "./Footer";
+import MobileLocationPage from "./MobileLocationPage";
 
 // WhatsApp SVG Icon
 const WhatsAppIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
@@ -444,6 +445,7 @@ export default function SearchResultsPage({
   const [listings, setListings] = useState<BusinessListingData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [showMobileLocation, setShowMobileLocation] = useState(false);
   const [locationSearchInput, setLocationSearchInput] = useState("");
   const [detectingGps, setDetectingGps] = useState(false);
   const [recentLocations, setRecentLocations] = useState<string[]>(() => {
@@ -625,6 +627,8 @@ export default function SearchResultsPage({
       localStorage.setItem("fmp_recent_locations:v1", JSON.stringify(updated));
     } catch {}
     setShowLocationDropdown(false);
+    setShowMobileLocation(false);
+    window.dispatchEvent(new CustomEvent("fmp_city_changed", { detail: area }));
   };
 
   const handleDetectLocation = async () => {
@@ -918,6 +922,19 @@ export default function SearchResultsPage({
     }
   };
 
+  if (showMobileLocation) {
+    return (
+      <MobileLocationPage
+        onBack={() => setShowMobileLocation(false)}
+        selectedCity={selectedCity}
+        onSelectLocation={(location) => {
+          handleSelectArea(location);
+          setShowMobileLocation(false);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen w-full bg-background text-foreground flex flex-col font-sans">
       {/* ========================================================================= */}
@@ -940,7 +957,13 @@ export default function SearchResultsPage({
             <div ref={locationDropdownRef} className="absolute inset-x-0 mx-auto flex justify-center w-fit max-w-[calc(100%-84px)] z-10">
               <button
                 type="button"
-                onClick={() => setShowLocationDropdown(!showLocationDropdown)}
+                onClick={() => {
+                  if (typeof window !== "undefined" && window.innerWidth < 768) {
+                    setShowMobileLocation(true);
+                  } else {
+                    setShowLocationDropdown(!showLocationDropdown);
+                  }
+                }}
                 className="flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 sm:py-2 rounded-full border border-border bg-card hover:bg-secondary/70 text-xs sm:text-sm font-semibold text-foreground cursor-pointer shadow-xs transition-all max-w-full justify-between"
                 title={`Current Location: ${selectedCity || "Select Location"}`}
               >

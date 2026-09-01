@@ -5,6 +5,7 @@ import { getCategoryImage, getSubcategoryEmoji } from "../utils/categoryImages";
 import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
 import { LazyImage } from "../components/ui/LazyImage";
 import { getCurrentUserLocation, reverseGeocodeCoords } from "../utils/googleMaps";
+import MobileLocationPage from "./MobileLocationPage";
 
 interface AllCategoriesPageProps {
   onBack: () => void;
@@ -30,6 +31,7 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
     }
   });
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [showMobileLocation, setShowMobileLocation] = useState(false);
   const [locationQuery, setLocationQuery] = useState("");
   const [detectingGps, setDetectingGps] = useState(false);
   const [recentLocations, setRecentLocations] = useState<string[]>(() => {
@@ -62,6 +64,7 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
     setRecentLocations(updated);
     localStorage.setItem("fmp_recent_locations:v1", JSON.stringify(updated));
     setShowLocationDropdown(false);
+    setShowMobileLocation(false);
     window.dispatchEvent(new CustomEvent("fmp_city_changed", { detail: trimmed }));
   };
 
@@ -196,6 +199,19 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
     }
   };
 
+  if (showMobileLocation) {
+    return (
+      <MobileLocationPage
+        onBack={() => setShowMobileLocation(false)}
+        selectedCity={selectedCity}
+        onSelectLocation={(location) => {
+          handleSelectArea(location);
+          setShowMobileLocation(false);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="h-screen w-full bg-background flex flex-col overflow-hidden animate-in fade-in duration-300">
       {/* Sticky Header with Location Selector Top Row & Full Search Bar Row */}
@@ -216,7 +232,13 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
             <div ref={locationRef} className="absolute inset-x-0 mx-auto flex justify-center w-fit max-w-[calc(100%-84px)] z-10">
               <button
                 type="button"
-                onClick={() => setShowLocationDropdown(!showLocationDropdown)}
+                onClick={() => {
+                  if (typeof window !== "undefined" && window.innerWidth < 768) {
+                    setShowMobileLocation(true);
+                  } else {
+                    setShowLocationDropdown(!showLocationDropdown);
+                  }
+                }}
                 className="flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 sm:py-2 rounded-full border border-border bg-card hover:bg-secondary/70 text-xs sm:text-sm font-semibold text-foreground cursor-pointer shadow-xs transition-all max-w-full justify-between"
                 title={`Current Location: ${selectedCity || "Select Location"}`}
               >
@@ -361,12 +383,12 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
       </header>
 
       {/* Main Split Layout */}
-      <div className="flex-1 flex overflow-hidden w-full max-w-3xl mx-auto bg-background">
+      <div className="flex-1 flex overflow-hidden w-full max-w-3xl mx-auto bg-background pb-16 sm:pb-0">
         {/* Left Sidebar Menu */}
         {searchQuery.trim() === "" && (
           <div
             ref={tabsContainerRef}
-            className="w-[110px] border-r border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 flex flex-col py-2 overflow-y-auto no-scrollbar shrink-0"
+            className="w-[110px] border-r border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 flex flex-col py-2 overflow-y-auto no-scrollbar shrink-0 pb-6 touch-pan-y"
           >
             {categoryGroups.map((group) => {
               const isActive = activeTab === group.id;
@@ -410,7 +432,7 @@ export default function AllCategoriesPage({ onBack, onCategoryClick, initialCate
         <div
           ref={containerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto px-3.5 sm:px-4 pt-2 pb-4 bg-background"
+          className="flex-1 overflow-y-auto px-3.5 sm:px-4 pt-2 pb-6 bg-background touch-pan-y"
         >
           {searchQuery.trim() !== "" ? (
             // Search Results View

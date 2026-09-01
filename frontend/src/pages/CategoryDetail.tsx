@@ -44,6 +44,7 @@ import { getSubcategoryEmoji } from "../utils/categoryImages";
 import { calculateDistanceKm, formatDistance, getCurrentUserLocation, reverseGeocodeCoords } from "../utils/googleMaps";
 import CategoryMapView from "../components/map/CategoryMapView";
 import { LazyImage } from "../components/ui/LazyImage";
+import MobileLocationPage from "./MobileLocationPage";
 
 
 
@@ -243,6 +244,22 @@ export default function CategoryDetailPage({
     );
   }
 
+  const subcatListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (activeSubcategory && subcatListRef.current) {
+      try {
+        const activeBtn = subcatListRef.current.querySelector(`[data-subcat="${CSS.escape(activeSubcategory)}"]`);
+        if (activeBtn) {
+          activeBtn.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest",
+          });
+        }
+      } catch {}
+    }
+  }, [activeSubcategory]);
+
   const [listings, setListings] = useState<BusinessListingData[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
 
@@ -296,6 +313,7 @@ export default function CategoryDetailPage({
     return "";
   });
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [showMobileLocation, setShowMobileLocation] = useState(false);
   const [desktopLocationQuery, setDesktopLocationQuery] = useState("");
   const [detectingGps, setDetectingGps] = useState(false);
   const [recentLocations, setRecentLocations] = useState<string[]>(() => {
@@ -356,6 +374,8 @@ export default function CategoryDetailPage({
       localStorage.setItem("fmp_recent_locations:v1", JSON.stringify(updated));
     } catch {}
     setShowLocationDropdown(false);
+    setShowMobileLocation(false);
+    window.dispatchEvent(new CustomEvent("fmp_city_changed", { detail: area }));
   };
 
   const handleDetectLocation = async () => {
@@ -1739,8 +1759,21 @@ export default function CategoryDetailPage({
     }
   };
 
+  if (showMobileLocation) {
+    return (
+      <MobileLocationPage
+        onBack={() => setShowMobileLocation(false)}
+        selectedCity={selectedCity}
+        onSelectLocation={(location) => {
+          handleSelectArea(location);
+          setShowMobileLocation(false);
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="h-screen md:h-auto md:min-h-screen w-full bg-background flex flex-col overflow-hidden md:overflow-visible text-foreground font-sans">
+    <div className="h-[100dvh] h-screen md:h-auto md:min-h-screen w-full bg-background flex flex-col overflow-hidden md:overflow-visible text-foreground font-sans pb-16 md:pb-0">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl shrink-0">
         <div className="mx-auto max-w-7xl w-full px-3 sm:px-6 py-2.5 flex flex-col gap-2.5">
@@ -1759,7 +1792,13 @@ export default function CategoryDetailPage({
             <div ref={locationRef} className="absolute inset-x-0 mx-auto flex justify-center w-fit max-w-[calc(100%-84px)] z-10">
               <button
                 type="button"
-                onClick={() => setShowLocationDropdown(!showLocationDropdown)}
+                onClick={() => {
+                  if (typeof window !== "undefined" && window.innerWidth < 768) {
+                    setShowMobileLocation(true);
+                  } else {
+                    setShowLocationDropdown(!showLocationDropdown);
+                  }
+                }}
                 className="flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 sm:py-2 rounded-full border border-border bg-card hover:bg-secondary/70 text-xs sm:text-sm font-semibold text-foreground cursor-pointer shadow-xs transition-all max-w-full justify-between"
                 title={`Current Location: ${selectedCity || "Select Location"}`}
               >
@@ -2031,7 +2070,7 @@ export default function CategoryDetailPage({
       </header>
 
       {/* Main Content Body */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-6">
+      <main className="flex-1 min-h-0 w-full max-w-7xl mx-auto px-2 sm:px-6 py-2 sm:py-6 flex flex-col md:block overflow-hidden md:overflow-visible">
         {/* Breadcrumb / Title */}
         <div className="hidden md:flex mb-3 md:mb-5 flex-wrap items-center gap-2 text-xs sm:text-sm text-muted-foreground pl-0.5">
           <span className="cursor-pointer hover:text-primary transition-colors" onClick={onBack}>
@@ -2043,10 +2082,10 @@ export default function CategoryDetailPage({
           <span className="font-bold text-primary">{activeSubcategory}</span>
         </div>
 
-        <div className="flex flex-row w-full gap-3 sm:gap-4 md:gap-6">
+        <div className="flex flex-row w-full gap-2 sm:gap-4 md:gap-6 flex-1 min-h-0 h-full md:h-auto overflow-hidden md:overflow-visible">
           {/* Left Panel: Subcategories Selector */}
-          <aside className="w-[80px] sm:w-[90px] md:w-52 lg:w-60 xl:w-64 shrink-0 border-r md:border-none border-border/80 bg-secondary/15 md:bg-transparent flex flex-col md:block overflow-hidden md:overflow-visible h-full md:h-auto">
-            <div className="md:sticky md:top-28 md:rounded-2xl md:border md:border-border/80 md:bg-card md:p-3.5 lg:p-4 md:shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col overflow-hidden md:overflow-visible h-full md:h-auto w-full bg-transparent md:bg-card">
+          <aside className="w-[85px] sm:w-[95px] md:w-52 lg:w-60 xl:w-64 shrink-0 border-r md:border-none border-border/80 bg-secondary/15 md:bg-transparent flex flex-col md:block overflow-hidden md:overflow-visible h-full md:h-auto min-h-0">
+            <div className="md:sticky md:top-28 md:rounded-2xl md:border md:border-border/80 md:bg-card md:p-3.5 lg:p-4 md:shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col overflow-hidden md:overflow-visible h-full md:h-auto w-full bg-transparent md:bg-card min-h-0">
               {/* Desktop-only header/search */}
               <div className="hidden md:block">
                 <h3 className="font-serif text-base lg:text-lg font-bold mb-2.5 pl-1">Subcategories</h3>
@@ -2066,13 +2105,17 @@ export default function CategoryDetailPage({
               </div>
 
               {/* Subcategories list */}
-              <div className="flex-1 md:flex-none md:max-h-[380px] md:overflow-y-auto no-scrollbar flex flex-col p-0 md:gap-1">
+              <div
+                ref={subcatListRef}
+                className="flex-1 md:flex-none overflow-y-auto md:max-h-[380px] no-scrollbar flex flex-col p-0 md:gap-1 min-h-0 pb-6 md:pb-0 touch-pan-y"
+              >
                 {filteredSubcategories.length > 0 ? (
                   filteredSubcategories.map((subcat) => {
                     const isSelected = activeSubcategory === subcat;
                     return (
                       <button
                         key={subcat}
+                        data-subcat={subcat}
                         onClick={() => handleSubcategorySelect(subcat)}
                         className={`relative transition-all duration-300 cursor-pointer border-b border-border/20 md:border md:rounded-xl shrink-0 flex flex-col md:flex-row items-center md:items-start justify-center md:justify-start text-center md:text-left ${isSelected
                             ? "text-accent bg-background md:bg-primary md:border-primary md:text-primary-foreground font-black md:font-bold shadow-none md:shadow-sm"
@@ -2112,7 +2155,7 @@ export default function CategoryDetailPage({
           </aside>
 
           {/* Right Panel: Business Listings */}
-          <section className="flex-1 min-w-0">
+          <section className="flex-1 min-w-0 overflow-y-auto md:overflow-visible h-full md:h-auto no-scrollbar pr-1 sm:pr-0 pb-6 md:pb-0 touch-pan-y min-h-0">
             <div className="hidden md:flex items-center justify-between gap-3 mb-4 md:mb-5 w-full">
               <div className="min-w-0 flex-1">
                 <h1 className="font-serif text-lg sm:text-xl md:text-2xl font-bold tracking-tight truncate leading-tight">

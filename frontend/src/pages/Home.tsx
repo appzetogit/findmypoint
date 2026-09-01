@@ -33,7 +33,6 @@ import { getCurrentUserLocation, reverseGeocodeCoords, calculateDistanceKm, form
 import { LazyImage } from "../components/ui/LazyImage";
 import MobileSearchPage from "./MobileSearchPage";
 import MobileLocationPage from "./MobileLocationPage";
-import MandatoryLocationModal from "../components/location/MandatoryLocationModal";
 
 
 
@@ -566,15 +565,6 @@ export default function HomePage({
   });
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [showMobileLocation, setShowMobileLocation] = useState(false);
-  const [showMandatoryLocationModal, setShowMandatoryLocationModal] = useState(() => {
-    try {
-      const savedCoords = localStorage.getItem("fmp_user_coords:v1");
-      const savedCity = localStorage.getItem("fmp_selected_city:v1");
-      return !savedCoords && !savedCity;
-    } catch {
-      return true;
-    }
-  });
   const [desktopLocationQuery, setDesktopLocationQuery] = useState("");
   const [desktopOnlineLocations, setDesktopOnlineLocations] = useState<{ title: string; subtitle?: string; fullAddress: string }[]>([]);
   const [isSearchingDesktopLocation, setIsSearchingDesktopLocation] = useState(false);
@@ -771,46 +761,6 @@ export default function HomePage({
       setDetectingGps(false);
     }
   }, []);
-
-  const handleMandatoryLocationConfirmed = useCallback(
-    (locationData: {
-      lat: number;
-      lng: number;
-      city: string;
-      area: string;
-      shortName: string;
-      formattedAddress: string;
-    }) => {
-      setUserCoords({ lat: locationData.lat, lng: locationData.lng });
-      localStorage.setItem(
-        "fmp_user_coords:v1",
-        JSON.stringify({
-          lat: locationData.lat,
-          lng: locationData.lng,
-          city: locationData.city,
-          area: locationData.area,
-          shortName: locationData.shortName,
-          formattedAddress: locationData.formattedAddress,
-        })
-      );
-      setLocationState((prev) => {
-        const updatedRecent = [
-          locationData.shortName,
-          ...prev.recentLocations.filter((l) => l !== locationData.shortName),
-        ].slice(0, 5);
-        localStorage.setItem("fmp_recent_locations:v1", JSON.stringify(updatedRecent));
-        localStorage.setItem("fmp_selected_city:v1", locationData.shortName);
-        return {
-          ...prev,
-          selectedCity: locationData.shortName,
-          recentLocations: updatedRecent,
-          showLocationDropdown: false,
-        };
-      });
-      setShowMandatoryLocationModal(false);
-    },
-    []
-  );
 
   // Auto-detect live GPS location on page load (Always auto-detects latest position)
   useEffect(() => {
@@ -2501,12 +2451,6 @@ export default function HomePage({
           </div>
         </div>
       )}
-
-      {/* Mandatory First-Time Location Gate */}
-      <MandatoryLocationModal
-        isOpen={showMandatoryLocationModal}
-        onLocationConfirmed={handleMandatoryLocationConfirmed}
-      />
     </div>
   );
 }

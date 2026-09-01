@@ -572,15 +572,20 @@ export default function SearchResultsPage({
       if (json.success && Array.isArray(json.data) && json.data.length > 0) {
         setListings(json.data);
       } else {
-        // Fallback 1: fetch with search term without location restriction
-        const fallbackRes = await fetch(
-          `${API_BASE_URL}/businesses?search=${encodeURIComponent(queryTerm.trim())}`
-        );
-        const fallbackJson = await fallbackRes.json();
-        if (fallbackJson.success && Array.isArray(fallbackJson.data) && fallbackJson.data.length > 0) {
-          setListings(fallbackJson.data);
+        // Fallback: If queryTerm is present, try searching across all locations without location constraint
+        if (queryTerm.trim()) {
+          const fallbackRes = await fetch(
+            `${API_BASE_URL}/businesses?search=${encodeURIComponent(queryTerm.trim())}`
+          );
+          const fallbackJson = await fallbackRes.json();
+          if (fallbackJson.success && Array.isArray(fallbackJson.data) && fallbackJson.data.length > 0) {
+            setListings(fallbackJson.data);
+          } else {
+            // No matching businesses found for this search term
+            setListings([]);
+          }
         } else {
-          // Fallback 2: fetch all businesses
+          // If no queryTerm, load all businesses
           const allRes = await fetch(`${API_BASE_URL}/businesses`);
           const allJson = await allRes.json();
           if (allJson.success && Array.isArray(allJson.data)) {
@@ -733,9 +738,7 @@ export default function SearchResultsPage({
         return words.some((word) => searchableText.includes(word));
       });
 
-      if (matchedList.length > 0) {
-        list = matchedList;
-      }
+      list = matchedList;
     }
 
     // 1. Filter: Top Rated (Rating >= 4.0)

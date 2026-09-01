@@ -182,9 +182,9 @@ export default function MobileLocationPage({
     setDetectingGps(true);
     setGpsError(null);
     try {
-      const pos = await getCurrentUserLocation();
+      const pos = await getCurrentUserLocation({ forceFresh: true, timeout: 25000 });
       if (!pos) {
-        setGpsError("Location access was blocked or unavailable. Please enable location in browser settings or type a city above.");
+        setGpsError("Location permission is blocked or unavailable. Please enable location in your browser settings (tap the lock/tune icon near the URL bar).");
         setDetectingGps(false);
         return;
       }
@@ -210,7 +210,6 @@ export default function MobileLocationPage({
             formattedAddress: geocoded?.formattedAddress || shortName,
           })
         );
-        localStorage.setItem("fmp_selected_city:v1", shortName);
       } catch {}
 
       onSelectLocation(shortName);

@@ -1020,7 +1020,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                 <input
                   type="text"
                   required
-                  placeholder="e.g. South Tukoganj"
+                  placeholder="e.g."
                   value={cityTown}
                   onChange={(e) => setCityTown(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"

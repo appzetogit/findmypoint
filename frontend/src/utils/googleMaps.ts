@@ -171,57 +171,83 @@ export function getGoogleMapsEmbedUrl(params: {
   return `https://maps.google.com/maps?q=${query}&z=14&output=embed`;
 }
 
+// In-flight singleton promise to prevent conflicting duplicate browser permission dialogs
+let inFlightLocationPromise: Promise<{ lat: number; lng: number } | null> | null = null;
+
 /**
- * Get user's current GPS location with high accuracy and fast fallback
+ * Get user's current GPS location with mobile-friendly timeout and fast fallback
  */
-export function getCurrentUserLocation(): Promise<{ lat: number; lng: number } | null> {
-  return new Promise((resolve) => {
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      resolve(null);
-      return;
-    }
+export function getCurrentUserLocation(options?: {
+  forceFresh?: boolean;
+  timeout?: number;
+}): Promise<{ lat: number; lng: number } | null> {
+  if (typeof window === "undefined" || !navigator.geolocation) {
+    return Promise.resolve(null);
+  }
+
+  // Reuse in-flight promise to avoid triggering duplicate permission prompts
+  if (inFlightLocationPromise && !options?.forceFresh) {
+    return inFlightLocationPromise;
+  }
+
+  inFlightLocationPromise = new Promise<{ lat: number; lng: number } | null>((resolve) => {
+    let finished = false;
+    const finish = (coords: { lat: number; lng: number } | null) => {
+      if (!finished) {
+        finished = true;
+        inFlightLocationPromise = null;
+        resolve(coords);
+      }
+    };
+
+    // 25 seconds timeout ensures mobile users have plenty of time to view native prompt & tap Allow
+    const timeoutDuration = options?.timeout ?? 25000;
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        resolve({
+        finish({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         });
       },
       (error) => {
-        console.warn("[GoogleMaps] High accuracy geolocation notice:", error.code, error.message);
-        // If user explicitly denied permission (code 1), do not re-prompt or fallback
+        // Error code 1 = PERMISSION_DENIED (User clicked Block/Never allow or blocked by browser)
         if (error.code === 1) {
-          resolve(null);
+          console.warn("[GoogleMaps] Geolocation permission denied or blocked by browser:", error.message);
+          finish(null);
           return;
         }
 
-        // Fallback: Try with standard accuracy (faster on mobile networks/WiFi)
+        console.warn("[GoogleMaps] High accuracy location unavailable or timed out, trying fast standard accuracy:", error.message);
+
+        // Fallback: Standard cell/wifi triangulation (fast, works when GPS satellite lock is slow indoors)
         navigator.geolocation.getCurrentPosition(
           (fallbackPos) => {
-            resolve({
+            finish({
               lat: fallbackPos.coords.latitude,
               lng: fallbackPos.coords.longitude,
             });
           },
           (fallbackErr) => {
-            console.warn("[GoogleMaps] Geolocation standard accuracy declined/error:", fallbackErr.message);
-            resolve(null);
+            console.warn("[GoogleMaps] Standard accuracy fallback also failed:", fallbackErr.message);
+            finish(null);
           },
           {
             enableHighAccuracy: false,
-            timeout: 15000,
+            timeout: 12000,
             maximumAge: 300000,
           }
         );
       },
       {
         enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 60000,
+        timeout: timeoutDuration,
+        maximumAge: options?.forceFresh ? 0 : 60000,
       }
     );
   });
+
+  return inFlightLocationPromise;
 }
 
 /**
@@ -264,7 +290,7 @@ export async function reverseGeocodeCoords(
           get("neighborhood") ||
           "";
 
-        const shortName = area ? `${area}, ${city}` : city;
+        const shortName = area && city && area !== city ? `${area}, ${city}` : (city || area || "My Location");
 
         return {
           city,
@@ -278,7 +304,37 @@ export async function reverseGeocodeCoords(
     console.warn("[GoogleMaps] SDK Geocoder error:", err);
   }
 
-  // Strategy 2: Fast HTTP Reverse Geocoding fallback (OSM / BigDataCloud)
+  // Strategy 2: Fast BigDataCloud Reverse Geocoding API (Fast, Free, Client-side CORS)
+  try {
+    const bdcRes = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
+    );
+    if (bdcRes.ok) {
+      const bdcData = await bdcRes.json();
+      if (bdcData) {
+        const city = bdcData.city || bdcData.locality || bdcData.principalSubdivision || "";
+        const area =
+          bdcData.localityInfo?.administrative?.[3]?.name ||
+          bdcData.localityInfo?.administrative?.[2]?.name ||
+          bdcData.locality ||
+          "";
+        const shortName = area && city && area !== city ? `${area}, ${city}` : (city || area || "My Location");
+
+        if (city || area) {
+          return {
+            city,
+            area,
+            formattedAddress: shortName,
+            shortName,
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[GoogleMaps] BigDataCloud reverse geocoding fallback error:", err);
+  }
+
+  // Strategy 3: Fast HTTP Reverse Geocoding fallback (Nominatim OSM)
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
@@ -297,7 +353,7 @@ export async function reverseGeocodeCoords(
         addr.road ||
         "";
 
-      const shortName = area ? `${area}, ${city}` : city;
+      const shortName = area && city && area !== city ? `${area}, ${city}` : (city || area || "My Location");
 
       return {
         city,

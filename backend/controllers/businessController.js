@@ -61,10 +61,11 @@ const getBusinesses = async (req, res) => {
 
     let searchConditions = null;
     let andConditions = null;
+    let words = [];
 
     if (search) {
       const safeSearch = escapeRegex(search.trim());
-      const words = safeSearch
+      words = safeSearch
         .split(/\s+/)
         .map((w) => w.trim())
         .filter(

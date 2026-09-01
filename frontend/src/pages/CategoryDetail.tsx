@@ -2084,7 +2084,7 @@ export default function CategoryDetailPage({
 
         <div className="flex flex-row w-full gap-2 sm:gap-4 md:gap-6 flex-1 min-h-0 h-full md:h-auto overflow-hidden md:overflow-visible">
           {/* Left Panel: Subcategories Selector */}
-          <aside className="w-[85px] sm:w-[95px] md:w-52 lg:w-60 xl:w-64 shrink-0 border-r md:border-none border-border/80 bg-secondary/15 md:bg-transparent flex flex-col md:block overflow-hidden md:overflow-visible h-full md:h-auto min-h-0">
+          <aside className="w-[96px] sm:w-[108px] md:w-52 lg:w-60 xl:w-64 shrink-0 border-r md:border-none border-border/80 bg-secondary/15 md:bg-transparent flex flex-col md:block overflow-hidden md:overflow-visible h-full md:h-auto min-h-0">
             <div className="md:sticky md:top-28 md:rounded-2xl md:border md:border-border/80 md:bg-card md:p-3.5 lg:p-4 md:shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col overflow-hidden md:overflow-visible h-full md:h-auto w-full bg-transparent md:bg-card min-h-0">
               {/* Desktop-only header/search */}
               <div className="hidden md:block">
@@ -2120,26 +2120,26 @@ export default function CategoryDetailPage({
                         className={`relative transition-all duration-300 cursor-pointer border-b border-border/20 md:border md:rounded-xl shrink-0 flex flex-col md:flex-row items-center md:items-start justify-center md:justify-start text-center md:text-left ${isSelected
                             ? "text-accent bg-background md:bg-primary md:border-primary md:text-primary-foreground font-black md:font-bold shadow-none md:shadow-sm"
                             : "text-muted-foreground md:text-foreground/80 bg-transparent md:bg-background border-transparent md:border-border hover:bg-secondary/10 md:hover:bg-secondary md:hover:text-primary"
-                          } px-1 sm:px-2 py-3 md:px-3 lg:px-3.5 md:py-2 gap-1 md:gap-2 text-[10px] sm:text-[11px] md:text-xs lg:text-[13px]`}
+                          } px-1.5 sm:px-2 py-3 md:px-3 lg:px-3.5 md:py-2 gap-1.5 md:gap-2 text-[10.5px] sm:text-[11px] md:text-xs lg:text-[13px]`}
                       >
                         {/* Active vertical indicator line on mobile */}
                         {isSelected && (
                           <span className="absolute left-0 top-0 bottom-0 w-1 bg-accent rounded-r md:hidden" />
                         )}
                         {/* Subcategory Icon (Mobile only) */}
-                        <span className="text-xl md:hidden shrink-0 flex items-center justify-center">
+                        <span className="text-3xl md:hidden shrink-0 flex items-center justify-center">
                           {subcatIcons[subcat] ? (
                             <LazyImage
                               src={subcatIcons[subcat]}
                               alt={subcat}
-                              className="h-5 w-5 rounded-md overflow-hidden"
+                              className="h-11 w-11 sm:h-12 sm:w-12 rounded-xl overflow-hidden shrink-0"
                               imgClassName="h-full w-full object-contain"
                             />
                           ) : (
-                            getSubcategoryEmoji(categoryName, subcat)
+                            <span className="text-3xl leading-none">{getSubcategoryEmoji(categoryName, subcat)}</span>
                           )}
                         </span>
-                        <span className="line-clamp-2 md:line-clamp-none leading-tight md:leading-normal">
+                        <span className="line-clamp-2 md:line-clamp-none leading-tight md:leading-normal font-semibold">
                           {subcat}
                         </span>
                       </button>

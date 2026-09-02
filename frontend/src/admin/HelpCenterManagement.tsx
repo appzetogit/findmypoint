@@ -98,7 +98,7 @@ export default function HelpCenterManagement() {
       if (data.success) {
         setContactEmail(data.data.email || "");
         setContactPhone(data.data.phone || "");
-        setContactAddress(data.data.address || "G-161, Sector 22 Noida, Uttar Pradesh 201301 India");
+        setContactAddress(data.data.address || "");
       }
     } catch { /* silent */ }
   };

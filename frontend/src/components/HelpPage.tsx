@@ -31,9 +31,9 @@ export default function HelpPage() {
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
   const [openFaq, setOpenFaq] = useState<string | null>(null);
   const [contactInfo, setContactInfo] = useState<HelpContactData>({
-    email: "findmypoint.india@gmail.com",
-    phone: "+91 8339977383",
-    address: "G-161, Sector 22 Noida, Uttar Pradesh 201301 India",
+    email: "",
+    phone: "",
+    address: "",
   });
   const [loadingFaqs, setLoadingFaqs] = useState(true);
 
@@ -68,9 +68,9 @@ export default function HelpPage() {
       .then((data) => {
         if (data.success && data.data) {
           setContactInfo({
-            email: data.data.email || "panchalajay717@gmail.com",
-            phone: data.data.phone || "+91 8339977383",
-            address: data.data.address || "G-161, Sector 22 Noida, Uttar Pradesh 201301 India",
+            email: data.data.email || "",
+            phone: data.data.phone || "",
+            address: data.data.address || "",
           });
         }
       })
@@ -115,7 +115,7 @@ export default function HelpPage() {
   };
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    contactInfo.address || "G-161, Sector 22 Noida, Uttar Pradesh 201301 India",
+    contactInfo.address || "",
   )}`;
 
   return (

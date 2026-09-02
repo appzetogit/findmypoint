@@ -69,13 +69,10 @@ const getContact = async (req, res) => {
     let contact = await HelpContact.findOne();
     if (!contact) {
       contact = await HelpContact.create({
-        email: 'panchalajay717@gmail.com',
-        phone: '+91 8339977383',
-        address: 'G-161, Sector 22 Noida, Uttar Pradesh 201301 India',
+        email: '',
+        phone: '',
+        address: '',
       });
-    } else if (!contact.address) {
-      contact.address = 'G-161, Sector 22 Noida, Uttar Pradesh 201301 India';
-      await contact.save();
     }
     res.status(200).json({ success: true, data: contact });
   } catch (err) {
@@ -96,9 +93,9 @@ const saveContact = async (req, res) => {
       await contact.save();
     } else {
       contact = await HelpContact.create({
-        email: email || 'panchalajay717@gmail.com',
-        phone: phone || '+91 8339977383',
-        address: address || 'G-161, Sector 22 Noida, Uttar Pradesh 201301 India',
+        email: email || '',
+        phone: phone || '',
+        address: address || '',
       });
     }
     res.status(200).json({ success: true, data: contact });

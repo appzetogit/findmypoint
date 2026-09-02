@@ -2722,16 +2722,42 @@ export default function CategoryDetailPage({
         </div>
       )}
 
-      {/* Booking Modal */}
+      {/* Booking Full Page Modal */}
       {bookingModalOpen && selectedBizForBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="relative w-full max-w-md my-auto rounded-3xl sm:rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in-up max-h-[90vh] overflow-y-auto no-scrollbar">
+        <div className="fixed inset-0 z-50 bg-background flex flex-col text-left animate-fade-in overflow-hidden">
+          {/* Top Sticky Header */}
+          <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border/80 bg-card/95 backdrop-blur-md px-4 sm:px-8 py-3.5 shrink-0 shadow-xs">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                type="button"
+                onClick={() => dispatchBooking({ type: "CLOSE_MODAL" })}
+                className="h-9 w-9 rounded-full bg-secondary/80 hover:bg-secondary flex items-center justify-center text-foreground transition-colors cursor-pointer shrink-0"
+                aria-label="Back"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <div className="min-w-0">
+                <h2 className="text-sm sm:text-base font-bold font-serif text-foreground leading-tight truncate">
+                  Book Services
+                </h2>
+                <p className="text-[11px] sm:text-xs text-muted-foreground truncate">
+                  {selectedBizForBooking.name}
+                </p>
+              </div>
+            </div>
             <button
+              type="button"
               onClick={() => dispatchBooking({ type: "CLOSE_MODAL" })}
-              className="absolute right-4 top-4 text-muted-foreground hover:text-foreground cursor-pointer"
+              className="h-9 w-9 rounded-full hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition cursor-pointer shrink-0"
+              aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>
+          </header>
+
+          {/* Scrollable Content Body */}
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 no-scrollbar">
+            <div className="max-w-2xl mx-auto w-full pb-16">
 
             {bookingStep === "form" && (
               <form onSubmit={handleBookingSubmit}>
@@ -3183,6 +3209,7 @@ export default function CategoryDetailPage({
                 </button>
               </div>
             )}
+            </div>
           </div>
         </div>
       )}

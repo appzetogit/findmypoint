@@ -50,7 +50,7 @@ const CRAWLER_PATTERNS = [
 const RESERVED_ROUTES = [
   'admin', 'client', 'api', 'uploads', 'src', 'assets', 'public',
   'sidebar', 'tab', 'verify', 'employee', 'node_modules', '.well-known',
-  'favicon', 'manifest', 'service-worker'
+  'favicon', 'manifest', 'service-worker', 'sitemap.xml', 'robots.txt'
 ];
 
 /**
@@ -499,11 +499,10 @@ function parseRequestPath(pathname) {
 
   const first = segments[0].toLowerCase();
 
-  // Skip reserved routes
-  if (RESERVED_ROUTES.includes(first)) return { type: 'skip' };
-
-  // Skip static file requests
-  if (/\.\w{2,5}$/.test(first) && first !== 'sitemap.xml' && first !== 'robots.txt') return { type: 'skip' };
+  // Skip reserved routes, sitemaps, robots, and static files
+  if (RESERVED_ROUTES.includes(first) || first.endsWith('.xml') || first.endsWith('.txt') || /\.\w{2,5}$/.test(first)) {
+    return { type: 'skip' };
+  }
 
   // /business/:id
   if (first === 'business' && segments[1]) {

@@ -20,6 +20,7 @@ import logoImg from "@/assets/logo.png";
 import Footer from "./Footer";
 import { API_BASE_URL } from "../config";
 import { LazyImage } from "../components/ui/LazyImage";
+import { isListingSaved, toggleSavedListing, SavedItem } from "../utils/bookmarkUtils";
 
 // ─── Types (inline, no mock data dependency) ──────────────────────────────────
 export interface BusinessDetail {
@@ -118,11 +119,48 @@ export default function ArticleDetailPage({
     if (currentArticle) setCommentCount(currentArticle.commentsCount);
   }, [currentArticle]);
 
+  // Sync bookmark status with localStorage and custom events
+  useEffect(() => {
+    const updateSavedStatus = () => {
+      const artIdStr = String(articleId);
+      const isSaved = isListingSaved(artIdStr) || (currentArticle?.title ? isListingSaved(currentArticle.title) : false);
+      setBookmarked(isSaved);
+    };
+
+    updateSavedStatus();
+
+    window.addEventListener("fmp_saved_changed", updateSavedStatus);
+    window.addEventListener("storage", updateSavedStatus);
+    return () => {
+      window.removeEventListener("fmp_saved_changed", updateSavedStatus);
+      window.removeEventListener("storage", updateSavedStatus);
+    };
+  }, [articleId, currentArticle]);
+
+  const handleToggleBookmark = () => {
+    if (!currentArticle && !articleId) return;
+
+    const itemToSave: SavedItem = {
+      id: String(articleId),
+      name: currentArticle?.title || `Article #${articleId}`,
+      category: "Article",
+      sub: currentArticle?.category || "Article",
+      address: currentArticle?.readTime ? `${currentArticle.readTime} min read` : "",
+      rating: currentArticle?.author?.name || "Editorial",
+      image: currentArticle?.mainImage || (currentArticle?.galleryImages && currentArticle.galleryImages[0]) || "",
+      slug: String(articleId),
+      canonicalUrl: `/article/${articleId}`,
+      type: "article",
+    };
+
+    const isNowSaved = toggleSavedListing(itemToSave);
+    setBookmarked(isNowSaved);
+  };
+
   if (articleId !== prevArticleId) {
     setPrevArticleId(articleId);
     setActiveImageIndex(0);
     setLiked(false);
-    setBookmarked(false);
   }
 
 
@@ -299,10 +337,11 @@ export default function ArticleDetailPage({
                 <Heart className={`h-4 w-4 ${liked ? "fill-rose-500" : ""}`} />
               </button>
               <button
-                onClick={() => setBookmarked(!bookmarked)}
-                className={`flex h-9 w-9 items-center justify-center rounded-full border border-border/50 bg-card shadow-sm hover:bg-secondary transition-colors ${bookmarked ? "text-amber-500 border-amber-200 bg-amber-50/30" : "text-muted-foreground"}`}
+                onClick={handleToggleBookmark}
+                className={`flex h-9 w-9 items-center justify-center rounded-full border transition-colors cursor-pointer active:scale-95 ${bookmarked ? "text-amber-500 border-amber-300 bg-amber-50/50 dark:bg-amber-950/30" : "border-border/50 bg-card shadow-sm hover:bg-secondary text-muted-foreground"}`}
+                title={bookmarked ? "Remove from Saved" : "Save Article"}
               >
-                <Bookmark className={`h-4 w-4 ${bookmarked ? "fill-amber-500" : ""}`} />
+                <Bookmark className={`h-4 w-4 ${bookmarked ? "fill-amber-500 text-amber-500" : ""}`} />
               </button>
               <button
                 onClick={handleShare}

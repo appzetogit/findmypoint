@@ -19,6 +19,7 @@ import { businessesData } from "../data/businessesData";
 import { API_BASE_URL } from "../config";
 import Footer from "./Footer";
 import { LazyImage } from "../components/ui/LazyImage";
+import { isListingSaved, toggleSavedListing, SavedItem } from "../utils/bookmarkUtils";
 
 interface PlaceDetailPageProps {
   placeName: string;
@@ -48,6 +49,43 @@ export default function PlaceDetailPage({
     reviewSubmitted: false,
   });
   const { bookmarked, activeFaqIndex, reviewSubmitted } = uiState;
+
+  // Sync bookmark status with localStorage and custom events
+  useEffect(() => {
+    const updateSavedStatus = () => {
+      const isSaved = isListingSaved(placeName) || (placeData?.name ? isListingSaved(placeData.name) : false);
+      setUiState((prev) => ({ ...prev, bookmarked: isSaved }));
+    };
+
+    updateSavedStatus();
+
+    window.addEventListener("fmp_saved_changed", updateSavedStatus);
+    window.addEventListener("storage", updateSavedStatus);
+    return () => {
+      window.removeEventListener("fmp_saved_changed", updateSavedStatus);
+      window.removeEventListener("storage", updateSavedStatus);
+    };
+  }, [placeName, placeData]);
+
+  const handleToggleBookmark = () => {
+    if (!placeData && !placeName) return;
+
+    const itemToSave: SavedItem = {
+      id: placeName,
+      name: placeData?.name || placeName,
+      category: "Tourist Place",
+      sub: (placeData?.tags && placeData.tags[0]) || (placeData?.categories && placeData.categories[0]?.name) || "Tourist Attraction",
+      address: placeData?.description ? placeData.description.slice(0, 60) + "..." : "",
+      rating: placeData?.rating || 4.8,
+      image: placeData?.coverImage || (placeData?.images && placeData.images[0]) || "",
+      slug: placeName,
+      canonicalUrl: `/place/${encodeURIComponent(placeName)}`,
+      type: "place",
+    };
+
+    const isNowSaved = toggleSavedListing(itemToSave);
+    setUiState((prev) => ({ ...prev, bookmarked: isNowSaved }));
+  };
 
   // Custom reviews state
   const [reviewsList, setReviewsList] = useState<any[]>([]);
@@ -429,11 +467,12 @@ export default function PlaceDetailPage({
               {/* Action Buttons */}
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setUiState((prev) => ({ ...prev, bookmarked: !prev.bookmarked }))}
-                  className={`flex h-11 px-5 items-center gap-2 rounded-full border text-sm font-semibold transition-all duration-300 cursor-pointer shadow-sm ${bookmarked ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-secondary text-foreground border-border"}`}
+                  onClick={handleToggleBookmark}
+                  className={`flex h-11 px-5 items-center gap-2 rounded-full border text-sm font-semibold transition-all duration-300 cursor-pointer shadow-sm active:scale-95 ${bookmarked ? "bg-amber-500 text-white border-amber-500 shadow-amber-500/20" : "bg-card hover:bg-secondary text-foreground border-border"}`}
+                  title={bookmarked ? "Remove from Saved" : "Save Destination"}
                 >
                   <Bookmark
-                    className={`h-4.5 w-4.5 ${bookmarked ? "fill-primary-foreground" : ""}`}
+                    className={`h-4.5 w-4.5 ${bookmarked ? "fill-white" : ""}`}
                   />
                   <span>{bookmarked ? "Saved" : "Save"}</span>
                 </button>

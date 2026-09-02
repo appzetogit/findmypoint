@@ -33,9 +33,14 @@ export interface SimilarListing {
 
 export interface BusinessListingData {
   id: string;
+  _id?: string;
   name: string;
   location: string;
   category: string;
+  subCategory?: string;
+  subcategory?: string;
+  tag?: string;
+  coverPhoto?: string;
   rating: number;
   reviewCount: number;
   phone: string;

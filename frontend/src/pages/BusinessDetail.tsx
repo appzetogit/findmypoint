@@ -60,6 +60,7 @@ import { buildBusinessSchemas } from "../utils/seo";
 import NearbyBusinessesSection from "../components/map/NearbyBusinessesSection";
 import { getDirectionsUrl } from "../utils/googleMaps";
 import { LazyImage } from "../components/ui/LazyImage";
+import { isListingSaved, toggleSavedListing, SavedItem } from "../utils/bookmarkUtils";
 
 function formatDateTimeDMY(d: Date): string {
   const day = String(d.getDate()).padStart(2, "0");
@@ -616,6 +617,55 @@ export default function BusinessDetailPage({
 
 
   const { revealPhone, activeFaqIndex, productSearch, bookmarked, enquirySubmitted, enquiryModalOpen } = uiState;
+
+  // Sync bookmark status with localStorage and custom events
+  useEffect(() => {
+    const updateSavedStatus = () => {
+      const bizIdent = currentBiz?.id || currentBiz?._id || businessId || currentBiz?.slug || currentBiz?.canonicalUrl;
+      const isSaved =
+        isListingSaved(bizIdent) ||
+        isListingSaved(currentBiz?.id) ||
+        isListingSaved(currentBiz?._id) ||
+        isListingSaved(currentBiz?.slug) ||
+        isListingSaved(businessId);
+      setUiState((prev) => ({ ...prev, bookmarked: isSaved }));
+    };
+
+    updateSavedStatus();
+
+    window.addEventListener("fmp_saved_changed", updateSavedStatus);
+    window.addEventListener("storage", updateSavedStatus);
+    return () => {
+      window.removeEventListener("fmp_saved_changed", updateSavedStatus);
+      window.removeEventListener("storage", updateSavedStatus);
+    };
+  }, [currentBiz, businessId]);
+
+  const handleToggleBookmark = () => {
+    if (!currentBiz) return;
+    const bizId = currentBiz.id || currentBiz._id || businessId;
+    if (!bizId && !currentBiz.name) return;
+
+    const locString = [currentBiz.address, currentBiz.location, currentBiz.cityTown || currentBiz.district].filter(Boolean).join(", ");
+    const canonical = currentBiz.canonicalUrl || (currentBiz.cityTown && currentBiz.location && currentBiz.slug ? `/${currentBiz.cityTown.toLowerCase()}/${currentBiz.location.toLowerCase()}/${currentBiz.slug}` : (currentBiz.slug ? `/${currentBiz.slug}` : (businessId.startsWith('/') ? businessId : `/${businessId}`)));
+
+    const itemToSave: SavedItem = {
+      id: bizId,
+      _id: currentBiz._id || currentBiz.id || businessId,
+      name: currentBiz.name || "Business Listing",
+      category: currentBiz.category || "Business",
+      sub: currentBiz.subCategory || currentBiz.subcategory || currentBiz.tag || currentBiz.category || "",
+      address: locString || currentBiz.address || currentBiz.location || "",
+      rating: currentBiz.rating || 5,
+      image: (currentBiz.images && currentBiz.images[0]) || currentBiz.coverPhoto || "",
+      slug: currentBiz.slug || "",
+      canonicalUrl: canonical,
+      type: "business",
+    };
+
+    const isNowSaved = toggleSavedListing(itemToSave);
+    setUiState((prev) => ({ ...prev, bookmarked: isNowSaved }));
+  };
 
   // Food menu cart state
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -1814,12 +1864,12 @@ export default function BusinessDetailPage({
                 <Share2 className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5" />
               </button>
               <button
-                onClick={() => setUiState((prev) => ({ ...prev, bookmarked: !prev.bookmarked }))}
-                className={`flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border transition shadow-sm cursor-pointer ${bookmarked ? "text-amber-500 border-amber-200 bg-amber-50/20" : "text-muted-foreground border-border bg-card hover:bg-secondary"}`}
-                title="Save"
+                onClick={handleToggleBookmark}
+                className={`flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border transition shadow-sm cursor-pointer active:scale-95 ${bookmarked ? "text-amber-500 border-amber-300 bg-amber-50/50 dark:bg-amber-950/30" : "text-muted-foreground border-border bg-card hover:bg-secondary"}`}
+                title={bookmarked ? "Remove from Saved" : "Save"}
               >
                 <Bookmark
-                  className={`h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 ${bookmarked ? "fill-amber-500" : ""}`}
+                  className={`h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 ${bookmarked ? "fill-amber-500 text-amber-500" : ""}`}
                 />
               </button>
 

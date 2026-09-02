@@ -82,7 +82,7 @@ export default function SidebarPages({
           <FavoritesPage onNavigateToBusiness={onNavigateToBusiness} />
         )}
         {(activePage === "Saved" || activePage === "Saved Businesses") && (
-          <SavedPage onNavigateToBusiness={onNavigateToBusiness} />
+          <SavedPage onNavigateToBusiness={onNavigateToBusiness} onClose={onClose} />
         )}
         {activePage === "My Transaction" && <MyTransactionPage />}
         {activePage === "My Bookings" && <MyBookingsPage />}

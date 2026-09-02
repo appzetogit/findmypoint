@@ -149,6 +149,12 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
     case "SELECT_ARTICLE":
       return {
         ...state,
+        activeSidebarPage: null,
+        showSidebar: false,
+        showAdminPanel: false,
+        showClientPanel: false,
+        showAdvertise: false,
+        showAllCategoriesPage: false,
         selectedArticleId: action.id,
         selectedBusinessId: null,
         selectedPlaceName: null,
@@ -162,6 +168,12 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
     case "SELECT_BUSINESS":
       return {
         ...state,
+        activeSidebarPage: null,
+        showSidebar: false,
+        showAdminPanel: false,
+        showClientPanel: false,
+        showAdvertise: false,
+        showAllCategoriesPage: false,
         selectedArticleId: null,
         selectedBusinessId: action.id,
         selectedPlaceName: null,
@@ -176,6 +188,12 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
     case "SELECT_PLACE":
       return {
         ...state,
+        activeSidebarPage: null,
+        showSidebar: false,
+        showAdminPanel: false,
+        showClientPanel: false,
+        showAdvertise: false,
+        showAllCategoriesPage: false,
         selectedArticleId: null,
         selectedBusinessId: null,
         selectedPlaceName: action.name,
@@ -189,6 +207,12 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
     case "SELECT_CATEGORY":
       return {
         ...state,
+        activeSidebarPage: null,
+        showSidebar: false,
+        showAdminPanel: false,
+        showClientPanel: false,
+        showAdvertise: false,
+        showAllCategoriesPage: false,
         selectedArticleId: null,
         selectedBusinessId: null,
         selectedPlaceName: null,
@@ -202,6 +226,12 @@ function appReducer(state: AppViewState, action: AppAction): AppViewState {
     case "SELECT_POPULAR_SERVICE":
       return {
         ...state,
+        activeSidebarPage: null,
+        showSidebar: false,
+        showAdminPanel: false,
+        showClientPanel: false,
+        showAdvertise: false,
+        showAllCategoriesPage: false,
         selectedArticleId: null,
         selectedBusinessId: null,
         selectedPlaceName: null,
@@ -552,15 +582,27 @@ export default function App() {
       const customEvent = e as CustomEvent;
       dispatch({ type: "SELECT_BUSINESS", id: customEvent.detail });
     };
+    const handleSelectPlace = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      dispatch({ type: "SELECT_PLACE", name: customEvent.detail });
+    };
+    const handleSelectArticle = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      dispatch({ type: "SELECT_ARTICLE", id: customEvent.detail });
+    };
     window.addEventListener("fmp-open-advertise", handleAdvertiseOpen);
     window.addEventListener("fmp-open-signin", handleSignInOpen);
     window.addEventListener("fmp-open-page", handleOpenPage);
     window.addEventListener("fmp-select-business", handleSelectBusiness);
+    window.addEventListener("fmp-select-place", handleSelectPlace);
+    window.addEventListener("fmp-select-article", handleSelectArticle);
     return () => {
       window.removeEventListener("fmp-open-advertise", handleAdvertiseOpen);
       window.removeEventListener("fmp-open-signin", handleSignInOpen);
       window.removeEventListener("fmp-open-page", handleOpenPage);
       window.removeEventListener("fmp-select-business", handleSelectBusiness);
+      window.removeEventListener("fmp-select-place", handleSelectPlace);
+      window.removeEventListener("fmp-select-article", handleSelectArticle);
     };
   }, []);
 

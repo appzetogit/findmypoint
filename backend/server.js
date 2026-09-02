@@ -264,6 +264,7 @@ const reviewRoutes = require('./routes/reviewRoutes');
 const faqRoutes = require('./routes/faqRoutes');
 const seoRoutes = require('./routes/seoRoutes');
 const withdrawalRoutes = require('./routes/withdrawalRoutes');
+const crawlerPrerender = require('./middleware/crawlerPrerender');
 
 // API Healthcheck
 const mongoose = require('mongoose');
@@ -277,6 +278,10 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date()
   });
 });
+
+// Crawler Pre-Rendering: Serve fully rendered HTML to search engine bots (Googlebot, Bingbot, etc.)
+// This MUST come before static file serving and SPA fallback so crawlers get SEO-rich content
+app.use(crawlerPrerender);
 
 // Root-level SEO routes for sitemap.xml and robots.txt
 app.use('/', seoRoutes);

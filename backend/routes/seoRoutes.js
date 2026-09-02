@@ -306,3 +306,46 @@ router.get('/api/seo/business/:city/:locality/:slug', async (req, res) => {
 });
 
 module.exports = router;
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Google Sitemap Ping Utility (can be called from other modules)
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Ping Google to re-crawl the sitemap.
+ * Call this whenever a new business is published or an existing one is updated.
+ * 
+ * Usage from other files:
+ *   const { pingGoogleSitemap } = require('./routes/seoRoutes');
+ *   await pingGoogleSitemap();
+ */
+async function pingGoogleSitemap(siteUrl) {
+  const baseUrl = (siteUrl || process.env.SITE_URL || process.env.PRODUCTION_URL || 'https://findmypoint.app').replace(/\/$/, '');
+  const sitemapUrl = `${baseUrl}/sitemap.xml`;
+  const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
+
+  try {
+    // Use built-in fetch (Node 18+) or http module
+    if (typeof globalThis.fetch === 'function') {
+      const resp = await fetch(pingUrl, { method: 'GET', signal: AbortSignal.timeout(10000) });
+      console.log(`[SEO] Google sitemap ping: ${resp.status} ${resp.statusText} → ${sitemapUrl}`);
+      return { success: resp.ok, status: resp.status };
+    } else {
+      const https = require('https');
+      return new Promise((resolve) => {
+        https.get(pingUrl, (resp) => {
+          console.log(`[SEO] Google sitemap ping: ${resp.statusCode} → ${sitemapUrl}`);
+          resolve({ success: resp.statusCode === 200, status: resp.statusCode });
+        }).on('error', (err) => {
+          console.error('[SEO] Google sitemap ping failed:', err.message);
+          resolve({ success: false, error: err.message });
+        });
+      });
+    }
+  } catch (err) {
+    console.error('[SEO] Google sitemap ping failed:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+module.exports.pingGoogleSitemap = pingGoogleSitemap;

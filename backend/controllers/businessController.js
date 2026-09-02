@@ -3,6 +3,7 @@ const Business = require('../models/Business');
 const Enquiry = require('../models/Enquiry');
 const { slugify, generateBusinessSlugs } = require('../utils/slugify');
 const { geocodeAddress, buildGeoPoint } = require('../services/geocodingService');
+const { pingGoogleSitemap } = require('../routes/seoRoutes');
 
 // Escape special regex characters to prevent ReDoS attacks (SEC-009)
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -323,6 +324,12 @@ const createBusiness = async (req, res) => {
     }
 
     const createdBusiness = await business.save();
+
+    // Ping Google to re-crawl sitemap when a new business is published
+    if (createdBusiness.status === 'published') {
+      pingGoogleSitemap().catch(err => console.error('[SEO] Ping failed:', err.message));
+    }
+
     res.status(201).json({ success: true, data: sanitizePublicBusiness(createdBusiness) });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

@@ -286,6 +286,11 @@ export default function CategoryDetailPage({
   // View mode and Sort state
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [sortBy, setSortBy] = useState<"default" | "distance" | "rating" | "reviews">("default");
+  const [filterTopRated, setFilterTopRated] = useState(false);
+  const [filterVerified, setFilterVerified] = useState(false);
+  const [filterOpenNow, setFilterOpenNow] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(() => {
     try {
       const saved = localStorage.getItem("fmp_user_coords:v1");
@@ -762,8 +767,40 @@ export default function CategoryDetailPage({
       });
     }
 
+    // 1. Filter: Top Rated (Rating >= 4.0)
+    if (filterTopRated) {
+      list = list.filter((b) => (parseFloat(String(b.rating || 0)) || 0) >= 4.0);
+    }
+
+    // 2. Filter: Verified
+    if (filterVerified) {
+      list = list.filter((b) => b.isVerified === true || String(b.isVerified).toLowerCase() === "true");
+    }
+
+    // 3. Filter: Open Now
+    if (filterOpenNow) {
+      list = list.filter((b) => {
+        const status = (b.openStatus || "").toLowerCase();
+        if (status.includes("closed")) return false;
+        if (status.includes("open")) return true;
+        if (b.openTime && b.closeTime) {
+          const now = new Date();
+          const currentMins = now.getHours() * 60 + now.getMinutes();
+          const parseTimeToMins = (t: string) => {
+            const [hh, mm] = t.split(":").map(Number);
+            return (hh || 0) * 60 + (mm || 0);
+          };
+          const startMins = parseTimeToMins(b.openTime);
+          const endMins = parseTimeToMins(b.closeTime);
+          if (endMins >= startMins) return currentMins >= startMins && currentMins <= endMins;
+          return currentMins >= startMins || currentMins <= endMins;
+        }
+        return true;
+      });
+    }
+
     return list;
-  }, [listings, searchQuery, sortBy, userCoords]);
+  }, [listings, searchQuery, sortBy, userCoords, filterTopRated, filterVerified, filterOpenNow]);
 
   const filteredListings = processedListings;
 
@@ -2156,7 +2193,115 @@ export default function CategoryDetailPage({
 
           {/* Right Panel: Business Listings */}
           <section className="flex-1 min-w-0 overflow-y-auto md:overflow-visible h-full md:h-auto no-scrollbar pr-1 sm:pr-0 pb-6 md:pb-0 touch-pan-y min-h-0">
-            <div className="hidden md:flex items-center justify-between gap-3 mb-4 md:mb-5 w-full">
+            {/* ===== JustDial-style Filter Bar ===== */}
+            <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar pb-1.5 pt-0.5 mb-3 md:mb-4">
+              {/* Sort Dropdown */}
+              <div ref={sortDropdownRef} className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowSortDropdown(!showSortDropdown)}
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all shadow-2xs ${
+                    sortBy !== "default"
+                      ? "border-primary bg-primary/10 text-primary font-bold"
+                      : "border-border bg-card hover:bg-secondary text-foreground"
+                  }`}
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">
+                    {sortBy === "rating" ? "Top Rated" : sortBy === "reviews" ? "Most Reviewed" : sortBy === "distance" ? "Nearest" : "Sort"}
+                  </span>
+                  <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform duration-200 ${showSortDropdown ? "rotate-180" : ""}`} />
+                </button>
+                {showSortDropdown && (
+                  <div className="absolute top-full left-0 mt-1.5 w-44 bg-card border border-border rounded-xl shadow-xl z-50 p-1 space-y-0.5 animate-in fade-in zoom-in-95">
+                    {[
+                      { id: "default", label: "Default" },
+                      { id: "rating", label: "⭐ Top Rated" },
+                      { id: "reviews", label: "💬 Most Reviewed" },
+                      { id: "distance", label: "📍 Nearest" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          handleSortChange(opt.id as any);
+                          setShowSortDropdown(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                          sortBy === opt.id ? "bg-primary text-primary-foreground font-bold" : "text-foreground hover:bg-secondary"
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                        {sortBy === opt.id && <Check className="h-3.5 w-3.5" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Top Rated Chip */}
+              <button
+                type="button"
+                onClick={() => setFilterTopRated(!filterTopRated)}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 cursor-pointer transition-all shadow-2xs ${
+                  filterTopRated
+                    ? "border-amber-500 bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold ring-1 ring-amber-500/30"
+                    : "border-border bg-card text-foreground/80 hover:bg-secondary"
+                }`}
+              >
+                <Star className="h-3.5 w-3.5 fill-current text-amber-500" />
+                <span>Top Rated</span>
+                {filterTopRated && <X className="h-3 w-3 ml-0.5 text-amber-600 dark:text-amber-400" />}
+              </button>
+
+              {/* Verified Chip */}
+              <button
+                type="button"
+                onClick={() => setFilterVerified(!filterVerified)}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 cursor-pointer transition-all shadow-2xs ${
+                  filterVerified
+                    ? "border-blue-500 bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold ring-1 ring-blue-500/30"
+                    : "border-border bg-card text-foreground/80 hover:bg-secondary"
+                }`}
+              >
+                <BadgeCheck className="h-3.5 w-3.5 text-blue-500" />
+                <span>Verified</span>
+                {filterVerified && <X className="h-3 w-3 ml-0.5 text-blue-500" />}
+              </button>
+
+              {/* Open Now Chip */}
+              <button
+                type="button"
+                onClick={() => setFilterOpenNow(!filterOpenNow)}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 cursor-pointer transition-all shadow-2xs ${
+                  filterOpenNow
+                    ? "border-emerald-500 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold ring-1 ring-emerald-500/30"
+                    : "border-border bg-card text-foreground/80 hover:bg-secondary"
+                }`}
+              >
+                <Clock className="h-3.5 w-3.5 text-emerald-500" />
+                <span>Open Now</span>
+                {filterOpenNow && <X className="h-3 w-3 ml-0.5 text-emerald-500" />}
+              </button>
+
+              {/* Reset All */}
+              {(filterTopRated || filterVerified || filterOpenNow || sortBy !== "default") && (
+                <button
+                  type="button"
+                  onClick={() => { setFilterTopRated(false); setFilterVerified(false); setFilterOpenNow(false); setSortBy("default"); }}
+                  className="text-xs font-bold text-red-600 dark:text-red-400 hover:underline px-2 py-1 cursor-pointer shrink-0 ml-1"
+                >
+                  Reset
+                </button>
+              )}
+
+              {/* Result count */}
+              <span className="ml-auto text-[10px] sm:text-xs text-muted-foreground font-medium shrink-0 whitespace-nowrap">
+                {filteredListings.length} result{filteredListings.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+
+            <div className="hidden md:flex items-center justify-between gap-3 mb-3 w-full">
               <div className="min-w-0 flex-1">
                 <h1 className="font-serif text-lg sm:text-xl md:text-2xl font-bold tracking-tight truncate leading-tight">
                   Top {activeSubcategory} in {categoryName}
@@ -2166,20 +2311,6 @@ export default function CategoryDetailPage({
                     ? "Loading listings..."
                     : `Showing ${filteredListings.length} verified listing${filteredListings.length !== 1 ? 's' : ''} ready to assist you.`}
                 </p>
-              </div>
-
-              {/* View & Sort Controls */}
-              <div className="shrink-0">
-                <select
-                  value={sortBy}
-                  onChange={(e) => handleSortChange(e.target.value as any)}
-                  className="bg-card border border-border text-foreground text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs outline-none cursor-pointer hover:border-primary/50 transition-colors"
-                >
-                  <option value="default">Default Sort</option>
-                  <option value="distance">📍 Nearest to Me</option>
-                  <option value="rating">⭐ Highest Rated</option>
-                  <option value="reviews">💬 Most Reviewed</option>
-                </select>
               </div>
             </div>
 

@@ -57,10 +57,42 @@ interface SearchResultsPageProps {
   username?: string | null;
 }
 
+// ============================================================
+// Keyword Highlight Utility — highlights matched words in text
+// ============================================================
+function HighlightText({ text, query }: { text: string; query: string }) {
+  if (!query || !query.trim() || !text) return <>{text}</>;
+  const words = query
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w.length > 1)
+    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (words.length === 0) return <>{text}</>;
+  const regex = new RegExp(`(${words.join("|")})`, "gi");
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark
+            key={i}
+            className="bg-amber-200/70 dark:bg-amber-700/40 text-amber-900 dark:text-amber-100 rounded-sm px-0.5 font-bold not-italic"
+          >
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
 // Individual Search Result Card Component
 interface SearchResultCardProps {
   biz: BusinessListingData;
   selectedCity: string;
+  highlightQuery?: string;
   onBusinessSelect: (idOrSlug: string) => void;
   onBookNow?: (idOrSlug: string) => void;
   onOpenEnquiry: (biz: BusinessListingData) => void;
@@ -69,6 +101,7 @@ interface SearchResultCardProps {
 function SearchResultCard({
   biz,
   selectedCity,
+  highlightQuery,
   onBusinessSelect,
   onBookNow,
   onOpenEnquiry,
@@ -191,7 +224,7 @@ function SearchResultCard({
                 <ThumbsUp className="h-3.5 w-3.5 fill-current" />
               </div>
               <h2 className="text-lg lg:text-xl font-bold text-foreground group-hover:text-primary transition-colors truncate">
-                {biz.name}
+                <HighlightText text={biz.name} query={highlightQuery || ""} />
               </h2>
             </div>
 
@@ -326,7 +359,7 @@ function SearchResultCard({
 
         {/* Business Name */}
         <h2 className="text-base sm:text-lg font-bold text-foreground line-clamp-1 leading-snug group-hover:text-primary transition-colors pt-0.5">
-          {biz.name}
+          <HighlightText text={biz.name} query={highlightQuery || ""} />
         </h2>
 
         {/* Rating, Review Count, Trust & Verified Badges */}
@@ -470,7 +503,16 @@ export default function SearchResultsPage({
   const [filterTopRated, setFilterTopRated] = useState(false);
   const [filterVerified, setFilterVerified] = useState(false);
   const [filterOpenNow, setFilterOpenNow] = useState(false);
+  const [filterSubcategory, setFilterSubcategory] = useState<string | null>(null);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
+
+  // Autocomplete dropdown state for search bar on results page
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [autocompleteResults, setAutocompleteResults] = useState<{
+    businesses: BusinessListingData[];
+    categories: string[];
+  }>({ businesses: [], categories: [] });
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Enquiry modal state
   const [enquiryModalBiz, setEnquiryModalBiz] = useState<BusinessListingData | null>(null);
@@ -613,8 +655,31 @@ export default function SearchResultsPage({
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setSubmittedQuery(searchQuery.trim());
+    setShowAutocomplete(false);
+    setFilterSubcategory(null);
     fetchSearchResults(searchQuery.trim(), selectedCity);
   };
+
+  // Real-time autocomplete while retyping in results page search bar
+  useEffect(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q || q === submittedQuery.toLowerCase()) {
+      setAutocompleteResults({ businesses: [], categories: [] });
+      return;
+    }
+    const matchedBusinesses = listings
+      .filter((b) => {
+        const text = [b.name, b.category, (b as any).subCategoryLine, b.location].filter(Boolean).join(" ").toLowerCase();
+        return text.includes(q);
+      })
+      .slice(0, 5);
+    const catSet = new Set<string>();
+    listings.forEach((b) => {
+      if (b.category && b.category.toLowerCase().includes(q)) catSet.add(b.category);
+      if ((b as any).subCategoryLine && (b as any).subCategoryLine.toLowerCase().includes(q)) catSet.add((b as any).subCategoryLine);
+    });
+    setAutocompleteResults({ businesses: matchedBusinesses, categories: Array.from(catSet).slice(0, 4) });
+  }, [searchQuery, listings, submittedQuery]);
 
   const handleSelectArea = (area: string) => {
     setSelectedCity(area);
@@ -745,6 +810,16 @@ export default function SearchResultsPage({
       list = matchedList;
     }
 
+    // 0.5 Filter: Dynamic Subcategory Chip filter
+    if (filterSubcategory) {
+      const fSub = filterSubcategory.toLowerCase();
+      list = list.filter((b) => {
+        const subLine = ((b as any).subCategoryLine || (b as any).subcategory || "").toLowerCase();
+        const catName = (b.category || "").toLowerCase();
+        return subLine.includes(fSub) || catName.includes(fSub);
+      });
+    }
+
     // 1. Filter: Top Rated (Rating >= 4.0)
     if (filterTopRated) {
       list = list.filter((b) => (parseFloat(String(b.rating || 0)) || 0) >= 4.0);
@@ -833,8 +908,19 @@ export default function SearchResultsPage({
     filterTopRated,
     filterVerified,
     filterOpenNow,
+    filterSubcategory,
     userCoords,
   ]);
+
+  // Dynamic subcategory chips from loaded search results
+  const availableSubcategories = useMemo(() => {
+    const set = new Set<string>();
+    listings.forEach((b) => {
+      if ((b as any).subCategoryLine) set.add((b as any).subCategoryLine);
+      if ((b as any).subcategory) set.add((b as any).subcategory);
+    });
+    return Array.from(set).slice(0, 8);
+  }, [listings]);
 
   // Compute multiple matching Search Banners from admin
   const matchingSearchBanners = useMemo(() => {
@@ -1138,40 +1224,115 @@ export default function SearchResultsPage({
             </div>
           </div>
 
-          {/* Row 2 (Underneath): Full Width Search Input Bar */}
-          <form
-            onSubmit={handleSearchSubmit}
-            className="flex items-center gap-2 px-3.5 py-1.5 sm:py-2 rounded-2xl border border-border bg-card shadow-xs focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all w-full min-w-0"
-          >
-            <Search className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-muted-foreground shrink-0" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search businesses, services, hostels, spa..."
-              className="flex-1 bg-transparent text-xs sm:text-sm md:text-base outline-none text-foreground w-full min-w-0"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="p-1 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
-                title="Clear"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-            <button
-              type="submit"
-              className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs sm:text-sm font-bold cursor-pointer shrink-0 transition flex items-center gap-1.5 shadow-2xs"
-              title="Search"
+          {/* Row 2 (Underneath): Full Width Search Input Bar with Autocomplete */}
+          <div className="relative w-full min-w-0">
+            <form
+              onSubmit={handleSearchSubmit}
+              className="flex items-center gap-2 px-3.5 py-1.5 sm:py-2 rounded-2xl border border-border bg-card shadow-xs focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all w-full min-w-0"
             >
-              <Search className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Search</span>
-            </button>
-          </form>
+              <Search className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-muted-foreground shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setShowAutocomplete(true)}
+                onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
+                placeholder="Search businesses, services, hostels, spa..."
+                className="flex-1 bg-transparent text-xs sm:text-sm md:text-base outline-none text-foreground w-full min-w-0"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchQuery(""); setShowAutocomplete(false); }}
+                  className="p-1 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+                  title="Clear"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+              <button
+                type="submit"
+                className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs sm:text-sm font-bold cursor-pointer shrink-0 transition flex items-center gap-1.5 shadow-2xs"
+                title="Search"
+              >
+                <Search className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Search</span>
+              </button>
+            </form>
+
+            {/* Autocomplete Dropdown */}
+            {showAutocomplete && (autocompleteResults.businesses.length > 0 || autocompleteResults.categories.length > 0) && (
+              <div
+                onMouseDown={(e) => e.preventDefault()}
+                className="absolute top-[calc(100%+6px)] left-0 right-0 bg-card border border-border rounded-2xl shadow-2xl z-50 p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-150 max-h-72 overflow-y-auto no-scrollbar"
+              >
+                {autocompleteResults.categories.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-1 mb-1 flex items-center gap-1">
+                      <Tag className="h-3 w-3 text-purple-500" /> Categories
+                    </p>
+                    {autocompleteResults.categories.map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery(cat);
+                          setSubmittedQuery(cat);
+                          setShowAutocomplete(false);
+                          setFilterSubcategory(null);
+                          fetchSearchResults(cat, selectedCity);
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 hover:bg-secondary/70 rounded-xl cursor-pointer text-left transition-colors"
+                      >
+                        <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-xs font-semibold text-foreground">{cat}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {autocompleteResults.businesses.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-1 mb-1 flex items-center gap-1">
+                      <Building2 className="h-3 w-3 text-indigo-500" /> Businesses
+                    </p>
+                    {autocompleteResults.businesses.map((biz) => (
+                      <button
+                        key={(biz as any)._id || biz.id}
+                        type="button"
+                        onClick={() => {
+                          setShowAutocomplete(false);
+                          onBusinessSelect(biz.canonicalUrl || biz.id);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-secondary/70 rounded-xl cursor-pointer text-left transition-colors"
+                      >
+                        <div className="h-7 w-7 rounded-lg overflow-hidden shrink-0 bg-secondary border border-border/40">
+                          <LazyImage
+                            src={Array.isArray(biz.images) && biz.images[0] ? (biz.images[0].startsWith("http") ? biz.images[0] : `${BACKEND_ORIGIN}${biz.images[0]}`) : "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=60&q=60"}
+                            alt={biz.name}
+                            className="h-full w-full"
+                            imgClassName="h-full w-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-foreground truncate">{biz.name}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{biz.category} · {biz.location || biz.address || ""}</p>
+                        </div>
+                        {(biz as any).rating && (
+                          <span className="text-[10px] font-black text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded-md shrink-0">
+                            ★ {(biz as any).rating}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </header>
+
 
       {/* ========================================================================= */}
       {/* Main Content Area: Search Filters, Banners, and Listing Cards             */}
@@ -1227,14 +1388,15 @@ export default function SearchResultsPage({
                   : "border-border bg-card hover:bg-secondary text-foreground"
               }`}
             >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
               <span>
                 {sortBy === "rating"
-                  ? "Top Rated"
+                  ? "⭐ Top Rated"
                   : sortBy === "reviews"
-                  ? "Most Reviewed"
+                  ? "💬 Most Reviewed"
                   : sortBy === "distance"
-                  ? "Nearest Distance"
-                  : "Sort by: Default"}
+                  ? "📍 Nearest"
+                  : "Sort by"}
               </span>
               <ChevronDown
                 className={`h-3 w-3 text-muted-foreground transition-transform duration-200 ${
@@ -1244,12 +1406,13 @@ export default function SearchResultsPage({
             </button>
 
             {showSortDropdown && (
-              <div className="absolute top-full left-0 mt-1.5 w-44 bg-card border border-border rounded-xl shadow-xl z-50 p-1 space-y-0.5 animate-in fade-in zoom-in-95">
+              <div className="absolute top-full left-0 mt-1.5 w-52 bg-card border border-border rounded-2xl shadow-2xl z-50 p-2 space-y-1 animate-in fade-in zoom-in-95">
+                <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-2 pb-1 border-b border-border/50 mb-1">Sort Results By</p>
                 {[
-                  { id: "default", label: "Default" },
-                  { id: "rating", label: "Top Rated" },
-                  { id: "reviews", label: "Most Reviewed" },
-                  { id: "distance", label: "Nearest Distance" },
+                  { id: "default",  emoji: "🔀", label: "Default",         desc: "Verified & highest rated first" },
+                  { id: "rating",   emoji: "⭐", label: "Top Rated",        desc: "Highest star rating first" },
+                  { id: "reviews",  emoji: "💬", label: "Most Reviewed",    desc: "Most customer reviews first" },
+                  { id: "distance", emoji: "📍", label: "Nearest to Me",    desc: "Closest location first" },
                 ].map((opt) => (
                   <button
                     key={opt.id}
@@ -1261,14 +1424,18 @@ export default function SearchResultsPage({
                         handleDetectLocation();
                       }
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer transition-colors text-left ${
                       sortBy === opt.id
-                        ? "bg-primary text-primary-foreground font-bold"
+                        ? "bg-primary text-primary-foreground"
                         : "text-foreground hover:bg-secondary"
                     }`}
                   >
-                    <span>{opt.label}</span>
-                    {sortBy === opt.id && <Check className="h-3.5 w-3.5" />}
+                    <span className="text-base shrink-0">{opt.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs font-bold leading-tight ${sortBy === opt.id ? "text-primary-foreground" : "text-foreground"}`}>{opt.label}</p>
+                      <p className={`text-[10px] leading-tight mt-0.5 ${sortBy === opt.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{opt.desc}</p>
+                    </div>
+                    {sortBy === opt.id && <Check className="h-3.5 w-3.5 shrink-0" />}
                   </button>
                 ))}
               </div>
@@ -1321,13 +1488,14 @@ export default function SearchResultsPage({
           </button>
 
           {/* Reset All Filters button */}
-          {(filterTopRated || filterVerified || filterOpenNow || sortBy !== "default") && (
+          {(filterTopRated || filterVerified || filterOpenNow || filterSubcategory || sortBy !== "default") && (
             <button
               type="button"
               onClick={() => {
                 setFilterTopRated(false);
                 setFilterVerified(false);
                 setFilterOpenNow(false);
+                setFilterSubcategory(null);
                 setSortBy("default");
               }}
               className="text-xs font-bold text-red-600 dark:text-red-400 hover:underline px-2 py-1 cursor-pointer shrink-0 ml-1"
@@ -1336,6 +1504,8 @@ export default function SearchResultsPage({
             </button>
           )}
         </div>
+
+
 
         {/* Heading Title (Popular [Query] in [Location]) */}
         <div className="pt-1 pb-0.5 flex items-center justify-between">
@@ -1358,24 +1528,48 @@ export default function SearchResultsPage({
             </p>
           </div>
         ) : processedListings.length === 0 ? (
-          <div className="min-h-[45vh] flex flex-col items-center justify-center text-center p-6 bg-card rounded-2xl border border-border/50 space-y-3">
-            <div className="h-12 w-12 rounded-full bg-secondary text-muted-foreground flex items-center justify-center">
-              <Search className="h-6 w-6" />
+          <div className="min-h-[45vh] flex flex-col items-center justify-center text-center p-6 bg-card rounded-2xl border border-border/50 space-y-4">
+            <div className="h-14 w-14 rounded-2xl bg-secondary text-muted-foreground flex items-center justify-center">
+              <Search className="h-7 w-7" />
             </div>
-            <p className="text-base font-bold text-foreground">No businesses found matching your criteria</p>
-            <p className="text-xs text-muted-foreground max-w-sm">
-              Try clearing some filters or searching for another service or location.
-            </p>
+            <div className="space-y-1.5">
+              <p className="text-base font-bold text-foreground">No businesses found for "{submittedQuery}"</p>
+              <p className="text-xs text-muted-foreground max-w-sm">
+                {(filterTopRated || filterVerified || filterOpenNow || filterSubcategory)
+                  ? "Try removing some filters to see more results."
+                  : "Try a different keyword, check spelling, or search in a broader area."}
+              </p>
+            </div>
+            {/* Smart suggestions */}
+            {!filterTopRated && !filterVerified && !filterOpenNow && !filterSubcategory && (
+              <div className="flex flex-wrap gap-2 justify-center pt-1">
+                {["Hotels", "Restaurants", "Spa", "Hospital", "School", "Gym"].map((sug) => (
+                  <button
+                    key={sug}
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery(sug);
+                      setSubmittedQuery(sug);
+                      fetchSearchResults(sug, selectedCity);
+                    }}
+                    className="px-3 py-1.5 rounded-full bg-secondary hover:bg-secondary/70 text-xs font-semibold text-foreground border border-border cursor-pointer transition"
+                  >
+                    {sug}
+                  </button>
+                ))}
+              </div>
+            )}
             <button
               onClick={() => {
                 setFilterTopRated(false);
                 setFilterVerified(false);
                 setFilterOpenNow(false);
+                setFilterSubcategory(null);
                 setSortBy("default");
               }}
               className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl shadow-xs cursor-pointer hover:bg-primary/90 transition"
             >
-              Reset Filters
+              Reset All Filters
             </button>
           </div>
         ) : (
@@ -1385,6 +1579,7 @@ export default function SearchResultsPage({
                 key={biz.id || (biz as any)._id}
                 biz={biz}
                 selectedCity={selectedCity}
+                highlightQuery={submittedQuery}
                 onBusinessSelect={onBusinessSelect}
                 onBookNow={onBookNow}
                 onOpenEnquiry={(bizToEnquire) => {

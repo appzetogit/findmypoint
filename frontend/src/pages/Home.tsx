@@ -1534,6 +1534,32 @@ export default function HomePage({
 
                     {/* Real Dynamic Categories (Zero Dummy Data) */}
                     <div>
+                      {/* ✅ NEW: Trending Search Quick Chips (JustDial style) */}
+                      <div className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1 flex items-center gap-1.5">
+                        <TrendingUp className="h-3.5 w-3.5 text-amber-500" />
+                        <span>Trending Searches</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 px-1 mb-3">
+                        {(Array.isArray(categories) ? categories.slice(0, 8) : []).map((catItem: any, idx: number) => {
+                          const catTitle = typeof catItem === "string" ? catItem : (catItem?.label || catItem?.title || catItem?.name || "");
+                          if (!catTitle) return null;
+                          return (
+                            <button
+                              key={`trending-${idx}`}
+                              type="button"
+                              onClick={() => {
+                                setSearchQuery(catTitle);
+                                handleSearchResultClick("category", { category: catTitle });
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-800 dark:text-amber-300 text-[11px] font-semibold border border-amber-200/60 dark:border-amber-800/40 transition cursor-pointer"
+                            >
+                              <Sparkles className="h-2.5 w-2.5" />
+                              <span>{catTitle}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
                       <div className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mt-2 mb-2 px-1 flex items-center gap-1.5">
                         <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
                         <span>Explore Popular Categories</span>
@@ -1565,6 +1591,7 @@ export default function HomePage({
                         })}
                       </div>
                     </div>
+
                   </div>
                 )}
               </div>

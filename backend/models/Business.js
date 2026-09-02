@@ -133,6 +133,38 @@ BusinessSchema.index({ citySlug: 1, localitySlug: 1, slug: 1 });
 BusinessSchema.index({ status: 1, isIndexable: 1 });
 BusinessSchema.index({ location_geo: '2dsphere' }); // Geospatial index for nearby queries
 
+// Full-text search index for fast JustDial-style search (replaces slow $regex)
+BusinessSchema.index(
+  {
+    name: 'text',
+    category: 'text',
+    subCategoryLine: 'text',
+    description: 'text',
+    address: 'text',
+    location: 'text',
+    cityTown: 'text',
+    district: 'text',
+    seoKeywords: 'text',
+    highlightsName: 'text',
+  },
+  {
+    name: 'business_fulltext_search',
+    weights: {
+      name: 10,          // Business name is most important
+      category: 8,       // Category is second most important
+      subCategoryLine: 7,
+      address: 5,
+      location: 5,
+      cityTown: 4,
+      district: 3,
+      description: 2,
+      seoKeywords: 2,
+      highlightsName: 2,
+    },
+    default_language: 'none', // 'none' = disable stemming, handles Hindi/English mixed words better
+  }
+);
+
 const bcrypt = require('bcryptjs');
 
 // Hash password pre-save

@@ -35,6 +35,7 @@ interface FAQItem {
 interface HelpContactData {
   email: string;
   phone: string;
+  phone2?: string;
   address: string;
   headOfficeAddress?: string;
   branchOfficeAddress?: string;
@@ -132,6 +133,7 @@ export default function HelpPage() {
   const [contactInfo, setContactInfo] = useState<HelpContactData>({
     email: "",
     phone: "",
+    phone2: "",
     address: "",
   });
   const [loadingFaqs, setLoadingFaqs] = useState(true);
@@ -163,6 +165,12 @@ export default function HelpPage() {
 
   const presetAmounts = [100, 500, 1000, 2000, 5000];
 
+  const rawPhones = [contactInfo.phone, contactInfo.phone2].filter((p): p is string => Boolean(p && p.trim()));
+  const displayPhones =
+    rawPhones.length > 0
+      ? rawPhones.flatMap((p) => p.split(/,|\n/).map((s) => s.trim()).filter(Boolean))
+      : ["+91 8339977383", "+91 7077500211"];
+
   const headAddressText =
     contactInfo.headOfficeAddress || contactInfo.address || "G-161, Sector 22 Noida, Uttar Pradesh 201301 India";
   const branchAddressText =
@@ -193,6 +201,7 @@ export default function HelpPage() {
           setContactInfo({
             email: data.data.email || "findmypoint.india@gmail.com",
             phone: data.data.phone || "+91 8339977383",
+            phone2: data.data.phone2 || "",
             address: data.data.headOfficeAddress || data.data.address || "",
             headOfficeAddress: data.data.headOfficeAddress || data.data.address || "",
             branchOfficeAddress: data.data.branchOfficeAddress || "",
@@ -449,7 +458,7 @@ export default function HelpPage() {
             </span>
             <a
               href={`mailto:${contactInfo.email}`}
-              className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400 truncate block mt-0.5"
+              className="text-[11.5px] sm:text-xs xl:text-[13px] font-bold text-slate-900 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400 block mt-0.5 break-all leading-tight transition"
               title={contactInfo.email}
             >
               {contactInfo.email}
@@ -466,12 +475,18 @@ export default function HelpPage() {
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
               Call Center Hotline
             </span>
-            <a
-              href={`tel:${contactInfo.phone}`}
-              className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 hover:text-emerald-600 dark:hover:text-emerald-400 block mt-0.5"
-            >
-              {contactInfo.phone}
-            </a>
+            <div className="flex flex-col gap-0.5 mt-0.5">
+              {displayPhones.map((ph, idx) => (
+                <a
+                  key={idx}
+                  href={`tel:${ph.replace(/[^\d+]/g, "")}`}
+                  className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 hover:text-emerald-600 dark:hover:text-emerald-400 block truncate leading-tight transition"
+                  title={ph}
+                >
+                  {ph}
+                </a>
+              ))}
+            </div>
           </div>
         </div>
 

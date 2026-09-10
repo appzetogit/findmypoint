@@ -71,6 +71,7 @@ const getContact = async (req, res) => {
       contact = await HelpContact.create({
         email: '',
         phone: '',
+        phone2: '',
         address: '',
         headOfficeAddress: '',
         branchOfficeAddress: '',
@@ -85,12 +86,13 @@ const getContact = async (req, res) => {
 // @desc   Save contact details (admin only)
 // @route  POST /api/help/contact
 const saveContact = async (req, res) => {
-  const { email, phone, address, headOfficeAddress, branchOfficeAddress } = req.body;
+  const { email, phone, phone2, address, headOfficeAddress, branchOfficeAddress } = req.body;
   try {
     let contact = await HelpContact.findOne();
     if (contact) {
       if (email !== undefined) contact.email = email;
       if (phone !== undefined) contact.phone = phone;
+      if (phone2 !== undefined) contact.phone2 = phone2;
       if (address !== undefined) contact.address = address;
       if (headOfficeAddress !== undefined) contact.headOfficeAddress = headOfficeAddress;
       if (branchOfficeAddress !== undefined) contact.branchOfficeAddress = branchOfficeAddress;
@@ -99,6 +101,7 @@ const saveContact = async (req, res) => {
       contact = await HelpContact.create({
         email: email || '',
         phone: phone || '',
+        phone2: phone2 || '',
         address: address || headOfficeAddress || '',
         headOfficeAddress: headOfficeAddress || address || '',
         branchOfficeAddress: branchOfficeAddress || '',

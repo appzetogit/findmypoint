@@ -47,6 +47,7 @@ export default function HelpCenterManagement() {
   // Support Contact states
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [contactPhone2, setContactPhone2] = useState("");
   const [contactAddress, setContactAddress] = useState("");
   const [contactHeadOffice, setContactHeadOffice] = useState("");
   const [contactBranchOffice, setContactBranchOffice] = useState("");
@@ -101,6 +102,7 @@ export default function HelpCenterManagement() {
       if (data.success && data.data) {
         setContactEmail(data.data.email || "");
         setContactPhone(data.data.phone || "");
+        setContactPhone2(data.data.phone2 || "");
         setContactAddress(data.data.headOfficeAddress || data.data.address || "");
         setContactHeadOffice(data.data.headOfficeAddress || data.data.address || "");
         setContactBranchOffice(data.data.branchOfficeAddress || "");
@@ -193,6 +195,7 @@ export default function HelpCenterManagement() {
         body: JSON.stringify({
           email: contactEmail,
           phone: contactPhone,
+          phone2: contactPhone2,
           headOfficeAddress: contactHeadOffice,
           branchOfficeAddress: contactBranchOffice,
           address: contactHeadOffice || contactAddress,
@@ -448,16 +451,34 @@ export default function HelpCenterManagement() {
                 </div>
               </div>
 
-              {/* Call Hotline */}
+              {/* Call Hotline Phone 1 */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block font-semibold">
-                  Call Hotline Phone
+                  Call Hotline Phone 1 (Primary)
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="e.g. +91 8339977383"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-semibold"
+                  />
+                  <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                </div>
+              </div>
+
+              {/* Call Hotline Phone 2 */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block font-semibold">
+                  Call Hotline Phone 2 (Secondary)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={contactPhone2}
+                    onChange={(e) => setContactPhone2(e.target.value)}
+                    placeholder="e.g. +91 7077500211"
                     className="w-full bg-slate-50 dark:bg-slate-950 text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-semibold"
                   />
                   <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-400" />

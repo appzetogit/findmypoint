@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const HelpContactSchema = new mongoose.Schema({
   email: { type: String, default: '' },
   phone: { type: String, default: '' },
+  phone2: { type: String, default: '' },
   address: { type: String, default: '' },
   headOfficeAddress: { type: String, default: '' },
   branchOfficeAddress: { type: String, default: '' },

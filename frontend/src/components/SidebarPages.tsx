@@ -57,9 +57,7 @@ export default function SidebarPages({
             <h2 className="text-base sm:text-xl font-black font-serif text-slate-900 dark:text-white uppercase tracking-tight truncate">
               {activePage}
             </h2>
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-150 dark:border-indigo-900/40">
-              FindmyPoint Support
-            </span>
+
           </div>
         </div>
 
@@ -74,9 +72,8 @@ export default function SidebarPages({
 
       {/* Dynamic Content Panel */}
       <div
-        className={`flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto no-scrollbar w-full mx-auto bg-white dark:bg-slate-950 ${
-          isWidePage ? "max-w-6xl 2xl:max-w-7xl" : "max-w-4xl"
-        }`}
+        className={`flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto no-scrollbar w-full mx-auto bg-white dark:bg-slate-950 ${isWidePage ? "max-w-6xl 2xl:max-w-7xl" : "max-w-4xl"
+          }`}
       >
         {activePage === "Favorites" && (
           <FavoritesPage onNavigateToBusiness={onNavigateToBusiness} />

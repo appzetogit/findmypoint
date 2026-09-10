@@ -6,6 +6,7 @@ import { Briefcase, Phone, MapPin, Calendar, Heart, ShieldCheck, X, Search, Chec
 import { useCategories } from "../context/CategoryContext";
 import { LazyImage } from "../components/ui/LazyImage";
 import statesAndDistricts from "../data/states-and-districts.json";
+import { compressImageFile } from "../utils/imageCompressor";
 
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
@@ -198,6 +199,9 @@ export default function Footer() {
       });
       const data = await res.json();
       if (data.success) {
+        if (data.token) {
+          localStorage.setItem("fmp_user_token", data.token);
+        }
         setIsOtpVerified(true);
         setOtpMessage({ type: "success", text: "Mobile number verified successfully!" });
       } else {
@@ -275,31 +279,54 @@ export default function Footer() {
     }
   }, [state]);
 
-  const handlePhotoUpload = (index: number, file: File | null) => {
+  const handlePhotoUpload = async (index: number, file: File | null) => {
     if (!file) {
       const newPhotos = [...photos];
       newPhotos[index] = "";
       setPhotos(newPhotos);
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
+    try {
+      // Compress camera image to high-quality lightweight JPEG (~100KB-150KB)
+      const compressedDataUrl = await compressImageFile(file);
       const newPhotos = [...photos];
-      newPhotos[index] = reader.result as string;
+      newPhotos[index] = compressedDataUrl;
       setPhotos(newPhotos);
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.warn("Client-side compression fallback to FileReader:", err);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const newPhotos = [...photos];
+        newPhotos[index] = reader.result as string;
+        setPhotos(newPhotos);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const triggerRazorpayCheckout = (requestId: string, order: any) => {
+  const triggerRazorpayCheckout = async (requestId: string, order: any) => {
     if (!order) return;
     setIsProcessingPayment(true);
+
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded || !(window as any).Razorpay) {
+      alert("Payment gateway failed to load. Please check your internet connection and try again.");
+      setIsProcessingPayment(false);
+      return;
+    }
+
     const userToken = localStorage.getItem("fmp_user_token");
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json"
+    };
+    if (userToken && userToken !== "null" && userToken !== "undefined" && userToken.trim() !== "") {
+      headers["Authorization"] = `Bearer ${userToken}`;
+    }
 
     const options = {
       key: RAZORPAY_KEY_ID,
       amount: order.amount, // in paise
-      currency: order.currency,
+      currency: order.currency || "INR",
       name: "FindmyPoint",
       description: `Listing fee for ${businessName}`,
       order_id: order.id,
@@ -307,10 +334,7 @@ export default function Footer() {
         try {
           const resSubmit = await fetch(`${API_BASE_URL}/business-requests/verify-payment`, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${userToken}`
-            },
+            headers,
             body: JSON.stringify({
               requestId,
               razorpayOrderId: response.razorpay_order_id,
@@ -379,8 +403,14 @@ export default function Footer() {
       }
     };
 
-    const rzp = new (window as any).Razorpay(options);
-    rzp.open();
+    try {
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (rzpErr) {
+      console.error("Razorpay open error:", rzpErr);
+      alert("Failed to initialize payment popup.");
+      setIsProcessingPayment(false);
+    }
   };
 
   const handleLeadFormSubmit = async (e: React.FormEvent) => {
@@ -407,6 +437,9 @@ export default function Footer() {
           if (!verifyData.success) {
             alert(verifyData.message || "Invalid OTP code. Please enter the correct OTP.");
             return;
+          }
+          if (verifyData.token) {
+            localStorage.setItem("fmp_user_token", verifyData.token);
           }
           setIsOtpVerified(true);
         } catch (err) {
@@ -449,31 +482,46 @@ export default function Footer() {
         employeeName
       };
 
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json"
+      };
+      if (userToken && userToken !== "null" && userToken !== "undefined" && userToken.trim() !== "") {
+        headers["Authorization"] = `Bearer ${userToken}`;
+      }
+
       const res = await fetch(`${API_BASE_URL}/business-requests`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${userToken}`
-        },
+        headers,
         body: JSON.stringify(requestData)
       });
 
-      const data = await res.json();
+      let data: any;
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        throw new Error(`Server returned unexpected response status: ${res.status}`);
+      }
+
       if (data.success) {
         setCurrentRequestId(data.request._id);
         setCurrentOrder(data.order);
         setIsPaymentStep(true);
         setIsSubmittingForm(false);
         
-        // Auto trigger popup
-        triggerRazorpayCheckout(data.request._id, data.order);
+        // Auto trigger popup if order is present
+        if (data.order) {
+          triggerRazorpayCheckout(data.request._id, data.order);
+        } else {
+          alert("Business listing request submitted successfully!");
+          handleCloseLeadModal();
+        }
       } else {
         alert(data.message || "Failed to submit request.");
         setIsSubmittingForm(false);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error submitting form:", err);
-      alert("Network error submitting business request.");
+      alert(err?.message || "Network error submitting business request. Please try again.");
       setIsSubmittingForm(false);
     }
   };
@@ -494,29 +542,32 @@ export default function Footer() {
     e.preventDefault();
     if (!currentRequestId) return;
     if (currentOrder) {
-      triggerRazorpayCheckout(currentRequestId, currentOrder);
+      await triggerRazorpayCheckout(currentRequestId, currentOrder);
       return;
     }
     setIsProcessingPayment(true);
     try {
       const userToken = localStorage.getItem("fmp_user_token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json"
+      };
+      if (userToken && userToken !== "null" && userToken !== "undefined" && userToken.trim() !== "") {
+        headers["Authorization"] = `Bearer ${userToken}`;
+      }
       const res = await fetch(`${API_BASE_URL}/business-requests/${currentRequestId}/payment-order`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${userToken}`
-        }
+        headers
       });
       const data = await res.json();
       if (data.success && data.order) {
         setCurrentOrder(data.order);
-        triggerRazorpayCheckout(currentRequestId, data.order);
+        await triggerRazorpayCheckout(currentRequestId, data.order);
       } else {
         alert(data.message || "Failed to initialize payment.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error creating payment order:", err);
-      alert("Network error initializing payment.");
+      alert(err?.message || "Network error initializing payment.");
     } finally {
       setIsProcessingPayment(false);
     }

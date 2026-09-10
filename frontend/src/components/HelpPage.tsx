@@ -36,6 +36,8 @@ interface HelpContactData {
   email: string;
   phone: string;
   address: string;
+  headOfficeAddress?: string;
+  branchOfficeAddress?: string;
 }
 
 const GooglePayIcon = ({ className = "h-3.5 w-3.5" }: { className?: string }) => (
@@ -159,6 +161,15 @@ export default function HelpPage() {
   } | null>(null);
   const [paymentError, setPaymentError] = useState<string>("");
 
+  const presetAmounts = [100, 500, 1000, 2000, 5000];
+
+  const headAddressText =
+    contactInfo.headOfficeAddress || contactInfo.address || "G-161, Sector 22 Noida, Uttar Pradesh 201301 India";
+  const branchAddressText =
+    contactInfo.branchOfficeAddress || "Baripada, Mayurbhanj, Odisha, India";
+  const headOfficeMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(headAddressText)}`;
+  const branchOfficeMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(branchAddressText)}`;
+
   useEffect(() => {
     // Load FAQs from backend
     fetch(`${API_BASE_URL}/help/faqs`)
@@ -182,7 +193,9 @@ export default function HelpPage() {
           setContactInfo({
             email: data.data.email || "findmypoint.india@gmail.com",
             phone: data.data.phone || "+91 8339977383",
-            address: data.data.address || "",
+            address: data.data.headOfficeAddress || data.data.address || "",
+            headOfficeAddress: data.data.headOfficeAddress || data.data.address || "",
+            branchOfficeAddress: data.data.branchOfficeAddress || "",
           });
         }
       })
@@ -201,8 +214,8 @@ export default function HelpPage() {
           setTicketEmail(parsed.email);
           setPayerEmail(parsed.email);
         }
-        if (parsed.phone) {
-          setPayerPhone(parsed.phone);
+        if (parsed.mobile1) {
+          setPayerPhone(parsed.mobile1);
         }
       }
     } catch { }
@@ -361,18 +374,72 @@ export default function HelpPage() {
     }
   };
 
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    contactInfo.address || "",
-  )}`;
+  const renderFaqsAccordion = () => (
+    <div className="space-y-4 bg-white dark:bg-slate-900/70 p-5 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+      <div className="pb-3 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+        <h3 className="font-serif text-base sm:text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2.5">
+          <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+            <BookOpen className="h-4 w-4" />
+          </div>
+          Frequently Asked Questions (FAQs)
+        </h3>
+        <span className="text-[11px] font-bold text-slate-400">
+          {faqs.length} Answers
+        </span>
+      </div>
 
-  const presetAmounts = [100, 500, 1000, 2500, 5000];
+      {/* Accordion List */}
+      <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+        {loadingFaqs ? (
+          <div className="flex flex-col items-center justify-center py-10 space-y-2">
+            <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
+            <span className="text-xs text-slate-400 font-semibold">Loading FAQs...</span>
+          </div>
+        ) : faqs.length === 0 ? (
+          <div className="text-center py-8">
+            <HelpCircle className="h-7 w-7 text-slate-400 mx-auto mb-2" />
+            <p className="text-xs text-slate-600 dark:text-slate-300 font-bold">
+              No FAQ items available right now.
+            </p>
+          </div>
+        ) : (
+          faqs.map((faq) => {
+            const isOpen = openFaq === faq._id;
+            return (
+              <div key={faq._id} className="py-1 transition-all duration-200">
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(isOpen ? null : faq._id)}
+                  className="w-full flex items-center justify-between py-3 text-left cursor-pointer outline-none border-none group"
+                >
+                  <span className="text-xs sm:text-[13px] font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors pr-3 min-w-0">
+                    {faq.question}
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 transition-transform duration-200 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 ${isOpen ? "rotate-180 text-indigo-600 dark:text-indigo-400" : ""
+                      }`}
+                  />
+                </button>
+
+                {isOpen && (
+                  <div className="pb-3.5 pr-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal animate-in fade-in duration-200">
+                    <p className="whitespace-pre-line">{faq.answer}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="w-full space-y-6 sm:space-y-8 pb-12 animate-in fade-in duration-300">
-      {/* ── Top Contact Items (3-Column Grid) ────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 py-1">
+      {/* ── Top Contact Items (4-Column Grid) ────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 py-1">
         {/* Email */}
-        <div className="flex items-center gap-3.5 group bg-slate-50/50 dark:bg-slate-900/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/80">
+        <div className="flex items-center gap-3.5 group bg-slate-50/50 dark:bg-slate-900/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 hover:border-indigo-500/30 transition-all shadow-xs">
           <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0 group-hover:scale-110 transition-transform">
             <Mail className="h-5 w-5" />
           </div>
@@ -391,7 +458,7 @@ export default function HelpPage() {
         </div>
 
         {/* Call Center */}
-        <div className="flex items-center gap-3.5 group bg-slate-50/50 dark:bg-slate-900/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/80">
+        <div className="flex items-center gap-3.5 group bg-slate-50/50 dark:bg-slate-900/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 hover:border-emerald-500/30 transition-all shadow-xs">
           <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-110 transition-transform">
             <Phone className="h-5 w-5" />
           </div>
@@ -408,25 +475,51 @@ export default function HelpPage() {
           </div>
         </div>
 
-        {/* Office Address */}
-        <div className="flex items-center gap-3.5 group bg-slate-50/50 dark:bg-slate-900/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/80">
+        {/* Head Office Address */}
+        <div className="flex items-center gap-3.5 group bg-slate-50/50 dark:bg-slate-900/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 hover:border-amber-500/30 transition-all shadow-xs">
           <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 shrink-0 group-hover:scale-110 transition-transform">
+            <Building2 className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 block font-semibold">
+              Head Office Address
+            </span>
+            <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 mt-0.5" title={contactInfo.headOfficeAddress || contactInfo.address}>
+              {contactInfo.headOfficeAddress || contactInfo.address || "G-161, Sector 22 Noida, Uttar Pradesh 201301 India"}
+            </p>
+          </div>
+          {(contactInfo.headOfficeAddress || contactInfo.address) && (
+            <a
+              href={headOfficeMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open Head Office in Google Maps"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          )}
+        </div>
+
+        {/* Branch Office Address */}
+        <div className="flex items-center gap-3.5 group bg-slate-50/50 dark:bg-slate-900/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 hover:border-blue-500/30 transition-all shadow-xs">
+          <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 shrink-0 group-hover:scale-110 transition-transform">
             <MapPin className="h-5 w-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-              Support & Office Address
+            <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 block font-semibold">
+              Branch Office Address
             </span>
-            <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 mt-0.5">
-              {contactInfo.address || "Baripada, Mayurbhanj, Odisha, India"}
+            <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 mt-0.5" title={contactInfo.branchOfficeAddress}>
+              {contactInfo.branchOfficeAddress || "Baripada, Mayurbhanj, Odisha, India"}
             </p>
           </div>
-          {contactInfo.address && (
+          {contactInfo.branchOfficeAddress && (
             <a
-              href={mapsUrl}
+              href={branchOfficeMapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              title="Open in Google Maps"
+              title="Open Branch Office in Google Maps"
               className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition shrink-0 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               <ExternalLink className="h-4 w-4" />
@@ -438,7 +531,7 @@ export default function HelpPage() {
       {/* ── Main Two-Column Layout ─────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
         {/* ═════════════════════════════════════════════════════════════════════
-            LEFT COLUMN: Support Ticket Form + FAQs (Moved below button)
+            LEFT COLUMN: Support Ticket Form + FAQs (On Desktop)
         ═════════════════════════════════════════════════════════════════════ */}
         <div className="lg:col-span-6 space-y-8">
           {/* 1. Support Ticket Case Section */}
@@ -582,63 +675,9 @@ export default function HelpPage() {
             </form>
           </div>
 
-          {/* 2. FAQs Accordion Section (Placed directly below Support Case Form) */}
-          <div className="space-y-4 bg-white dark:bg-slate-900/70 p-5 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <div className="pb-3 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="font-serif text-base sm:text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2.5">
-                <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-                  <BookOpen className="h-4 w-4" />
-                </div>
-                Frequently Asked Questions (FAQs)
-              </h3>
-              <span className="text-[11px] font-bold text-slate-400">
-                {faqs.length} Answers
-              </span>
-            </div>
-
-            {/* Accordion List */}
-            <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
-              {loadingFaqs ? (
-                <div className="flex flex-col items-center justify-center py-10 space-y-2">
-                  <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
-                  <span className="text-xs text-slate-400 font-semibold">Loading FAQs...</span>
-                </div>
-              ) : faqs.length === 0 ? (
-                <div className="text-center py-8">
-                  <HelpCircle className="h-7 w-7 text-slate-400 mx-auto mb-2" />
-                  <p className="text-xs text-slate-600 dark:text-slate-300 font-bold">
-                    No FAQ items available right now.
-                  </p>
-                </div>
-              ) : (
-                faqs.map((faq) => {
-                  const isOpen = openFaq === faq._id;
-                  return (
-                    <div key={faq._id} className="py-1 transition-all duration-200">
-                      <button
-                        type="button"
-                        onClick={() => setOpenFaq(isOpen ? null : faq._id)}
-                        className="w-full flex items-center justify-between py-3 text-left cursor-pointer outline-none border-none group"
-                      >
-                        <span className="text-xs sm:text-[13px] font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors pr-3 min-w-0">
-                          {faq.question}
-                        </span>
-                        <ChevronDown
-                          className={`h-4 w-4 shrink-0 transition-transform duration-200 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 ${isOpen ? "rotate-180 text-indigo-600 dark:text-indigo-400" : ""
-                            }`}
-                        />
-                      </button>
-
-                      {isOpen && (
-                        <div className="pb-3.5 pr-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal animate-in fade-in duration-200">
-                          <p className="whitespace-pre-line">{faq.answer}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
+          {/* 2. FAQs Section on Desktop (Hidden on Mobile) */}
+          <div className="hidden lg:block">
+            {renderFaqsAccordion()}
           </div>
         </div>
 
@@ -953,6 +992,11 @@ export default function HelpPage() {
             </form>
           </div>
         </div>
+      </div>
+
+      {/* ── Frequently Asked Questions (FAQs) Accordion Section (Visible on Mobile Only at the bottom) ── */}
+      <div className="block lg:hidden w-full">
+        {renderFaqsAccordion()}
       </div>
     </div>
   );

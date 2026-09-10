@@ -14,6 +14,7 @@ import {
   ChevronUp,
   Phone,
   MapPin,
+  Building2,
   Send,
   Loader2,
   AlertCircle,
@@ -47,6 +48,8 @@ export default function HelpCenterManagement() {
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactAddress, setContactAddress] = useState("");
+  const [contactHeadOffice, setContactHeadOffice] = useState("");
+  const [contactBranchOffice, setContactBranchOffice] = useState("");
   const [savingContact, setSavingContact] = useState(false);
 
   // FAQ Modal states
@@ -95,10 +98,12 @@ export default function HelpCenterManagement() {
     try {
       const res = await fetch(`${API_BASE_URL}/help/contact`);
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.data) {
         setContactEmail(data.data.email || "");
         setContactPhone(data.data.phone || "");
-        setContactAddress(data.data.address || "");
+        setContactAddress(data.data.headOfficeAddress || data.data.address || "");
+        setContactHeadOffice(data.data.headOfficeAddress || data.data.address || "");
+        setContactBranchOffice(data.data.branchOfficeAddress || "");
       }
     } catch { /* silent */ }
   };
@@ -188,7 +193,9 @@ export default function HelpCenterManagement() {
         body: JSON.stringify({
           email: contactEmail,
           phone: contactPhone,
-          address: contactAddress,
+          headOfficeAddress: contactHeadOffice,
+          branchOfficeAddress: contactBranchOffice,
+          address: contactHeadOffice || contactAddress,
         }),
       });
       const data = await res.json();
@@ -457,17 +464,37 @@ export default function HelpCenterManagement() {
                 </div>
               </div>
 
-              {/* Support / Office Address */}
+              {/* Head Office Address */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block font-semibold">
-                  Support & Office Address
+                  Head Office Address
                 </label>
                 <div className="relative">
                   <textarea
                     rows={2}
-                    value={contactAddress}
-                    onChange={(e) => setContactAddress(e.target.value)}
+                    value={contactHeadOffice}
+                    onChange={(e) => {
+                      setContactHeadOffice(e.target.value);
+                      setContactAddress(e.target.value);
+                    }}
                     placeholder="e.g. G-161, Sector 22 Noida, Uttar Pradesh 201301 India"
+                    className="w-full bg-slate-50 dark:bg-slate-950 text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-semibold resize-none"
+                  />
+                  <Building2 className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                </div>
+              </div>
+
+              {/* Branch Office Address */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block font-semibold">
+                  Branch Office Address
+                </label>
+                <div className="relative">
+                  <textarea
+                    rows={2}
+                    value={contactBranchOffice}
+                    onChange={(e) => setContactBranchOffice(e.target.value)}
+                    placeholder="e.g. Baripada, Mayurbhanj, Odisha, India"
                     className="w-full bg-slate-50 dark:bg-slate-950 text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 outline-none text-slate-950 dark:text-slate-100 focus:border-indigo-500 transition font-semibold resize-none"
                   />
                   <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-400" />

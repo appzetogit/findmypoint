@@ -72,6 +72,8 @@ const getContact = async (req, res) => {
         email: '',
         phone: '',
         address: '',
+        headOfficeAddress: '',
+        branchOfficeAddress: '',
       });
     }
     res.status(200).json({ success: true, data: contact });
@@ -83,19 +85,23 @@ const getContact = async (req, res) => {
 // @desc   Save contact details (admin only)
 // @route  POST /api/help/contact
 const saveContact = async (req, res) => {
-  const { email, phone, address } = req.body;
+  const { email, phone, address, headOfficeAddress, branchOfficeAddress } = req.body;
   try {
     let contact = await HelpContact.findOne();
     if (contact) {
       if (email !== undefined) contact.email = email;
       if (phone !== undefined) contact.phone = phone;
       if (address !== undefined) contact.address = address;
+      if (headOfficeAddress !== undefined) contact.headOfficeAddress = headOfficeAddress;
+      if (branchOfficeAddress !== undefined) contact.branchOfficeAddress = branchOfficeAddress;
       await contact.save();
     } else {
       contact = await HelpContact.create({
         email: email || '',
         phone: phone || '',
-        address: address || '',
+        address: address || headOfficeAddress || '',
+        headOfficeAddress: headOfficeAddress || address || '',
+        branchOfficeAddress: branchOfficeAddress || '',
       });
     }
     res.status(200).json({ success: true, data: contact });

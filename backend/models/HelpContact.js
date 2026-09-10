@@ -5,7 +5,10 @@ const HelpContactSchema = new mongoose.Schema({
   email: { type: String, default: '' },
   phone: { type: String, default: '' },
   address: { type: String, default: '' },
+  headOfficeAddress: { type: String, default: '' },
+  branchOfficeAddress: { type: String, default: '' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('HelpContact', HelpContactSchema);
+
 

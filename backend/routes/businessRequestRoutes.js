@@ -9,7 +9,7 @@ const {
   getPaymentOrder,
   deleteRequest
 } = require('../controllers/businessRequestController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, optionalProtect } = require('../middleware/authMiddleware');
 const { adminProtect } = require('../middleware/adminAuthMiddleware');
 
 // Listing fee endpoints
@@ -18,9 +18,9 @@ router.post('/fee', adminProtect, saveFee);
 
 // Business request endpoints
 router.get('/', adminProtect, getRequests);
-router.post('/', protect, createRequest);
-router.post('/verify-payment', protect, verifyPayment);
-router.post('/:id/payment-order', protect, getPaymentOrder);
+router.post('/', optionalProtect, createRequest);
+router.post('/verify-payment', optionalProtect, verifyPayment);
+router.post('/:id/payment-order', optionalProtect, getPaymentOrder);
 router.delete('/:id', adminProtect, deleteRequest);
 
 module.exports = router;

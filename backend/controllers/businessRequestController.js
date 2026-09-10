@@ -67,7 +67,7 @@ const getRequests = async (req, res) => {
 
 // @desc    Create a new business request (saves as Pending and creates Razorpay order)
 // @route   POST /api/business-requests
-// @access  Private
+// @access  Public / Optional Auth
 const createRequest = async (req, res) => {
   try {
     // Remove any previous unpaid pending requests for this user so they can submit cleanly
@@ -80,32 +80,46 @@ const createRequest = async (req, res) => {
 
     // 1. Fetch current fee
     let fee = await ListingFee.findOne();
-    const feeAmount = fee ? fee.amount : 500;
+    const feeAmount = fee ? Number(fee.amount) || 0 : 500;
 
     // 2. Save request in database as Pending
     const newRequest = new BusinessRequest({
       ...req.body,
-      userId: req.user._id,
+      userId: req.user && req.user._id ? req.user._id : undefined,
       amountPaid: feeAmount,
-      paymentStatus: 'Pending'
+      paymentStatus: feeAmount > 0 ? 'Pending' : 'Paid'
     });
     const savedRequest = await newRequest.save();
 
-    // 3. Create Razorpay order
-    const orderData = {
-      amount: feeAmount,
-      receipt: `rcpt_req_${savedRequest._id}_${Date.now().toString().slice(-4)}`,
-      notes: {
-        requestId: savedRequest._id.toString(),
-        userId: req.user._id.toString()
+    // 3. Create Razorpay order if fee > 0
+    let order = null;
+    if (feeAmount > 0) {
+      try {
+        const orderData = {
+          amount: feeAmount,
+          receipt: `rcpt_req_${savedRequest._id.toString().slice(-6)}_${Date.now().toString().slice(-4)}`,
+          notes: {
+            requestId: savedRequest._id.toString(),
+            userId: req.user && req.user._id ? req.user._id.toString() : 'guest'
+          }
+        };
+
+        order = await razorpayService.createOrder(orderData);
+
+        // Save order ID to request document
+        savedRequest.razorpayOrderId = order.id;
+        await savedRequest.save();
+      } catch (orderErr) {
+        console.error('⚠️ Razorpay order creation error:', orderErr.message);
+        // If razorpay fails, still return request with warning so user is informed
+        return res.status(201).json({
+          success: true,
+          request: savedRequest,
+          order: null,
+          warning: 'Request saved, but payment gateway initialization is pending.'
+        });
       }
-    };
-
-    const order = await razorpayService.createOrder(orderData);
-
-    // Save order ID to request document
-    savedRequest.razorpayOrderId = order.id;
-    await savedRequest.save();
+    }
 
     res.status(201).json({
       success: true,
@@ -113,13 +127,14 @@ const createRequest = async (req, res) => {
       order
     });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    console.error('❌ Error creating business request:', error);
+    res.status(400).json({ success: false, message: error.message || 'Failed to create business request' });
   }
 };
 
 // @desc    Verify Razorpay payment and activate listing request (sets to Paid)
 // @route   POST /api/business-requests/verify-payment
-// @access  Private
+// @access  Public / Optional Auth
 const verifyPayment = async (req, res) => {
   const { requestId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
 
@@ -170,7 +185,7 @@ const verifyPayment = async (req, res) => {
         type: 'credit',
         paymentMethod: 'card', // Razorpay payment
         status: 'Completed',
-        userId: request.userId
+        userId: request.userId || (req.user ? req.user._id : undefined)
       });
       console.log(`✅ Transaction log created successfully for listing request: ${request.businessName}`);
     } catch (txnError) {
@@ -183,13 +198,14 @@ const verifyPayment = async (req, res) => {
       data: request
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('❌ Error verifying payment:', error);
+    res.status(500).json({ success: false, message: error.message || 'Payment verification failed' });
   }
 };
 
 // @desc    Get or create a Razorpay order for a pending request
 // @route   POST /api/business-requests/:id/payment-order
-// @access  Private
+// @access  Public / Optional Auth
 const getPaymentOrder = async (req, res) => {
   try {
     const request = await BusinessRequest.findById(req.params.id);
@@ -201,13 +217,15 @@ const getPaymentOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'This business request has already been paid.' });
     }
 
+    const feeAmount = request.amountPaid || 500;
+
     // Create a new Razorpay order
     const orderData = {
-      amount: request.amountPaid || 500,
-      receipt: `rcpt_req_${request._id}_${Date.now().toString().slice(-4)}`,
+      amount: feeAmount,
+      receipt: `rcpt_req_${request._id.toString().slice(-6)}_${Date.now().toString().slice(-4)}`,
       notes: {
         requestId: request._id.toString(),
-        userId: request.userId ? request.userId.toString() : req.user._id.toString()
+        userId: request.userId ? request.userId.toString() : (req.user && req.user._id ? req.user._id.toString() : 'guest')
       }
     };
 
@@ -222,7 +240,8 @@ const getPaymentOrder = async (req, res) => {
       order
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('❌ Error generating payment order:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to generate payment order' });
   }
 };
 

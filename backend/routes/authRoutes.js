@@ -4,6 +4,8 @@ const {
   sendOtp,
   verifyOtp,
   registerUser,
+  directLogin,
+  refreshToken,
   getUserProfile,
   updateUserProfile,
   addUserAddress,
@@ -25,13 +27,15 @@ const otpSendLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
-  max: 10,
+  max: 30,
   message: { success: false, message: 'Too many attempts. Please wait 5 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 // Public routes (with rate limiting)
+router.post('/direct-login', authLimiter, directLogin);
+router.post('/refresh-token', refreshToken);
 router.post('/send-otp', otpSendLimiter, sendOtp);
 router.post('/verify-otp', authLimiter, verifyOtp);
 router.post('/register', authLimiter, registerUser);

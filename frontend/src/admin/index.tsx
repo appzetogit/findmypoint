@@ -32,6 +32,7 @@ import {
   Star,
   Eye,
   EyeOff,
+  HeartHandshake,
 } from "lucide-react";
 import Dashboard from "./Dashboard";
 import AdminEntryForm from "./AdminEntryForm";
@@ -90,6 +91,7 @@ export type AdminView =
   | "help_center"
   | "bookings"
   | "payments"
+  | "help_center_payments"
   | "all_enquiries"
   | "all_client_dashboard"
   | "commissions"
@@ -836,7 +838,24 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
                     <CreditCard
                       className={`h-4.5 w-4.5 transition-colors ${currentView === "payments" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
                     />
-                    <span>Admin Payment Management</span>
+                    <span>Payment Management</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleViewChange("help_center_payments")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "help_center_payments"
+                        ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-transparent shadow-lg shadow-emerald-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-850 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "help_center_payments" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <HeartHandshake
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "help_center_payments" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>Help Center Payments</span>
                   </button>
 
                   <button
@@ -1099,7 +1118,9 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
 
           {currentView === "bookings" && <AllBookings />}
 
-          {currentView === "payments" && <AdminPaymentManagement />}
+          {currentView === "payments" && <AdminPaymentManagement initialTab="business" />}
+
+          {currentView === "help_center_payments" && <AdminPaymentManagement initialTab="help_center" />}
 
           {currentView === "all_enquiries" && <AllEnquiries />}
 

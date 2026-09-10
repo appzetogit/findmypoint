@@ -125,6 +125,94 @@ export default function Footer() {
   const [pinCode, setPinCode] = useState("");
   const [employeeName, setEmployeeName] = useState("None");
 
+  // OTP states for Lead Generator
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [isOtpVerified, setIsOtpVerified] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [otpTimer, setOtpTimer] = useState(0);
+  const [otpMessage, setOtpMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // OTP Countdown timer
+  useEffect(() => {
+    let interval: any = null;
+    if (otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [otpTimer]);
+
+  const handleSendOtp = async () => {
+    const cleanPhone = contactNo.replace(/\D/g, "");
+    if (cleanPhone.length !== 10) {
+      alert("Please enter a valid 10-digit contact number first.");
+      return;
+    }
+    setIsSendingOtp(true);
+    setOtpMessage(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: cleanPhone })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setOtpSent(true);
+        setOtpTimer(60);
+        setOtpMessage({ type: "success", text: data.message || "OTP sent successfully!" });
+      } else {
+        setOtpMessage({ type: "error", text: data.message || "Failed to send OTP." });
+        alert(data.message || "Failed to send OTP.");
+      }
+    } catch (err) {
+      console.error("Error sending OTP:", err);
+      setOtpMessage({ type: "error", text: "Network error sending OTP." });
+      alert("Network error sending OTP.");
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    const cleanPhone = contactNo.replace(/\D/g, "");
+    if (cleanPhone.length !== 10) {
+      alert("Please enter a valid 10-digit contact number.");
+      return;
+    }
+    const cleanOtp = otp.trim();
+    if (cleanOtp.length !== 6) {
+      alert("Please enter the complete 6-digit OTP.");
+      return;
+    }
+    setIsVerifyingOtp(true);
+    setOtpMessage(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: cleanPhone, otp: cleanOtp })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsOtpVerified(true);
+        setOtpMessage({ type: "success", text: "Mobile number verified successfully!" });
+      } else {
+        setOtpMessage({ type: "error", text: data.message || "Invalid OTP code." });
+        alert(data.message || "Invalid OTP code.");
+      }
+    } catch (err) {
+      console.error("Error verifying OTP:", err);
+      setOtpMessage({ type: "error", text: "Network error verifying OTP." });
+      alert("Network error verifying OTP.");
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
   // Payment states
   const [isPaymentStep, setIsPaymentStep] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -244,6 +332,11 @@ export default function Footer() {
             setContactNo("");
             setWhatsappNo("");
             setEmail("");
+            setOtp("");
+            setOtpSent(false);
+            setIsOtpVerified(false);
+            setOtpTimer(0);
+            setOtpMessage(null);
             setAddressDetails("");
             setPhotos(["", "", "", ""]);
             setOpenHour("09");
@@ -292,6 +385,40 @@ export default function Footer() {
 
   const handleLeadFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Verify OTP first
+    if (!isOtpVerified) {
+      const cleanPhone = contactNo.replace(/\D/g, "");
+      const cleanOtp = otp.trim();
+
+      if (cleanPhone.length !== 10) {
+        alert("Please enter a valid 10-digit contact number.");
+        return;
+      }
+
+      if (cleanOtp.length === 6) {
+        try {
+          const verifyRes = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: cleanPhone, otp: cleanOtp })
+          });
+          const verifyData = await verifyRes.json();
+          if (!verifyData.success) {
+            alert(verifyData.message || "Invalid OTP code. Please enter the correct OTP.");
+            return;
+          }
+          setIsOtpVerified(true);
+        } catch (err) {
+          alert("Network error verifying OTP. Please try again.");
+          return;
+        }
+      } else {
+        alert("Please enter and verify the 6-digit OTP sent to your contact number.");
+        return;
+      }
+    }
+
     if (photos.some((p) => !p)) {
       alert("Please upload exactly 4 business photos.");
       return;
@@ -351,9 +478,48 @@ export default function Footer() {
     }
   };
 
-  const handleFinalPaymentSubmit = (e: React.FormEvent) => {
+  const handleCloseLeadModal = () => {
+    setShowLeadForm(false);
+    setIsPaymentStep(false);
+    setOtp("");
+    setOtpSent(false);
+    setIsOtpVerified(false);
+    setOtpTimer(0);
+    setOtpMessage(null);
+    window.dispatchEvent(new CustomEvent("fmp-navigate-home"));
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  };
+
+  const handleFinalPaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    triggerRazorpayCheckout(currentRequestId, currentOrder);
+    if (!currentRequestId) return;
+    if (currentOrder) {
+      triggerRazorpayCheckout(currentRequestId, currentOrder);
+      return;
+    }
+    setIsProcessingPayment(true);
+    try {
+      const userToken = localStorage.getItem("fmp_user_token");
+      const res = await fetch(`${API_BASE_URL}/business-requests/${currentRequestId}/payment-order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userToken}`
+        }
+      });
+      const data = await res.json();
+      if (data.success && data.order) {
+        setCurrentOrder(data.order);
+        triggerRazorpayCheckout(currentRequestId, data.order);
+      } else {
+        alert(data.message || "Failed to initialize payment.");
+      }
+    } catch (err) {
+      console.error("Error creating payment order:", err);
+      alert("Network error initializing payment.");
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   const handleSearchEmployee = async () => {
@@ -923,8 +1089,9 @@ export default function Footer() {
                 </div>
               </div>
               <button
-                onClick={() => setShowLeadForm(false)}
+                onClick={handleCloseLeadModal}
                 className="h-8 w-8 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-955 hover:bg-rose-50 dark:hover:bg-rose-955/20 text-slate-450 hover:text-rose-600 transition cursor-pointer"
+                title="Close and go to Home"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1010,14 +1177,21 @@ export default function Footer() {
 
                   {/* Contact Number */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                      Contact Number *
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                        Contact Number *
+                      </label>
+                      {isOtpVerified && (
+                        <span className="inline-flex items-center gap-1 text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="h-3 w-3" /> Verified
+                        </span>
+                      )}
+                    </div>
                     <div className="flex gap-2">
                       <select
                         value={contactCode}
                         onChange={(e) => setContactCode(e.target.value)}
-                        className="bg-slate-50 dark:bg-slate-955 text-xs px-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                        className="bg-slate-50 dark:bg-slate-955 text-xs px-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold shrink-0"
                       >
                         {CALLING_CODES.map((c) => (
                           <option key={c} value={c}>
@@ -1025,27 +1199,139 @@ export default function Footer() {
                           </option>
                         ))}
                       </select>
+                      <div className="relative flex-1 flex items-center">
+                        <input
+                          type="tel"
+                          required
+                          maxLength={10}
+                          placeholder="9876543210"
+                          value={contactNo}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                            setContactNo(val);
+                            if (isOtpVerified) setIsOtpVerified(false);
+                          }}
+                          className={`w-full bg-slate-50 dark:bg-slate-955 text-xs pl-3.5 pr-24 py-2.5 rounded-xl border outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 transition-all font-semibold ${
+                            isOtpVerified
+                              ? "border-emerald-500/60 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                              : "border-slate-200 dark:border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={isSendingOtp || otpTimer > 0 || isOtpVerified || contactNo.replace(/\D/g, "").length !== 10}
+                          className={`absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                            isOtpVerified
+                              ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 cursor-default border border-emerald-500/30"
+                              : isSendingOtp || otpTimer > 0 || contactNo.replace(/\D/g, "").length !== 10
+                              ? "bg-slate-200/80 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                              : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                          }`}
+                        >
+                          {isSendingOtp ? (
+                            <>
+                              <span className="h-2.5 w-2.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                              <span>Sending</span>
+                            </>
+                          ) : isOtpVerified ? (
+                            <>
+                              <CheckCircle2 className="h-3 w-3" />
+                              <span>Verified</span>
+                            </>
+                          ) : otpTimer > 0 ? (
+                            <span>Resend ({otpTimer}s)</span>
+                          ) : otpSent ? (
+                            <span>Resend OTP</span>
+                          ) : (
+                            <span>Send OTP</span>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* OTP Field */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                        Enter OTP *
+                      </label>
+                      {otpSent && !isOtpVerified && otpTimer > 0 && (
+                        <span className="text-[9.5px] font-bold text-amber-500">
+                          Expires in {otpTimer}s
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative flex items-center">
                       <input
-                        type="tel"
+                        type="text"
+                        maxLength={6}
                         required
-                        placeholder="9876543210"
-                        value={contactNo}
-                        onChange={(e) => setContactNo(e.target.value)}
-                        className="flex-1 bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                        placeholder="Enter 6-digit OTP"
+                        value={otp}
+                        disabled={isOtpVerified}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                          setOtp(val);
+                        }}
+                        className={`w-full bg-slate-50 dark:bg-slate-955 text-xs pl-3.5 pr-20 py-2.5 rounded-xl border outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 font-mono tracking-wider font-semibold transition-all ${
+                          isOtpVerified
+                            ? "border-emerald-500/60 bg-emerald-50/20 text-emerald-700 dark:text-emerald-400"
+                            : "border-slate-200 dark:border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                        }`}
                       />
+                      <button
+                        type="button"
+                        onClick={handleVerifyOtp}
+                        disabled={isVerifyingOtp || isOtpVerified || otp.trim().length !== 6}
+                        className={`absolute right-1.5 top-1/2 -translate-y-1/2 px-3 py-1 text-[10px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                          isOtpVerified
+                            ? "bg-emerald-500 text-white cursor-default"
+                            : isVerifyingOtp || otp.trim().length !== 6
+                            ? "bg-slate-200/80 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                            : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                        }`}
+                      >
+                        {isVerifyingOtp ? (
+                          <>
+                            <span className="h-2.5 w-2.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>Verifying</span>
+                          </>
+                        ) : isOtpVerified ? (
+                          <>
+                            <CheckCircle2 className="h-3 w-3" />
+                            <span>Verified</span>
+                          </>
+                        ) : (
+                          <span>Verify</span>
+                        )}
+                      </button>
                     </div>
                   </div>
 
                   {/* WhatsApp Number */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                      WhatsApp Number *
-                    </label>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                        WhatsApp Number *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWhatsappCode(contactCode);
+                          setWhatsappNo(contactNo);
+                        }}
+                        className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                      >
+                        Same as Contact Number
+                      </button>
+                    </div>
                     <div className="flex gap-2">
                       <select
                         value={whatsappCode}
                         onChange={(e) => setWhatsappCode(e.target.value)}
-                        className="bg-slate-50 dark:bg-slate-955 text-xs px-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
+                        className="bg-slate-50 dark:bg-slate-955 text-xs px-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold shrink-0"
                       >
                         {CALLING_CODES.map((c) => (
                           <option key={c} value={c}>
@@ -1056,9 +1342,10 @@ export default function Footer() {
                       <input
                         type="tel"
                         required
+                        maxLength={10}
                         placeholder="Same as contact or WhatsApp no"
                         value={whatsappNo}
-                        onChange={(e) => setWhatsappNo(e.target.value)}
+                        onChange={(e) => setWhatsappNo(e.target.value.replace(/\D/g, "").slice(0, 10))}
                         className="flex-1 bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
                       />
                     </div>
@@ -1368,7 +1655,7 @@ export default function Footer() {
                 <div className="flex items-center justify-end gap-2.5 pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800/80 shrink-0 bg-white dark:bg-slate-900">
                   <button
                     type="button"
-                    onClick={() => setShowLeadForm(false)}
+                    onClick={handleCloseLeadModal}
                     className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-xs font-bold rounded-xl transition cursor-pointer"
                   >
                     Cancel
@@ -1376,7 +1663,7 @@ export default function Footer() {
                   <button
                     type="submit"
                     disabled={isSubmittingForm}
-                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-650/60 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-indigo-600/10 disabled:cursor-not-allowed"
+                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/60 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-indigo-600/10 disabled:cursor-not-allowed"
                   >
                     {isSubmittingForm ? (
                       <>
@@ -1445,17 +1732,17 @@ export default function Footer() {
                     <button
                       type="submit"
                       disabled={isProcessingPayment}
-                      className="px-4 py-2.5 bg-indigo-650 hover:bg-indigo-700 disabled:bg-indigo-650/60 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-indigo-600/10 disabled:cursor-not-allowed animate-pulse"
+                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/60 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-indigo-600/20 disabled:cursor-not-allowed"
                     >
                       {isProcessingPayment ? (
                         <>
                           <span className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Processing...
+                          Opening Razorpay...
                         </>
                       ) : (
                         <>
                           <CheckCircle2 className="h-4 w-4" />
-                          Pay with Razorpay
+                          Proceed to Payment (₹{listingRequestFee})
                         </>
                       )}
                     </button>

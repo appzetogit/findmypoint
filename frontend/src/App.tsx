@@ -590,12 +590,28 @@ export default function App() {
       const customEvent = e as CustomEvent;
       dispatch({ type: "SELECT_ARTICLE", id: customEvent.detail });
     };
+    const handleNavigateHome = () => {
+      dispatch({ type: "SELECT_BUSINESS", id: null });
+      dispatch({ type: "SELECT_ARTICLE", id: null });
+      dispatch({ type: "SELECT_PLACE", name: null });
+      dispatch({ type: "SELECT_CATEGORY", name: null });
+      dispatch({ type: "SELECT_POPULAR_SERVICE", id: null });
+      dispatch({ type: "SET_SHOW_ALL_CATEGORIES", show: false });
+      dispatch({ type: "SET_SHOW_ADVERTISE", show: false });
+      dispatch({ type: "SET_SHOW_ADMIN", show: false });
+      dispatch({ type: "SET_SHOW_CLIENT", show: false });
+      dispatch({ type: "SET_ACTIVE_SIDEBAR_PAGE", page: null });
+      dispatch({ type: "CLEAR_SEARCH" });
+      setMobileTab("home");
+      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    };
     window.addEventListener("fmp-open-advertise", handleAdvertiseOpen);
     window.addEventListener("fmp-open-signin", handleSignInOpen);
     window.addEventListener("fmp-open-page", handleOpenPage);
     window.addEventListener("fmp-select-business", handleSelectBusiness);
     window.addEventListener("fmp-select-place", handleSelectPlace);
     window.addEventListener("fmp-select-article", handleSelectArticle);
+    window.addEventListener("fmp-navigate-home", handleNavigateHome);
     return () => {
       window.removeEventListener("fmp-open-advertise", handleAdvertiseOpen);
       window.removeEventListener("fmp-open-signin", handleSignInOpen);
@@ -603,6 +619,7 @@ export default function App() {
       window.removeEventListener("fmp-select-business", handleSelectBusiness);
       window.removeEventListener("fmp-select-place", handleSelectPlace);
       window.removeEventListener("fmp-select-article", handleSelectArticle);
+      window.removeEventListener("fmp-navigate-home", handleNavigateHome);
     };
   }, []);
 

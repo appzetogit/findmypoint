@@ -90,6 +90,15 @@ const getTransactions = async (req, res) => {
       }
     }
 
+    // Optional source filter (?source=help_center or ?source=business)
+    if (req.query.source) {
+      if (req.query.source === 'business') {
+        query.source = { $ne: 'help_center' };
+      } else {
+        query.source = req.query.source;
+      }
+    }
+
     const transactions = await Transaction.find(query).sort({ createdAt: -1 });
     res.status(200).json({ success: true, count: transactions.length, data: transactions });
   } catch (error) {
@@ -101,7 +110,24 @@ const getTransactions = async (req, res) => {
 // @route   POST /api/transactions
 // @access  Private
 const createTransaction = async (req, res) => {
-  const { description, businessName, businessId, bookingId, customerName, details, amount, type, paymentMethod, status } = req.body;
+  const {
+    description,
+    businessName,
+    businessId,
+    bookingId,
+    customerName,
+    customerEmail,
+    customerPhone,
+    details,
+    amount,
+    type,
+    paymentMethod,
+    status,
+    tag,
+    source,
+    razorpayPaymentId,
+    razorpayOrderId
+  } = req.body;
 
   if (amount === undefined || !type || !paymentMethod) {
     return res.status(400).json({ success: false, message: 'Please provide amount, type, and paymentMethod' });
@@ -123,7 +149,7 @@ const createTransaction = async (req, res) => {
       hour12: true
     });
 
-    // Prevent duplicates if a transaction for this bookingId already exists
+    // Prevent duplicates if a transaction for this bookingId or razorpayPaymentId already exists
     if (bookingId) {
       const existing = await Transaction.findOne({ bookingId });
       if (existing) {
@@ -132,11 +158,22 @@ const createTransaction = async (req, res) => {
         existing.paymentMethod = paymentMethod || existing.paymentMethod;
         existing.description = description || existing.description;
         existing.details = details || existing.details;
+        if (customerEmail) existing.customerEmail = customerEmail;
+        if (customerPhone) existing.customerPhone = customerPhone;
+        if (tag) existing.tag = tag;
+        if (source) existing.source = source;
         if (req.user && !existing.userId) {
           existing.userId = req.user._id;
         }
         await existing.save();
         return res.status(200).json({ success: true, data: existing });
+      }
+    }
+
+    if (razorpayPaymentId) {
+      const existingTxn = await Transaction.findOne({ razorpayPaymentId });
+      if (existingTxn) {
+        return res.status(200).json({ success: true, data: existingTxn });
       }
     }
 
@@ -148,11 +185,17 @@ const createTransaction = async (req, res) => {
       businessId: businessId || '',
       bookingId: bookingId || '',
       customerName: customerName || 'Guest',
+      customerEmail: customerEmail || '',
+      customerPhone: customerPhone || '',
       details: details || description || 'Booking Payment',
       amount,
       type: type || 'debit',
       paymentMethod,
       status: status || 'Completed',
+      tag: tag || '',
+      source: source || 'business',
+      razorpayPaymentId: razorpayPaymentId || '',
+      razorpayOrderId: razorpayOrderId || '',
       userId: req.user ? req.user._id : undefined
     });
 

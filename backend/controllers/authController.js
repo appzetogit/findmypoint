@@ -421,10 +421,141 @@ const updateUserFavorites = async (req, res) => {
   }
 };
 
+// @desc    Direct Login with Mobile Number + Name (No OTP required)
+// @route   POST /api/auth/direct-login
+// @access  Public
+const directLogin = async (req, res) => {
+  const { phone, name } = req.body;
+
+  if (!phone || typeof phone !== 'string' || phone.replace(/\D/g, '').length !== 10) {
+    return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit mobile number' });
+  }
+
+  const cleanedPhone = phone.replace(/\D/g, '');
+  const trimmedName = (name && typeof name === 'string') ? name.trim() : '';
+
+  if (!trimmedName || trimmedName.length < 2) {
+    return res.status(400).json({ success: false, message: 'Please enter your full name (at least 2 characters)' });
+  }
+
+  try {
+    let user = await User.findOne({ mobile1: cleanedPhone });
+
+    if (user) {
+      // Update name if changed
+      if (trimmedName && user.firstName !== trimmedName) {
+        user.firstName = trimmedName;
+        await user.save();
+      }
+    } else {
+      // Create new user directly
+      user = await User.create({
+        title: 'Mr.',
+        firstName: trimmedName,
+        middleName: '',
+        lastName: '',
+        mobile1: cleanedPhone,
+        mobile2: cleanedPhone,
+        email: `${cleanedPhone}@findmypoint.in`,
+        avatar: '',
+        addresses: [],
+        selectedFavorites: []
+      });
+    }
+
+    const token = generateToken(user._id);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      token,
+      user: {
+        id: user._id,
+        _id: user._id,
+        title: user.title,
+        firstName: user.firstName,
+        middleName: user.middleName,
+        lastName: user.lastName,
+        dobDD: user.dobDD,
+        dobMM: user.dobMM,
+        dobYYYY: user.dobYYYY,
+        maritalStatus: user.maritalStatus,
+        occupation: user.occupation,
+        mobile1: user.mobile1,
+        mobile2: user.mobile2,
+        email: user.email,
+        avatar: user.avatar,
+        addresses: user.addresses,
+        selectedFavorites: user.selectedFavorites,
+        isAdmin: user.isAdmin,
+        isClient: user.isClient
+      }
+    });
+  } catch (error) {
+    console.error('direct-login error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Login failed' });
+  }
+};
+
+// @desc    Refresh token / Validate session
+// @route   POST /api/auth/refresh-token
+// @access  Public
+const refreshToken = async (req, res) => {
+  try {
+    let token = req.body.token;
+    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'No token provided' });
+    }
+
+    const secret = process.env.JWT_SECRET;
+    const decoded = jwt.verify(token, secret);
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const newToken = generateToken(user._id);
+    res.status(200).json({
+      success: true,
+      token: newToken,
+      user: {
+        id: user._id,
+        _id: user._id,
+        title: user.title,
+        firstName: user.firstName,
+        middleName: user.middleName,
+        lastName: user.lastName,
+        dobDD: user.dobDD,
+        dobMM: user.dobMM,
+        dobYYYY: user.dobYYYY,
+        maritalStatus: user.maritalStatus,
+        occupation: user.occupation,
+        mobile1: user.mobile1,
+        mobile2: user.mobile2,
+        email: user.email,
+        avatar: user.avatar,
+        addresses: user.addresses,
+        selectedFavorites: user.selectedFavorites,
+        isAdmin: user.isAdmin,
+        isClient: user.isClient
+      }
+    });
+  } catch (error) {
+    res.status(401).json({ success: false, message: 'Invalid or expired token' });
+  }
+};
+
 module.exports = {
   sendOtp,
   verifyOtp,
   registerUser,
+  directLogin,
+  refreshToken,
   getUserProfile,
   updateUserProfile,
   addUserAddress,

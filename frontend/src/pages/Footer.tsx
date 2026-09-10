@@ -2,11 +2,30 @@ import { useState, useEffect } from "react";
 import logoImg from "@/assets/logo.png";
 import { loadFooterData, FooterData } from "../data/footerData";
 import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
-import { Briefcase, Phone, MapPin, Calendar, Heart, ShieldCheck, X, Search, CheckCircle2, User, Image as ImageIcon } from "lucide-react";
+import {
+  Briefcase,
+  Phone,
+  MapPin,
+  Calendar,
+  Heart,
+  ShieldCheck,
+  X,
+  Search,
+  CheckCircle2,
+  User,
+  Image as ImageIcon,
+  Download,
+  Sparkles,
+  Copy,
+  Check,
+  RefreshCw,
+} from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
 import { LazyImage } from "../components/ui/LazyImage";
 import statesAndDistricts from "../data/states-and-districts.json";
 import { compressImageFile } from "../utils/imageCompressor";
+import CelebrationConfetti from "../components/CelebrationConfetti";
+import { generateLeadReceiptPDF, LeadReceiptData } from "../utils/leadReceiptGenerator";
 
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
@@ -217,8 +236,11 @@ export default function Footer() {
     }
   };
 
-  // Payment states
+  // Payment & Success states
   const [isPaymentStep, setIsPaymentStep] = useState(false);
+  const [isSuccessStep, setIsSuccessStep] = useState(false);
+  const [successData, setSuccessData] = useState<LeadReceiptData | null>(null);
+  const [isCopiedRef, setIsCopiedRef] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   const [listingRequestFee, setListingRequestFee] = useState("500");
@@ -345,39 +367,36 @@ export default function Footer() {
 
           const submitData = await resSubmit.json();
           if (submitData.success) {
-            alert(`Payment of ₹${listingRequestFee} verified successfully! Business request submitted.`);
-            setIsPaymentStep(false);
-            setShowLeadForm(false);
+            const formattedDate = new Date().toLocaleString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            });
+            const locationStr = [area, town, district, state, pinCode ? `PIN: ${pinCode}` : ""].filter(Boolean).join(", ");
+            const hoursStr = isTimeMandatory ? `${openTime} - ${closeTime}` : "Regular Working Hours";
 
-            // Reset form states
-            setBusinessName("");
-            setCategory("Restaurant");
-            setOwnerName("");
-            setContactNo("");
-            setWhatsappNo("");
-            setEmail("");
-            setOtp("");
-            setOtpSent(false);
-            setIsOtpVerified(false);
-            setOtpTimer(0);
-            setOtpMessage(null);
-            setAddressDetails("");
-            setPhotos(["", "", "", ""]);
-            setOpenHour("09");
-            setOpenMinute("00");
-            setOpenPeriod("AM");
-            setCloseHour("09");
-            setCloseMinute("00");
-            setClosePeriod("PM");
-            setIsTimeMandatory(true);
-            setCountry("India");
-            setArea("");
-            setTown("");
-            setCity("");
-            setPinCode("");
-            setEmployeeName("None");
-            setCurrentRequestId("");
-            setCurrentOrder(null);
+            setSuccessData({
+              requestId: submitData.request?._id || submitData.requestId || requestId,
+              businessName,
+              ownerName,
+              category,
+              contactNumber: `${contactCode} ${contactNo}`,
+              whatsappNumber: `${whatsappCode} ${whatsappNo}`,
+              email: email || undefined,
+              location: locationStr,
+              addressDetails: addressDetails || undefined,
+              operatingHours: hoursStr,
+              submittedAt: formattedDate,
+              employeeName: employeeName !== "None" ? employeeName : undefined,
+              amount: parseFloat(listingRequestFee) || 0,
+              paymentId: response.razorpay_payment_id,
+              paymentStatus: "Paid",
+            });
+            setIsPaymentStep(false);
+            setIsSuccessStep(true);
           } else {
             alert(submitData.message || "Payment verification failed.");
           }
@@ -505,15 +524,44 @@ export default function Footer() {
       if (data.success) {
         setCurrentRequestId(data.request._id);
         setCurrentOrder(data.order);
-        setIsPaymentStep(true);
-        setIsSubmittingForm(false);
         
-        // Auto trigger popup if order is present
-        if (data.order) {
+        const hasFee = Number(listingRequestFee) > 0 && data.order;
+        if (hasFee) {
+          setIsPaymentStep(true);
+          setIsSubmittingForm(false);
           triggerRazorpayCheckout(data.request._id, data.order);
         } else {
-          alert("Business listing request submitted successfully!");
-          handleCloseLeadModal();
+          // Free or ₹0 listing request
+          const formattedDate = new Date().toLocaleString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          });
+          const locationStr = [area, town, district, state, pinCode ? `PIN: ${pinCode}` : ""].filter(Boolean).join(", ");
+          const hoursStr = isTimeMandatory ? `${openTime} - ${closeTime}` : "Regular Working Hours";
+
+          setSuccessData({
+            requestId: data.request?._id || data.request?.id || "REQ-" + Date.now().toString().slice(-6),
+            businessName,
+            ownerName,
+            category,
+            contactNumber: `${contactCode} ${contactNo}`,
+            whatsappNumber: `${whatsappCode} ${whatsappNo}`,
+            email: email || undefined,
+            location: locationStr,
+            addressDetails: addressDetails || undefined,
+            operatingHours: hoursStr,
+            submittedAt: formattedDate,
+            employeeName: employeeName !== "None" ? employeeName : undefined,
+            amount: 0,
+            paymentStatus: "Free",
+          });
+          setIsPaymentStep(false);
+          setIsSubmittingForm(false);
+          setIsSuccessStep(true);
         }
       } else {
         alert(data.message || "Failed to submit request.");
@@ -526,9 +574,45 @@ export default function Footer() {
     }
   };
 
+  const handleResetLeadForm = () => {
+    setBusinessName("");
+    setCategory(categories && categories.length > 0 ? categories[0].label : "Restaurant");
+    setOwnerName("");
+    setContactNo("");
+    setWhatsappNo("");
+    setEmail("");
+    setOtp("");
+    setOtpSent(false);
+    setIsOtpVerified(false);
+    setOtpTimer(0);
+    setOtpMessage(null);
+    setAddressDetails("");
+    setPhotos(["", "", "", ""]);
+    setOpenHour("09");
+    setOpenMinute("00");
+    setOpenPeriod("AM");
+    setCloseHour("09");
+    setCloseMinute("00");
+    setClosePeriod("PM");
+    setIsTimeMandatory(true);
+    setCountry("India");
+    setArea("");
+    setTown("");
+    setCity("");
+    setPinCode("");
+    setEmployeeName("None");
+    setCurrentRequestId("");
+    setCurrentOrder(null);
+    setIsPaymentStep(false);
+    setIsSuccessStep(false);
+    setSuccessData(null);
+  };
+
   const handleCloseLeadModal = () => {
     setShowLeadForm(false);
     setIsPaymentStep(false);
+    setIsSuccessStep(false);
+    setSuccessData(null);
     setOtp("");
     setOtpSent(false);
     setIsOtpVerified(false);
@@ -1148,8 +1232,155 @@ export default function Footer() {
               </button>
             </div>
 
-            {/* Form Fields Container */}
-            {!isPaymentStep ? (
+            {/* Modal Body: Success Step OR Form Step OR Payment Step */}
+            {isSuccessStep && successData ? (
+              <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-3 sm:space-y-3.5 text-center relative no-scrollbar animate-in fade-in zoom-in-95 duration-200">
+                {/* 1. Cracker & Confetti Fireworks Canvas */}
+                <CelebrationConfetti />
+
+                {/* 2. Success Icon & Header */}
+                <div className="relative z-10 flex flex-col items-center justify-center">
+                  <div className="relative flex items-center justify-center">
+                    <div className="absolute -inset-2 rounded-full bg-emerald-500/20 blur-md animate-pulse" />
+                    <div className="relative h-11 w-11 sm:h-13 sm:w-13 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-emerald-400 text-white flex items-center justify-center shadow-md shadow-emerald-500/30">
+                      <CheckCircle2 className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={2.5} />
+                    </div>
+                    <div className="absolute -top-1 -right-1 p-1 rounded-full bg-amber-400 text-slate-950 shadow-xs animate-bounce">
+                      <Sparkles className="h-3 w-3 fill-current" />
+                    </div>
+                  </div>
+
+                  <span className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-2xs">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+                    Request Registered Successfully
+                  </span>
+
+                  <h3 className="font-serif text-base sm:text-lg font-black text-slate-900 dark:text-white mt-1">
+                    Thank You, {successData.ownerName}!
+                  </h3>
+                  <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-sm mx-auto leading-tight line-clamp-1">
+                    Listing request for <span className="font-bold text-slate-900 dark:text-white">{successData.businessName}</span> is queued for admin review.
+                  </p>
+                </div>
+
+                {/* 3. Official Summary & Reference Card */}
+                <div className="relative z-10 bg-slate-50/80 dark:bg-slate-955/60 border border-slate-200/80 dark:border-slate-800/80 rounded-xl p-3 sm:p-3.5 text-left space-y-2.5 shadow-2xs">
+                  {/* Reference ID Row */}
+                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200/70 dark:border-slate-800">
+                    <div className="min-w-0">
+                      <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                        Application Reference ID
+                      </span>
+                      <span className="text-[11.5px] sm:text-xs font-mono font-black text-indigo-600 dark:text-indigo-400 truncate block">
+                        {successData.requestId}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(successData.requestId);
+                        setIsCopiedRef(true);
+                        setTimeout(() => setIsCopiedRef(false), 2000);
+                      }}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[9.5px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:text-indigo-600 transition cursor-pointer shrink-0"
+                    >
+                      {isCopiedRef ? (
+                        <>
+                          <Check className="h-3 w-3 text-emerald-500" />
+                          <span className="text-emerald-600">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3 text-slate-400" />
+                          <span>Copy ID</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Summary Details Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10.5px]">
+                    <div>
+                      <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wide block">Category</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 truncate block">{successData.category}</span>
+                    </div>
+                    <div>
+                      <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wide block">Contact Phone</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 truncate block">{successData.contactNumber}</span>
+                    </div>
+                    <div>
+                      <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wide block">Payment Status</span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 truncate">
+                        <CheckCircle2 className="h-3 w-3 shrink-0" />
+                        {successData.amount > 0 ? `Paid (₹${successData.amount})` : "Free"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wide block">Submitted On</span>
+                      <span className="font-semibold text-slate-600 dark:text-slate-400 truncate block">
+                        {successData.submittedAt}
+                      </span>
+                    </div>
+
+                    {/* Location & Payment ID */}
+                    <div className="col-span-2 sm:col-span-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 pt-1 border-t border-slate-100 dark:border-slate-800/60">
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wide">Location: </span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200 truncate" title={successData.location}>
+                          {successData.location}
+                        </span>
+                      </div>
+                      {successData.paymentId && (
+                        <div className="min-w-0 shrink-0">
+                          <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wide">Pay ID: </span>
+                          <span className="font-mono font-bold text-slate-700 dark:text-slate-300 text-[10px]">
+                            {successData.paymentId}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Verification Notice */}
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 flex items-center gap-1.5 text-[10px] text-indigo-800 dark:text-indigo-300 font-semibold">
+                    <ShieldCheck className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                    <span>Our executive will verify your business details within 2-4 hours.</span>
+                  </div>
+                </div>
+
+                {/* 4. Action Buttons (Download Receipt & Done) */}
+                <div className="relative z-10 flex flex-col sm:flex-row items-center gap-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => generateLeadReceiptPDF(successData)}
+                    className="w-full sm:flex-1 bg-gradient-to-r from-indigo-600 via-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md shadow-indigo-600/20 flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider cursor-pointer active:scale-[0.99] transition"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Download Official Receipt (PDF)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCloseLeadModal}
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider transition cursor-pointer"
+                  >
+                    Done & Close
+                  </button>
+                </div>
+
+                {/* Submit Another Request link */}
+                <div className="relative z-10 pt-0.5 pb-0.5">
+                  <button
+                    type="button"
+                    onClick={handleResetLeadForm}
+                    className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer inline-flex items-center gap-1"
+                  >
+                    <RefreshCw className="h-2.5 w-2.5" />
+                    Submit Another Listing Request
+                  </button>
+                </div>
+              </div>
+            ) : !isPaymentStep ? (
               <form onSubmit={handleLeadFormSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5 no-scrollbar">
 
                 {/* Part 1: Core Details */}
@@ -1214,12 +1445,11 @@ export default function Footer() {
                   {/* E-mail */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                      E-mail *
+                      E-mail (Optional)
                     </label>
                     <input
                       type="email"
-                      required
-                      placeholder="e.g. owner@gmail.com"
+                      placeholder="e.g. owner@gmail.com (optional)"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full bg-slate-50 dark:bg-slate-955 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"

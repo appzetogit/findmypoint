@@ -6,7 +6,7 @@ const BusinessRequestSchema = new mongoose.Schema({
   ownerName: { type: String, required: true },
   contactNumber: { type: String, required: true },
   whatsappNumber: { type: String, required: true },
-  email: { type: String, required: true },
+  email: { type: String, default: '' },
   addressDetails: { type: String, required: true },
   photos: [{ type: String }],
   openTime: { type: String },

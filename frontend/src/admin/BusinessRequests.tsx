@@ -12,7 +12,7 @@ interface BusinessRequest {
   whatsappNumber: string;
   email: string;
   addressDetails: string;
-  photos: string[]; // 4 base64 images
+  photos: string[];
   openTime: string;
   closeTime: string;
   isTimeMandatory: boolean;
@@ -457,12 +457,12 @@ export default function BusinessRequests() {
             {/* Scrollable details container */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
               
-              {/* Business Photos Grid (Exactly 4 photos) */}
+              {/* Business Photos Grid (Dynamic up to 6 photos) */}
               <div className="space-y-2">
                 <h4 className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  Uploaded Business Photos (4 clicks)
+                  Uploaded Business Photos ({viewingRequest.photos?.length || 0} photos)
                 </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                   {viewingRequest.photos.map((photo, index) => (
                     <div
                       key={index}

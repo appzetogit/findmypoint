@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import logoImg from "@/assets/logo.png";
 import { loadFooterData, FooterData } from "../data/footerData";
 import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
@@ -19,6 +19,11 @@ import {
   Copy,
   Check,
   RefreshCw,
+  Camera,
+  UploadCloud,
+  SwitchCamera,
+  RotateCcw,
+  CameraOff,
 } from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
 import { LazyImage } from "../components/ui/LazyImage";
@@ -115,7 +120,22 @@ export default function Footer() {
   const [whatsappNo, setWhatsappNo] = useState("");
   const [email, setEmail] = useState("");
   const [addressDetails, setAddressDetails] = useState("");
-  const [photos, setPhotos] = useState<string[]>(["", "", "", ""]);
+  const [photos, setPhotos] = useState<string[]>(["", "", "", "", "", ""]);
+
+  // Camera & Photo Source modal states
+  const [activePhotoSlot, setActivePhotoSlot] = useState<number | null>(null);
+  const [showPhotoSourceModal, setShowPhotoSourceModal] = useState(false);
+  const [showWebcamModal, setShowWebcamModal] = useState(false);
+  const [webcamStream, setWebcamStream] = useState<MediaStream | null>(null);
+  const [cameraFacingMode, setCameraFacingMode] = useState<"user" | "environment">("environment");
+  const [capturedPhotoTemp, setCapturedPhotoTemp] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isCameraStarting, setIsCameraStarting] = useState(false);
+
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [openTime, setOpenTime] = useState("");
   const [closeTime, setCloseTime] = useState("");
   const [openHour, setOpenHour] = useState("09");
@@ -326,6 +346,182 @@ export default function Footer() {
     }
   };
 
+  // Start live webcam for desktop or live viewfinder
+  const startWebcam = async (facing: "user" | "environment" = cameraFacingMode) => {
+    setIsCameraStarting(true);
+    setCameraError(null);
+    setCapturedPhotoTemp(null);
+
+    // Stop existing stream if running
+    if (webcamStream) {
+      webcamStream.getTracks().forEach((track) => track.stop());
+      setWebcamStream(null);
+    }
+
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Webcam access is not supported by your browser. Please upload from gallery or device.");
+      }
+
+      const constraints: MediaStreamConstraints = {
+        video: {
+          facingMode: facing,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      setWebcamStream(stream);
+      setShowWebcamModal(true);
+      setShowPhotoSourceModal(false);
+
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch((playErr) => console.warn("Video play error:", playErr));
+        }
+      }, 100);
+    } catch (err: any) {
+      console.warn("Live webcam stream failed, trying fallback:", err);
+      try {
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        setWebcamStream(fallbackStream);
+        setShowWebcamModal(true);
+        setShowPhotoSourceModal(false);
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.srcObject = fallbackStream;
+            videoRef.current.play().catch((playErr) => console.warn("Fallback video play error:", playErr));
+          }
+        }, 100);
+      } catch (fallbackErr: any) {
+        setCameraError(fallbackErr.message || "Unable to access camera. Please allow camera permissions or upload from files.");
+        setShowWebcamModal(true);
+        setShowPhotoSourceModal(false);
+      }
+    } finally {
+      setIsCameraStarting(false);
+    }
+  };
+
+  const stopWebcam = () => {
+    if (webcamStream) {
+      webcamStream.getTracks().forEach((t) => t.stop());
+      setWebcamStream(null);
+    }
+    setShowWebcamModal(false);
+    setCapturedPhotoTemp(null);
+    setCameraError(null);
+  };
+
+  const toggleCameraFacingMode = () => {
+    const nextFacing = cameraFacingMode === "environment" ? "user" : "environment";
+    setCameraFacingMode(nextFacing);
+    startWebcam(nextFacing);
+  };
+
+  const captureWebcamSnapshot = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current || document.createElement("canvas");
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    if (cameraFacingMode === "user") {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    setCapturedPhotoTemp(dataUrl);
+  };
+
+  const confirmCapturedWebcamPhoto = async () => {
+    if (!capturedPhotoTemp || activePhotoSlot === null) return;
+    try {
+      const res = await fetch(capturedPhotoTemp);
+      const blob = await res.blob();
+      const file = new File([blob], `photo_${activePhotoSlot + 1}.jpg`, { type: "image/jpeg" });
+      await handlePhotoUpload(activePhotoSlot, file);
+    } catch (err) {
+      console.warn("Direct capture set fallback:", err);
+      const newPhotos = [...photos];
+      newPhotos[activePhotoSlot] = capturedPhotoTemp;
+      setPhotos(newPhotos);
+    } finally {
+      stopWebcam();
+      setActivePhotoSlot(null);
+    }
+  };
+
+  // Trigger Native Camera on mobile or Live Viewfinder on desktop
+  const handleTriggerCamera = () => {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile && nativeCameraInputRef.current) {
+      setShowPhotoSourceModal(false);
+      nativeCameraInputRef.current.click();
+    } else {
+      startWebcam(cameraFacingMode);
+    }
+  };
+
+  const handleTriggerGallery = () => {
+    setShowPhotoSourceModal(false);
+    galleryInputRef.current?.click();
+  };
+
+  const handleGalleryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (file && activePhotoSlot !== null) {
+      handlePhotoUpload(activePhotoSlot, file);
+    }
+    e.target.value = "";
+    setActivePhotoSlot(null);
+  };
+
+  const handleNativeCameraFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (file && activePhotoSlot !== null) {
+      handlePhotoUpload(activePhotoSlot, file);
+    }
+    e.target.value = "";
+    setActivePhotoSlot(null);
+  };
+
+  // Clean up webcam tracks on unmount
+  useEffect(() => {
+    return () => {
+      if (webcamStream) {
+        webcamStream.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, [webcamStream]);
+
+  // Support direct link / hash open (#lead-generator or ?open=lead-generator)
+  useEffect(() => {
+    const handleUrlOpen = () => {
+      const isHash = window.location.hash === "#lead-generator";
+      const params = new URLSearchParams(window.location.search);
+      const isParam = params.get("open") === "lead-generator" || params.get("lead") === "true";
+      if (isHash || isParam) {
+        setShowLeadForm(true);
+      }
+    };
+    handleUrlOpen();
+    window.addEventListener("hashchange", handleUrlOpen);
+    const handleCustomOpen = () => setShowLeadForm(true);
+    window.addEventListener("fmp-open-lead-generator", handleCustomOpen);
+
+    return () => {
+      window.removeEventListener("hashchange", handleUrlOpen);
+      window.removeEventListener("fmp-open-lead-generator", handleCustomOpen);
+    };
+  }, []);
+
   const triggerRazorpayCheckout = async (requestId: string, order: any) => {
     if (!order) return;
     setIsProcessingPayment(true);
@@ -471,8 +667,9 @@ export default function Footer() {
       }
     }
 
-    if (photos.some((p) => !p)) {
-      alert("Please upload exactly 4 business photos.");
+    const validPhotos = photos.filter((p) => p && p.trim() !== "");
+    if (validPhotos.length < 2) {
+      alert("Please upload at least 2 business photos (e.g. Front Banner & Inside view).");
       return;
     }
     setIsSubmittingForm(true);
@@ -487,7 +684,7 @@ export default function Footer() {
         whatsappNumber: `${whatsappCode} ${whatsappNo}`,
         email,
         addressDetails,
-        photos,
+        photos: validPhotos,
         openTime: openTime || "",
         closeTime: closeTime || "",
         isTimeMandatory,
@@ -587,7 +784,10 @@ export default function Footer() {
     setOtpTimer(0);
     setOtpMessage(null);
     setAddressDetails("");
-    setPhotos(["", "", "", ""]);
+    setPhotos(["", "", "", "", "", ""]);
+    setActivePhotoSlot(null);
+    setShowPhotoSourceModal(false);
+    stopWebcam();
     setOpenHour("09");
     setOpenMinute("00");
     setOpenPeriod("AM");
@@ -609,6 +809,9 @@ export default function Footer() {
   };
 
   const handleCloseLeadModal = () => {
+    stopWebcam();
+    setShowPhotoSourceModal(false);
+    setActivePhotoSlot(null);
     setShowLeadForm(false);
     setIsPaymentStep(false);
     setIsSuccessStep(false);
@@ -618,6 +821,9 @@ export default function Footer() {
     setIsOtpVerified(false);
     setOtpTimer(0);
     setOtpMessage(null);
+    if (window.location.hash === "#lead-generator") {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
     window.dispatchEvent(new CustomEvent("fmp-navigate-home"));
     window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
   };
@@ -1868,45 +2074,88 @@ export default function Footer() {
                   </div>
                 </div>
 
-                {/* Part 4: Upload exactly 4 photos */}
-                <div className="bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-4.5 space-y-4">
-                  <span className="text-[11px] font-bold text-indigo-650 dark:text-indigo-400 tracking-wider block">
-                    Business Photos (Upload exactly 4 clicks) *
-                  </span>
+                {/* Part 4: Upload Business Photos (6 slots) */}
+                <div className="bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-850/60 rounded-2xl p-4 sm:p-4.5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] font-bold text-indigo-650 dark:text-indigo-400 tracking-wider block">
+                        Business Photos (6 slots) *
+                      </span>
+                      <span className="text-[9.5px] text-slate-450 dark:text-slate-500 font-medium">
+                        Click slot to Take Camera photo or Upload from Gallery (Min 2 required)
+                      </span>
+                    </div>
+                    <span className="text-[9.5px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-full border border-indigo-100/50 dark:border-indigo-900/30">
+                      {photos.filter((p) => p && p.trim() !== "").length}/6 Added
+                    </span>
+                  </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {Array.from({ length: 4 }).map((_, idx) => (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 sm:gap-3">
+                    {Array.from({ length: 6 }).map((_, idx) => (
                       <div
                         key={idx}
-                        className="relative aspect-square rounded-xl bg-white dark:bg-slate-950 border border-dashed border-slate-250 dark:border-slate-800 hover:border-indigo-500 transition-all flex flex-col items-center justify-center overflow-hidden"
+                        className={`group relative aspect-square rounded-2xl transition-all flex flex-col items-center justify-center overflow-hidden border ${
+                          photos[idx]
+                            ? "bg-slate-900 border-indigo-500/40 shadow-sm"
+                            : "bg-white dark:bg-slate-950 border-dashed border-slate-250 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-500/80 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/10 cursor-pointer"
+                        }`}
+                        onClick={() => {
+                          if (!photos[idx]) {
+                            setActivePhotoSlot(idx);
+                            setShowPhotoSourceModal(true);
+                          }
+                        }}
                       >
                         {photos[idx] ? (
                           <>
                             <LazyImage
                               src={photos[idx]}
-                              alt={`Upload ${idx + 1}`}
+                              alt={`Photo ${idx + 1}`}
                               className="h-full w-full"
                               imgClassName="h-full w-full object-cover"
                             />
+                            {/* Slot Tag */}
+                            <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-[8.5px] font-bold text-white uppercase tracking-wider z-10">
+                              #{idx + 1}
+                            </span>
+                            {/* Delete Button */}
                             <button
                               type="button"
-                              onClick={() => handlePhotoUpload(idx, null)}
-                              className="absolute top-1 right-1 h-5 w-5 bg-rose-500/80 hover:bg-rose-600 rounded-full flex items-center justify-center text-white text-[10px] font-bold cursor-pointer z-10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePhotoUpload(idx, null);
+                              }}
+                              className="absolute top-1.5 right-1.5 h-6 w-6 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center text-xs font-black shadow-md cursor-pointer transition-transform active:scale-90 z-20"
+                              title="Remove photo"
                             >
-                              ×
+                              <X className="h-3 w-3" strokeWidth={3} />
+                            </button>
+                            {/* Change Button Overlay */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActivePhotoSlot(idx);
+                                setShowPhotoSourceModal(true);
+                              }}
+                              className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent py-2 flex items-center justify-center gap-1 text-[9.5px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-15"
+                            >
+                              <Camera className="h-3 w-3" />
+                              <span>Change</span>
                             </button>
                           </>
                         ) : (
-                          <label className="w-full h-full flex flex-col items-center justify-center p-2 cursor-pointer">
-                            <ImageIcon className="h-5 w-5 text-slate-400" />
-                            <span className="text-[9px] text-slate-400 font-bold mt-1">Photo {idx + 1}</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => handlePhotoUpload(idx, e.target.files?.[0] || null)}
-                              className="hidden"
-                            />
-                          </label>
+                          <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center select-none">
+                            <div className="h-8 w-8 rounded-xl bg-indigo-50 dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform mb-1 shadow-2xs">
+                              <Camera className="h-4 w-4" />
+                            </div>
+                            <span className="text-[10px] text-slate-700 dark:text-slate-300 font-extrabold block">
+                              Photo {idx + 1}
+                            </span>
+                            <span className="text-[8.5px] text-indigo-600 dark:text-indigo-400 font-bold block mt-0.5">
+                              + Add Photo
+                            </span>
+                          </div>
                         )}
                       </div>
                     ))}
@@ -2031,6 +2280,247 @@ export default function Footer() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Hidden File Inputs for Native Camera & Gallery */}
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleGalleryFileChange}
+      />
+      <input
+        ref={nativeCameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleNativeCameraFileChange}
+      />
+
+      {/* Photo Source Picker Modal (Take Camera vs Upload Gallery) */}
+      {showPhotoSourceModal && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in text-left">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl border border-slate-100 dark:border-slate-800 relative animate-zoom-in">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                  <Camera className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                    Add Photo {activePhotoSlot !== null ? activePhotoSlot + 1 : ""}
+                  </h4>
+                  <p className="text-[10px] text-slate-450 dark:text-slate-500 font-medium">
+                    Choose an upload method
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPhotoSourceModal(false);
+                  setActivePhotoSlot(null);
+                }}
+                className="h-7 w-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-955/20 text-slate-400 hover:text-rose-600 transition flex items-center justify-center cursor-pointer"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            {/* Options */}
+            <div className="mt-4 space-y-2.5">
+              {/* Option 1: Take Photo (Camera) */}
+              <button
+                type="button"
+                onClick={handleTriggerCamera}
+                disabled={isCameraStarting}
+                className="w-full group p-3.5 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/20 hover:from-indigo-100 hover:to-purple-100 dark:hover:from-indigo-950/50 dark:hover:to-purple-950/40 border border-indigo-100 dark:border-indigo-900/40 flex items-center gap-3.5 transition-all text-left cursor-pointer active:scale-[0.99]"
+              >
+                <div className="h-11 w-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30 group-hover:scale-105 transition-transform shrink-0">
+                  <Camera className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white block">
+                    Take Photo (Camera)
+                  </span>
+                  <span className="text-[10.5px] text-slate-500 dark:text-slate-400 block truncate">
+                    Click a fresh photo right now with camera
+                  </span>
+                </div>
+              </button>
+
+              {/* Option 2: Upload from Gallery */}
+              <button
+                type="button"
+                onClick={handleTriggerGallery}
+                className="w-full group p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-955/40 dark:hover:bg-slate-850/60 border border-slate-200 dark:border-slate-800 flex items-center gap-3.5 transition-all text-left cursor-pointer active:scale-[0.99]"
+              >
+                <div className="h-11 w-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20 group-hover:scale-105 transition-transform shrink-0">
+                  <ImageIcon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white block">
+                    Upload from Gallery
+                  </span>
+                  <span className="text-[10.5px] text-slate-500 dark:text-slate-400 block truncate">
+                    Select from photo gallery or files
+                  </span>
+                </div>
+              </button>
+            </div>
+
+            {/* Cancel */}
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPhotoSourceModal(false);
+                  setActivePhotoSlot(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Live Camera Viewfinder Modal */}
+      {showWebcamModal && (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in text-left">
+          <div className="bg-slate-950 rounded-3xl border border-slate-800 max-w-lg w-full overflow-hidden shadow-2xl flex flex-col relative animate-zoom-in">
+            {/* Viewfinder Header */}
+            <div className="px-4 py-3 border-b border-slate-850 flex items-center justify-between text-white bg-slate-900/80">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-xs font-bold uppercase tracking-wider">
+                  Live Camera • Photo {activePhotoSlot !== null ? activePhotoSlot + 1 : ""}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleCameraFacingMode}
+                  title="Switch Front/Rear Camera"
+                  className="h-8 w-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition cursor-pointer"
+                >
+                  <SwitchCamera className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={stopWebcam}
+                  className="h-8 w-8 rounded-xl bg-slate-800 hover:bg-rose-600 text-slate-200 flex items-center justify-center transition cursor-pointer"
+                  title="Close Camera"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Viewfinder Video Area */}
+            <div className="relative aspect-[4/3] bg-black flex items-center justify-center overflow-hidden">
+              {cameraError ? (
+                <div className="p-6 text-center text-white space-y-3 max-w-xs">
+                  <div className="h-12 w-12 rounded-2xl bg-rose-500/20 text-rose-500 flex items-center justify-center mx-auto">
+                    <CameraOff className="h-6 w-6" />
+                  </div>
+                  <h4 className="text-sm font-bold">Camera Unavailable</h4>
+                  <p className="text-xs text-slate-400">{cameraError}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      stopWebcam();
+                      galleryInputRef.current?.click();
+                    }}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-md"
+                  >
+                    Select from Files Instead
+                  </button>
+                </div>
+              ) : capturedPhotoTemp ? (
+                /* Freeze Preview */
+                <img
+                  src={capturedPhotoTemp}
+                  alt="Captured snapshot"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                /* Live Stream */
+                <>
+                  <video
+                    ref={videoRef}
+                    playsInline
+                    autoPlay
+                    muted
+                    className={`w-full h-full object-cover ${cameraFacingMode === "user" ? "-scale-x-100" : ""}`}
+                  />
+                  {/* Viewfinder Guideline Box */}
+                  <div className="absolute inset-8 sm:inset-12 border-2 border-white/30 rounded-2xl pointer-events-none flex flex-col justify-between p-2">
+                    <div className="flex justify-between">
+                      <div className="h-4 w-4 border-t-2 border-l-2 border-indigo-400" />
+                      <div className="h-4 w-4 border-t-2 border-r-2 border-indigo-400" />
+                    </div>
+                    <div className="flex justify-between">
+                      <div className="h-4 w-4 border-b-2 border-l-2 border-indigo-400" />
+                      <div className="h-4 w-4 border-b-2 border-r-2 border-indigo-400" />
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Hidden canvas for capturing frame */}
+            <canvas ref={canvasRef} className="hidden" />
+
+            {/* Viewfinder Controls Footer */}
+            <div className="p-4 bg-slate-900 border-t border-slate-850 flex items-center justify-center gap-3">
+              {capturedPhotoTemp ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setCapturedPhotoTemp(null)}
+                    className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    <span>Retake Photo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmCapturedWebcamPhoto}
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer shadow-lg shadow-emerald-600/30"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Use This Photo</span>
+                  </button>
+                </>
+              ) : !cameraError ? (
+                <div className="flex items-center justify-center w-full relative">
+                  {/* Big Circular Shutter Button */}
+                  <button
+                    type="button"
+                    onClick={captureWebcamSnapshot}
+                    className="h-16 w-16 rounded-full border-4 border-white p-1 flex items-center justify-center transition transform active:scale-95 cursor-pointer hover:border-indigo-400"
+                    title="Capture Photo"
+                  >
+                    <div className="h-full w-full rounded-full bg-white hover:bg-indigo-100 transition shadow-lg" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={stopWebcam}
+                  className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+                >
+                  Close
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

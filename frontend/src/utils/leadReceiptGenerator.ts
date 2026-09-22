@@ -10,6 +10,7 @@ export interface LeadReceiptData {
   email?: string;
   location: string;
   addressDetails?: string;
+  locationUrl?: string;
   operatingHours?: string;
   submittedAt: string;
   employeeName?: string;

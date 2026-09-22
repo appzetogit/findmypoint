@@ -8,6 +8,7 @@ const BusinessRequestSchema = new mongoose.Schema({
   whatsappNumber: { type: String, required: true },
   email: { type: String, default: '' },
   addressDetails: { type: String, required: true },
+  locationUrl: { type: String, default: '' },
   photos: [{ type: String }],
   openTime: { type: String },
   closeTime: { type: String },

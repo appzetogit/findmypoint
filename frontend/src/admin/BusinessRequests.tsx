@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Eye, Trash2, Calendar, Clock, MapPin, Phone, Mail, User, ShieldCheck, Image as ImageIcon, X } from "lucide-react";
+import { Search, Eye, Trash2, Calendar, Clock, MapPin, Phone, Mail, User, ShieldCheck, Image as ImageIcon, X, ExternalLink } from "lucide-react";
 import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
 import { LazyImage } from "../components/ui/LazyImage";
 
@@ -12,6 +12,7 @@ interface BusinessRequest {
   whatsappNumber: string;
   email: string;
   addressDetails: string;
+  locationUrl?: string;
   photos: string[];
   openTime: string;
   closeTime: string;
@@ -599,6 +600,22 @@ export default function BusinessRequests() {
                   <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Specific Address Details</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-350 mt-1 block leading-relaxed">{viewingRequest.addressDetails}</span>
                 </div>
+
+                {viewingRequest.locationUrl && (
+                  <div className="pt-3 border-t border-slate-150/50 dark:border-slate-850/40 text-xs">
+                    <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Google Maps Live Location</span>
+                    <a
+                      href={viewingRequest.locationUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 mt-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-950/60 font-bold text-xs transition border border-indigo-200/50 dark:border-indigo-900/30"
+                    >
+                      <MapPin className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                      <span className="truncate max-w-sm">{viewingRequest.locationUrl}</span>
+                      <ExternalLink className="h-3 w-3 shrink-0 ml-1" />
+                    </a>
+                  </div>
+                )}
               </div>
 
             </div>

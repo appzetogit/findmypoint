@@ -27,6 +27,8 @@ import {
   AlertCircle,
   ExternalLink,
   Navigation,
+  Clock,
+  CreditCard,
 } from "lucide-react";
 import { useCategories } from "../context/CategoryContext";
 import { LazyImage } from "../components/ui/LazyImage";
@@ -591,6 +593,40 @@ export default function Footer() {
     );
   };
 
+  const showPendingSuccess = (reqId?: string, feeAmt?: number) => {
+    const formattedDate = new Date().toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+    const locationStr = [area, town, district, state, pinCode ? `PIN: ${pinCode}` : ""].filter(Boolean).join(", ");
+    const hoursStr = isTimeMandatory ? `${openTime} - ${closeTime}` : "Regular Working Hours";
+
+    setSuccessData({
+      requestId: reqId || currentRequestId || "REQ-" + Date.now().toString().slice(-6),
+      businessName,
+      ownerName,
+      category,
+      contactNumber: `${contactCode} ${contactNo}`,
+      whatsappNumber: `${whatsappCode} ${whatsappNo}`,
+      email: email || undefined,
+      location: locationStr,
+      addressDetails: addressDetails || undefined,
+      locationUrl: locationUrl || undefined,
+      operatingHours: hoursStr,
+      submittedAt: formattedDate,
+      employeeName: employeeName !== "None" ? employeeName : undefined,
+      amount: feeAmt !== undefined ? feeAmt : (parseFloat(listingRequestFee) || 0),
+      paymentStatus: "Pending",
+    });
+    setIsPaymentStep(false);
+    setIsSubmittingForm(false);
+    setIsSuccessStep(true);
+  };
+
   const triggerRazorpayCheckout = async (requestId: string, order: any) => {
     if (!order) return;
     setIsProcessingPayment(true);
@@ -684,6 +720,7 @@ export default function Footer() {
       modal: {
         ondismiss: () => {
           setIsProcessingPayment(false);
+          showPendingSuccess(requestId, parseFloat(listingRequestFee) || 0);
         }
       }
     };
@@ -698,8 +735,8 @@ export default function Footer() {
     }
   };
 
-  const handleLeadFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLeadFormSubmit = async (e?: React.FormEvent, skipPayment = false) => {
+    if (e) e.preventDefault();
 
     // Verify OTP first
     if (!isOtpVerified) {
@@ -794,10 +831,13 @@ export default function Footer() {
         setCurrentOrder(data.order);
 
         const hasFee = Number(listingRequestFee) > 0 && data.order;
-        if (hasFee) {
+        if (hasFee && !skipPayment) {
           setIsPaymentStep(true);
           setIsSubmittingForm(false);
           triggerRazorpayCheckout(data.request._id, data.order);
+        } else if (hasFee && skipPayment) {
+          setIsSubmittingForm(false);
+          showPendingSuccess(data.request._id, Number(listingRequestFee) || 0);
         } else {
           // Free or ₹0 listing request
           const formattedDate = new Date().toLocaleString("en-IN", {
@@ -1523,19 +1563,37 @@ export default function Footer() {
                 {/* 2. Success Icon & Header */}
                 <div className="relative z-10 flex flex-col items-center justify-center">
                   <div className="relative flex items-center justify-center">
-                    <div className="absolute -inset-2 rounded-full bg-emerald-500/20 blur-md animate-pulse" />
-                    <div className="relative h-11 w-11 sm:h-13 sm:w-13 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-emerald-400 text-white flex items-center justify-center shadow-md shadow-emerald-500/30">
-                      <CheckCircle2 className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={2.5} />
-                    </div>
+                    {successData.paymentStatus === "Paid" ? (
+                      <>
+                        <div className="absolute -inset-2 rounded-full bg-emerald-500/20 blur-md animate-pulse" />
+                        <div className="relative h-11 w-11 sm:h-13 sm:w-13 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-emerald-400 text-white flex items-center justify-center shadow-md shadow-emerald-500/30">
+                          <CheckCircle2 className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={2.5} />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="absolute -inset-2 rounded-full bg-amber-500/20 blur-md animate-pulse" />
+                        <div className="relative h-11 w-11 sm:h-13 sm:w-13 rounded-2xl bg-gradient-to-tr from-amber-500 via-orange-500 to-amber-400 text-white flex items-center justify-center shadow-md shadow-amber-500/30">
+                          <Clock className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={2.5} />
+                        </div>
+                      </>
+                    )}
                     <div className="absolute -top-1 -right-1 p-1 rounded-full bg-amber-400 text-slate-950 shadow-xs animate-bounce">
                       <Sparkles className="h-3 w-3 fill-current" />
                     </div>
                   </div>
 
-                  <span className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-2xs">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
-                    Request Registered Successfully
-                  </span>
+                  {successData.paymentStatus === "Paid" ? (
+                    <span className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-2xs">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+                      Request Registered Successfully
+                    </span>
+                  ) : (
+                    <span className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-2xs">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
+                      Request Registered (Payment Pending)
+                    </span>
+                  )}
 
                   <h3 className="font-serif text-base sm:text-lg font-black text-slate-900 dark:text-white mt-1">
                     Thank You, {successData.ownerName}!
@@ -1547,38 +1605,6 @@ export default function Footer() {
 
                 {/* 3. Official Summary & Reference Card */}
                 <div className="relative z-10 bg-slate-50/80 dark:bg-slate-955/60 border border-slate-200/80 dark:border-slate-800/80 rounded-xl p-3 sm:p-3.5 text-left space-y-2.5 shadow-2xs">
-                  {/* Reference ID Row */}
-                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200/70 dark:border-slate-800">
-                    <div className="min-w-0">
-                      <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
-                        Application Reference ID
-                      </span>
-                      <span className="text-[11.5px] sm:text-xs font-mono font-black text-indigo-600 dark:text-indigo-400 truncate block">
-                        {successData.requestId}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(successData.requestId);
-                        setIsCopiedRef(true);
-                        setTimeout(() => setIsCopiedRef(false), 2000);
-                      }}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[9.5px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:text-indigo-600 transition cursor-pointer shrink-0"
-                    >
-                      {isCopiedRef ? (
-                        <>
-                          <Check className="h-3 w-3 text-emerald-500" />
-                          <span className="text-emerald-600">Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3 w-3 text-slate-400" />
-                          <span>Copy ID</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
 
                   {/* Summary Details Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10.5px]">
@@ -1592,10 +1618,21 @@ export default function Footer() {
                     </div>
                     <div>
                       <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wide block">Payment Status</span>
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 truncate">
-                        <CheckCircle2 className="h-3 w-3 shrink-0" />
-                        {successData.amount > 0 ? `Paid (₹${successData.amount})` : "Free"}
-                      </span>
+                      {successData.paymentStatus === "Paid" ? (
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 truncate">
+                          <CheckCircle2 className="h-3 w-3 shrink-0" />
+                          {successData.amount > 0 ? `Paid (₹${successData.amount})` : "Free"}
+                        </span>
+                      ) : successData.paymentStatus === "Pending" ? (
+                        <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-0.5 truncate">
+                          <Clock className="h-3 w-3 shrink-0" />
+                          Pending (₹{successData.amount})
+                        </span>
+                      ) : (
+                        <span className="font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-0.5 truncate">
+                          Free
+                        </span>
+                      )}
                     </div>
                     <div>
                       <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wide block">Submitted On</span>
@@ -1630,8 +1667,9 @@ export default function Footer() {
                   </div>
                 </div>
 
-                {/* 4. Action Buttons (Download Receipt & Done) */}
+                {/* 4. Action Buttons (Download Receipt & Done & Pay Now if Pending) */}
                 <div className="relative z-10 flex flex-col sm:flex-row items-center gap-2 pt-0.5">
+
                   <button
                     type="button"
                     onClick={() => generateLeadReceiptPDF(successData)}
@@ -1650,17 +1688,6 @@ export default function Footer() {
                   </button>
                 </div>
 
-                {/* Submit Another Request link */}
-                <div className="relative z-10 pt-0.5 pb-0.5">
-                  <button
-                    type="button"
-                    onClick={handleResetLeadForm}
-                    className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer inline-flex items-center gap-1"
-                  >
-                    <RefreshCw className="h-2.5 w-2.5" />
-                    Submit Another Listing Request
-                  </button>
-                </div>
               </div>
             ) : !isPaymentStep ? (
               <form onSubmit={handleLeadFormSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5 no-scrollbar">
@@ -2341,28 +2368,44 @@ export default function Footer() {
                 </div>
 
                 {/* Footer Form Actions */}
-                <div className="flex items-center justify-end gap-2.5 pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800/80 shrink-0 bg-white dark:bg-slate-900">
+                <div className="flex flex-nowrap items-center justify-end gap-1.5 sm:gap-2 pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800/80 shrink-0 bg-white dark:bg-slate-900 overflow-x-auto no-scrollbar">
                   <button
                     type="button"
                     onClick={handleCloseLeadModal}
-                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-xs font-bold rounded-xl transition cursor-pointer"
+                    className="px-2.5 sm:px-4 py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-[11px] sm:text-xs font-bold rounded-xl transition cursor-pointer shrink-0 whitespace-nowrap"
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
+                    disabled={isSubmittingForm}
+                    onClick={(e) => {
+                      const form = (e.currentTarget as HTMLElement).closest("form");
+                      if (form && !form.checkValidity()) {
+                        form.reportValidity();
+                        return;
+                      }
+                      handleLeadFormSubmit(e, true);
+                    }}
+                    className="px-2.5 sm:px-3.5 py-2 sm:py-2.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 text-[11px] sm:text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1 sm:gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs active:scale-[0.98] shrink-0 whitespace-nowrap"
+                  >
+                    <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span>Submit without Payment</span>
+                  </button>
+                  <button
                     type="submit"
                     disabled={isSubmittingForm}
-                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/60 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-indigo-600/10 disabled:cursor-not-allowed"
+                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/60 text-white text-[11px] sm:text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1 sm:gap-1.5 shadow-md shadow-indigo-600/10 disabled:cursor-not-allowed active:scale-[0.98] shrink-0 whitespace-nowrap"
                   >
                     {isSubmittingForm ? (
                       <>
-                        <span className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Submitting...
+                        <span className="h-3 w-3 sm:h-3.5 sm:w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
+                        <span>Submitting...</span>
                       </>
                     ) : (
                       <>
-                        <CheckCircle2 className="h-4 w-4" />
-                        Submit Request
+                        <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                        <span>Submit Request</span>
                       </>
                     )}
                   </button>
@@ -2417,6 +2460,14 @@ export default function Footer() {
                       className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 text-xs font-bold rounded-xl transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Back to Edit
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isProcessingPayment}
+                      onClick={() => showPendingSuccess(currentRequestId, parseFloat(listingRequestFee) || 0)}
+                      className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-bold rounded-xl transition cursor-pointer disabled:opacity-50"
+                    >
+                      Pay Later / Submit as Pending
                     </button>
                     <button
                       type="submit"

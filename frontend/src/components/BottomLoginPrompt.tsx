@@ -79,6 +79,10 @@ export default function BottomLoginPrompt({
       setError("Please enter your name (at least 2 characters).");
       return;
     }
+    if (!/^[a-zA-Z\s]+$/.test(trimmedName)) {
+      setError("Name should only contain letters.");
+      return;
+    }
 
     if (!agreeTerms) {
       setError("Please agree to the T&C's and Privacy Policy.");
@@ -214,7 +218,18 @@ export default function BottomLoginPrompt({
               type="text"
               required
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onKeyDown={(e) => {
+                if (/[0-9]/.test(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              onChange={(e) => {
+                const val = e.target.value
+                  .replace(/[^a-zA-Z\s]/g, "")
+                  .replace(/^\s+/, "")
+                  .replace(/\s{2,}/g, " ");
+                setFullName(val);
+              }}
               placeholder="Enter Your Name"
               className="w-full text-[15px] font-normal text-[#1a1a1a] placeholder-[#8c8c8c] outline-none bg-transparent"
             />

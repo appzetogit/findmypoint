@@ -16,7 +16,7 @@ export interface LeadReceiptData {
   employeeName?: string;
   amount: number;
   paymentId?: string;
-  paymentStatus: "Paid" | "Free" | "Submitted";
+  paymentStatus: "Paid" | "Free" | "Submitted" | "Pending";
 }
 
 export const generateLeadReceiptPDF = (data: LeadReceiptData) => {
@@ -58,6 +58,7 @@ export const generateLeadReceiptPDF = (data: LeadReceiptData) => {
 
   // Status Badge (Top Right)
   const isPaid = data.amount > 0 && data.paymentStatus === "Paid";
+  const isPending = data.paymentStatus === "Pending";
   if (isPaid) {
     doc.setFillColor(236, 253, 245); // Emerald 50
     doc.setDrawColor(167, 243, 208); // Emerald 200
@@ -68,6 +69,16 @@ export const generateLeadReceiptPDF = (data: LeadReceiptData) => {
     doc.text("PAID & VERIFIED", 101, 14.5);
     doc.setFontSize(7);
     doc.text(`INR ${data.amount.toFixed(2)}`, 108, 19.5);
+  } else if (isPending) {
+    doc.setFillColor(254, 243, 199); // Amber 100
+    doc.setDrawColor(253, 230, 138); // Amber 200
+    doc.roundedRect(96, 8, 40, 14, 2, 2, "FD");
+    doc.setTextColor(180, 83, 9); // Amber 700
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text("PAYMENT PENDING", 98.5, 14.5);
+    doc.setFontSize(7);
+    doc.text(`INR ${data.amount.toFixed(2)} DUE`, 104, 19.5);
   } else {
     doc.setFillColor(238, 242, 255); // Indigo 50
     doc.setDrawColor(199, 210, 254); // Indigo 200
@@ -194,7 +205,12 @@ export const generateLeadReceiptPDF = (data: LeadReceiptData) => {
   if (data.paymentId) {
     renderRow("Razorpay Payment ID:", data.paymentId, true);
   }
-  renderRow("Payment Status:", isPaid ? "SUCCESSFUL / VERIFIED" : "FREE / NO CHARGE", true);
+  const statusLabel = isPaid
+    ? "SUCCESSFUL / VERIFIED"
+    : isPending
+    ? "PENDING (UNPAID)"
+    : "FREE / NO CHARGE";
+  renderRow("Payment Status:", statusLabel, true);
 
   // ── Footer Notice & Watermark ───────────────────────────────────────────
   const footerY = 188;

@@ -246,6 +246,10 @@ export default function SignInPage({ onBack, onSuccess, isMandatory }: SignInPag
       dispatch({ type: "SET_ERROR", value: "Please enter a valid name." });
       return;
     }
+    if (!/^[a-zA-Z\s]+$/.test(fullName.trim())) {
+      dispatch({ type: "SET_ERROR", value: "Name should only contain letters." });
+      return;
+    }
     if (whatsappNumber.trim() && whatsappNumber.trim().length !== 10) {
       dispatch({ type: "SET_ERROR", value: "Please enter a valid 10-digit WhatsApp number." });
       return;
@@ -533,7 +537,18 @@ export default function SignInPage({ onBack, onSuccess, isMandatory }: SignInPag
               <label htmlFor="signInFullName" className="text-xs font-bold text-slate-400 uppercase tracking-widest">Full Name</label>
               <div className="pb-2.5 border-b-2 border-slate-200 focus-within:border-[#f4626a] transition-colors duration-200">
                 <input id="signInFullName" type="text" placeholder="Enter your full name" value={fullName}
-                  onChange={(e) => dispatch({ type: "SET_FULL_NAME", value: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (/[0-9]/.test(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={(e) => {
+                    const val = e.target.value
+                      .replace(/[^a-zA-Z\s]/g, "")
+                      .replace(/^\s+/, "")
+                      .replace(/\s{2,}/g, " ");
+                    dispatch({ type: "SET_FULL_NAME", value: val });
+                  }}
                   className="w-full bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-300"
                   required autoFocus />
               </div>

@@ -70,13 +70,6 @@ const getRequests = async (req, res) => {
 // @access  Public / Optional Auth
 const createRequest = async (req, res) => {
   try {
-    // Remove any previous unpaid pending requests for this user so they can submit cleanly
-    if (req.user && req.user._id) {
-      await BusinessRequest.deleteMany({
-        userId: req.user._id,
-        paymentStatus: 'Pending'
-      });
-    }
 
     // 1. Fetch current fee
     let fee = await ListingFee.findOne();

@@ -285,6 +285,13 @@ const createBusiness = async (req, res) => {
       req.body.id = slug;
     }
 
+    // Ensure client account has a password
+    let plainPassword = (req.body.password || '').trim();
+    if (!plainPassword) {
+      // Auto-generate a 6-digit client password if none was specified
+      plainPassword = Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
     const business = new Business({
       ...req.body,
       citySlug,
@@ -294,7 +301,8 @@ const createBusiness = async (req, res) => {
       status: req.body.status || 'published',
       isIndexable: req.body.isIndexable !== undefined ? req.body.isIndexable : true,
       businessType: req.body.businessType || 'LocalBusiness',
-      clientPassword: req.body.password || undefined,
+      password: plainPassword,
+      clientPassword: plainPassword,
       owner: req.user ? req.user._id : undefined
     });
 
@@ -331,19 +339,31 @@ const createBusiness = async (req, res) => {
       pingGoogleSitemap().catch(err => console.error('[SEO] Ping failed:', err.message));
     }
 
-    // Send WhatsApp notification with login credentials to client
-    const targetPhone = createdBusiness.whatsapp || createdBusiness.phone;
-    const plainPassword = req.body.password || createdBusiness.clientPassword;
+    // Determine valid target phone number for WhatsApp notification
+    const extractDigits = (val) => String(val || '').replace(/\D/g, '');
+    const waDigits = extractDigits(createdBusiness.whatsapp);
+    const phoneDigits = extractDigits(createdBusiness.phone);
+
+    // Prefer whatsapp number if valid (>= 10 digits), otherwise use business phone
+    let targetPhone = '';
+    if (waDigits.length >= 10) {
+      targetPhone = createdBusiness.whatsapp;
+    } else if (phoneDigits.length >= 10) {
+      targetPhone = createdBusiness.phone;
+    }
+
     if (targetPhone && plainPassword) {
       const siteBaseUrl = process.env.SITE_URL || 'https://findmypoint.app';
       const portalUrl = process.env.CLIENT_PORTAL_URL || `${siteBaseUrl}/client`;
       const listingUrl = `${siteBaseUrl}${createdBusiness.canonicalUrl || `/${createdBusiness.citySlug || 'city'}/${createdBusiness.slug || createdBusiness.id}`}`;
+      const cleanUserId = phoneDigits.length >= 10 ? phoneDigits.slice(-10) : (createdBusiness.phone || createdBusiness.id);
 
+      // Trigger WhatsApp API instantly in background without delaying HTTP response
       whatsappService.sendBusinessRegistrationCredentials({
         phone: targetPhone,
         ownerName: createdBusiness.ownerName || createdBusiness.name,
         businessName: createdBusiness.name,
-        userId: createdBusiness.phone || createdBusiness.id,
+        userId: cleanUserId,
         password: plainPassword,
         listingUrl: listingUrl,
         portalUrl: portalUrl
@@ -946,7 +966,11 @@ const sendBusinessCredentials = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Only admins can dispatch business credentials' });
     }
 
-    const recipientPhone = req.body.phone || business.whatsapp || business.phone;
+    const extractDigits = (val) => String(val || '').replace(/\D/g, '');
+    const waDigits = extractDigits(business.whatsapp);
+    const phoneDigits = extractDigits(business.phone);
+
+    const recipientPhone = req.body.phone || (waDigits.length >= 10 ? business.whatsapp : business.phone);
     const plainPassword = req.body.password || business.clientPassword;
 
     if (!recipientPhone) {
@@ -967,12 +991,13 @@ const sendBusinessCredentials = async (req, res) => {
     const siteBaseUrl = process.env.SITE_URL || 'https://findmypoint.app';
     const portalUrl = process.env.CLIENT_PORTAL_URL || `${siteBaseUrl}/client`;
     const listingUrl = `${siteBaseUrl}${business.canonicalUrl || `/${business.citySlug || 'city'}/${business.slug || business.id}`}`;
+    const cleanUserId = phoneDigits.length >= 10 ? phoneDigits.slice(-10) : (business.phone || business.id);
 
     const waRes = await whatsappService.sendBusinessRegistrationCredentials({
       phone: recipientPhone,
       ownerName: business.ownerName || business.name,
       businessName: business.name,
-      userId: business.phone || business.id,
+      userId: cleanUserId,
       password: plainPassword,
       listingUrl: listingUrl,
       portalUrl: portalUrl

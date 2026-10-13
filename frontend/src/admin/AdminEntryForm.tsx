@@ -577,6 +577,11 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
       alert("Contact Number is required.");
       return;
     }
+    if (!isEditMode && !password.trim()) {
+      alert("Please provide a Client Login Password so login credentials can be sent instantly via WhatsApp.");
+      setActiveTab("basic");
+      return;
+    }
     if (isTimingMandatory) {
       if (!openTime.trim()) {
         alert("Open Time is required because timings are set to mandatory.");
@@ -674,7 +679,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          alert(isEditMode ? "Listing updated successfully!" : "Listing registered successfully!");
+          alert(isEditMode ? "Listing updated successfully!" : "Listing registered successfully! Login credentials have been sent instantly to client WhatsApp.");
           onSuccess();
         } else {
           alert(data.message || "Failed to save business listing.");

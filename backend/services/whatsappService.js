@@ -115,11 +115,11 @@ class BhashWhatsAppService {
         stype: 'normal'
       });
 
+      // BhashSMS expects literal commas separating each parameter value, with spaces encoded as %20
+      let requestUrl = `${config.endpoint}?${queryParams.toString()}`;
       if (cleanedParams.length > 0) {
-        queryParams.append('Params', cleanedParams);
+        requestUrl += `&Params=${encodeURI(cleanedParams)}`;
       }
-
-      const requestUrl = `${config.endpoint}?${queryParams.toString()}`;
 
       console.log(`[WhatsApp API] Sending WhatsApp to: ${cleanPhone} | Template: ${templateName} | Params count: ${params.length}`);
 
@@ -128,7 +128,7 @@ class BhashWhatsAppService {
           'User-Agent': 'FindmyPoint/1.0',
           'Accept': '*/*'
         },
-        timeout: 15000 // 15 sec timeout
+        timeout: 10000 // 10 sec timeout
       });
 
       const responseData = typeof response.data === 'string'
@@ -209,13 +209,15 @@ class BhashWhatsAppService {
     const includeLabelParam = process.env.BHASHSMS_INCLUDE_LABEL_PARAM === 'true' || templateName === 'registration_demo';
     const labelText = process.env.BHASHSMS_PASSWORD_LABEL?.trim() || 'Password';
 
+    const cleanUserId = this.normalizePhoneNumber(userId) || this.normalizePhoneNumber(phone) || userId || phone;
+
     let params;
     if (includeLabelParam) {
       params = [
         finalOwner,        // {{1}} Owner Name
         businessName,      // {{2}} Business Name
         finalPortal,       // {{3}} Portal URL
-        userId,            // {{4}} User ID / Mobile
+        cleanUserId,       // {{4}} User ID / Mobile
         labelText,         // {{5}} Label (e.g. "Password" or "Access Key")
         password,          // {{6}} Password value
         finalListing       // {{7}} Live Listing URL
@@ -225,7 +227,7 @@ class BhashWhatsAppService {
         finalOwner,        // {{1}} Owner Name
         businessName,      // {{2}} Business Name
         finalPortal,       // {{3}} Portal URL
-        userId,            // {{4}} User ID / Mobile
+        cleanUserId,       // {{4}} User ID / Mobile
         password,          // {{5}} Password value
         finalListing       // {{6}} Live Listing URL
       ];

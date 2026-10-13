@@ -1061,6 +1061,7 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
 
           {(currentView === "add" || currentView === "edit") && (
             <AdminEntryForm
+              key={editingBusinessId ? `edit-${editingBusinessId}` : "add-new"}
               businessId={editingBusinessId}
               onCancel={() => handleViewChange("listings")}
               onSuccess={() => handleViewChange("listings")}

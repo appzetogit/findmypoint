@@ -158,10 +158,14 @@ export default function ClientShell({ onClose }: ClientShellProps) {
       return allListings.filter((b) => b.id === session.businessId);
     }
 
-    // Fallback: filter by email
-    return allListings.filter((b) =>
-      b.email?.trim().toLowerCase() === session.email.toLowerCase()
-    );
+    // Fallback: filter by phone or email
+    const sPhone = session.phone ? session.phone.replace(/\D/g, "").slice(-10) : "";
+    return allListings.filter((b) => {
+      const bPhone = b.phone ? b.phone.replace(/\D/g, "").slice(-10) : "";
+      if (sPhone && bPhone && sPhone === bPhone) return true;
+      if (session.email && b.email && b.email.trim().toLowerCase() === session.email.toLowerCase()) return true;
+      return false;
+    });
   }, [allListings, session]);
 
   // Filter listings matching search input

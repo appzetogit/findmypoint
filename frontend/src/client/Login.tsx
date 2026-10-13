@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Mail, Lock, ShieldCheck, Sun, Moon, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
+import { Phone, Lock, ShieldCheck, Sun, Moon, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { API_BASE_URL } from "../config";
 import { LazyImage } from "../components/ui/LazyImage";
@@ -19,7 +19,7 @@ interface LoginProps {
 }
 
 export default function Login({ onLoginSuccess, isDarkMode, toggleDarkMode }: LoginProps) {
-  const [emailInput, setEmailInput] = useState("");
+  const [phoneInput, setPhoneInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState("");
@@ -28,11 +28,11 @@ export default function Login({ onLoginSuccess, isDarkMode, toggleDarkMode }: Lo
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
-    const email = emailInput.trim().toLowerCase();
+    const phone = phoneInput.trim();
     const password = passwordInput.trim();
 
-    if (!email || !password) {
-      setLoginError("Please enter your email and password.");
+    if (!phone || !password) {
+      setLoginError("Please enter your registered mobile number and password.");
       return;
     }
 
@@ -41,13 +41,13 @@ export default function Login({ onLoginSuccess, isDarkMode, toggleDarkMode }: Lo
       const res = await fetch(`${API_BASE_URL}/businesses/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ phone, password }),
       });
 
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setLoginError(data.message || "Invalid email or password.");
+        setLoginError(data.message || "Invalid mobile number or password.");
         setIsLoading(false);
         return;
       }
@@ -58,9 +58,9 @@ export default function Login({ onLoginSuccess, isDarkMode, toggleDarkMode }: Lo
       }
 
       const session: ClientSession = {
-        email: data.data.email || email,
+        email: data.data.email || "",
         name: data.data.name || "Business Owner",
-        phone: data.data.phone || "",
+        phone: data.data.phone || phone,
         businessId: data.data.id,
         token: data.token,
       };
@@ -91,7 +91,7 @@ export default function Login({ onLoginSuccess, isDarkMode, toggleDarkMode }: Lo
             Client Portal
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-[280px]">
-            Sign in with the email and password set by your admin during business registration.
+            Sign in with the mobile number and password set by your admin during business registration.
           </p>
         </div>
 
@@ -104,18 +104,20 @@ export default function Login({ onLoginSuccess, isDarkMode, toggleDarkMode }: Lo
           )}
 
           <div className="space-y-1.5 text-left">
-            <label htmlFor="clientEmail" className="block text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              Registered Business Email
+            <label htmlFor="clientPhone" className="block text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              Registered Mobile Number
             </label>
             <div className="relative">
-              <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
+              <Phone className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
               <input
-                id="clientEmail"
-                type="email"
+                id="clientPhone"
+                name="clientPhone"
+                type="tel"
                 required
-                placeholder="your@email.com"
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="Enter the number"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                autoComplete="tel"
                 className="w-full bg-slate-50 dark:bg-slate-950 text-sm pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-semibold"
               />
             </div>
@@ -149,7 +151,7 @@ export default function Login({ onLoginSuccess, isDarkMode, toggleDarkMode }: Lo
           </div>
 
           <div className="bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 rounded-xl p-3.5 text-[11px] text-slate-500 dark:text-slate-400 text-center font-medium">
-            💡 Use the <strong>email</strong> and <strong>password</strong> set by the admin when your business was registered.
+            💡 Use the <strong>mobile number</strong> and <strong>password</strong> set by the admin when your business was registered.
           </div>
 
           <button

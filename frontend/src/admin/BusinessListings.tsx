@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Search, Plus, Eye, EyeOff, Edit2, Trash2, MapPin, Tag, Phone, ShieldCheck, Calendar, QrCode, Download, X, Lock, ClipboardList, Globe, ArrowRight, Maximize2, Image as ImageIcon, Map as MapIcon, List as ListIcon } from "lucide-react";
+import { Search, Plus, Eye, EyeOff, Edit2, Trash2, MapPin, Tag, Phone, ShieldCheck, Calendar, QrCode, Download, X, Lock, ClipboardList, Globe, ArrowRight, Maximize2, Image as ImageIcon, Map as MapIcon, List as ListIcon, MessageSquare } from "lucide-react";
 import { BusinessListingData } from "../data/businessesData";
 import { API_BASE_URL } from "../config";
 import ServiceForm from "../client/ServiceForm";
@@ -27,6 +27,68 @@ export default function BusinessListings({
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [adminLightboxImg, setAdminLightboxImg] = useState<string | null>(null);
   const [adminViewMode, setAdminViewMode] = useState<"table" | "map">("table");
+
+  // WhatsApp Credentials Dispatch State
+  const [whatsappModalBiz, setWhatsappModalBiz] = useState<BusinessListingData | null>(null);
+  const [waPhone, setWaPhone] = useState("");
+  const [waPassword, setWaPassword] = useState("");
+  const [sendingWa, setSendingWa] = useState(false);
+  const [waStatus, setWaStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+
+  const handleOpenWhatsappModal = (biz: BusinessListingData) => {
+    setWhatsappModalBiz(biz);
+    setWaPhone(biz.whatsapp || biz.phone || "");
+    setWaPassword(biz.clientPassword || "");
+    setWaStatus(null);
+  };
+
+  const handleSendWhatsappCredentials = async () => {
+    if (!whatsappModalBiz) return;
+    if (!waPhone.trim()) {
+      alert("Please enter a valid WhatsApp or phone number.");
+      return;
+    }
+    if (!waPassword.trim()) {
+      alert("Please enter a password to send to the client.");
+      return;
+    }
+
+    try {
+      setSendingWa(true);
+      setWaStatus(null);
+      const token = localStorage.getItem("fmp_admin_token") || localStorage.getItem("fmp_user_token");
+      const res = await fetch(`${API_BASE_URL}/businesses/${encodeURIComponent(whatsappModalBiz.id)}/send-credentials`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          phone: waPhone.trim(),
+          password: waPassword.trim()
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWaStatus({
+          type: "success",
+          msg: `WhatsApp sent successfully! (Gateway Response: ${data.data?.whatsappResponse || 'Delivered'})`
+        });
+      } else {
+        setWaStatus({
+          type: "error",
+          msg: data.message || "Failed to send WhatsApp message."
+        });
+      }
+    } catch (e: any) {
+      setWaStatus({
+        type: "error",
+        msg: e.message || "Network error while sending WhatsApp message."
+      });
+    } finally {
+      setSendingWa(false);
+    }
+  };
 
   const loadListings = async () => {
     try {
@@ -398,6 +460,14 @@ export default function BusinessListings({
                             className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition cursor-pointer"
                           >
                             <QrCode className="h-3.5 w-3.5" />
+                          </button>
+
+                          <button
+                            onClick={() => handleOpenWhatsappModal(item)}
+                            title="Send Login Credentials via WhatsApp"
+                            className="p-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/60 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition cursor-pointer"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" />
                           </button>
 
                           <button
@@ -953,6 +1023,120 @@ export default function BusinessListings({
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-sm"
               >
                 Close Preview
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* WhatsApp Dispatch Modal */}
+      {whatsappModalBiz && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/65 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <MessageSquare className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Send WhatsApp Credentials
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    BhashSMS WhatsApp Business Gateway
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setWhatsappModalBiz(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4 text-left">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Business Name
+                </span>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white mt-0.5">
+                  {whatsappModalBiz.name}
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  Client WhatsApp / Phone Number *
+                </label>
+                <input
+                  type="text"
+                  value={waPhone}
+                  onChange={(e) => setWaPhone(e.target.value)}
+                  placeholder="10-digit mobile number"
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-emerald-500 transition font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  Client Account Password *
+                </label>
+                <input
+                  type="text"
+                  value={waPassword}
+                  onChange={(e) => setWaPassword(e.target.value)}
+                  placeholder="Enter account password"
+                  className="w-full bg-slate-50 dark:bg-slate-950 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 focus:border-emerald-500 transition font-mono"
+                />
+                <p className="text-[10px] text-slate-400">
+                  This password will be updated and delivered end-to-end to the client's WhatsApp.
+                </p>
+              </div>
+
+              {waStatus && (
+                <div
+                  className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
+                    waStatus.type === "success"
+                      ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60"
+                      : "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60"
+                  }`}
+                >
+                  <span>{waStatus.type === "success" ? "✅" : "⚠️"}</span>
+                  <span className="flex-1">{waStatus.msg}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3.5 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setWhatsappModalBiz(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                disabled={sendingWa}
+                onClick={handleSendWhatsappCredentials}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 transition shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {sendingWa ? (
+                  <>
+                    <span className="animate-spin text-sm">⏳</span>
+                    <span>Sending...</span>
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    <span>Send via WhatsApp</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

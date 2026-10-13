@@ -261,6 +261,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
   // Form State
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [highlightsName, setHighlightsName] = useState("");
   const [category, setCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
@@ -324,21 +325,25 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
   const [showX, setShowX] = useState(true);
 
   // Subcategories matching active category
-  const availableSubcategories = subcategoriesData[category] || [];
+  const availableSubcategories = category ? (subcategoriesData[category] || []) : [];
 
-  // Update initial category once loaded
+  // Reset subcategory if active category changes and currently selected subcategory is not valid for it
   useEffect(() => {
-    if (categories.length > 0 && !category) {
-      setCategory(categories[0].label);
-    }
-  }, [categories, category]);
-
-  // Update subcategory default when category changes
-  useEffect(() => {
-    if (availableSubcategories.length > 0 && (!subCategory || !availableSubcategories.includes(subCategory))) {
-      setSubCategory(availableSubcategories[0]);
+    if (subCategory && availableSubcategories.length > 0 && !availableSubcategories.includes(subCategory)) {
+      setSubCategory("");
     }
   }, [category, availableSubcategories, subCategory]);
+
+  // Post-mount cleanup to wipe browser credential autofill in Add mode
+  useEffect(() => {
+    if (!isEditMode) {
+      const timer = setTimeout(() => {
+        setName((prev) => (prev && (prev.includes("@") || prev === "findmypoint.india@gmail.com") ? "" : prev));
+        setPassword((prev) => (prev ? "" : prev));
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isEditMode]);
 
   const populateForm = (biz: BusinessListingData) => {
     setName(biz.name || "");
@@ -443,7 +448,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
           }
         })
         .catch((e) => console.error("Failed to load business details:", e));
-    } else {
+    } else if (isClient) {
       try {
         const savedSession = localStorage.getItem("fmp_client_session:v1");
         if (savedSession) {
@@ -533,6 +538,14 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
     e.preventDefault();
     if (!name.trim()) {
       alert("Business Name is required.");
+      return;
+    }
+    if (!category.trim()) {
+      alert("Please select a Category.");
+      return;
+    }
+    if (!subCategory.trim()) {
+      alert("Please select a Business Sub-Category.");
       return;
     }
     if (!address.trim()) {
@@ -713,8 +726,15 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
       {/* Form Container (Flat background, card wrapper styles removed) */}
       <form
         onSubmit={handleSubmit}
+        autoComplete="off"
         className="space-y-6 [&_input]:bg-white [&_input]:dark:bg-slate-900 [&_select]:bg-white [&_select]:dark:bg-slate-900 [&_textarea]:bg-white [&_textarea]:dark:bg-slate-900 [&_input]:shadow-sm [&_select]:shadow-sm [&_textarea]:shadow-sm [&_input]:py-2 [&_input]:px-3.5 [&_input]:text-xs [&_input]:rounded-lg [&_select]:py-2 [&_select]:px-3.5 [&_select]:text-xs [&_select]:rounded-lg [&_textarea]:py-2 [&_textarea]:px-3.5 [&_textarea]:text-xs [&_textarea]:rounded-lg [&_label]:text-[10px] [&_label]:text-slate-900 [&_label]:dark:text-slate-100 [&_label]:font-extrabold [&_h3]:text-sm [&_.grid]:gap-4 [&_.space-y-6]:space-y-4"
       >
+        {/* Hidden dummy credentials to trap aggressive browser password autofill */}
+        <div style={{ position: "absolute", top: "-9999px", left: "-9999px", opacity: 0, height: 0, width: 0, overflow: "hidden" }} aria-hidden="true" tabIndex={-1}>
+          <input type="text" name="chrome_prevent_username_autofill" tabIndex={-1} autoComplete="username" defaultValue="" />
+          <input type="password" name="chrome_prevent_password_autofill" tabIndex={-1} autoComplete="current-password" defaultValue="" />
+        </div>
+
         {/* TAB 1: BASIC DETAILS */}
         {activeTab === "basic" && (
           <div className="space-y-6">
@@ -725,12 +745,17 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Business Name */}
               <div className="space-y-2">
-                <label className="text-xs uppercase tracking-wider">
+                <label className="text-xs uppercase tracking-wider font-extrabold text-slate-900 dark:text-slate-100">
                   Business Name *
                 </label>
                 <input
                   type="text"
                   required
+                  id="fmp_business_name_input"
+                  name="fmp_business_name_input"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   placeholder="e.g. Vishal Mega Mart"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -741,17 +766,36 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
               {/* Login Password */}
               {!isClient && (
                 <div className="space-y-2">
-                  <label className="text-xs uppercase tracking-wider">
-                    Login Password {isEditMode ? "(Leave blank to keep unchanged)" : "*"}
-                  </label>
-                  <input
-                    type="password"
-                    required={!isEditMode}
-                    placeholder="Set account password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs uppercase tracking-wider font-bold text-slate-700 dark:text-slate-300">
+                      Login Password {isEditMode ? "(Leave blank to keep unchanged)" : "*"}
+                    </label>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required={!isEditMode}
+                      id="fmp_client_new_password_input"
+                      name="fmp_client_new_password_input"
+                      autoComplete="new-password"
+                      placeholder="Set client account password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 pr-11 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 transition cursor-pointer"
+                      title={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1.5 pt-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">✓</span>
+                    <span>Client will automatically receive their Login ID & Password on WhatsApp upon registration.</span>
+                  </div>
                 </div>
               )}
 
@@ -761,10 +805,17 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                   Category of Business *
                 </label>
                 <select
+                  id="fmp_category_select"
+                  name="fmp_category_select"
+                  required
                   value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  onChange={(e) => {
+                    setCategory(e.target.value);
+                    setSubCategory("");
+                  }}
                   className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-952 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
                 >
+                  <option value="">-- Select Category --</option>
                   {categories.map((cat) => (
                     <option key={cat.label} value={cat.label}>
                       {cat.label}
@@ -779,17 +830,22 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                   Business Sub-Category *
                 </label>
                 <select
+                  id="fmp_subcategory_select"
+                  name="fmp_subcategory_select"
+                  required
                   value={subCategory}
                   onChange={(e) => setSubCategory(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-952 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
+                  disabled={!category}
                 >
+                  <option value="">{category ? "-- Select Sub-Category --" : "First select a Category"}</option>
                   {availableSubcategories.map((subcat) => (
                     <option key={subcat} value={subcat}>
                       {subcat}
                     </option>
                   ))}
-                  {availableSubcategories.length === 0 && (
-                    <option value="">No subcategories available</option>
+                  {category && availableSubcategories.length === 0 && (
+                    <option value="" disabled>No subcategories available</option>
                   )}
                 </select>
               </div>
@@ -966,6 +1022,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                   }}
                   className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
                 >
+                  <option value="">-- Select State --</option>
                   {Object.keys(GLOBAL_LOCATIONS_MAP[country] || {}).map((st) => (
                     <option key={st} value={st}>
                       {st}
@@ -994,6 +1051,7 @@ export default function AdminEntryForm({ businessId, onCancel, onSuccess, isClie
                   onChange={(e) => setSelectedDistrict(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-slate-950 text-sm px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none text-slate-955 dark:text-slate-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer font-semibold"
                 >
+                  <option value="">-- Select District --</option>
                   {(GLOBAL_LOCATIONS_MAP[country]?.[selectedState] || ["Other"]).map((d) => (
                     <option key={d} value={d}>
                       {d}

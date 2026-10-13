@@ -4,6 +4,7 @@ const Enquiry = require('../models/Enquiry');
 const { slugify, generateBusinessSlugs } = require('../utils/slugify');
 const { geocodeAddress, buildGeoPoint } = require('../services/geocodingService');
 const { pingGoogleSitemap } = require('../routes/seoRoutes');
+const whatsappService = require('../services/whatsappService');
 
 // Escape special regex characters to prevent ReDoS attacks (SEC-009)
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -330,6 +331,29 @@ const createBusiness = async (req, res) => {
       pingGoogleSitemap().catch(err => console.error('[SEO] Ping failed:', err.message));
     }
 
+    // Send WhatsApp notification with login credentials to client
+    const targetPhone = createdBusiness.whatsapp || createdBusiness.phone;
+    const plainPassword = req.body.password || createdBusiness.clientPassword;
+    if (targetPhone && plainPassword) {
+      const siteBaseUrl = process.env.SITE_URL || 'https://findmypoint.app';
+      const portalUrl = process.env.CLIENT_PORTAL_URL || `${siteBaseUrl}/client`;
+      const listingUrl = `${siteBaseUrl}${createdBusiness.canonicalUrl || `/${createdBusiness.citySlug || 'city'}/${createdBusiness.slug || createdBusiness.id}`}`;
+
+      whatsappService.sendBusinessRegistrationCredentials({
+        phone: targetPhone,
+        ownerName: createdBusiness.ownerName || createdBusiness.name,
+        businessName: createdBusiness.name,
+        userId: createdBusiness.phone || createdBusiness.id,
+        password: plainPassword,
+        listingUrl: listingUrl,
+        portalUrl: portalUrl
+      }).then(waRes => {
+        console.log(`✅ [WhatsApp] Welcome & credentials successfully sent to ${targetPhone} for "${createdBusiness.name}". MsgId:`, waRes.response);
+      }).catch(err => {
+        console.error(`⚠️ [WhatsApp] Welcome message dispatch failed for ${targetPhone}:`, err.message);
+      });
+    }
+
     res.status(201).json({ success: true, data: sanitizePublicBusiness(createdBusiness) });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -543,35 +567,59 @@ const submitEnquiry = async (req, res) => {
   }
 };
 
-// @desc    Authenticate business and get token
+// @desc    Authenticate business and get token (by mobile number, email, or id)
 // @route   POST /api/businesses/login
 // @access  Public
 const loginBusiness = async (req, res) => {
-  const { email, phone, id, password } = req.body;
+  const { email, phone, id, identifier, username, password } = req.body;
+  const credential = (phone || email || identifier || username || id || '').trim();
 
-  if ((!email && !phone && !id) || !password) {
-    return res.status(400).json({ success: false, message: 'Please provide credentials and password' });
+  if (!credential || !password) {
+    return res.status(400).json({ success: false, message: 'Please provide registered mobile number and password' });
   }
 
   try {
     let query = {};
-    if (id) query.id = id;
-    else if (email) query.email = email;
-    else if (phone) query.phone = phone;
-
-    const business = await Business.findOne(query);
-    if (!business) {
-      return res.status(404).json({ success: false, message: 'Business listing not found' });
+    if (credential.includes('@')) {
+      query.email = { $regex: new RegExp(`^${credential.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
+    } else {
+      const cleanDigits = credential.replace(/\D/g, '');
+      if (cleanDigits.length >= 7) {
+        const last10 = cleanDigits.slice(-10);
+        // Build regex pattern matching digits allowing optional spaces, hyphens, and country code prefix
+        const pattern = last10.split('').join('[\\s-]*');
+        query.$or = [
+          { phone: { $regex: pattern, $options: 'i' } },
+          { whatsapp: { $regex: pattern, $options: 'i' } },
+          { extraNumbers: { $regex: pattern, $options: 'i' } },
+          { phone: credential },
+          { id: credential }
+        ];
+      } else {
+        query.$or = [
+          { id: credential },
+          { phone: credential },
+          { email: credential }
+        ];
+      }
     }
 
-    if (!business.password) {
-      return res.status(400).json({ success: false, message: 'No password set for this business' });
+    const businesses = await Business.find(query);
+    if (!businesses || businesses.length === 0) {
+      return res.status(404).json({ success: false, message: 'Business listing not found with this mobile number' });
     }
 
     const bcrypt = require('bcryptjs');
-    const isMatch = await bcrypt.compare(password, business.password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    let matchedBusiness = null;
+    for (const b of businesses) {
+      if (b.password && (await bcrypt.compare(password, b.password))) {
+        matchedBusiness = b;
+        break;
+      }
+    }
+
+    if (!matchedBusiness) {
+      return res.status(401).json({ success: false, message: 'Invalid mobile number or password' });
     }
 
     // Generate JWT token
@@ -582,7 +630,7 @@ const loginBusiness = async (req, res) => {
 
     const jwt = require('jsonwebtoken');
     const token = jwt.sign(
-      { id: business._id, isBusiness: true, businessId: business.id },
+      { id: matchedBusiness._id, isBusiness: true, businessId: matchedBusiness.id },
       secret,
       { expiresIn: '30d' }
     );
@@ -591,10 +639,10 @@ const loginBusiness = async (req, res) => {
       success: true,
       token,
       data: {
-        id: business.id,
-        name: business.name,
-        email: business.email,
-        phone: business.phone
+        id: matchedBusiness.id,
+        name: matchedBusiness.name,
+        email: matchedBusiness.email,
+        phone: matchedBusiness.phone
       }
     });
   } catch (error) {
@@ -875,6 +923,76 @@ const geocodeBusiness = async (req, res) => {
   }
 };
 
+// @desc    Send or Resend business login credentials via WhatsApp
+// @route   POST /api/businesses/:id/send-credentials
+// @access  Private/Admin
+const sendBusinessCredentials = async (req, res) => {
+  try {
+    const isObjectId = mongoose.isValidObjectId(req.params.id);
+    const business = await Business.findOne({
+      $or: [
+        { id: req.params.id },
+        { slug: slugify(req.params.id) },
+        ...(isObjectId ? [{ _id: req.params.id }] : [])
+      ]
+    });
+
+    if (!business) {
+      return res.status(404).json({ success: false, message: 'Business listing not found' });
+    }
+
+    const isAdmin = req.user && req.user.isAdmin === true;
+    if (!isAdmin) {
+      return res.status(403).json({ success: false, message: 'Only admins can dispatch business credentials' });
+    }
+
+    const recipientPhone = req.body.phone || business.whatsapp || business.phone;
+    const plainPassword = req.body.password || business.clientPassword;
+
+    if (!recipientPhone) {
+      return res.status(400).json({ success: false, message: 'No phone or WhatsApp number found for this business' });
+    }
+
+    if (!plainPassword) {
+      return res.status(400).json({ success: false, message: 'No password found for this business. Please provide a password in the request body.' });
+    }
+
+    // If admin explicitly provided a new password, update it
+    if (req.body.password) {
+      business.password = req.body.password;
+      business.clientPassword = req.body.password;
+      await business.save();
+    }
+
+    const siteBaseUrl = process.env.SITE_URL || 'https://findmypoint.app';
+    const portalUrl = process.env.CLIENT_PORTAL_URL || `${siteBaseUrl}/client`;
+    const listingUrl = `${siteBaseUrl}${business.canonicalUrl || `/${business.citySlug || 'city'}/${business.slug || business.id}`}`;
+
+    const waRes = await whatsappService.sendBusinessRegistrationCredentials({
+      phone: recipientPhone,
+      ownerName: business.ownerName || business.name,
+      businessName: business.name,
+      userId: business.phone || business.id,
+      password: plainPassword,
+      listingUrl: listingUrl,
+      portalUrl: portalUrl
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Credentials sent successfully to ${recipientPhone} via WhatsApp!`,
+      data: {
+        phone: recipientPhone,
+        businessName: business.name,
+        whatsappResponse: waRes.response
+      }
+    });
+  } catch (error) {
+    console.error('Error sending business credentials via WhatsApp:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to send WhatsApp credentials' });
+  }
+};
+
 module.exports = {
   getBusinesses,
   getPublicBusinessByPath,
@@ -893,5 +1011,6 @@ module.exports = {
   deleteEnquiry,
   clearEnquiries,
   getNearbyBusinesses,
-  geocodeBusiness
+  geocodeBusiness,
+  sendBusinessCredentials
 };

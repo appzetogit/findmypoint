@@ -16,12 +16,18 @@ class BhashWhatsAppService {
    * Dynamically fetch credentials from environment variables
    */
   getConfig() {
+    const rawEndpoint = process.env.BHASHSMS_ENDPOINT?.trim() || 'https://bhashsms.com/api/sendmsgutil.php';
+    // Prefer HTTPS on live server to prevent firewall / ECONNRESET drops
+    const endpoint = rawEndpoint.startsWith('http://')
+      ? rawEndpoint.replace('http://', 'https://')
+      : rawEndpoint;
+
     return {
       user: process.env.BHASHSMS_USER?.trim() || '',
       pass: process.env.BHASHSMS_PASS?.trim() || '',
       sender: process.env.BHASHSMS_SENDER?.trim() || '',
-      endpoint: process.env.BHASHSMS_ENDPOINT?.trim() || 'http://bhashsms.com/api/sendmsgutil.php',
-      regTemplate: process.env.BHASHSMS_REG_TEMPLATE?.trim() || '',
+      endpoint: endpoint,
+      regTemplate: process.env.BHASHSMS_REG_TEMPLATE?.trim() || 'registration_portal_02',
       bookingTemplate: process.env.BHASHSMS_BOOKING_TEMPLATE?.trim() || 'booking_findmy',
       clientPortalUrl: process.env.CLIENT_PORTAL_URL?.trim() || (process.env.SITE_URL ? `${process.env.SITE_URL}/client` : 'https://findmypoint.app/client')
     };
@@ -71,8 +77,12 @@ class BhashWhatsAppService {
    */
   cleanParam(val) {
     if (val === undefined || val === null) return '-';
-    // Replace commas with a space/hyphen, strip newlines
-    return String(val).replace(/,/g, ' ').replace(/[\r\n]+/g, ' ').trim() || '-';
+    // Replace commas with space, ampersands with 'and', strip newlines
+    return String(val)
+      .replace(/,/g, ' ')
+      .replace(/&/g, 'and')
+      .replace(/[\r\n]+/g, ' ')
+      .trim() || '-';
   }
 
   /**
@@ -123,13 +133,31 @@ class BhashWhatsAppService {
 
       console.log(`[WhatsApp API] Sending WhatsApp to: ${cleanPhone} | Template: ${templateName} | Params count: ${params.length}`);
 
-      const response = await axios.get(requestUrl, {
-        headers: {
-          'User-Agent': 'FindmyPoint/1.0',
-          'Accept': '*/*'
-        },
-        timeout: 10000 // 10 sec timeout
-      });
+      // Try secure HTTPS first, fallback to HTTP if SSL error occurs on VPS
+      let response;
+      try {
+        response = await axios.get(requestUrl, {
+          headers: {
+            'User-Agent': 'FindmyPoint/1.0',
+            'Accept': '*/*'
+          },
+          timeout: 10000 // 10 sec timeout
+        });
+      } catch (reqErr) {
+        if (requestUrl.startsWith('https://')) {
+          const httpFallback = requestUrl.replace('https://', 'http://');
+          console.warn(`[WhatsApp API] HTTPS request failed (${reqErr.message}), trying HTTP fallback...`);
+          response = await axios.get(httpFallback, {
+            headers: {
+              'User-Agent': 'FindmyPoint/1.0',
+              'Accept': '*/*'
+            },
+            timeout: 10000
+          });
+        } else {
+          throw reqErr;
+        }
+      }
 
       const responseData = typeof response.data === 'string'
         ? response.data.trim()
@@ -203,10 +231,11 @@ class BhashWhatsAppService {
     const finalListing = listingUrl || (process.env.SITE_URL || 'https://findmypoint.app');
     const templateName = config.regTemplate;
 
-    // Support both:
-    // A) 7-param format (where the word 'Password' or 'Access Key' itself is sent as param {{5}})
-    // B) Standard 6-param format (where {{5}} is directly the password value)
-    const includeLabelParam = process.env.BHASHSMS_INCLUDE_LABEL_PARAM === 'true' || templateName === 'registration_demo';
+    // Guarantee 7-param format for registration_portal_02 and registration_demo
+    const includeLabelParam = process.env.BHASHSMS_INCLUDE_LABEL_PARAM === 'true' || 
+      templateName === 'registration_portal_02' || 
+      templateName === 'registration_demo' ||
+      !templateName;
     const labelText = process.env.BHASHSMS_PASSWORD_LABEL?.trim() || 'Password';
 
     const cleanUserId = this.normalizePhoneNumber(userId) || this.normalizePhoneNumber(phone) || userId || phone;

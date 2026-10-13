@@ -40,7 +40,7 @@ const createFAQ = async (req, res) => {
 // @route  PUT /api/help/faqs/:id
 const updateFAQ = async (req, res) => {
   try {
-    const faq = await FAQ.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const faq = await FAQ.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after', runValidators: true });
     if (!faq) return res.status(404).json({ success: false, message: 'FAQ not found.' });
     res.status(200).json({ success: true, data: faq });
   } catch (err) {
@@ -160,7 +160,7 @@ const updateTicket = async (req, res) => {
     const ticket = await HelpTicket.findOneAndUpdate(
       { id: req.params.id },
       { status: req.body.status },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found.' });
     res.status(200).json({ success: true, data: ticket });

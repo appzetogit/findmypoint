@@ -32,7 +32,7 @@ const saveCommission = async (req, res) => {
     const commission = await BusinessCommission.findOneAndUpdate(
       { businessId },
       { commissionRate: rate },
-      { new: true, upsert: true, runValidators: true }
+      { returnDocument: 'after', upsert: true, runValidators: true }
     );
 
     res.status(200).json({

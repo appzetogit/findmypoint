@@ -444,7 +444,7 @@ const updateBusiness = async (req, res) => {
     const updatedBusiness = await Business.findByIdAndUpdate(
       business._id,
       { $set: updatedData },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     res.status(200).json({ success: true, data: sanitizePublicBusiness(updatedBusiness) });
@@ -905,7 +905,7 @@ const geocodeBusiness = async (req, res) => {
     const updated = await Business.findByIdAndUpdate(
       business._id,
       { $set: geoData },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     res.status(200).json({

@@ -55,7 +55,7 @@ const updatePopularService = async (req, res) => {
     const service = await PopularService.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     ).populate('businesses');
 
     if (!service) {

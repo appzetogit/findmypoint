@@ -319,33 +319,14 @@ module.exports = router;
  *   const { pingGoogleSitemap } = require('./routes/seoRoutes');
  *   await pingGoogleSitemap();
  */
+// Google has officially deprecated and removed the /ping?sitemap endpoint in Dec 2023.
+// Googlebot now discovers updated sitemaps via robots.txt and lastmod tags automatically.
 async function pingGoogleSitemap(siteUrl) {
   const baseUrl = (siteUrl || process.env.SITE_URL || process.env.PRODUCTION_URL || 'https://findmypoint.app').replace(/\/$/, '');
   const sitemapUrl = `${baseUrl}/sitemap.xml`;
-  const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
-
-  try {
-    // Use built-in fetch (Node 18+) or http module
-    if (typeof globalThis.fetch === 'function') {
-      const resp = await fetch(pingUrl, { method: 'GET', signal: AbortSignal.timeout(10000) });
-      console.log(`[SEO] Google sitemap ping: ${resp.status} ${resp.statusText} → ${sitemapUrl}`);
-      return { success: resp.ok, status: resp.status };
-    } else {
-      const https = require('https');
-      return new Promise((resolve) => {
-        https.get(pingUrl, (resp) => {
-          console.log(`[SEO] Google sitemap ping: ${resp.statusCode} → ${sitemapUrl}`);
-          resolve({ success: resp.statusCode === 200, status: resp.statusCode });
-        }).on('error', (err) => {
-          console.error('[SEO] Google sitemap ping failed:', err.message);
-          resolve({ success: false, error: err.message });
-        });
-      });
-    }
-  } catch (err) {
-    console.error('[SEO] Google sitemap ping failed:', err.message);
-    return { success: false, error: err.message };
-  }
+  // Avoid sending requests to deprecated endpoint that returns 404
+  return { success: true, sitemapUrl, note: 'Google sitemap ping is deprecated; Google crawls dynamically via robots.txt.' };
 }
 
 module.exports.pingGoogleSitemap = pingGoogleSitemap;
+

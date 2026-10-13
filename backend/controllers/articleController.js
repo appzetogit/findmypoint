@@ -84,7 +84,7 @@ const updateArticle = async (req, res) => {
     const article = await Article.findOneAndUpdate(
       query,
       { $set: req.body },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!article) {

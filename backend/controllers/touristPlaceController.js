@@ -60,7 +60,7 @@ const updateTouristPlace = async (req, res) => {
     const place = await TouristPlace.findOneAndUpdate(
       { name: { $regex: new RegExp(`^${safeName}$`, 'i') } },
       { $set: req.body },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!place) {

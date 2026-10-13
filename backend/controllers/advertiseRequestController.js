@@ -46,7 +46,7 @@ const updateRequestStatus = async (req, res) => {
     const request = await AdvertiseRequest.findByIdAndUpdate(
       req.params.id,
       { status },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!request) {
       return res.status(404).json({ success: false, message: 'Request not found' });

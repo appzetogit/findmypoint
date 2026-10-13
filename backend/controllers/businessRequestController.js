@@ -2,6 +2,7 @@ const BusinessRequest = require('../models/BusinessRequest');
 const ListingFee = require('../models/ListingFee');
 const razorpayService = require('../services/razorpayService');
 const Transaction = require('../models/Transaction');
+const whatsappService = require('../services/whatsappService');
 
 // @desc    Get current configured listing fee
 // @route   GET /api/business-requests/fee
@@ -114,6 +115,57 @@ const createRequest = async (req, res) => {
       }
     }
 
+    // 4. Handle WhatsApp notifications
+    const targetWa = savedRequest.whatsappNumber || savedRequest.contactNumber;
+    if (targetWa) {
+      if (feeAmount === 0 || savedRequest.paymentStatus === 'Paid') {
+        // Free listing or immediate Paid: dispatch Paid notification
+        whatsappService.sendBusinessLeadNotification({
+          phone: targetWa,
+          ownerName: savedRequest.ownerName,
+          businessName: savedRequest.businessName,
+          category: savedRequest.category,
+          requestId: savedRequest._id ? savedRequest._id.toString().slice(-6) : 'REQ',
+          amount: 0,
+          status: 'Paid'
+        }).then(waRes => {
+          console.log(`✅ [WhatsApp] Free listing registration confirmed for ${targetWa}. MsgId:`, waRes?.response);
+        }).catch(waErr => {
+          console.warn(`⚠️ [WhatsApp] Lead notification failed:`, waErr.message);
+        });
+      } else {
+        // Fee > 0: set a 60-second fallback timer to notify if payment remains pending
+        setTimeout(async () => {
+          try {
+            const freshRequest = await BusinessRequest.findById(savedRequest._id);
+            if (freshRequest && freshRequest.paymentStatus === 'Pending' && !freshRequest.pendingNotified) {
+              freshRequest.pendingNotified = true;
+              await freshRequest.save();
+
+              const timerWa = freshRequest.whatsappNumber || freshRequest.contactNumber;
+              if (timerWa) {
+                whatsappService.sendBusinessLeadNotification({
+                  phone: timerWa,
+                  ownerName: freshRequest.ownerName,
+                  businessName: freshRequest.businessName,
+                  category: freshRequest.category,
+                  requestId: freshRequest._id ? freshRequest._id.toString().slice(-6) : 'REQ',
+                  amount: freshRequest.amountPaid,
+                  status: 'Pending'
+                }).then(waRes => {
+                  console.log(`✅ [WhatsApp] Pending lead registration reminder sent (timer) to ${timerWa}. MsgId:`, waRes?.response);
+                }).catch(waErr => {
+                  console.warn(`⚠️ [WhatsApp] Pending lead notification failed:`, waErr.message);
+                });
+              }
+            }
+          } catch (timerErr) {
+            console.warn('[WhatsApp] Error in pending timer check:', timerErr.message);
+          }
+        }, 60000);
+      }
+    }
+
     res.status(201).json({
       success: true,
       request: savedRequest,
@@ -183,6 +235,24 @@ const verifyPayment = async (req, res) => {
       console.log(`✅ Transaction log created successfully for listing request: ${request.businessName}`);
     } catch (txnError) {
       console.error('⚠️ Failed to log transaction in database:', txnError.message);
+    }
+
+    // 4. Dispatch WhatsApp Payment Confirmed notification to owner
+    const targetWa = request.whatsappNumber || request.contactNumber;
+    if (targetWa) {
+      whatsappService.sendBusinessLeadNotification({
+        phone: targetWa,
+        ownerName: request.ownerName,
+        businessName: request.businessName,
+        category: request.category,
+        requestId: request._id ? request._id.toString().slice(-6) : 'REQ',
+        amount: request.amountPaid,
+        status: 'Paid'
+      }).then(waRes => {
+        console.log(`✅ [WhatsApp] Field work listing payment confirmation sent to ${targetWa}. MsgId:`, waRes?.response);
+      }).catch(waErr => {
+        console.warn(`⚠️ [WhatsApp] Field work listing payment notification failed:`, waErr.message);
+      });
     }
 
     res.status(200).json({
@@ -256,6 +326,44 @@ const deleteRequest = async (req, res) => {
   }
 };
 
+// @desc    Trigger instant pending notification (when user skips/closes payment modal)
+// @route   POST /api/business-requests/:id/notify-pending
+// @access  Public / Optional Auth
+const notifyPending = async (req, res) => {
+  try {
+    const request = await BusinessRequest.findById(req.params.id);
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Request not found' });
+    }
+
+    if (request.paymentStatus === 'Pending' && !request.pendingNotified) {
+      request.pendingNotified = true;
+      await request.save();
+
+      const targetWa = request.whatsappNumber || request.contactNumber;
+      if (targetWa) {
+        whatsappService.sendBusinessLeadNotification({
+          phone: targetWa,
+          ownerName: request.ownerName,
+          businessName: request.businessName,
+          category: request.category,
+          requestId: request._id ? request._id.toString().slice(-6) : 'REQ',
+          amount: request.amountPaid,
+          status: 'Pending'
+        }).then(waRes => {
+          console.log(`✅ [WhatsApp] Pending lead registration notification sent (modal dismiss/skip) to ${targetWa}. MsgId:`, waRes?.response);
+        }).catch(waErr => {
+          console.warn(`⚠️ [WhatsApp] Pending lead notification failed:`, waErr.message);
+        });
+      }
+    }
+
+    res.status(200).json({ success: true, message: 'Pending notification handled successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getFee,
   saveFee,
@@ -263,5 +371,6 @@ module.exports = {
   createRequest,
   verifyPayment,
   getPaymentOrder,
+  notifyPending,
   deleteRequest
 };

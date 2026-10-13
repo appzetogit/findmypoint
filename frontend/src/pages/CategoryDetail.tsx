@@ -916,6 +916,7 @@ export default function CategoryDetailPage({
         paymentId: opts.paymentId,
         paymentMethod: opts.paymentMethod || "Razorpay Gateway",
         paymentStatus: opts.paymentStatus || "paid",
+        skipWhatsApp: true,
       }),
     })
       .then((res) => res.json())
@@ -1001,7 +1002,12 @@ export default function CategoryDetailPage({
       body: JSON.stringify({
         id: bookingId,
         businessName: selectedBizForBooking.name,
-        data: dataToSave
+        data: dataToSave,
+        amount: amount,
+        paymentStatus: "Pending",
+        customerName: dataToSave["Full Name"] || bookingForm.name || "Guest",
+        customerPhone: dataToSave["Phone Number"] || bookingForm.phone || "",
+        serviceTitle: "Service Booking"
       })
     }).then(res => res.json())
       .then(data => {
@@ -3066,6 +3072,8 @@ export default function CategoryDetailPage({
                       onClick={() => {
                         const amount = getBookingPrice();
                         const isCOD = paymentMethod === "cod";
+                        // Start the profile lookup now so it is already resolved when payment completes
+                        const profilePromise = fetch(`${API_BASE_URL}/auth/profile`, { headers: getAuthHeaders() }).then(res => res.json()).catch(() => null);
 
                         const completeBookingFlow = async (paymentId: string) => {
                           dispatchBooking({ type: "SET_STEP", step: "success" });
@@ -3081,9 +3089,8 @@ export default function CategoryDetailPage({
                             };
 
                             try {
-                              const profRes = await fetch(`${API_BASE_URL}/auth/profile`, { headers: getAuthHeaders() });
-                              const profData = await profRes.json();
-                              if (profData.success && profData.user) {
+                              const profData = await profilePromise;
+                              if (profData?.success && profData.user) {
                                 const prof = profData.user;
                                 const fullName = [prof.firstName, prof.lastName].filter(Boolean).join(" ");
                                 if (!dataToSave["Full Name"] && !dataToSave["Customer Name"] && !dataToSave["Your Name"] && !dataToSave["Name"] && fullName) dataToSave["Full Name"] = fullName;
@@ -3104,13 +3111,22 @@ export default function CategoryDetailPage({
                             const bookingId = `BK${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
                             setConfirmedOrderId(bookingId);
 
+                            const finalStatus = isCOD ? "Pending" : "Paid";
+                            dataToSave["Payment Status"] = finalStatus;
+
                             fetch(`${API_BASE_URL}/service-forms/${selectedBizForBooking.id}/submissions`, {
                               method: "POST",
                               headers: getAuthHeaders(),
                               body: JSON.stringify({
                                 id: bookingId,
                                 businessName: selectedBizForBooking.name,
-                                data: dataToSave
+                                data: dataToSave,
+                                amount: amount,
+                                paymentStatus: finalStatus,
+                                razorpayPaymentId: isCOD ? "" : paymentId,
+                                customerName: dataToSave["Full Name"] || bookingForm.name || "Guest",
+                                customerPhone: dataToSave["Phone Number"] || bookingForm.phone || "",
+                                serviceTitle: "Service Booking"
                               })
                             }).then(res => res.json())
                               .then(data => {

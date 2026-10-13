@@ -7,6 +7,7 @@ const {
   createRequest,
   verifyPayment,
   getPaymentOrder,
+  notifyPending,
   deleteRequest
 } = require('../controllers/businessRequestController');
 const { protect, optionalProtect } = require('../middleware/authMiddleware');
@@ -21,6 +22,7 @@ router.get('/', adminProtect, getRequests);
 router.post('/', optionalProtect, createRequest);
 router.post('/verify-payment', optionalProtect, verifyPayment);
 router.post('/:id/payment-order', optionalProtect, getPaymentOrder);
+router.post('/:id/notify-pending', optionalProtect, notifyPending);
 router.delete('/:id', adminProtect, deleteRequest);
 
 module.exports = router;

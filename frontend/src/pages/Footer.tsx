@@ -622,6 +622,14 @@ export default function Footer() {
       amount: feeAmt !== undefined ? feeAmt : (parseFloat(listingRequestFee) || 0),
       paymentStatus: "Pending",
     });
+
+    const finalReqId = reqId || currentRequestId;
+    if (finalReqId) {
+      fetch(`${API_BASE_URL}/business-requests/${finalReqId}/notify-pending`, {
+        method: "POST"
+      }).catch(err => console.warn("Pending notification trigger error:", err));
+    }
+
     setIsPaymentStep(false);
     setIsSubmittingForm(false);
     setIsSuccessStep(true);

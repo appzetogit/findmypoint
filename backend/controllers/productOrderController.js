@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const ProductOrder = require('../models/ProductOrder');
 const Business = require('../models/Business');
 const { slugify } = require('../utils/slugify');
+const whatsappService = require('../services/whatsappService');
 
 // Helper to verify caller owns the business listing or is an Admin
 const verifyBusinessAccess = async (req, businessId) => {
@@ -35,7 +36,9 @@ const createOrder = async (req, res) => {
     const { businessName, customerName, customerPhone, customerAddress, orderItems, totalAmount, notes } = req.body;
     const businessId = req.params.businessId;
 
-    if (!customerName || !customerPhone || !orderItems || !totalAmount) {
+    const resolvedPhone = customerPhone || req.user?.mobile1 || 'N/A';
+
+    if (!customerName || !orderItems || !totalAmount) {
       return res.status(400).json({ success: false, message: 'All required fields must be provided' });
     }
 
@@ -52,7 +55,8 @@ const createOrder = async (req, res) => {
     // Generate a unique high-entropy FMP-XXXXXX order ID without blocking loops (BUG-016 fix)
     const randSuffix = Math.floor(1000 + Math.random() * 9000);
     const timeSuffix = Date.now().toString().slice(-4);
-    const orderId = `FMP-${timeSuffix}${randSuffix}`;
+    // Keep the client-generated id when sent, so the order matches its service-form submission
+    const orderId = /^FMP-\d{4,12}$/.test(req.body.id) ? req.body.id : `FMP-${timeSuffix}${randSuffix}`;
 
     const normalizedItems = Array.isArray(orderItems)
       ? orderItems.map(item => ({
@@ -68,7 +72,7 @@ const createOrder = async (req, res) => {
       businessId,
       businessName: businessName || '',
       customerName,
-      customerPhone,
+      customerPhone: resolvedPhone,
       customerAddress: customerAddress || '',
       orderItems: normalizedItems,
       totalAmount: Number(totalAmount),

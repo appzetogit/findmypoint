@@ -1,6 +1,45 @@
+const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Transaction = require('../models/Transaction');
+const Business = require('../models/Business');
+const User = require('../models/User');
 const whatsappService = require('../services/whatsappService');
+
+const extractPhoneDigits = (val) => {
+  if (!val) return '';
+  const digits = String(val).replace(/\D/g, '');
+  return digits.length >= 10 ? digits.slice(-10) : '';
+};
+
+const isBusinessPhone = async (businessId, phone) => {
+  if (!phone || !businessId) return false;
+  const targetClean = extractPhoneDigits(phone);
+  if (!targetClean) return false;
+
+  try {
+    const isObjectId = mongoose.isValidObjectId(businessId);
+    const biz = await Business.findOne({
+      $or: [
+        { id: businessId },
+        ...(isObjectId ? [{ _id: businessId }] : [])
+      ]
+    }).select('phone whatsapp extraNumbers owner');
+    if (!biz) return false;
+
+    if (extractPhoneDigits(biz.phone) === targetClean) return true;
+    if (extractPhoneDigits(biz.whatsapp) === targetClean) return true;
+    if (Array.isArray(biz.extraNumbers)) {
+      for (const n of biz.extraNumbers) {
+        if (extractPhoneDigits(n) === targetClean) return true;
+      }
+    }
+    if (biz.owner) {
+      const ownerUser = await User.findById(biz.owner).select('mobile1');
+      if (ownerUser && extractPhoneDigits(ownerUser.mobile1) === targetClean) return true;
+    }
+  } catch (_) { }
+  return false;
+};
 
 // @desc    Get all bookings (All for Admin, user-specific for regular users)
 // @route   GET /api/bookings
@@ -111,23 +150,30 @@ const createBooking = async (req, res) => {
       console.error('Warning: Failed to create initial transaction for booking:', txnErr.message);
     }
 
-    // Send WhatsApp booking confirmation if phone number is available
-    if (booking.customerPhone) {
-      whatsappService.sendBookingConfirmation({
-        phone: booking.customerPhone,
-        customerName: booking.customerName || 'Customer',
-        bookingId: booking.id,
-        businessName: booking.businessName,
-        service: booking.service || 'Service Booking',
-        date: booking.date || new Date().toLocaleDateString('en-GB'),
-        time: booking.time || 'As scheduled',
-        amount: booking.amount,
-        paymentStatus: booking.paymentStatus === 'paid' ? 'Paid Online' : (isCOD ? 'Pay on Visit (COD)' : 'Confirmed'),
-        location: booking.location || 'Visit Business'
-      }).then(res => {
-        console.log(`✅ [WhatsApp] Booking confirmation sent to ${booking.customerPhone}. MsgId:`, res.response);
-      }).catch(err => {
-        console.error(`⚠️ [WhatsApp] Booking confirmation dispatch failed for ${booking.customerPhone}:`, err.message);
+    // Send WhatsApp booking confirmation only to customer (never send to business number)
+    if (booking.customerPhone && !req.body.skipWhatsApp) {
+      isBusinessPhone(booking.businessId, booking.customerPhone).then(isBiz => {
+        if (isBiz) {
+          console.warn(`[Booking] Phone ${booking.customerPhone} belongs to business ${booking.businessId}. Skipping WhatsApp to business.`);
+          return;
+        }
+        whatsappService.sendBookingConfirmation({
+          phone: booking.customerPhone,
+          customerName: booking.customerName || 'Customer',
+          bookingId: booking.id,
+          businessName: booking.businessName,
+          service: booking.service || 'Service Booking',
+          date: booking.date || new Date().toLocaleDateString('en-GB'),
+          time: booking.time || 'As scheduled',
+          amount: booking.amount,
+          paymentStatus: booking.paymentStatus === 'paid' ? 'Paid Online' : (isCOD ? 'Pay on Visit (COD)' : 'Confirmed'),
+          location: booking.location || 'Visit Business',
+          formData: booking.formData || {}
+        }).then(res => {
+          console.log(`✅ [WhatsApp] Booking confirmation sent to ${booking.customerPhone}. MsgId:`, res.response);
+        }).catch(err => {
+          console.error(`⚠️ [WhatsApp] Booking confirmation dispatch failed for ${booking.customerPhone}:`, err.message);
+        });
       });
     }
 
@@ -227,23 +273,30 @@ const updateBookingStatus = async (req, res) => {
       }
     }
 
-    // Send WhatsApp notification if status changed to confirmed
+    // Send WhatsApp notification if status changed to confirmed (never to business)
     if (status === 'confirmed' && booking.customerPhone) {
-      whatsappService.sendBookingConfirmation({
-        phone: booking.customerPhone,
-        customerName: booking.customerName || 'Customer',
-        bookingId: booking.id,
-        businessName: booking.businessName,
-        service: booking.service || 'Service Booking',
-        date: booking.date || new Date().toLocaleDateString('en-GB'),
-        time: booking.time || 'As scheduled',
-        amount: booking.amount,
-        paymentStatus: booking.paymentStatus === 'paid' ? 'Paid Online' : 'Confirmed',
-        location: booking.location || 'Visit Business'
-      }).then(res => {
-        console.log(`✅ [WhatsApp] Booking confirmation sent to ${booking.customerPhone} on status update. MsgId:`, res.response);
-      }).catch(err => {
-        console.error(`⚠️ [WhatsApp] Booking confirmation dispatch failed on status update:`, err.message);
+      isBusinessPhone(booking.businessId, booking.customerPhone).then(isBiz => {
+        if (isBiz) {
+          console.warn(`[Booking Status] Phone ${booking.customerPhone} belongs to business ${booking.businessId}. Skipping WhatsApp.`);
+          return;
+        }
+        whatsappService.sendBookingConfirmation({
+          phone: booking.customerPhone,
+          customerName: booking.customerName || 'Customer',
+          bookingId: booking.id,
+          businessName: booking.businessName,
+          service: booking.service || 'Service Booking',
+          date: booking.date || new Date().toLocaleDateString('en-GB'),
+          time: booking.time || 'As scheduled',
+          amount: booking.amount,
+          paymentStatus: booking.paymentStatus === 'paid' ? 'Paid Online' : 'Confirmed',
+          location: booking.location || 'Visit Business',
+          formData: booking.formData || {}
+        }).then(res => {
+          console.log(`✅ [WhatsApp] Booking confirmation sent to ${booking.customerPhone} on status update. MsgId:`, res.response);
+        }).catch(err => {
+          console.error(`⚠️ [WhatsApp] Booking confirmation dispatch failed on status update:`, err.message);
+        });
       });
     }
 

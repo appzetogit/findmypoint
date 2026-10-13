@@ -1,6 +1,22 @@
 const axios = require('axios');
+const http = require('http');
+const https = require('https');
 const path = require('path');
 const dotenv = require('dotenv');
+
+// Reuse the BhashSMS connection across sends so each message skips the TCP + TLS handshake
+const requestOptions = {
+  headers: {
+    'User-Agent': 'FindmyPoint/1.0',
+    'Accept': '*/*'
+  },
+  timeout: 10000, // 10 sec timeout
+  httpAgent: new http.Agent({ keepAlive: true }),
+  httpsAgent: new https.Agent({ keepAlive: true })
+};
+
+// Set once HTTPS fails but HTTP works, so later sends don't wait on the failing HTTPS attempt first
+let preferHttp = false;
 
 dotenv.config();
 if (!process.env.BHASHSMS_USER) {
@@ -28,7 +44,10 @@ class BhashWhatsAppService {
       sender: process.env.BHASHSMS_SENDER?.trim() || '',
       endpoint: endpoint,
       regTemplate: process.env.BHASHSMS_REG_TEMPLATE?.trim() || 'registration_portal_02',
-      bookingTemplate: process.env.BHASHSMS_BOOKING_TEMPLATE?.trim() || 'booking_findmy',
+      bookingTemplate: process.env.BHASHSMS_BOOKING_TEMPLATE?.trim() || 'service_booking_update_01',
+      serviceBookingTemplate: process.env.BHASHSMS_SERVICE_BOOKING_TEMPLATE?.trim() || 'service_booking_update_01',
+      leadPaidTemplate: process.env.BHASHSMS_LEAD_PAID_TEMPLATE?.trim() || 'business_lead_paid_01',
+      leadPendingTemplate: process.env.BHASHSMS_LEAD_PENDING_TEMPLATE?.trim() || 'business_lead_pending_01',
       clientPortalUrl: process.env.CLIENT_PORTAL_URL?.trim() || (process.env.SITE_URL ? `${process.env.SITE_URL}/client` : 'https://findmypoint.app/client')
     };
   }
@@ -134,26 +153,20 @@ class BhashWhatsAppService {
       console.log(`[WhatsApp API] Sending WhatsApp to: ${cleanPhone} | Template: ${templateName} | Params count: ${params.length}`);
 
       // Try secure HTTPS first, fallback to HTTP if SSL error occurs on VPS
+      const startedAt = Date.now();
+      if (preferHttp) {
+        requestUrl = requestUrl.replace('https://', 'http://');
+      }
+
       let response;
       try {
-        response = await axios.get(requestUrl, {
-          headers: {
-            'User-Agent': 'FindmyPoint/1.0',
-            'Accept': '*/*'
-          },
-          timeout: 10000 // 10 sec timeout
-        });
+        response = await axios.get(requestUrl, requestOptions);
       } catch (reqErr) {
         if (requestUrl.startsWith('https://')) {
           const httpFallback = requestUrl.replace('https://', 'http://');
           console.warn(`[WhatsApp API] HTTPS request failed (${reqErr.message}), trying HTTP fallback...`);
-          response = await axios.get(httpFallback, {
-            headers: {
-              'User-Agent': 'FindmyPoint/1.0',
-              'Accept': '*/*'
-            },
-            timeout: 10000
-          });
+          response = await axios.get(httpFallback, requestOptions);
+          preferHttp = true;
         } else {
           throw reqErr;
         }
@@ -163,7 +176,7 @@ class BhashWhatsAppService {
         ? response.data.trim()
         : JSON.stringify(response.data);
 
-      console.log(`[WhatsApp API] Response for ${cleanPhone}:`, responseData);
+      console.log(`[WhatsApp API] Response for ${cleanPhone} in ${Date.now() - startedAt} ms:`, responseData);
 
       // Check success condition: BhashSMS returns "S.XXXXX" or "s.XXXXX" or "Message id s.XXXXX"
       const lowerResp = responseData.toLowerCase();
@@ -182,22 +195,9 @@ class BhashWhatsAppService {
         };
       }
 
-      // Check known error messages
-      if (lowerResp.includes('error') ||
-          lowerResp.includes('deactivated') ||
-          lowerResp.includes('incorrect') ||
-          lowerResp.includes('not exist') ||
-          lowerResp.includes('invalid')) {
-        throw new Error(`BhashSMS WhatsApp Error: ${responseData}`);
-      }
-
-      // Fallback
-      return {
-        success: true,
-        phone: cleanPhone,
-        template: templateName,
-        response: responseData
-      };
+      // Anything that is not an accepted-message id is a rejection (e.g. "Only Utility or
+      // Authentication Templates Supported") — never report it as sent
+      throw new Error(`BhashSMS WhatsApp Error: ${responseData || 'empty response'}`);
     } catch (error) {
       console.error(`[WhatsApp API Error]:`, error.response?.data || error.message);
       throw error;
@@ -323,10 +323,27 @@ class BhashWhatsAppService {
     time,
     amount,
     paymentStatus,
-    location
+    location,
+    formData
   }) {
     const config = this.getConfig();
     const templateName = config.bookingTemplate || 'booking_findmy';
+
+    // If configured template is service_booking_update_01, gracefully delegate to dynamic 8-param template
+    if (templateName === 'service_booking_update_01' || config.serviceBookingTemplate === templateName) {
+      return await this.sendDynamicServiceBookingConfirmation({
+        phone,
+        customerName,
+        bookingId,
+        businessName,
+        serviceTitle: service,
+        dynamicDetails: formData || service || 'Service Booking',
+        schedule: date && time ? `${date} | ${time}` : (date || time || 'As Scheduled'),
+        amount,
+        paymentStatus,
+        location
+      });
+    }
 
     const params = [
       customerName || 'Customer',
@@ -338,6 +355,224 @@ class BhashWhatsAppService {
       String(amount !== undefined && amount !== null ? amount : '0'),
       paymentStatus || 'Paid Online',
       location || 'Indore, MP'
+    ];
+
+    return await this.sendWhatsApp({
+      phone,
+      template: templateName,
+      params
+    });
+  }
+
+  /**
+   * Intelligently format custom dynamic form fields into a compact key-value summary.
+   * Filters out common standard anchors to avoid redundancy and prevents comma splitting.
+   * @param {Object} formData - Dynamic form payload
+   * @param {Array<string>} [excludeKeys] - Keys already handled in other template parameters
+   * @param {number} [maxChars] - Maximum characters to prevent overly long messages (default: 250)
+   * @returns {string} Clean summary like "Doctor: Dr. Verma | Symptoms: Fever | Age: 28"
+   */
+  buildDynamicSummary(formData, excludeKeys = [], maxChars = 250) {
+    if (!formData || typeof formData !== 'object') return 'Service Request Details';
+
+    const defaultExcludes = [
+      'name', 'fullname', 'full_name', 'customername', 'customer_name', 'yourname', 'your_name',
+      'phone', 'phonenumber', 'phone_number', 'mobile', 'mobilenumber', 'contact', 'whatsapp',
+      'email', 'emailaddress', 'email_address',
+      'date', 'appointmentdate', 'bookingdate', 'time', 'slot', 'timeslot',
+      'amount', 'total', 'price', 'fee', 'payment', 'paymentstatus',
+      'address', 'location', 'city', 'id', '_id'
+    ];
+
+    const normalizedExcludes = new Set(
+      [...defaultExcludes, ...excludeKeys].map(k => String(k).toLowerCase().replace(/[^a-z0-9]/g, ''))
+    );
+
+    const pairs = [];
+    for (const [rawKey, rawVal] of Object.entries(formData)) {
+      if (rawVal === undefined || rawVal === null || rawVal === '') continue;
+
+      const normKey = String(rawKey).toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (normalizedExcludes.has(normKey)) continue;
+
+      let valStr = '';
+      if (Array.isArray(rawVal)) {
+        valStr = rawVal.join(' + ');
+      } else if (typeof rawVal === 'object') {
+        valStr = JSON.stringify(rawVal);
+      } else {
+        valStr = String(rawVal);
+      }
+
+      // Replace commas with spaces to prevent breaking BhashSMS comma delimiter
+      valStr = valStr.replace(/,/g, ' ').replace(/[\r\n]+/g, ' ').trim();
+      const cleanKey = String(rawKey).replace(/,/g, ' ').replace(/[\r\n]+/g, ' ').trim();
+
+      if (cleanKey && valStr) {
+        pairs.push(`${cleanKey}: ${valStr}`);
+      }
+    }
+
+    if (pairs.length === 0) {
+      return 'Service Request Submitted';
+    }
+
+    let summary = pairs.join(' | ');
+    if (summary.length > maxChars) {
+      summary = summary.slice(0, maxChars - 3) + '...';
+    }
+    return summary;
+  }
+
+  /**
+   * Send Dynamic Service Booking / Order Confirmation to Customer via WhatsApp
+   * Approved Template: service_booking_update_01
+   *
+   * Template Body:
+   * Booking Confirmed! 🎉
+   *
+   * Dear {{1}},
+   *
+   * Your booking / service request has been successfully received. Here are your details:
+   *
+   * 📋 Request Details:
+   * * Request ID: #{{2}}
+   * * Business: {{3}}
+   * * Service: {{4}}
+   * * Details: {{5}}
+   * * Schedule: {{6}}
+   * * Amount: {{7}}
+   *
+   * 📍 Location / Contact: {{8}}
+   *
+   * For any queries or assistance, please contact the business or FindmyPoint support.
+   *
+   * Thank you,
+   * Team FindmyPoint
+   *
+   * @param {Object} details
+   * @param {string} details.phone - Customer mobile number
+   * @param {string} [details.customerName] - {{1}} Customer Name
+   * @param {string} [details.bookingId] - {{2}} Request/Booking ID
+   * @param {string} [details.businessName] - {{3}} Business Name
+   * @param {string} [details.serviceTitle] - {{4}} Service / Form Title
+   * @param {string|Object} [details.dynamicDetails] - {{5}} Formatted dynamic summary string OR raw formData
+   * @param {string} [details.schedule] - {{6}} Date & Time or Slot
+   * @param {string|number} [details.amount] - {{7}} Total amount or "Pay on Visit / Free Consultation"
+   * @param {string} [details.paymentStatus] - Payment status / mode
+   * @param {string} [details.location] - {{8}} Business location / contact phone
+   * @returns {Promise<Object>}
+   */
+  async sendDynamicServiceBookingConfirmation({
+    phone,
+    customerName,
+    bookingId,
+    businessName,
+    serviceTitle,
+    dynamicDetails,
+    schedule,
+    amount,
+    paymentStatus,
+    location
+  }) {
+    const config = this.getConfig();
+    const templateName = config.serviceBookingTemplate || 'service_booking_update_01';
+
+    // Format {{5}} Details: if dynamicDetails is an object, format via buildDynamicSummary
+    let finalDetails = '';
+    if (typeof dynamicDetails === 'object' && dynamicDetails !== null) {
+      finalDetails = this.buildDynamicSummary(dynamicDetails);
+    } else {
+      finalDetails = dynamicDetails ? String(dynamicDetails) : 'Service Request Submitted';
+    }
+
+    // Format {{7}} Amount
+    let finalAmount = '';
+    const numericAmount = Number(String(amount || '').replace(/[^0-9.]/g, ''));
+    const isPaid = Boolean(
+      paymentStatus && (
+        String(paymentStatus).toLowerCase().includes('paid') ||
+        String(paymentStatus).toLowerCase() === 'completed' ||
+        String(paymentStatus).toLowerCase() === 'success'
+      )
+    );
+
+    if (numericAmount > 0) {
+      if (isPaid) {
+        finalAmount = `Rs. ${numericAmount} (Paid)`;
+      } else {
+        finalAmount = `Rs. ${numericAmount} (Pending)`;
+      }
+    } else if (isPaid) {
+      finalAmount = 'Paid';
+    } else {
+      finalAmount = 'Pending';
+    }
+
+    const params = [
+      customerName || 'Valued Customer',
+      bookingId || 'BK' + Date.now().toString().slice(-6),
+      businessName || 'FindmyPoint Partner',
+      serviceTitle || 'Service Request',
+      finalDetails,
+      schedule || 'As Scheduled',
+      finalAmount,
+      location || 'Indore, MP'
+    ];
+
+    return await this.sendWhatsApp({
+      phone,
+      template: templateName,
+      params
+    });
+  }
+
+  /**
+   * Send Field Work Listing / Business Lead Generation Confirmation to WhatsApp
+   * Approved Templates:
+   *   - business_lead_paid_01 (When payment status is Received / Paid)
+   *   - business_lead_pending_01 (When payment status is Pending)
+   *
+   * Both templates use 5 parameters:
+   *   {{1}} Owner Name
+   *   {{2}} Business Name
+   *   {{3}} Category
+   *   {{4}} Request ID
+   *   {{5}} Amount Paid / Due
+   *
+   * @param {Object} details
+   * @param {string} details.phone - WhatsApp mobile number
+   * @param {string} [details.ownerName] - {{1}} Owner Name
+   * @param {string} [details.businessName] - {{2}} Business Name
+   * @param {string} [details.category] - {{3}} Category of Business
+   * @param {string} [details.requestId] - {{4}} Request ID
+   * @param {number|string} [details.amount] - {{5}} Amount (Paid or Due)
+   * @param {'Paid'|'Pending'} [details.status] - 'Paid' or 'Pending'
+   * @returns {Promise<Object>}
+   */
+  async sendBusinessLeadNotification({
+    phone,
+    ownerName,
+    businessName,
+    category,
+    requestId,
+    amount,
+    status = 'Paid'
+  }) {
+    const config = this.getConfig();
+    const isPaid = String(status).toLowerCase() === 'paid';
+    const templateName = isPaid ? config.leadPaidTemplate : config.leadPendingTemplate;
+
+    const formattedAmount = (amount !== undefined && amount !== null && Number(amount) > 0)
+      ? `Rs. ${amount}`
+      : (isPaid ? 'Free' : 'Rs. 0');
+
+    const params = [
+      ownerName || 'Valued Partner',                         // {{1}}
+      businessName || 'Business Listing',                   // {{2}}
+      category || 'General',                                // {{3}}
+      requestId || 'REQ' + Date.now().toString().slice(-6), // {{4}}
+      formattedAmount                                       // {{5}}
     ];
 
     return await this.sendWhatsApp({

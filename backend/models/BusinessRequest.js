@@ -25,7 +25,8 @@ const BusinessRequestSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   razorpayOrderId: { type: String },
   razorpayPaymentId: { type: String },
-  paymentStatus: { type: String, enum: ['Pending', 'Paid'], default: 'Pending' }
+  paymentStatus: { type: String, enum: ['Pending', 'Paid'], default: 'Pending' },
+  pendingNotified: { type: Boolean, default: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model('BusinessRequest', BusinessRequestSchema);

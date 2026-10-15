@@ -46,8 +46,8 @@ class BhashWhatsAppService {
       regTemplate: process.env.BHASHSMS_REG_TEMPLATE?.trim() || 'registration_portal_02',
       bookingTemplate: process.env.BHASHSMS_BOOKING_TEMPLATE?.trim() || 'service_booking_update_01',
       serviceBookingTemplate: process.env.BHASHSMS_SERVICE_BOOKING_TEMPLATE?.trim() || 'service_booking_update_01',
-      leadPaidTemplate: process.env.BHASHSMS_LEAD_PAID_TEMPLATE?.trim() || 'business_lead_paid_01',
-      leadPendingTemplate: process.env.BHASHSMS_LEAD_PENDING_TEMPLATE?.trim() || 'business_lead_pending_01',
+      leadPaidTemplate: process.env.BHASHSMS_LEAD_PAID_TEMPLATE?.trim() || 'lead_paid_01',
+      leadPendingTemplate: process.env.BHASHSMS_LEAD_PENDING_TEMPLATE?.trim() || 'lead_pending_02',
       clientPortalUrl: process.env.CLIENT_PORTAL_URL?.trim() || (process.env.SITE_URL ? `${process.env.SITE_URL}/client` : 'https://findmypoint.app/client')
     };
   }
@@ -530,8 +530,36 @@ class BhashWhatsAppService {
   /**
    * Send Field Work Listing / Business Lead Generation Confirmation to WhatsApp
    * Approved Templates:
-   *   - business_lead_paid_01 (When payment status is Received / Paid)
-   *   - business_lead_pending_01 (When payment status is Pending)
+   *   - lead_paid_01 (When payment status is Received / Paid)
+   *   - lead_pending_02 (When payment status is Pending)
+   *
+   * Template Body (lead_paid_01):
+   *   *Business Registration Confirmed! 🎉*
+   *   Dear {{1}},
+   *   Congratulations! Your business registration request has been successfully received on FindmyPoint.
+   *   📋 *Registration Details:*
+   *   *Business Name:* {{2}}
+   *   *Category:* {{3}}
+   *   *Request ID:* #{{4}}
+   *   *Payment Status:* Received
+   *   *Amount Paid:* {{5}}
+   *   Your payment has been successfully received. Team FindmyPoint is committed to helping you scale and grow your business. Our team is now reviewing your listing for portal activation.
+   *   Thank you,
+   *   Team FindmyPoint
+   *
+   * Template Body (lead_pending_02):
+   *   *Business Registration Received! 📋*
+   *   Dear {{1}},
+   *   Thank you for initiating your business registration request on FindmyPoint.
+   *   📋 *Registration Details:*
+   *   *Business Name:* {{2}}
+   *   *Category:* {{3}}
+   *   *Request ID:* #{{4}}
+   *   *Payment Status:* Pending
+   *   *Amount Due:* {{5}}
+   *   Please complete your payment to activate your business listing. Team FindmyPoint is committed to helping you scale and accelerate your business growth.
+   *   Thank you,
+   *   Team FindmyPoint
    *
    * Both templates use 5 parameters:
    *   {{1}} Owner Name

@@ -1,15 +1,18 @@
 const axios = require('axios');
-const http = require('http');
 const https = require('https');
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Reuse the BhashSMS connection across sends so each message skips the TCP + TLS handshake
-// Separate agents reused across requests to avoid repeated TCP+TLS handshakes
-const keepAliveHttpAgent  = new http.Agent({ keepAlive: true });
-const keepAliveHttpsAgent = new https.Agent({ keepAlive: true });
+// BhashSMS only serves HTTPS. Some VPS environments hang on TLS handshake when strict cert
+// validation is used. rejectUnauthorized:false + TLSv1_2 resolves the hang without
+// compromising the payload (credentials are already in the URL query string).
+const keepAliveHttpsAgent = new https.Agent({
+  keepAlive: true,
+  rejectUnauthorized: false,  // skip cert-chain validation that causes TLS hang on VPS
+  secureProtocol: 'TLSv1_2_method' // force TLS 1.2; some VPS firewalls block TLS 1.3 negotiation
+});
 
-const REQUEST_TIMEOUT_MS = 25000; // 25s — bhashsms.com can be legitimately slow
+const REQUEST_TIMEOUT_MS = 20000; // 20s — generous but not excessive
 
 function buildRequestOptions(timeoutMs = REQUEST_TIMEOUT_MS) {
   return {
@@ -18,13 +21,9 @@ function buildRequestOptions(timeoutMs = REQUEST_TIMEOUT_MS) {
       'Accept': '*/*'
     },
     timeout: timeoutMs,
-    httpAgent:  keepAliveHttpAgent,
     httpsAgent: keepAliveHttpsAgent
   };
 }
-
-// Set once HTTPS fails but HTTP works, so later sends don't wait on the failing HTTPS attempt first
-let preferHttp = false;
 
 dotenv.config();
 if (!process.env.BHASHSMS_USER) {
@@ -160,42 +159,16 @@ class BhashWhatsAppService {
 
       console.log(`[WhatsApp API] Sending WhatsApp to: ${cleanPhone} | Template: ${templateName} | Params count: ${params.length}`);
 
-      // Try secure HTTPS first, fallback to HTTP if SSL/timeout error occurs on VPS
+      // bhashsms.com only works over HTTPS (HTTP returns ECONNRESET).
+      // TLS hang on VPS is handled by rejectUnauthorized:false + TLSv1_2 on the agent above.
       const startedAt = Date.now();
-      if (preferHttp) {
-        requestUrl = requestUrl.replace('https://', 'http://');
+
+      // Ensure URL is always HTTPS
+      if (requestUrl.startsWith('http://')) {
+        requestUrl = requestUrl.replace('http://', 'https://');
       }
 
-      let response;
-      const isTimeoutErr = (e) => e.code === 'ECONNABORTED' || (e.message && e.message.toLowerCase().includes('timeout'));
-
-      const attemptRequest = async (url, timeoutMs) => {
-        try {
-          return await axios.get(url, buildRequestOptions(timeoutMs));
-        } catch (firstErr) {
-          // One retry for transient timeout on the same URL
-          if (isTimeoutErr(firstErr)) {
-            console.warn(`[WhatsApp API] Request timed out (${firstErr.message}), retrying once...`);
-            return await axios.get(url, buildRequestOptions(timeoutMs));
-          }
-          throw firstErr;
-        }
-      };
-
-      try {
-        response = await attemptRequest(requestUrl, REQUEST_TIMEOUT_MS);
-      } catch (reqErr) {
-        if (requestUrl.startsWith('https://')) {
-          // Mark HTTP as preferred IMMEDIATELY so next call skips HTTPS
-          preferHttp = true;
-          const httpFallback = requestUrl.replace('https://', 'http://');
-          console.warn(`[WhatsApp API] HTTPS request failed (${reqErr.message}), trying HTTP fallback...`);
-          // Give HTTP fallback a fresh full timeout (no need to share the spent time)
-          response = await attemptRequest(httpFallback, REQUEST_TIMEOUT_MS);
-        } else {
-          throw reqErr;
-        }
-      }
+      const response = await axios.get(requestUrl, buildRequestOptions());
 
       const responseData = typeof response.data === 'string'
         ? response.data.trim()

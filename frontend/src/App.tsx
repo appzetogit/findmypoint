@@ -21,6 +21,7 @@ import SearchResultsPage from "./pages/SearchResultsPage";
 import BottomLoginPrompt from "./components/BottomLoginPrompt";
 import { Home, CalendarDays, Receipt, User } from "lucide-react";
 import { socketService } from "./services/socketService";
+import { fcmService } from "./services/fcmService";
 import ReviewPromptModal from "./components/ReviewPromptModal";
 import { isApkEnvironment } from "./utils/apkDetection";
 
@@ -642,6 +643,9 @@ export default function App() {
 
     // Initial registration
     registerSocket();
+    if (localStorage.getItem("fmp_user_token")) {
+      fcmService.syncFcmTokenWithBackend().catch(() => {});
+    }
 
     // Listen for booking completed events
     socketService.onRequestReview((data) => {
@@ -654,6 +658,7 @@ export default function App() {
       const token = localStorage.getItem("fmp_user_token");
       if (token) {
         registerSocket();
+        fcmService.syncFcmTokenWithBackend().catch(() => {});
       } else {
         socketService.unregisterUser();
       }
@@ -679,6 +684,7 @@ export default function App() {
           userProfile={userProfile}
           onSignInClick={() => dispatch({ type: "SET_SHOW_SIGN_IN", show: true })}
           onLogout={() => {
+            fcmService.removeFcmTokenFromBackend().catch(() => {});
             localStorage.removeItem("fmp_user_token");
             localStorage.removeItem("fmp_profile_personal:v1");
             setUsername(null);
@@ -850,6 +856,7 @@ export default function App() {
           dispatch({ type: "SEARCH", query, location });
         }}
         onLogout={() => {
+          fcmService.removeFcmTokenFromBackend().catch(() => {});
           localStorage.removeItem("fmp_user_token");
           localStorage.removeItem("fmp_profile_personal:v1");
           setUsername(null);
@@ -962,6 +969,7 @@ export default function App() {
           onClose={() => dispatch({ type: "SET_SHOW_SIDEBAR", show: false })}
           username={username}
           onLogout={() => {
+            fcmService.removeFcmTokenFromBackend().catch(() => {});
             localStorage.removeItem("fmp_user_token");
             localStorage.removeItem("fmp_profile_personal:v1");
             setUsername(null);

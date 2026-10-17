@@ -11,7 +11,9 @@ const {
   addUserAddress,
   updateUserAddress,
   deleteUserAddress,
-  updateUserFavorites
+  updateUserFavorites,
+  updateFcmToken,
+  removeFcmToken
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const rateLimit = require('express-rate-limit');
@@ -47,5 +49,9 @@ router.post('/address', protect, addUserAddress);
 router.put('/address/:addressId', protect, updateUserAddress);
 router.delete('/address/:addressId', protect, deleteUserAddress);
 router.put('/favorites', protect, updateUserFavorites);
+
+// FCM Token management
+router.post('/fcm-token', protect, updateFcmToken);
+router.delete('/fcm-token', protect, removeFcmToken);
 
 module.exports = router;

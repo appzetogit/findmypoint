@@ -61,12 +61,66 @@ const sendOtp = async (req, res) => {
   }
 };
 
+// Helper function to attach or update FCM token on user model
+const attachFcmTokenToUser = (user, fcmToken, device = 'web', platform = null) => {
+  if (!fcmToken || typeof fcmToken !== 'string') return;
+  const cleanToken = fcmToken.trim();
+  if (!cleanToken) return;
+
+  const targetDev = String(device || '').toLowerCase();
+  const targetPlat = String(platform || '').toLowerCase();
+
+  const isMobile = (
+    targetDev.includes('apk') ||
+    targetDev.includes('android') ||
+    targetDev.includes('app') ||
+    targetDev.includes('mobile') ||
+    targetDev.includes('ios') ||
+    targetPlat.includes('mobile') ||
+    targetPlat.includes('apk') ||
+    targetPlat.includes('android') ||
+    targetPlat.includes('ios') ||
+    targetPlat.includes('app')
+  );
+
+  // Set latest general active token
+  user.fcmToken = cleanToken;
+
+  // Set dedicated platform tokens so Web and Mobile/APK tokens never overwrite each other
+  if (isMobile) {
+    user.apkFcmToken = cleanToken;
+  } else {
+    user.webFcmToken = cleanToken;
+  }
+
+  if (!Array.isArray(user.fcmTokens)) {
+    user.fcmTokens = [];
+  }
+
+  const effectiveDevice = device || (isMobile ? 'mobile' : 'web');
+  const effectivePlatform = platform || (isMobile ? 'mobile' : 'web');
+
+  const existingIdx = user.fcmTokens.findIndex(t => t.token === cleanToken);
+  if (existingIdx >= 0) {
+    user.fcmTokens[existingIdx].updatedAt = new Date();
+    user.fcmTokens[existingIdx].device = effectiveDevice;
+    user.fcmTokens[existingIdx].platform = effectivePlatform;
+  } else {
+    user.fcmTokens.push({
+      token: cleanToken,
+      device: effectiveDevice,
+      platform: effectivePlatform,
+      updatedAt: new Date()
+    });
+  }
+};
+
 // @desc    Verify OTP and log in / notify if new user
 // @route   POST /api/auth/verify-otp
 // @access  Public
 const verifyOtp = async (req, res) => {
-  const { phone, otp } = req.body;
-  
+  const { phone, otp, fcmToken, device, platform } = req.body;
+
   if (!phone || !otp || typeof phone !== 'string' || typeof otp !== 'string' || otp.length !== 6) {
     return res.status(200).json({ success: false, message: 'Please enter phone and 6-digit OTP' });
   }
@@ -89,6 +143,10 @@ const verifyOtp = async (req, res) => {
     const user = await User.findOne({ mobile1: phone });
 
     if (user) {
+      if (fcmToken) {
+        attachFcmTokenToUser(user, fcmToken, device, platform);
+        await user.save();
+      }
       const token = generateToken(user._id);
       return res.status(200).json({
         success: true,
@@ -127,7 +185,7 @@ const verifyOtp = async (req, res) => {
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = async (req, res) => {
-  const { title, firstName, middleName, lastName, mobile1, mobile2, email } = req.body;
+  const { title, firstName, middleName, lastName, mobile1, mobile2, email, fcmToken, device, platform } = req.body;
 
   if (!firstName || typeof firstName !== 'string' || !mobile1 || typeof mobile1 !== 'string' || !email || typeof email !== 'string') {
     return res.status(400).json({ success: false, message: 'First name, mobile number, and email are required' });
@@ -146,6 +204,24 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: 'User already exists with this mobile number' });
     }
 
+    const cleanFcmToken = (fcmToken && typeof fcmToken === 'string') ? fcmToken.trim() : null;
+    const targetDev = String(device || '').toLowerCase();
+    const targetPlat = String(platform || '').toLowerCase();
+    const isMobile = (
+      targetDev.includes('apk') ||
+      targetDev.includes('android') ||
+      targetDev.includes('app') ||
+      targetDev.includes('mobile') ||
+      targetDev.includes('ios') ||
+      targetPlat.includes('mobile') ||
+      targetPlat.includes('apk') ||
+      targetPlat.includes('android') ||
+      targetPlat.includes('ios') ||
+      targetPlat.includes('app')
+    );
+    const effectiveDevice = device || (isMobile ? 'mobile' : 'web');
+    const effectivePlatform = platform || (isMobile ? 'mobile' : 'web');
+
     const user = await User.create({
       title: title || 'Mr.',
       firstName,
@@ -157,6 +233,15 @@ const registerUser = async (req, res) => {
       avatar: '',
       addresses: [],
       selectedFavorites: [],
+      fcmToken: cleanFcmToken,
+      webFcmToken: (!isMobile && cleanFcmToken) ? cleanFcmToken : null,
+      apkFcmToken: (isMobile && cleanFcmToken) ? cleanFcmToken : null,
+      fcmTokens: cleanFcmToken ? [{
+        token: cleanFcmToken,
+        device: effectiveDevice,
+        platform: effectivePlatform,
+        updatedAt: new Date()
+      }] : []
     });
 
     if (user) {
@@ -425,7 +510,7 @@ const updateUserFavorites = async (req, res) => {
 // @route   POST /api/auth/direct-login
 // @access  Public
 const directLogin = async (req, res) => {
-  const { phone, name } = req.body;
+  const { phone, name, fcmToken, device, platform } = req.body;
 
   if (!phone || typeof phone !== 'string' || phone.replace(/\D/g, '').length !== 10) {
     return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit mobile number' });
@@ -445,10 +530,31 @@ const directLogin = async (req, res) => {
       // Update name if changed
       if (trimmedName && user.firstName !== trimmedName) {
         user.firstName = trimmedName;
-        await user.save();
       }
+      if (fcmToken) {
+        attachFcmTokenToUser(user, fcmToken, device, platform);
+      }
+      await user.save();
     } else {
-      // Create new user directly
+      // Create new user directly with optional FCM token (Web or Mobile)
+      const cleanFcmToken = (fcmToken && typeof fcmToken === 'string') ? fcmToken.trim() : null;
+      const targetDev = String(device || '').toLowerCase();
+      const targetPlat = String(platform || '').toLowerCase();
+      const isMobile = (
+        targetDev.includes('apk') ||
+        targetDev.includes('android') ||
+        targetDev.includes('app') ||
+        targetDev.includes('mobile') ||
+        targetDev.includes('ios') ||
+        targetPlat.includes('mobile') ||
+        targetPlat.includes('apk') ||
+        targetPlat.includes('android') ||
+        targetPlat.includes('ios') ||
+        targetPlat.includes('app')
+      );
+      const effectiveDevice = device || (isMobile ? 'mobile' : 'web');
+      const effectivePlatform = platform || (isMobile ? 'mobile' : 'web');
+
       user = await User.create({
         title: 'Mr.',
         firstName: trimmedName,
@@ -456,10 +562,19 @@ const directLogin = async (req, res) => {
         lastName: '',
         mobile1: cleanedPhone,
         mobile2: cleanedPhone,
-        email: `${cleanedPhone}@findmypoint.in`,
+        email: ``,
         avatar: '',
         addresses: [],
-        selectedFavorites: []
+        selectedFavorites: [],
+        fcmToken: cleanFcmToken,
+        webFcmToken: (!isMobile && cleanFcmToken) ? cleanFcmToken : null,
+        apkFcmToken: (isMobile && cleanFcmToken) ? cleanFcmToken : null,
+        fcmTokens: cleanFcmToken ? [{
+          token: cleanFcmToken,
+          device: effectiveDevice,
+          platform: effectivePlatform,
+          updatedAt: new Date()
+        }] : []
       });
     }
 
@@ -488,7 +603,10 @@ const directLogin = async (req, res) => {
         addresses: user.addresses,
         selectedFavorites: user.selectedFavorites,
         isAdmin: user.isAdmin,
-        isClient: user.isClient
+        isClient: user.isClient,
+        fcmToken: user.fcmToken,
+        webFcmToken: user.webFcmToken,
+        apkFcmToken: user.apkFcmToken
       }
     });
   } catch (error) {
@@ -542,11 +660,67 @@ const refreshToken = async (req, res) => {
         addresses: user.addresses,
         selectedFavorites: user.selectedFavorites,
         isAdmin: user.isAdmin,
-        isClient: user.isClient
+        isClient: user.isClient,
+        fcmToken: user.fcmToken
       }
     });
   } catch (error) {
     res.status(401).json({ success: false, message: 'Invalid or expired token' });
+  }
+};
+
+// @desc    Update / Register FCM Token for logged-in user
+// @route   POST /api/auth/fcm-token
+// @access  Private
+const updateFcmToken = async (req, res) => {
+  const { fcmToken, device, platform } = req.body;
+  if (!fcmToken || typeof fcmToken !== 'string') {
+    return res.status(400).json({ success: false, message: 'Valid FCM token is required' });
+  }
+
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    attachFcmTokenToUser(user, fcmToken, device, platform);
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'FCM token registered successfully',
+      fcmToken: user.fcmToken,
+      platform: platform || device || 'mobile',
+      webFcmToken: user.webFcmToken,
+      apkFcmToken: user.apkFcmToken
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Remove FCM Token on logout
+// @route   DELETE /api/auth/fcm-token
+// @access  Private
+const removeFcmToken = async (req, res) => {
+  const { fcmToken } = req.body;
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (fcmToken && typeof fcmToken === 'string') {
+      const cleanToken = fcmToken.trim();
+      user.fcmTokens = (user.fcmTokens || []).filter(t => t.token !== cleanToken);
+      if (user.fcmToken === cleanToken) {
+        user.fcmToken = user.fcmTokens.length > 0 ? user.fcmTokens[user.fcmTokens.length - 1].token : null;
+      }
+    } else {
+      user.fcmToken = null;
+    }
+
+    await user.save();
+    res.status(200).json({ success: true, message: 'FCM token removed successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -561,5 +735,7 @@ module.exports = {
   addUserAddress,
   updateUserAddress,
   deleteUserAddress,
-  updateUserFavorites
+  updateUserFavorites,
+  updateFcmToken,
+  removeFcmToken
 };

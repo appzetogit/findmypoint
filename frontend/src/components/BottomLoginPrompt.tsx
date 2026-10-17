@@ -3,6 +3,8 @@ import { Loader2, ArrowLeft, User } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { API_BASE_URL } from "../config";
 import { socketService } from "../services/socketService";
+import { fcmService } from "../services/fcmService";
+import { isApkEnvironment } from "../utils/apkDetection";
 import PolicyPage from "./PolicyPage";
 
 interface BottomLoginPromptProps {
@@ -90,6 +92,17 @@ export default function BottomLoginPrompt({
     }
 
     setLoading(true);
+
+    // Request / Fetch FCM device token in background
+    let fcmToken: string | null = null;
+    try {
+      fcmToken = await fcmService.requestAndGetFcmToken();
+    } catch (e) {
+      console.warn("FCM token fetch in direct-login non-fatal:", e);
+    }
+
+    const deviceType = isApkEnvironment() ? "android-apk" : (window.innerWidth < 768 ? "mobile-web" : "desktop-web");
+
     try {
       const res = await fetch(`${API_BASE_URL}/auth/direct-login`, {
         method: "POST",
@@ -97,6 +110,8 @@ export default function BottomLoginPrompt({
         body: JSON.stringify({
           phone: cleanedPhone,
           name: trimmedName,
+          fcmToken: fcmToken || undefined,
+          device: deviceType,
         }),
       });
       const data = await res.json();
@@ -115,6 +130,11 @@ export default function BottomLoginPrompt({
         // Register socket
         if (userId) {
           socketService.registerUser(userId);
+        }
+
+        // Sync FCM token if fetched
+        if (fcmToken) {
+          fcmService.syncFcmTokenWithBackend(fcmToken).catch(() => {});
         }
 
         // Profile cache

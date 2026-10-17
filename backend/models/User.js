@@ -29,7 +29,16 @@ const UserSchema = new mongoose.Schema({
   addresses: [AddressSchema],
   selectedFavorites: [{ type: String }], // Favorite categories or business IDs
   isAdmin: { type: Boolean, default: false },
-  isClient: { type: Boolean, default: false } // Business owner / client
+  isClient: { type: Boolean, default: false }, // Business owner / client
+  fcmToken: { type: String, default: null }, // Primary / latest active FCM token
+  webFcmToken: { type: String, default: null }, // Dedicated Web browser FCM token
+  apkFcmToken: { type: String, default: null }, // Dedicated Android APK FCM token
+  fcmTokens: [{
+    token: { type: String, required: true },
+    device: { type: String, default: 'web' }, // 'web', 'apk', 'desktop-web', 'mobile-web', 'android-apk'
+    platform: { type: String, default: 'web' }, // 'web', 'android', 'ios'
+    updatedAt: { type: Date, default: Date.now }
+  }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);

@@ -3,6 +3,8 @@ import { Check, ShieldCheck, X } from "lucide-react";
 import logoImg from "@/assets/logo.png";
 import { API_BASE_URL } from "../config";
 import { socketService } from "../services/socketService";
+import { fcmService } from "../services/fcmService";
+import { isApkEnvironment } from "../utils/apkDetection";
 import { LazyImage } from "../components/ui/LazyImage";
 
 interface SignInPageProps {
@@ -180,11 +182,26 @@ export default function SignInPage({ onBack, onSuccess, isMandatory }: SignInPag
       return;
     }
     dispatch({ type: "SET_LOADING", value: true });
+
+    let fcmToken: string | null = null;
+    try {
+      fcmToken = await fcmService.requestAndGetFcmToken();
+    } catch (e) {
+      console.warn("FCM token fetch in verify-otp non-fatal:", e);
+    }
+
+    const deviceType = isApkEnvironment() ? "android-apk" : (window.innerWidth < 768 ? "mobile-web" : "desktop-web");
+
     try {
       const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phoneNumber, otp: fullOtp })
+        body: JSON.stringify({
+          phone: phoneNumber,
+          otp: fullOtp,
+          fcmToken: fcmToken || undefined,
+          device: deviceType,
+        })
       });
       const data = await res.json();
 
@@ -259,6 +276,16 @@ export default function SignInPage({ onBack, onSuccess, isMandatory }: SignInPag
       return;
     }
     dispatch({ type: "SET_LOADING", value: true });
+
+    let fcmToken: string | null = null;
+    try {
+      fcmToken = await fcmService.requestAndGetFcmToken();
+    } catch (e) {
+      console.warn("FCM token fetch in register non-fatal:", e);
+    }
+
+    const deviceType = isApkEnvironment() ? "android-apk" : (window.innerWidth < 768 ? "mobile-web" : "desktop-web");
+
     try {
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
@@ -270,7 +297,9 @@ export default function SignInPage({ onBack, onSuccess, isMandatory }: SignInPag
           lastName: "",
           mobile1: phoneNumber,
           mobile2: whatsappNumber,
-          email: email.trim()
+          email: email.trim(),
+          fcmToken: fcmToken || undefined,
+          device: deviceType,
         })
       });
       const data = await res.json();

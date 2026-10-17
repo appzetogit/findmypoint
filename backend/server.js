@@ -24,6 +24,9 @@ if (!process.env.JWT_SECRET) {
 // Connect to Database
 connectDB();
 
+// Initialize Firebase Admin (FCM Push Notifications)
+require('./services/firebaseService');
+
 const app = express();
 
 // Trust reverse proxy (Nginx) for accurate IP rate limiting and X-Forwarded-For headers

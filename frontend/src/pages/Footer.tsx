@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import logoImg from "@/assets/logo.png";
 import { loadFooterData, FooterData } from "../data/footerData";
-import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
+import { API_BASE_URL, RAZORPAY_KEY_ID, getRazorpayKey } from "../config";
 import {
   Briefcase,
   Phone,
@@ -654,8 +654,15 @@ export default function Footer() {
       headers["Authorization"] = `Bearer ${userToken}`;
     }
 
+    const razorpayKey = order.keyId || RAZORPAY_KEY_ID || await getRazorpayKey();
+    if (!razorpayKey) {
+      alert("Razorpay Key ID is not configured. Please ensure RAZORPAY_KEY_ID is set in backend .env.");
+      setIsProcessingPayment(false);
+      return;
+    }
+
     const options = {
-      key: RAZORPAY_KEY_ID,
+      key: razorpayKey,
       amount: order.amount, // in paise
       currency: order.currency || "INR",
       name: "FindmyPoint",

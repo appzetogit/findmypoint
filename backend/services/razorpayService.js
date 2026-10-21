@@ -1,5 +1,6 @@
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+require('dotenv').config();
 
 /**
  * Razorpay Service
@@ -134,6 +135,7 @@ class RazorpayService {
         receipt: order.receipt,
         status: order.status,
         createdAt: order.created_at,
+        keyId: keyId,
       };
     } catch (error) {
       console.error('❌ Error creating Razorpay order:', error);

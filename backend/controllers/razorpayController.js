@@ -1,6 +1,27 @@
 const razorpayService = require('../services/razorpayService');
 const Transaction = require('../models/Transaction');
 
+// @desc    Get Razorpay Public Key ID from environment
+// @route   GET /api/razorpay/key
+// @access  Public
+const getKey = async (req, res) => {
+  try {
+    const keyId = process.env.RAZORPAY_KEY_ID?.trim() || '';
+    if (!keyId) {
+      return res.status(500).json({
+        success: false,
+        message: 'RAZORPAY_KEY_ID is not configured in backend environment variables (.env)'
+      });
+    }
+    res.status(200).json({
+      success: true,
+      keyId
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // @desc    Create a new Razorpay Order
 // @route   POST /api/razorpay/order
 // @access  Public
@@ -17,7 +38,16 @@ const createOrder = async (req, res) => {
       receipt: `rcpt_${Date.now()}`
     });
 
-    res.status(200).json({ success: true, data: order });
+    const keyId = process.env.RAZORPAY_KEY_ID?.trim() || '';
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...order,
+        keyId
+      },
+      keyId
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -116,6 +146,7 @@ const verifyPayment = async (req, res) => {
 };
 
 module.exports = {
+  getKey,
   createOrder,
   verifyPayment
 };

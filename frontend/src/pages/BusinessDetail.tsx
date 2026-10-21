@@ -54,7 +54,7 @@ import {
 import logoImg from "@/assets/logo.png";
 import { BusinessListingData, UserReview } from "../data/businessesData";
 import Footer from "./Footer";
-import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
+import { API_BASE_URL, RAZORPAY_KEY_ID, getRazorpayKey } from "../config";
 import { useSEO } from "../hooks/useSEO";
 import { buildBusinessSchemas } from "../utils/seo";
 import NearbyBusinessesSection from "../components/map/NearbyBusinessesSection";
@@ -705,14 +705,21 @@ export default function BusinessDetailPage({
         return;
       }
 
-      const { id: order_id, amount: order_amount, currency } = orderData.data;
+      const { id: order_id, amount: order_amount, currency, keyId: orderKeyId } = orderData.data;
+
+      const razorpayKey = orderKeyId || orderData.keyId || RAZORPAY_KEY_ID || await getRazorpayKey();
+      if (!razorpayKey) {
+        alert("Razorpay Key ID is not configured. Please ensure RAZORPAY_KEY_ID is set in backend .env.");
+        dispatchPayment({ type: "SET_PROCESSING", value: false });
+        return;
+      }
 
       const prefillName = customerInfo?.name || customFormValues["Full Name"] || customFormValues["Your Name"] || customFormValues["Name"] || bookingForm.name || checkoutForm.name || username || "Customer";
       const prefillContact = customerInfo?.contact || customFormValues["Phone Number"] || customFormValues["Phone"] || customFormValues["Mobile"] || customFormValues["Mobile Number"] || bookingForm.phone || checkoutForm.phone || "";
       const prefillEmail = customerInfo?.email || customFormValues["Email"] || customFormValues["Email Address"] || checkoutForm.email || "";
 
       const options = {
-        key: RAZORPAY_KEY_ID,
+        key: razorpayKey,
         amount: order_amount,
         currency: currency || "INR",
         name: "FindmyPoint",

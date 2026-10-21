@@ -23,7 +23,7 @@ import {
   Sparkles,
   Download,
 } from "lucide-react";
-import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
+import { API_BASE_URL, RAZORPAY_KEY_ID, getRazorpayKey } from "../config";
 import bankQrImg from "../assets/bank_qr.png";
 
 interface FAQItem {
@@ -316,10 +316,17 @@ export default function HelpPage() {
         return;
       }
 
-      const { id: order_id, amount: order_amount, currency } = orderData.data;
+      const { id: order_id, amount: order_amount, currency, keyId: orderKeyId } = orderData.data;
+
+      const razorpayKey = orderKeyId || orderData.keyId || RAZORPAY_KEY_ID || await getRazorpayKey();
+      if (!razorpayKey) {
+        alert("Razorpay Key ID is not configured. Please ensure RAZORPAY_KEY_ID is set in backend .env.");
+        setIsPaying(false);
+        return;
+      }
 
       const options = {
-        key: RAZORPAY_KEY_ID,
+        key: razorpayKey,
         amount: order_amount,
         currency: currency || "INR",
         name: "INDIAN SOCIAL DEVELOPMENT ORGANIZATION",

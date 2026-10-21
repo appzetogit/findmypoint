@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, Eye, Trash2, Calendar, Clock, MapPin, Phone, Mail, User, ShieldCheck, Image as ImageIcon, X, ExternalLink } from "lucide-react";
-import { API_BASE_URL, RAZORPAY_KEY_ID } from "../config";
+import { API_BASE_URL, RAZORPAY_KEY_ID, getRazorpayKey } from "../config";
 import { LazyImage } from "../components/ui/LazyImage";
 
 interface BusinessRequest {
@@ -176,8 +176,14 @@ export default function BusinessRequests() {
       return;
     }
 
+    const razorpayKey = order.keyId || RAZORPAY_KEY_ID || await getRazorpayKey();
+    if (!razorpayKey) {
+      alert("Razorpay Key ID is not configured. Please ensure RAZORPAY_KEY_ID is set in backend .env.");
+      return;
+    }
+
     const options = {
-      key: RAZORPAY_KEY_ID,
+      key: razorpayKey,
       amount: order.amount,
       currency: order.currency || "INR",
       name: "FindmyPoint",

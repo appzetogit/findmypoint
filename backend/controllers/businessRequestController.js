@@ -169,7 +169,10 @@ const createRequest = async (req, res) => {
     res.status(201).json({
       success: true,
       request: savedRequest,
-      order
+      order: order ? {
+        ...order,
+        keyId: process.env.RAZORPAY_KEY_ID?.trim() || order.keyId || ''
+      } : null
     });
   } catch (error) {
     console.error('❌ Error creating business request:', error);
@@ -300,7 +303,10 @@ const getPaymentOrder = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      order
+      order: {
+        ...order,
+        keyId: process.env.RAZORPAY_KEY_ID?.trim() || order.keyId || ''
+      }
     });
   } catch (error) {
     console.error('❌ Error generating payment order:', error);

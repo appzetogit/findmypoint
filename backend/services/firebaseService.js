@@ -9,35 +9,14 @@ let isInitialized = false;
 let messagingInstance = null;
 
 function resolveServiceAccountFile() {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
-    const customPath = path.isAbsolute(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
-      ? process.env.FIREBASE_SERVICE_ACCOUNT_PATH
-      : path.join(__dirname, '..', process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
-    if (fs.existsSync(customPath)) return customPath;
+  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './config/findmypoint-66dc1-firebase-adminsdk-fbsvc-2da3e9d71f.json';
+  const resolvedPath = path.isAbsolute(serviceAccountPath)
+    ? serviceAccountPath
+    : path.join(__dirname, '..', serviceAccountPath);
+
+  if (fs.existsSync(resolvedPath)) {
+    return resolvedPath;
   }
-
-  const configDir = path.join(__dirname, '..', 'config');
-  const candidateNames = [
-    'findmypoint-66dc1-firebase-adminsdk-fbsvc-d71f89a182.json',
-    'findmypoint-66dc1-firebase-adminsdk-fbsvc-2da3e9d71f.json'
-  ];
-
-  for (const name of candidateNames) {
-    const candidatePath = path.join(configDir, name);
-    if (fs.existsSync(candidatePath)) {
-      return candidatePath;
-    }
-  }
-
-  // Fallback: look for any file matching firebase-adminsdk in config directory
-  if (fs.existsSync(configDir)) {
-    const files = fs.readdirSync(configDir);
-    const fbsvcFile = files.find(f => f.includes('firebase-adminsdk') && f.endsWith('.json'));
-    if (fbsvcFile) {
-      return path.join(configDir, fbsvcFile);
-    }
-  }
-
   return null;
 }
 

@@ -187,7 +187,13 @@ export default function BottomLoginPrompt({
       <div className="fixed inset-0" onClick={isMandatory ? undefined : handleDismiss} />
 
       {/* Bottom Sheet Container */}
-      <div className="relative z-10 bg-white rounded-t-[28px] sm:rounded-3xl shadow-2xl w-full max-w-md mx-auto pt-7 pb-6 px-6 sm:px-8 text-center animate-in slide-in-from-bottom duration-300">
+      <div
+        className="relative z-10 bg-white rounded-t-[32px] sm:rounded-3xl shadow-2xl w-full max-w-md mx-auto pt-4 sm:pt-7 px-6 sm:px-8 text-center animate-in slide-in-from-bottom duration-300"
+        style={{ paddingBottom: "max(2.75rem, env(safe-area-inset-bottom, 42px))" }}
+      >
+        {/* Grab Handle for Mobile */}
+        <div className="sm:hidden w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4" />
+
         {/* Logo */}
         <div className="flex justify-center items-center">
           <img src={logoImg} alt="FindMyPoint" className="h-8 sm:h-9 w-auto object-contain" />

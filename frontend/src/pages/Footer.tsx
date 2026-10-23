@@ -1036,27 +1036,15 @@ export default function Footer() {
     };
   }, []);
 
-  // Do not render footer inside APK or mobile app view; only show on website
+  // Do not render footer inside APK / App environment; keep it visible on the website (both desktop and mobile web)
   const [isApk] = useState(() => isApkEnvironment());
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.innerWidth < 768;
-    }
-    return false;
-  });
 
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  if (isApk || isMobile) {
+  if (isApk) {
     return null;
   }
 
   return (
-    <footer className="hidden sm:block mt-8 sm:mt-24 border-t border-border w-full bg-card/30 text-left">
+    <footer className="mt-8 sm:mt-24 border-t border-border w-full bg-card/30 text-left">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-8 pb-6 sm:py-16 w-full">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-8 sm:gap-10">
           {/* Brand & Socials column */}

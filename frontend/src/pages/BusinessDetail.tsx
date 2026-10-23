@@ -4665,7 +4665,10 @@ export default function BusinessDetailPage({
 
       {/* Floating Checkout Bar */}
       {Object.keys(cart).length > 0 && (
-        <div className="fixed bottom-0 inset-x-0 bg-primary border-t border-border p-4 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] z-40 animate-fade-in-up">
+        <div
+          className="fixed bottom-0 inset-x-0 bg-primary border-t border-border/40 px-4 pt-3.5 sm:pt-4 shadow-[0_-8px_30px_rgba(0,0,0,0.25)] z-40 animate-fade-in-up"
+          style={{ paddingBottom: "max(2.25rem, env(safe-area-inset-bottom, 36px))" }}
+        >
           <div className="mx-auto max-w-5xl flex items-center justify-between gap-4 text-white">
             <div className="flex flex-col text-left">
               <span className="text-xs font-semibold opacity-90">

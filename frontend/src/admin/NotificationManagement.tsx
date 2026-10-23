@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Bell,
   BellRing,
   Send,
-  Image as ImageIcon,
   Trash2,
   Search,
   RefreshCw,
@@ -11,17 +10,15 @@ import {
   AlertTriangle,
   XCircle,
   X,
-  Upload,
   Clock,
   Sparkles
 } from "lucide-react";
-import { API_BASE_URL, BACKEND_ORIGIN } from "../config";
+import { API_BASE_URL } from "../config";
 
 interface NotificationHistoryItem {
   _id: string;
   title: string;
   body: string;
-  imageUrl?: string;
   recipientCount: number;
   successCount: number;
   failureCount: number;
@@ -31,11 +28,9 @@ interface NotificationHistoryItem {
 }
 
 export default function NotificationManagement() {
-  // Form State - Only Title, Description, and Image
+  // Form State - Title and Description
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // Send State
   const [isSending, setIsSending] = useState(false);
@@ -50,8 +45,6 @@ export default function NotificationManagement() {
   const [historyPage, setHistoryPage] = useState(1);
   const [historySearch, setHistorySearch] = useState("");
   const [loadingHistory, setLoadingHistory] = useState(false);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getAdminToken = () => localStorage.getItem("fmp_admin_token") || "";
 
@@ -82,34 +75,6 @@ export default function NotificationManagement() {
     fetchHistory(1);
   }, []);
 
-  // ─── Image Upload Handler (File only) ───────────────────────────────────────
-  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      alert("Image size should be less than 2MB for fast push delivery.");
-      return;
-    }
-
-    setIsUploadingImage(true);
-    try {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string);
-        setIsUploadingImage(false);
-      };
-      reader.onerror = () => {
-        alert("Failed to read image file");
-        setIsUploadingImage(false);
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.error("Error reading image:", err);
-      setIsUploadingImage(false);
-    }
-  };
-
   // ─── Send Notification (Broadcast to All Users) ────────────────────────────
   const handleSendNotification = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,8 +103,7 @@ export default function NotificationManagement() {
         },
         body: JSON.stringify({
           title: title.trim(),
-          description: description.trim(),
-          imageUrl: imageUrl.trim() || null
+          description: description.trim()
         })
       });
 
@@ -152,8 +116,6 @@ export default function NotificationManagement() {
         // Reset form
         setTitle("");
         setDescription("");
-        setImageUrl("");
-        if (fileInputRef.current) fileInputRef.current.value = "";
         fetchHistory(1);
       } else {
         setSendFeedback({
@@ -185,15 +147,6 @@ export default function NotificationManagement() {
     } catch (err) {
       console.error("Failed to delete record:", err);
     }
-  };
-
-  // Helper for image URL
-  const formatImageSrc = (img?: string) => {
-    if (!img) return "";
-    if (img.startsWith("data:") || img.startsWith("http://") || img.startsWith("https://")) {
-      return img;
-    }
-    return `${BACKEND_ORIGIN}${img.startsWith("/") ? "" : "/"}${img}`;
   };
 
   return (
@@ -317,69 +270,6 @@ export default function NotificationManagement() {
               />
             </div>
 
-            {/* Notification Image (File upload only) */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-                <ImageIcon className="h-3.5 w-3.5 text-indigo-500" />
-                <span>Notification Image (Optional)</span>
-              </label>
-
-              <div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={handleImageFileChange}
-                  className="hidden"
-                  id="notif-image-upload"
-                />
-                {!imageUrl ? (
-                  <label
-                    htmlFor="notif-image-upload"
-                    className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 rounded-2xl p-5 flex flex-col items-center justify-center cursor-pointer transition bg-slate-50/50 dark:bg-slate-850/50 group"
-                  >
-                    <div className="p-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 group-hover:text-indigo-500 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/40 transition">
-                      <Upload className="h-5 w-5" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-2">
-                      {isUploadingImage ? "Processing image..." : "Click to upload notification image"}
-                    </span>
-                    <span className="text-[10px] text-slate-400 mt-0.5">
-                      JPG, PNG, or WEBP (Max 2MB)
-                    </span>
-                  </label>
-                ) : null}
-              </div>
-
-              {/* Image Preview Thumbnail */}
-              {imageUrl && (
-                <div className="mt-3 relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800">
-                  <img
-                    src={formatImageSrc(imageUrl)}
-                    alt="Notification Attachment"
-                    className="w-full max-h-48 object-cover"
-                    onError={() => console.warn("Failed to preview image")}
-                  />
-                  <div className="absolute top-2 right-2 flex items-center gap-2">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/60 text-white backdrop-blur-md">
-                      Image Attached
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setImageUrl("");
-                        if (fileInputRef.current) fileInputRef.current.value = "";
-                      }}
-                      className="p-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-md transition cursor-pointer"
-                      title="Remove image"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* Submit & Reset Buttons */}
             <div className="pt-3 flex items-center gap-3 border-t border-slate-100 dark:border-slate-800">
               <button
@@ -409,9 +299,7 @@ export default function NotificationManagement() {
                 onClick={() => {
                   setTitle("");
                   setDescription("");
-                  setImageUrl("");
                   setSendFeedback(null);
-                  if (fileInputRef.current) fileInputRef.current.value = "";
                 }}
                 className="px-4 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition cursor-pointer"
               >
@@ -484,17 +372,6 @@ export default function NotificationManagement() {
                     <p className="text-[11px] text-slate-300 mt-1 leading-relaxed line-clamp-3">
                       {description.trim() || "Your notification description text will be displayed right here on the user's mobile screen."}
                     </p>
-
-                    {/* Attached Image Banner */}
-                    {imageUrl && (
-                      <div className="mt-2.5 rounded-xl overflow-hidden border border-slate-700/70 max-h-36 bg-slate-950">
-                        <img
-                          src={formatImageSrc(imageUrl)}
-                          alt="Banner Preview"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -568,7 +445,6 @@ export default function NotificationManagement() {
               <thead className="bg-slate-50 dark:bg-slate-850 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider rounded-xl">
                 <tr>
                   <th className="py-3 px-4 rounded-l-xl">Notification Details</th>
-                  <th className="py-3 px-3">Image</th>
                   <th className="py-3 px-3">Target</th>
                   <th className="py-3 px-3">Delivered</th>
                   <th className="py-3 px-3">Status</th>
@@ -587,21 +463,6 @@ export default function NotificationManagement() {
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">
                         {item.body}
                       </div>
-                    </td>
-
-                    {/* Image Thumbnail */}
-                    <td className="py-3.5 px-3">
-                      {item.imageUrl ? (
-                        <div className="h-11 w-16 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800">
-                          <img
-                            src={formatImageSrc(item.imageUrl)}
-                            alt="Notif thumb"
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <span className="text-[10px] text-slate-400 italic">No image</span>
-                      )}
                     </td>
 
                     {/* Target */}

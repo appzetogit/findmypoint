@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   User,
   Phone,
@@ -18,7 +18,9 @@ import {
   Trash2,
   LogIn,
   Sparkles,
+  Camera,
 } from "lucide-react";
+import { API_BASE_URL } from "../config";
 
 interface MobileProfilePageProps {
   username?: string | null;
@@ -29,6 +31,7 @@ interface MobileProfilePageProps {
     email?: string;
     mobile1?: string;
     dobYYYY?: string;
+    avatar?: string;
   } | null;
   onSignInClick?: () => void;
   onLogout?: () => void;
@@ -39,6 +42,7 @@ interface MobileProfilePageProps {
   onSavedBusinessesClick?: () => void;
   onPrivacyPolicyClick?: () => void;
   onTermsConditionsClick?: () => void;
+  onProfileUpdate?: (profile: any) => void;
 }
 
 const MENU_SECTIONS = [
@@ -78,27 +82,127 @@ export default function MobileProfilePage({
   onSavedBusinessesClick,
   onPrivacyPolicyClick,
   onTermsConditionsClick,
+  onProfileUpdate,
 }: MobileProfilePageProps) {
   const isLoggedIn = !!username;
   const displayName = userProfile
     ? `${userProfile.firstName || ""} ${userProfile.lastName || ""}`.trim() || username || "User"
     : (username || "Guest User");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Profile avatar state (from userProfile prop or localStorage fallback)
+  const [avatar, setAvatar] = useState<string | null>(() => {
+    if (userProfile?.avatar) return userProfile.avatar;
+    try {
+      const saved = localStorage.getItem("fmp_profile_personal:v1");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.avatar || null;
+      }
+    } catch (e) {}
+    return null;
+  });
+
+  useEffect(() => {
+    if (userProfile?.avatar) {
+      setAvatar(userProfile.avatar);
+    } else {
+      try {
+        const saved = localStorage.getItem("fmp_profile_personal:v1");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.avatar) setAvatar(parsed.avatar);
+        }
+      } catch (e) {}
+    }
+  }, [userProfile?.avatar, username]);
+
+  // Handle direct photo upload
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      setAvatar(base64);
+
+      // Save to localStorage
+      try {
+        const saved = localStorage.getItem("fmp_profile_personal:v1");
+        const current = saved ? JSON.parse(saved) : {};
+        const updated = { ...current, ...userProfile, avatar: base64 };
+        localStorage.setItem("fmp_profile_personal:v1", JSON.stringify(updated));
+        onProfileUpdate?.(updated);
+      } catch (err) {}
+
+      // Save to backend if token exists
+      const token = localStorage.getItem("fmp_user_token");
+      if (token) {
+        try {
+          await fetch(`${API_BASE_URL}/auth/profile`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ avatar: base64 }),
+          });
+        } catch (err) {
+          console.error("Failed to update profile photo on server:", err);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
-    <div className="h-[calc(100vh-64px)] h-[calc(100dvh-64px)] flex flex-col overflow-hidden bg-background text-foreground">
+    <div className="h-[calc(100vh-78px)] h-[calc(100dvh-78px)] flex flex-col overflow-hidden bg-background text-foreground">
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto pb-6">
+      <div className="flex-1 overflow-y-auto pb-24">
         {/* Profile / Guest Card */}
         {isLoggedIn ? (
           <div className="mx-4 mt-4 bg-card border border-border rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-4">
-              {/* Avatar */}
-              <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shrink-0 shadow-md">
-                <span className="text-primary-foreground font-serif text-2xl font-bold">
-                  {displayName.charAt(0).toUpperCase()}
-                </span>
+              {/* Avatar Photo / Initial with Camera Upload */}
+              <div className="relative shrink-0">
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-md overflow-hidden cursor-pointer border border-border/80 group"
+                  title="Click to upload profile photo"
+                >
+                  {avatar ? (
+                    <img
+                      src={avatar}
+                      alt={displayName}
+                      className="w-full h-full object-cover rounded-2xl"
+                    />
+                  ) : (
+                    <span className="text-primary-foreground font-serif text-2xl font-bold">
+                      {displayName.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+
+                {/* Camera upload badge */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white dark:bg-slate-800 text-primary shadow-md flex items-center justify-center border border-border hover:scale-110 active:scale-95 transition cursor-pointer"
+                  title="Upload / Change Profile Photo"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                </button>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
               </div>
 
               <div className="flex-1 min-w-0">

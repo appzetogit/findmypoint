@@ -1613,15 +1613,31 @@ export default function HomePage({
                 Sign In
               </button>
             )}
-            {username && (
-              <button
-                onClick={onProfileClick}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-white hover:scale-105 transition-all duration-300 shadow-sm cursor-pointer ml-1 font-bold text-xs bg-primary"
-                title="Open Profile Menu"
-              >
-                {username.charAt(0).toUpperCase()}
-              </button>
-            )}
+            {username && (() => {
+              let headerAvatar: string | null = null;
+              try {
+                const saved = localStorage.getItem("fmp_profile_personal:v1");
+                if (saved) headerAvatar = JSON.parse(saved).avatar || null;
+              } catch (e) {}
+
+              return (
+                <button
+                  onClick={onProfileClick}
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-white hover:scale-105 transition-all duration-300 shadow-sm cursor-pointer ml-1 font-bold text-xs bg-primary overflow-hidden border border-border"
+                  title="Open Profile Menu"
+                >
+                  {headerAvatar ? (
+                    <img
+                      src={headerAvatar}
+                      alt={username}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    username.charAt(0).toUpperCase()
+                  )}
+                </button>
+              );
+            })()}
           </div>
         </div>
       </header>

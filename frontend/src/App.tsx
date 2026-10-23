@@ -24,6 +24,7 @@ import { socketService } from "./services/socketService";
 import { fcmService } from "./services/fcmService";
 import ReviewPromptModal from "./components/ReviewPromptModal";
 import { isApkEnvironment } from "./utils/apkDetection";
+import { API_BASE_URL } from "./config";
 
 
 interface AppViewState {
@@ -390,6 +391,7 @@ export default function App() {
     email?: string;
     mobile1?: string;
     dobYYYY?: string;
+    avatar?: string;
   } | null>(() => {
     if (typeof window !== "undefined") {
       const savedProfile = localStorage.getItem("fmp_profile_personal:v1");
@@ -665,6 +667,39 @@ export default function App() {
     };
 
     window.addEventListener("storage", handleStorageChange);
+
+    // Initial sync of profile from backend
+    const token = localStorage.getItem("fmp_user_token");
+    if (token) {
+      fetch(`${API_BASE_URL}/auth/profile`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.success && data.user) {
+            const u = data.user;
+            const updated = {
+              title: u.title || "Mr",
+              firstName: u.firstName || "",
+              lastName: u.lastName || "",
+              email: u.email || "",
+              mobile1: u.mobile1 || "",
+              dobYYYY: u.dobYYYY || "",
+              avatar: u.avatar || "",
+            };
+            setUserProfile((prev) => ({ ...(prev || {}), ...updated }));
+            if (u.firstName && !username) {
+              setUsername(u.firstName);
+            }
+            try {
+              const currentLocal = JSON.parse(localStorage.getItem("fmp_profile_personal:v1") || "{}");
+              localStorage.setItem("fmp_profile_personal:v1", JSON.stringify({ ...currentLocal, ...updated }));
+            } catch (e) {}
+          }
+        })
+        .catch(() => {});
+    }
+
     return () => {
       window.removeEventListener("storage", handleStorageChange);
     };
@@ -699,6 +734,7 @@ export default function App() {
           onSavedBusinessesClick={() => dispatch({ type: "SET_ACTIVE_SIDEBAR_PAGE", page: "Saved" })}
           onPrivacyPolicyClick={() => dispatch({ type: "SET_ACTIVE_SIDEBAR_PAGE", page: "Privacy Policy" })}
           onTermsConditionsClick={() => dispatch({ type: "SET_ACTIVE_SIDEBAR_PAGE", page: "Terms & Conditions" })}
+          onProfileUpdate={(updated) => setUserProfile(updated)}
         />
       );
     }
@@ -960,7 +996,7 @@ export default function App() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden w-full pb-4 sm:pb-0">
+    <div className="relative min-h-screen overflow-x-hidden w-full pb-24 sm:pb-0">
       {content}
 
       {/* Sidebar Overlay */}
@@ -1025,10 +1061,13 @@ export default function App() {
 
       {/* Mobile Bottom Navigation */}
       {isMobile && !state.showAdminPanel && !state.showClientPanel && !state.showSignIn && !state.showProfileWizard && (
-        <nav className={`sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border transition-transform duration-300 ease-in-out ${
-          isNavVisible ? "translate-y-0" : "translate-y-full"
-        }`}>
-          <div className="flex items-stretch justify-around h-16 w-full max-w-3xl mx-auto">
+        <nav
+          className={`sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-900 border-t border-slate-200/90 dark:border-slate-800 shadow-[0_-4px_25px_rgba(0,0,0,0.06)] transition-transform duration-300 ease-in-out ${
+            isNavVisible ? "translate-y-0" : "translate-y-full"
+          }`}
+          style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 24px))" }}
+        >
+          <div className="flex items-center justify-around pt-2 px-2 w-full max-w-3xl mx-auto">
             {([
               { icon: Home,         label: "Home",         key: "home" },
               { icon: CalendarDays, label: "Booking",      key: "booking" },
@@ -1049,18 +1088,15 @@ export default function App() {
                       dispatch({ type: "SET_SHOW_ALL_CATEGORIES", show: false });
                     }
                   }}
-                  className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-colors cursor-pointer ${
+                  className={`flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-all cursor-pointer ${
                     isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
                   }`}
                 >
-                  <div className="relative flex items-center justify-center w-6 h-6">
-                    {isActive && (
-                      <span className="absolute inset-0 rounded-full bg-blue-50 dark:bg-slate-800 shadow-sm scale-150" />
-                    )}
-                    <Icon className="h-5 w-5 relative z-10" strokeWidth={isActive ? 2.5 : 2} />
+                  <div className="flex items-center justify-center h-6 w-6">
+                    <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
                   </div>
-                  <span className={`text-[10px] font-semibold leading-none ${
-                    isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-500 dark:text-slate-400"
+                  <span className={`text-[11px] font-semibold leading-tight tracking-tight ${
+                    isActive ? "text-blue-600 dark:text-blue-400 font-bold" : "text-slate-500 dark:text-slate-400"
                   }`}>
                     {label}
                   </span>

@@ -140,7 +140,7 @@ export default function MobileBookingPage({ onSignInClick }: MobileBookingPagePr
   });
 
   return (
-    <div className="h-[calc(100vh-64px)] h-[calc(100dvh-64px)] flex flex-col overflow-hidden bg-background text-foreground">
+    <div className="h-[calc(100vh-78px)] h-[calc(100dvh-78px)] flex flex-col overflow-hidden bg-background text-foreground">
       {/* Header */}
       <div className="shrink-0 bg-background/95 backdrop-blur-md border-b border-border px-4 pt-4 pb-3">
         <h1 className="font-serif text-xl font-bold mb-3">My Bookings</h1>
@@ -159,7 +159,7 @@ export default function MobileBookingPage({ onSignInClick }: MobileBookingPagePr
       </div>
 
       {/* Booking List */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-6">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-24">
         {!hasToken ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center px-4">
             <div className="w-16 h-16 rounded-3xl bg-primary/10 flex items-center justify-center mb-1">

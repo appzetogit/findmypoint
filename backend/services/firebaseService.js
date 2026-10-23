@@ -8,16 +8,46 @@ const Notification = require('../models/Notification');
 let isInitialized = false;
 let messagingInstance = null;
 
+function resolveServiceAccountFile() {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
+    const customPath = path.isAbsolute(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
+      ? process.env.FIREBASE_SERVICE_ACCOUNT_PATH
+      : path.join(__dirname, '..', process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
+    if (fs.existsSync(customPath)) return customPath;
+  }
+
+  const configDir = path.join(__dirname, '..', 'config');
+  const candidateNames = [
+    'findmypoint-66dc1-firebase-adminsdk-fbsvc-d71f89a182.json',
+    'findmypoint-66dc1-firebase-adminsdk-fbsvc-2da3e9d71f.json'
+  ];
+
+  for (const name of candidateNames) {
+    const candidatePath = path.join(configDir, name);
+    if (fs.existsSync(candidatePath)) {
+      return candidatePath;
+    }
+  }
+
+  // Fallback: look for any file matching firebase-adminsdk in config directory
+  if (fs.existsSync(configDir)) {
+    const files = fs.readdirSync(configDir);
+    const fbsvcFile = files.find(f => f.includes('firebase-adminsdk') && f.endsWith('.json'));
+    if (fbsvcFile) {
+      return path.join(configDir, fbsvcFile);
+    }
+  }
+
+  return null;
+}
+
 function initFirebase() {
   if (isInitialized && messagingInstance) return messagingInstance;
 
   try {
-    const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './config/findmypoint-66dc1-firebase-adminsdk-fbsvc-2da3e9d71f.json';
-    const resolvedPath = path.isAbsolute(serviceAccountPath)
-      ? serviceAccountPath
-      : path.join(__dirname, '..', serviceAccountPath);
+    const resolvedPath = resolveServiceAccountFile();
 
-    if (fs.existsSync(resolvedPath)) {
+    if (resolvedPath && fs.existsSync(resolvedPath)) {
       const serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
 
       const apps = getApps();
@@ -28,9 +58,9 @@ function initFirebase() {
 
       messagingInstance = getMessaging(app);
       isInitialized = true;
-      console.log(`🔥 [FIREBASE ADMIN] Initialized successfully for project: ${serviceAccount.project_id}`);
+      console.log(`🔥 [FIREBASE ADMIN] Initialized successfully using: ${path.basename(resolvedPath)} for project: ${serviceAccount.project_id}`);
     } else {
-      console.warn(`⚠️ [FIREBASE ADMIN] Service account key file not found at: ${resolvedPath}`);
+      console.warn(`⚠️ [FIREBASE ADMIN] Service account key file not found in config directory.`);
     }
   } catch (error) {
     console.error(`❌ [FIREBASE ADMIN] Initialization failed:`, error.message);
@@ -64,12 +94,20 @@ const resolveFullImageUrl = (img) => {
 };
 
 /**
- * Construct data-only FCM message payload (prevents OS auto-displaying duplicate notifications).
- * The Service Worker in firebase-messaging-sw.js is the single display controller.
+ * Universal FCM message payload with image support and tag deduplication.
+ * Ensures notifications display reliably on Android APK (system tray) and Web browsers.
  */
 function buildFcmMessagePayload({ title, body, imageUrl = null, icon = '/logo.png', url = '/', data = {} }) {
   const fullImageUrl = resolveFullImageUrl(imageUrl);
   const notifId = `fmp-${Date.now()}`;
+
+  const notificationPayload = {
+    title: String(title || ''),
+    body: String(body || ''),
+  };
+  if (fullImageUrl) {
+    notificationPayload.imageUrl = fullImageUrl;
+  }
 
   const stringData = {
     title: String(title || ''),
@@ -85,19 +123,48 @@ function buildFcmMessagePayload({ title, body, imageUrl = null, icon = '/logo.pn
     ),
   };
 
-  return {
-    data: stringData,
-    android: {
-      priority: 'high',
+  const webpush = {
+    headers: {
+      Urgency: 'high'
     },
-    webpush: {
-      headers: {
-        Urgency: 'high'
-      },
-      fcmOptions: {
-        link: url || '/'
-      }
+    fcmOptions: {
+      link: url || '/'
+    },
+    notification: {
+      icon: icon || '/logo.png',
+      badge: '/logo.png',
+      tag: notifId, // Collapses duplicates by tag
+      renotify: true,
+      requireInteraction: false,
+      ...(fullImageUrl ? { image: fullImageUrl } : {})
     }
+  };
+
+  const android = {
+    priority: 'high',
+    notification: {
+      sound: 'default',
+      channelId: 'default',
+      tag: notifId,
+      ...(fullImageUrl ? { imageUrl: fullImageUrl } : {})
+    }
+  };
+
+  const apns = {
+    payload: {
+      aps: {
+        'mutable-content': 1
+      }
+    },
+    ...(fullImageUrl ? { fcm_options: { image: fullImageUrl } } : {})
+  };
+
+  return {
+    notification: notificationPayload,
+    data: stringData,
+    webpush,
+    android,
+    apns,
   };
 }
 

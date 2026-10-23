@@ -26,16 +26,24 @@ const messaging = firebase.messaging();
 
 /**
  * Background message handler
- * Single controller for displaying notifications (prevents duplicate notification bug)
+ * Avoids duplicate notification by checking if payload.notification was already handled by browser/SDK.
  */
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message: ', payload);
 
+  // If the message has a notification payload, browser/FCM SDK already displays it automatically.
+  // Calling showNotification here causes duplicate (2nd) notification!
+  if (payload.notification) {
+    console.log('[firebase-messaging-sw.js] Notification payload auto-displayed by system/SDK.');
+    return;
+  }
+
+  // Fallback for data-only push messages
   const data = payload.data || {};
-  const notificationTitle = data.title || payload.notification?.title || 'FindMyPoint';
-  const notificationBody = data.body || data.description || payload.notification?.body || '';
-  const notificationImage = data.image || data.imageUrl || payload.notification?.image || payload.notification?.imageUrl;
-  const notificationIcon = data.icon || payload.notification?.icon || '/logo.png';
+  const notificationTitle = data.title || 'FindMyPoint';
+  const notificationBody = data.body || data.description || '';
+  const notificationImage = data.image || data.imageUrl;
+  const notificationIcon = data.icon || '/logo.png';
   const targetUrl = data.url || payload.fcmOptions?.link || '/';
   const tag = data.tag || data.notificationId || 'fmp-push-alert';
 

@@ -24,10 +24,12 @@ function initFirebase() {
   if (isInitialized && messagingInstance) return messagingInstance;
 
   try {
-    const resolvedPath = resolveServiceAccountFile();
+    // Prefer env var (keeps the key out of git — Google revokes keys pushed to public repos)
+    const envJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    const resolvedPath = envJson ? 'FIREBASE_SERVICE_ACCOUNT_JSON' : resolveServiceAccountFile();
 
-    if (resolvedPath && fs.existsSync(resolvedPath)) {
-      const serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
+    if (resolvedPath) {
+      const serviceAccount = JSON.parse(envJson || fs.readFileSync(resolvedPath, 'utf8'));
 
       const apps = getApps();
       const app = apps.length > 0 ? apps[0] : initializeApp({
@@ -277,6 +279,7 @@ const sendMulticastBatch = async (tokens, payload) => {
         batchResponse.responses.forEach((resp, idx) => {
           if (!resp.success && resp.error) {
             const errCode = resp.error.code;
+            console.error(`❌ [FCM MULTICAST] Token ${chunk[idx].slice(0, 10)}... ${errCode}: ${resp.error.message}`);
             if (errCode === 'messaging/registration-token-not-registered' || errCode === 'messaging/invalid-argument') {
               invalidTokens.push(chunk[idx]);
             }

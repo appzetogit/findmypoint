@@ -33,6 +33,7 @@ import {
   Eye,
   EyeOff,
   HeartHandshake,
+  Bell,
 } from "lucide-react";
 import Dashboard from "./Dashboard";
 import AdminEntryForm from "./AdminEntryForm";
@@ -62,6 +63,7 @@ import ArticleManagement from "./ArticleManagement";
 import HeroSubcategoriesManagement from "./HeroSubcategoriesManagement";
 import PopularServicesManagement from "./PopularServicesManagement";
 import CategoryBannerManagement from "./CategoryBannerManagement";
+import NotificationManagement from "./NotificationManagement";
 import logoImg from "../assets/logo.png";
 import { LazyImage } from "../components/ui/LazyImage";
 
@@ -84,6 +86,7 @@ export type AdminView =
   | "about"
   | "footer"
   | "banner_management"
+  | "notification_management"
   | "category_banners"
   | "employee_management"
   | "privacy_policy"
@@ -646,6 +649,23 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
                   </button>
 
                   <button
+                    onClick={() => handleViewChange("notification_management")}
+                    className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
+                      currentView === "notification_management"
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg shadow-indigo-600/20 translate-x-1"
+                        : "text-slate-400 hover:text-white bg-transparent hover:bg-slate-855 border-transparent hover:translate-x-1"
+                    }`}
+                  >
+                    {currentView === "notification_management" && (
+                      <span className="absolute left-0 top-3.5 bottom-3.5 w-1 bg-white rounded-r-md" />
+                    )}
+                    <Bell
+                      className={`h-4.5 w-4.5 transition-colors ${currentView === "notification_management" ? "text-white" : "text-slate-400 group-hover:text-white"}`}
+                    />
+                    <span>Notification Management</span>
+                  </button>
+
+                  <button
                     onClick={() => handleViewChange("employee_management")}
                     className={`w-full relative flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer text-left border ${
                       currentView === "employee_management"
@@ -1102,6 +1122,8 @@ export default function AdminShell({ onClose, username }: AdminShellProps) {
           {currentView === "footer" && <FooterManagement />}
 
           {currentView === "banner_management" && <BannerManagement />}
+
+          {currentView === "notification_management" && <NotificationManagement />}
 
           {currentView === "employee_management" && <EmployeeManagement />}
 

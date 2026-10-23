@@ -3,6 +3,15 @@
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
 
+// Auto-activate new Service Worker immediately
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(clients.claim());
+});
+
 // Initialize Firebase inside the Service Worker
 firebase.initializeApp({
   apiKey: "AIzaSyCGFcTjYugCAIu6OJ0eljRCz_hcdy9XJjQ",
@@ -15,21 +24,37 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Background message handler
+/**
+ * Background message handler
+ * Single controller for displaying notifications (prevents duplicate notification bug)
+ */
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message: ', payload);
 
-  const notificationTitle = payload.notification?.title || payload.data?.title || 'FindMyPoint';
+  const data = payload.data || {};
+  const notificationTitle = data.title || payload.notification?.title || 'FindMyPoint';
+  const notificationBody = data.body || data.description || payload.notification?.body || '';
+  const notificationImage = data.image || data.imageUrl || payload.notification?.image || payload.notification?.imageUrl;
+  const notificationIcon = data.icon || payload.notification?.icon || '/logo.png';
+  const targetUrl = data.url || payload.fcmOptions?.link || '/';
+  const tag = data.tag || data.notificationId || 'fmp-push-alert';
+
   const notificationOptions = {
-    body: payload.notification?.body || payload.data?.body || '',
-    icon: payload.notification?.icon || payload.data?.icon || '/logo.png',
+    body: notificationBody,
+    icon: notificationIcon,
     badge: '/logo.png',
+    tag: tag, // Collapses any duplicate push with the same tag at OS level
+    renotify: true,
     data: {
-      url: payload.data?.url || payload.fcmOptions?.link || '/'
+      url: targetUrl
     }
   };
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  if (notificationImage) {
+    notificationOptions.image = notificationImage;
+  }
+
+  return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
 // Click notification handler to open URL

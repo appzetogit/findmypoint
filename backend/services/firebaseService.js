@@ -3,6 +3,7 @@ const fs = require('fs');
 const { initializeApp, cert, getApps } = require('firebase-admin/app');
 const { getMessaging } = require('firebase-admin/messaging');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 let isInitialized = false;
 let messagingInstance = null;
@@ -44,35 +45,74 @@ initFirebase();
 const isConfigured = () => isInitialized;
 
 /**
+ * Helper to ensure image URLs are fully qualified absolute URLs
+ * so FCM can fetch and render them across devices.
+ */
+const resolveFullImageUrl = (img) => {
+  if (!img || typeof img !== 'string') return null;
+  const trimmed = img.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+  const baseUrl = (process.env.BACKEND_URL || 'https://findmypoint.app').replace(/\/+$/, '');
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return `${baseUrl}${cleanPath}`;
+};
+
+/**
+ * Construct data-only FCM message payload (prevents OS auto-displaying duplicate notifications).
+ * The Service Worker in firebase-messaging-sw.js is the single display controller.
+ */
+function buildFcmMessagePayload({ title, body, imageUrl = null, icon = '/logo.png', url = '/', data = {} }) {
+  const fullImageUrl = resolveFullImageUrl(imageUrl);
+  const notifId = `fmp-${Date.now()}`;
+
+  const stringData = {
+    title: String(title || ''),
+    body: String(body || ''),
+    description: String(body || ''),
+    url: url || '/',
+    icon: icon || '/logo.png',
+    tag: notifId,
+    notificationId: notifId,
+    ...(fullImageUrl ? { image: fullImageUrl, imageUrl: fullImageUrl } : {}),
+    ...Object.fromEntries(
+      Object.entries(data || {}).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)])
+    ),
+  };
+
+  return {
+    data: stringData,
+    android: {
+      priority: 'high',
+    },
+    webpush: {
+      headers: {
+        Urgency: 'high'
+      },
+      fcmOptions: {
+        link: url || '/'
+      }
+    }
+  };
+}
+
+/**
  * Send push notification to a single FCM device token
  */
-const sendToToken = async (fcmToken, { title, body, data = {}, icon = '/logo.png', url = '/' }) => {
+const sendToToken = async (fcmToken, { title, body, data = {}, icon = '/logo.png', url = '/', imageUrl = null }) => {
   if (!isInitialized || !fcmToken) {
     return { success: false, message: 'Firebase not configured or invalid token' };
   }
 
+  const basePayload = buildFcmMessagePayload({ title, body, imageUrl, url, icon, data });
   const message = {
     token: fcmToken,
-    notification: {
-      title,
-      body,
-    },
-    data: {
-      url: url || '/',
-      ...Object.fromEntries(
-        Object.entries(data).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)])
-      ),
-    },
-    webpush: {
-      fcmOptions: {
-        link: url || '/'
-      },
-      notification: {
-        icon: icon || '/logo.png',
-        badge: '/logo.png',
-        requireInteraction: false
-      }
-    }
+    ...basePayload
   };
 
   try {
@@ -95,7 +135,6 @@ const sendToUser = async (userId, payload) => {
     const user = await User.findById(userId);
     if (!user) return { success: false, message: 'User not found' };
 
-    // Collect all unique tokens
     const tokenSet = new Set();
     if (user.fcmToken) tokenSet.add(user.fcmToken);
     if (user.webFcmToken) tokenSet.add(user.webFcmToken);
@@ -122,7 +161,6 @@ const sendToUser = async (userId, payload) => {
       }
     }
 
-    // Clean up stale/invalid tokens from DB
     if (invalidTokens.length > 0) {
       user.fcmTokens = (user.fcmTokens || []).filter(t => !invalidTokens.includes(t.token));
       if (invalidTokens.includes(user.fcmToken)) {
@@ -145,9 +183,236 @@ const sendToUser = async (userId, payload) => {
   }
 };
 
+/**
+ * Send multicast notification in batches of up to 500 tokens
+ */
+const sendMulticastBatch = async (tokens, payload) => {
+  if (!isInitialized) return { success: false, message: 'Firebase not configured', totalSent: 0, successCount: 0, failureCount: 0, invalidTokens: [] };
+  if (!Array.isArray(tokens) || tokens.length === 0) {
+    return { success: true, message: 'No tokens provided', totalSent: 0, successCount: 0, failureCount: 0, invalidTokens: [] };
+  }
+
+  const basePayload = buildFcmMessagePayload(payload);
+  const CHUNK_SIZE = 500;
+  let successCount = 0;
+  let failureCount = 0;
+  const invalidTokens = [];
+
+  for (let i = 0; i < tokens.length; i += CHUNK_SIZE) {
+    const chunk = tokens.slice(i, i + CHUNK_SIZE);
+    try {
+      let batchResponse;
+      if (typeof messagingInstance.sendEachForMulticast === 'function') {
+        batchResponse = await messagingInstance.sendEachForMulticast({
+          tokens: chunk,
+          ...basePayload
+        });
+      } else if (typeof messagingInstance.sendMulticast === 'function') {
+        batchResponse = await messagingInstance.sendMulticast({
+          tokens: chunk,
+          ...basePayload
+        });
+      } else {
+        const responses = [];
+        for (const t of chunk) {
+          responses.push(await sendToToken(t, payload));
+        }
+        batchResponse = {
+          responses,
+          successCount: responses.filter(r => r.success).length,
+          failureCount: responses.filter(r => !r.success).length
+        };
+      }
+
+      successCount += batchResponse.successCount;
+      failureCount += batchResponse.failureCount;
+
+      if (batchResponse.responses && Array.isArray(batchResponse.responses)) {
+        batchResponse.responses.forEach((resp, idx) => {
+          if (!resp.success && resp.error) {
+            const errCode = resp.error.code;
+            if (errCode === 'messaging/registration-token-not-registered' || errCode === 'messaging/invalid-argument') {
+              invalidTokens.push(chunk[idx]);
+            }
+          }
+        });
+      }
+    } catch (batchErr) {
+      console.error(`❌ [FCM MULTICAST ERROR] Batch chunk ${i / CHUNK_SIZE}:`, batchErr.message);
+      failureCount += chunk.length;
+    }
+  }
+
+  return {
+    success: true,
+    totalSent: tokens.length,
+    successCount,
+    failureCount,
+    invalidTokens
+  };
+};
+
+/**
+ * Remove invalid/unregistered tokens from all User records in DB
+ */
+const pruneInvalidTokensFromDB = async (invalidTokens) => {
+  if (!Array.isArray(invalidTokens) || invalidTokens.length === 0) return;
+
+  try {
+    const setOfInvalid = new Set(invalidTokens);
+
+    const affectedUsers = await User.find({
+      $or: [
+        { fcmToken: { $in: invalidTokens } },
+        { webFcmToken: { $in: invalidTokens } },
+        { apkFcmToken: { $in: invalidTokens } },
+        { 'fcmTokens.token': { $in: invalidTokens } }
+      ]
+    });
+
+    for (const user of affectedUsers) {
+      let changed = false;
+      if (user.fcmToken && setOfInvalid.has(user.fcmToken)) {
+        user.fcmToken = null;
+        changed = true;
+      }
+      if (user.webFcmToken && setOfInvalid.has(user.webFcmToken)) {
+        user.webFcmToken = null;
+        changed = true;
+      }
+      if (user.apkFcmToken && setOfInvalid.has(user.apkFcmToken)) {
+        user.apkFcmToken = null;
+        changed = true;
+      }
+      if (Array.isArray(user.fcmTokens) && user.fcmTokens.length > 0) {
+        const initialLen = user.fcmTokens.length;
+        user.fcmTokens = user.fcmTokens.filter(t => !setOfInvalid.has(t.token));
+        if (user.fcmTokens.length !== initialLen) {
+          changed = true;
+          if (!user.fcmToken && user.fcmTokens.length > 0) {
+            user.fcmToken = user.fcmTokens[user.fcmTokens.length - 1].token;
+          }
+        }
+      }
+      if (changed) {
+        await user.save();
+      }
+    }
+    console.log(`🧹 [FCM CLEANUP] Pruned ${invalidTokens.length} dead tokens across ${affectedUsers.length} users.`);
+  } catch (cleanErr) {
+    console.error(`⚠️ [FCM CLEANUP ERROR]:`, cleanErr.message);
+  }
+};
+
+/**
+ * Broadcast notification to ALL registered users and save record (auto-expires in 3 days)
+ */
+const broadcastNotification = async ({
+  title,
+  body,
+  imageUrl = null,
+  clickUrl = '/',
+  adminUser = null
+}) => {
+  if (!isInitialized) {
+    return { success: false, message: 'Firebase Admin not initialized. Check service account config.' };
+  }
+
+  try {
+    const matchedUsers = await User.find({
+      $or: [
+        { fcmToken: { $ne: null } },
+        { webFcmToken: { $ne: null } },
+        { apkFcmToken: { $ne: null } },
+        { 'fcmTokens.0': { $exists: true } }
+      ]
+    }).select('fcmToken webFcmToken apkFcmToken fcmTokens');
+
+    const tokenSet = new Set();
+    matchedUsers.forEach(u => {
+      if (u.fcmToken) tokenSet.add(u.fcmToken);
+      if (u.webFcmToken) tokenSet.add(u.webFcmToken);
+      if (u.apkFcmToken) tokenSet.add(u.apkFcmToken);
+      if (Array.isArray(u.fcmTokens)) {
+        u.fcmTokens.forEach(t => {
+          if (t?.token) tokenSet.add(t.token);
+        });
+      }
+    });
+
+    const tokens = Array.from(tokenSet).filter(Boolean);
+
+    if (tokens.length === 0) {
+      const notif = await Notification.create({
+        title,
+        body,
+        imageUrl: resolveFullImageUrl(imageUrl) || imageUrl,
+        clickUrl: clickUrl || '/',
+        recipientCount: 0,
+        successCount: 0,
+        failureCount: 0,
+        status: 'failed',
+        sentBy: adminUser?.username || 'Admin'
+      });
+
+      return {
+        success: false,
+        message: 'No registered push tokens found in the database.',
+        notification: notif
+      };
+    }
+
+    // Send multicast
+    const sendResult = await sendMulticastBatch(tokens, {
+      title,
+      body,
+      imageUrl,
+      url: clickUrl || '/'
+    });
+
+    // Prune invalid tokens asynchronously
+    if (sendResult.invalidTokens && sendResult.invalidTokens.length > 0) {
+      pruneInvalidTokensFromDB(sendResult.invalidTokens).catch(err => {
+        console.error('Error background pruning tokens:', err);
+      });
+    }
+
+    const status = sendResult.failureCount === 0
+      ? 'sent'
+      : (sendResult.successCount > 0 ? 'partially_sent' : 'failed');
+
+    const notificationRecord = await Notification.create({
+      title,
+      body,
+      imageUrl: resolveFullImageUrl(imageUrl) || imageUrl,
+      clickUrl: clickUrl || '/',
+      recipientCount: tokens.length,
+      successCount: sendResult.successCount,
+      failureCount: sendResult.failureCount,
+      status,
+      sentBy: adminUser?.username || 'Admin'
+    });
+
+    return {
+      success: true,
+      message: `Notification sent successfully to ${sendResult.successCount} of ${tokens.length} devices.`,
+      notification: notificationRecord,
+      totalSent: tokens.length,
+      successCount: sendResult.successCount,
+      failureCount: sendResult.failureCount
+    };
+  } catch (error) {
+    console.error(`❌ [FCM BROADCAST ERROR]:`, error);
+    return { success: false, message: error.message };
+  }
+};
+
 module.exports = {
   initFirebase,
   isConfigured,
+  resolveFullImageUrl,
   sendToToken,
-  sendToUser
+  sendToUser,
+  sendMulticastBatch,
+  broadcastNotification
 };

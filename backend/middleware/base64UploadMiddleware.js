@@ -68,6 +68,8 @@ const base64UploadMiddleware = async (req, res, next) => {
       folder = 'employees';
     } else if (path.includes('/banners') || path.includes('/popular-services')) {
       folder = 'banners';
+    } else if (path.includes('/notifications')) {
+      folder = 'notifications';
     }
 
     try {

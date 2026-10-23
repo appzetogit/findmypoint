@@ -267,6 +267,7 @@ const reviewRoutes = require('./routes/reviewRoutes');
 const faqRoutes = require('./routes/faqRoutes');
 const seoRoutes = require('./routes/seoRoutes');
 const withdrawalRoutes = require('./routes/withdrawalRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 const crawlerPrerender = require('./middleware/crawlerPrerender');
 
 // API Healthcheck
@@ -319,6 +320,7 @@ app.use('/api/business-requests', businessRequestRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/faqs', faqRoutes);
 app.use('/api/withdrawals', withdrawalRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 
 // Fallback Route

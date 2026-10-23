@@ -1037,7 +1037,24 @@ export default function Footer() {
   }, []);
 
   // Do not render footer inside APK / App environment; keep it visible on the website (both desktop and mobile web)
-  const [isApk] = useState(() => isApkEnvironment());
+  const [isApk, setIsApk] = useState(() => isApkEnvironment());
+
+  useEffect(() => {
+    if (!isApk && isApkEnvironment()) {
+      setIsApk(true);
+    }
+    const handleApkDetect = () => {
+      if (isApkEnvironment()) {
+        setIsApk(true);
+      }
+    };
+    window.addEventListener("fmp-apk-detected", handleApkDetect);
+    window.addEventListener("storage", handleApkDetect);
+    return () => {
+      window.removeEventListener("fmp-apk-detected", handleApkDetect);
+      window.removeEventListener("storage", handleApkDetect);
+    };
+  }, [isApk]);
 
   if (isApk) {
     return null;

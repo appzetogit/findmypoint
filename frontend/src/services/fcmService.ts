@@ -31,6 +31,8 @@ class FCMService {
       this.currentToken = cleanToken;
       localStorage.setItem("fmp_fcm_token", cleanToken);
       localStorage.setItem("fmp_fcm_token_apk", cleanToken);
+      localStorage.setItem("fmp_is_apk", "true");
+      window.dispatchEvent(new Event("fmp-apk-detected"));
 
       // If user is already logged in, immediately sync to backend as APK device
       if (localStorage.getItem("fmp_user_token")) {

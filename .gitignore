@@ -2,11 +2,6 @@
 node_modules/
 
 # Environment Variables
-.env
-.env.*
-.env.local
-.env.development
-.env.production
 !.env.example
 
 # Build Outputs
@@ -23,7 +18,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 # IDE & OS
-.vscode/
 .idea/
 .DS_Store
 Thumbs.db
+config.bat
